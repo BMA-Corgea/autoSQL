@@ -1,0 +1,35 @@
+# ── AutoDev: per-machine, must NOT travel ────────────────────────────────
+# A bare {"ok":true} with no machine identity. If this rides along, a fresh
+# clone's doctor reports "full access PROVEN" for a probe it never ran.
+# Re-earn it on each machine: bash <plugin>/ops/verify-access.sh .
+.autodev/access-verified.json
+.autodev/logs/
+
+# Generated view — rebuilt on demand by /autodev:board
+.autodev/board.html
+
+# ── autoSQL project ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Secrets and local config — never commit
+.env
+.env.*
+!.env.example
+*.pem
+
+# Local scratch
+.DS_Store
+Thumbs.db
+*.log

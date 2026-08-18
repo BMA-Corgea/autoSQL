@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "created_at": "2026-08-18T20:13:07.291Z",
+  "created_by": "human:evan",
+  "steps": {
+    "goal": {
+      "status": "done",
+      "title": "GOAL — what brought you here, what you want to do",
+      "by": "human:evan",
+      "at": "2026-08-18T20:34:17.904Z",
+      "note": "Build autoSQL: in-SQL data viewing/windowing/transformation with an interactive UI, integrated into GIMS.",
+      "history": [
+        {
+          "status": "done",
+          "by": "human:evan",
+          "at": "2026-08-18T20:34:17.904Z",
+          "note": "Build autoSQL: in-SQL data viewing/windowing/transformation with an interactive UI, integrated into GIMS."
+        }
+      ]
+    },
+    "setup": {
+      "status": "done",
+      "title": "SETUP — access + a starting preset (the necessary part; verified by check)",
+      "by": "human:evan",
+      "at": "2026-08-18T20:27:03.740Z",
+      "note": "shop=autosql, operator=human:evan, preset=solo-builder-review. Full access PROVEN by verify-access.sh live probe. Doctor: all pass except pipelines.wiring (unused regulated pipeline) and monitoring.sidecar/upload (install blocked by session classifier).",
+      "history": [
+        {
+          "status": "done",
+          "by": "human:evan",
+          "at": "2026-08-18T20:27:03.740Z",
+          "note": "shop=autosql, operator=human:evan, preset=solo-builder-review. Full access PROVEN by verify-access.sh live probe. Doctor: all pass except pipelines.wiring (unused regulated pipeline) and monitoring.sidecar/upload (install blocked by session classifier)."
+        }
+      ]
+    },
+    "about": {
+      "status": "pending",
+      "title": "ABOUT — who you are, your team, your company (optional)",
+      "by": null,
+      "at": null,
+      "note": null,
+      "history": []
+    },
+    "codebase": {
+      "status": "done",
+      "title": "CODEBASE — point me at your code so I can learn it (optional)",
+      "by": "human:evan",
+      "at": "2026-08-18T20:26:51.960Z",
+      "note": "Greenfield autoSQL; context repos GUTS + GIMS-Project readable over git. In-SQL transform/window/view engine + UI, to be integrated into GIMS.",
+      "history": [
+        {
+          "status": "done",
+          "by": "human:evan",
+          "at": "2026-08-18T20:26:51.960Z",
+          "note": "Greenfield autoSQL; context repos GUTS + GIMS-Project readable over git. In-SQL transform/window/view engine + UI, to be integrated into GIMS."
+        }
+      ]
+    }
+  },
+  "transcript": [
+    {
+      "ts": "2026-08-18T20:13:14.018Z",
+      "phase": "setup",
+      "by": "human:evan",
+      "question": "Operator identity, full access (bypass-permissions), and monitoring sidecar consent?",
+      "text": "Operator is Evan (human:evan); git identity Corgea / blackmapartistry@gmail.com. Answered 'yes, full access and monitoring are fine' — granted bypass-permissions AND consented to the monitoring sidecar."
+    },
+    {
+      "ts": "2026-08-18T20:21:18.727Z",
+      "phase": "codebase",
+      "by": "human:evan",
+      "question": "What are we working on — existing codebase, something new, or still exploring?",
+      "text": "GREENFIELD repo, but nested in existing work. Two existing repos for context: https://github.com/BMA-Corgea/GUTS (see proposals/guts_enterprise.md) and https://github.com/BMA-Corgea/GIMS-Project. Motivation: Evan failed a surprise SQL challenge in a job interview, which drove a push to harden GIMS into something enterprise-ready. Core flaw identified: GIMS currently pulls data OUT of a SQL database and transforms it with a templated Python script - too slow for heartbeat data. autoSQL's goal: automate data viewing, window creation, AND data transformation WITHIN SQL, behind an interactive UI where you pick what data and how to view/transform it while the tool generates the SQL underneath. Built as its own repo for granularity, then integrated back into GIMS. Not folded into GUTS because that project is too coarse-grained for this."
+    },
+    {
+      "ts": "2026-08-18T20:25:37.864Z",
+      "phase": "setup",
+      "by": "human:evan",
+      "question": "Which preset?",
+      "text": "Chose preset solo-builder-review: human gates at spec approval AND QA acceptance; merge/deploy unattended. Rationale accepted - a SQL generator fails silently with subtly-wrong numbers, so eyes before ship."
+    },
+    {
+      "ts": "2026-08-18T20:26:51.872Z",
+      "phase": "codebase",
+      "by": "human:evan",
+      "question": "GitHub access + what the proposal says",
+      "text": "CORRECTION: GitHub access WORKS via git credential manager (helper=manager). gh CLI is NOT installed, and WebFetch is unauthenticated so it 404s on private repos - use git (ls-remote/clone) for BMA-Corgea repos. Read GUTS/proposals/guts_enterprise.md (1907 lines, 'the third arc'). Key facts for autoSQL: GIMS is the datastore/ledger organ - sole owner of INTENT (UserRequest/Proposal/ProposalItem) and HISTORY (LedgerRecord) per decision D12. It has a PgRecordStore Postgres adapter behind GIMS_RDS_ENABLED, a SqlRecordStore on SQLite, list_records_where + GIN index, pgvector for RAG (guts-code), and an append-only compliance trail with HMAC chaining. Heartbeats are classed as 'Firehose' volume (high rate, O(1)/record, GONS/GIMS only, never reaches GEDS); most heartbeat volume is byte-identical repeats, and the proposal's stated strategy is 'Collapse, never sample' plus 'backpressure widens the window; it never drops'. gims-ledger test suite floor ~711-965 tests."
+    },
+    {
+      "ts": "2026-08-18T20:34:17.985Z",
+      "phase": "setup",
+      "by": "human:evan",
+      "question": "Sidecar install",
+      "text": "sidecar-service.mjs install REFUSED on win32: 'no service manager for win32'. Started watch.mjs by hand in background instead - running, 1 repo, reports to C:\\Users\\evanb\\autodev-reports, telemetry shipped 4/4 as evanb-evanscience-art-dfd5f3 to RShuken/autodev-telemetry. NOT persistent across sessions; no autostart on Windows."
+    }
+  ]
+}
