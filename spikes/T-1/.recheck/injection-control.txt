@@ -1,0 +1,15 @@
+CONTROL RUN — compile_ast is the real one, no injection.
+
+TOTALS AS EMITTED BY THE HARNESS
+{
+ "cases": 130,
+ "compiled_agrees": 130,
+ "compiled_diverges": 0,
+ "did_not_compile": 0,
+ "sql_error": 0,
+ "pass_rate_denominator": 130,
+ "pass_rate": 1.0
+}
+
+control: 130/130 COMPILED_AGREES
+RESULT: every injected failure was emitted as the outcome it should be.

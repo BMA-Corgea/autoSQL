@@ -1,0 +1,140 @@
+{
+ "W1": {
+  "expr": "$.status == \"open\"",
+  "provenance": "fixture shape '$.s == \"FAIL\"' (case 28) with the probe's own 'status' key",
+  "ast": "('cmp', '==', ('field', [('key', 'status')]), ('str', 'open'))",
+  "sql": "to_jsonb(nullif((data -> (%(p0)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p1)s)::text))",
+  "params": {
+   "p0": "status",
+   "p1": "open"
+  },
+  "rendered": "to_jsonb(nullif((data -> ('status')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('open')::text))",
+  "compiled": true
+ },
+ "W2": {
+  "expr": "$.score > 90",
+  "provenance": "fixture shape '$.n < 7' (case 25) with the probe's own numeric 'score' key",
+  "ast": "('cmp', '>', ('field', [('key', 'score')]), ('num', 90.0))",
+  "sql": "to_jsonb(xpr.ord((%(p2)s)::text, nullif((data -> (%(p0)s)::text), 'null'::jsonb), to_jsonb((%(p1)s)::float8)))",
+  "params": {
+   "p0": "score",
+   "p1": 90.0,
+   "p2": ">"
+  },
+  "rendered": "to_jsonb(xpr.ord(('>')::text, nullif((data -> ('score')::text), 'null'::jsonb), to_jsonb((90.0)::float8)))",
+  "compiled": true
+ },
+ "W3": {
+  "expr": "$.score * 2 > 180",
+  "provenance": "fixture shapes '$.a * 2' (case 23) + '$.n < 7' composed -- arithmetic predicate",
+  "ast": "('cmp', '>', ('bin', '*', ('field', [('key', 'score')]), ('num', 2.0)), ('num', 180.0))",
+  "sql": "to_jsonb(xpr.ord((%(p3)s)::text, to_jsonb(xpr.num(nullif((data -> (%(p0)s)::text), 'null'::jsonb)) * xpr.num(to_jsonb((%(p1)s)::float8))), to_jsonb((%(p2)s)::float8)))",
+  "params": {
+   "p0": "score",
+   "p1": 2.0,
+   "p2": 180.0,
+   "p3": ">"
+  },
+  "rendered": "to_jsonb(xpr.ord(('>')::text, to_jsonb(xpr.num(nullif((data -> ('score')::text), 'null'::jsonb)) * xpr.num(to_jsonb((2.0)::float8))), to_jsonb((180.0)::float8)))",
+  "compiled": true
+ },
+ "W4": {
+  "expr": "days_between(today(), $.due_date) < 7",
+  "provenance": "VERBATIM fixture case 114, and the exact widget in sources.py's own docstring (:25-26)",
+  "ast": "('cmp', '<', ('call', 'days_between', [('call', 'today', []), ('field', [('key', 'due_date')])]), ('num', 7.0))",
+  "sql": "to_jsonb(xpr.ord((%(p2)s)::text, to_jsonb((xpr.pdate_ms(nullif((data -> (%(p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8), to_jsonb((%(p1)s)::float8)))",
+  "params": {
+   "p0": "due_date",
+   "p1": 7.0,
+   "p2": "<"
+  },
+  "rendered": "to_jsonb(xpr.ord(('<')::text, to_jsonb((xpr.pdate_ms(nullif((data -> ('due_date')::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms(('{\"now\": \"2026-08-19T12:00:00Z\"}'::jsonb)::jsonb), true)))) / 86400000.0::float8), to_jsonb((7.0)::float8)))",
+  "compiled": true
+ },
+ "W5": {
+  "expr": "$.status == \"done\" or $.status == \"blocked\"",
+  "provenance": "fixture shape '$.result == \"FAIL\" or $.result == \"ERROR\"' (case 115)",
+  "ast": "('or', ('cmp', '==', ('field', [('key', 'status')]), ('str', 'done')), ('cmp', '==', ('field', [('key', 'status')]), ('str', 'blocked')))",
+  "sql": "to_jsonb(xpr.truthy(to_jsonb(nullif((data -> (%(p0)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p1)s)::text))) OR xpr.truthy(to_jsonb(nullif((data -> (%(p2)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p3)s)::text))))",
+  "params": {
+   "p0": "status",
+   "p1": "done",
+   "p2": "status",
+   "p3": "blocked"
+  },
+  "rendered": "to_jsonb(xpr.truthy(to_jsonb(nullif((data -> ('status')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('done')::text))) OR xpr.truthy(to_jsonb(nullif((data -> ('status')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('blocked')::text))))",
+  "compiled": true
+ },
+ "W6": {
+  "expr": "$.actor == \"goms\"",
+  "provenance": "the ledger's OWN containment field (_INDEXABLE_FIELDS), written as an expr predicate",
+  "ast": "('cmp', '==', ('field', [('key', 'actor')]), ('str', 'goms'))",
+  "sql": "to_jsonb(nullif((data -> (%(p0)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p1)s)::text))",
+  "params": {
+   "p0": "actor",
+   "p1": "goms"
+  },
+  "rendered": "to_jsonb(nullif((data -> ('actor')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('goms')::text))",
+  "compiled": true
+ },
+ "W7": {
+  "expr": "lower($.status) == \"open\"",
+  "provenance": "fixture shape 'lower($.s)' (case 70) used as a predicate",
+  "ast": "('cmp', '==', ('call', 'lower', [('field', [('key', 'status')])]), ('str', 'open'))",
+  "sql": "to_jsonb(to_jsonb(lower(xpr.str(nullif((data -> (%(p0)s)::text), 'null'::jsonb)))) IS NOT DISTINCT FROM to_jsonb((%(p1)s)::text))",
+  "params": {
+   "p0": "status",
+   "p1": "open"
+  },
+  "rendered": "to_jsonb(to_jsonb(lower(xpr.str(nullif((data -> ('status')::text), 'null'::jsonb)))) IS NOT DISTINCT FROM to_jsonb(('open')::text))",
+  "compiled": true
+ },
+ "W8": {
+  "expr": "contains($.summary, \"hold\")",
+  "provenance": "fixture shape 'contains($.s, \"ell\")' (case 73)",
+  "ast": "('call', 'contains', [('field', [('key', 'summary')]), ('str', 'hold')])",
+  "sql": "to_jsonb(xpr.contains(nullif((data -> (%(p0)s)::text), 'null'::jsonb), to_jsonb((%(p1)s)::text)))",
+  "params": {
+   "p0": "summary",
+   "p1": "hold"
+  },
+  "rendered": "to_jsonb(xpr.contains(nullif((data -> ('summary')::text), 'null'::jsonb), to_jsonb(('hold')::text)))",
+  "compiled": true
+ },
+ "W9": {
+  "expr": "$.actor == \"goms\" and $.risk_level == \"high\"",
+  "provenance": "fixture shape '$.n > 0 and $.n < 10' (case 48) over two whitelisted ledger fields",
+  "ast": "('and', ('cmp', '==', ('field', [('key', 'actor')]), ('str', 'goms')), ('cmp', '==', ('field', [('key', 'risk_level')]), ('str', 'high')))",
+  "sql": "to_jsonb(xpr.truthy(to_jsonb(nullif((data -> (%(p0)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p1)s)::text))) AND xpr.truthy(to_jsonb(nullif((data -> (%(p2)s)::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb((%(p3)s)::text))))",
+  "params": {
+   "p0": "actor",
+   "p1": "goms",
+   "p2": "risk_level",
+   "p3": "high"
+  },
+  "rendered": "to_jsonb(xpr.truthy(to_jsonb(nullif((data -> ('actor')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('goms')::text))) AND xpr.truthy(to_jsonb(nullif((data -> ('risk_level')::text), 'null'::jsonb) IS NOT DISTINCT FROM to_jsonb(('high')::text))))",
+  "compiled": true
+ },
+ "D1": {
+  "expr": "days_between(today(), $.due_date)",
+  "provenance": "VERBATIM fixture case 117 shape -- the DERIVE column 'days_left' from sources.py:25",
+  "ast": "('call', 'days_between', [('call', 'today', []), ('field', [('key', 'due_date')])])",
+  "sql": "to_jsonb((xpr.pdate_ms(nullif((data -> (%(p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8)",
+  "params": {
+   "p0": "due_date"
+  },
+  "rendered": "to_jsonb((xpr.pdate_ms(nullif((data -> ('due_date')::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms(('{\"now\": \"2026-08-19T12:00:00Z\"}'::jsonb)::jsonb), true)))) / 86400000.0::float8)",
+  "compiled": true
+ },
+ "S1": {
+  "expr": "$.score",
+  "provenance": "the SORT key: sources.py:26 sort={field:'score'} -> _sort_key(_field_value(row,'score'))",
+  "ast": "('field', [('key', 'score')])",
+  "sql": "nullif((data -> (%(p0)s)::text), 'null'::jsonb)",
+  "params": {
+   "p0": "score"
+  },
+  "rendered": "nullif((data -> ('score')::text), 'null'::jsonb)",
+  "compiled": true
+ }
+}

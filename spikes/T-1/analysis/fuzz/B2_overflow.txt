@@ -1,0 +1,34 @@
+=== B2. overflow, corrected probes. The f8 guard clamps operands to <=1.7976931348623157e296,
+        so + - and sum() CANNOT overflow TODAY.  That is an accident of defect #1, not a design.
+   <SQL_RAISE>    multiply: smallest realistic overflow
+[SQL_RAISE   ] '$.a * $.b'  rec={'a': 1e+150, 'b': 1e+160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    divide
+[SQL_RAISE   ] '$.a / $.b'  rec={'a': 1e+150, 'b': 1e-160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <BOTH_RAISE>   round(): x*10^nd overflows inside xpr.round
+[BOTH_RAISE  ] 'round($.a, 20)'  rec={'a': 1.7e+296}
+               py  = None  RAISED OverflowError: cannot convert float infinity to integer
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <AGREE>        round(x,2) on the largest value the guard admits
+[AGREE       ] 'round($.a, 2)'  rec={'a': 1.7e+296}
+   <SQL_RAISE>    the shape a real dashboard writes
+[SQL_RAISE   ] '$.qty * $.price'  rec={'qty': 1e+200, 'price': 1e+200}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    sum then multiply
+[SQL_RAISE   ] 'sum($.l) * sum($.l)'  rec={'l': [1e+200]}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    multiply UNDERflow -> does PG raise?
+[SQL_RAISE   ] '$.a * $.a'  rec={'a': 1e-200}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <SQL_RAISE>    divide underflow
+[SQL_RAISE   ] '$.a / $.b'  rec={'a': 1e-300, 'b': 1e+100}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>        subnormal * 0
+[AGREE       ] '$.a * 0'  rec={'a': 1e-320}

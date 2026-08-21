@@ -1,0 +1,19 @@
+=== O. compiled predicate used as a WHERE filter ===
+    8 rows; row 3 holds amount=1e300, rows 6-8 hold non-ASCII numeric strings.
+
+    $.amount > 100             in-memory keeps [2, 3, 5]
+                               SQL keeps       [2, 5]
+                               >>> rows SILENTLY DROPPED: [3]   rows SILENTLY ADDED: none
+
+    number($.amount) > 100     in-memory keeps [2, 3, 5, 6, 7]
+                               SQL keeps       [2, 5]
+                               >>> rows SILENTLY DROPPED: [3, 6, 7]   rows SILENTLY ADDED: none
+
+    $.amount >= 5              in-memory keeps [1, 2, 3, 5]
+                               SQL keeps       [1, 2, 5]
+                               >>> rows SILENTLY DROPPED: [3]   rows SILENTLY ADDED: none
+
+    not ($.amount > 100)       in-memory keeps [1, 4, 6, 7, 8]
+                               SQL keeps       [1, 3, 4, 6, 7, 8]
+                               >>> rows SILENTLY DROPPED: none   rows SILENTLY ADDED: [3]
+

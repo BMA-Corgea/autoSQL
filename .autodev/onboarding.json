@@ -92,6 +92,41 @@
       "by": "human:evan",
       "question": "Sidecar install",
       "text": "sidecar-service.mjs install REFUSED on win32: 'no service manager for win32'. Started watch.mjs by hand in background instead - running, 1 repo, reports to C:\\Users\\evanb\\autodev-reports, telemetry shipped 4/4 as evanb-evanscience-art-dfd5f3 to RShuken/autodev-telemetry. NOT persistent across sessions; no autostart on Windows."
+    },
+    {
+      "ts": "2026-08-19T16:43:50.317Z",
+      "phase": "setup",
+      "by": "agent:claude(on-behalf:evan,autodev-init-2026-08-19)",
+      "question": "Resume on a new machine — is setup still real here?",
+      "text": "MACHINE MOVE: onboarding was completed 2026-08-18 on Windows (win32); this session resumes on LINUX at /home/corgea/Desktop/Coding Projects/autoSQL. Re-verified here: full access PROVEN by live verify-access.sh probe on Linux. Monitoring sidecar installed as a real systemd --user service (autodev-watch.service) — the win32 'no service manager' blocker is gone, so monitoring IS persistent across sessions on this machine. Fixed an upstream bug: sidecar-service.mjs unit() wrote ExecStart --roots unquoted, so systemd split '/home/corgea/Desktop/Coding Projects' at the space and the watcher watched a nonexistent '/home/corgea/Desktop/Coding'. Patched unit() to quote node/script/roots and taught sidecar-heal.mjs parseServiceArgs to tokenize quoted args, in BOTH the plugin cache (0.53.0) and the marketplace copy; restarted the service and confirmed argv is now one root. A plugin update will revert both patches. Doctor now: 18 pass, 1 warn (feature-regulated@v1/compliance-review role compliance-officer unresolved — an unused pipeline, harmless)."
+    },
+    {
+      "ts": "2026-08-19T18:46:16.507Z",
+      "phase": "setup",
+      "by": "agent:claude(on-behalf:evan,autodev-init-resume)",
+      "question": null,
+      "text": "RESUME 2026-08-19 (2nd session this day, Linux). Re-verified live: verify-access.sh says full access PROVEN. Monitoring sidecar: systemd --user autodev-watch.service installed:true running:true. Doctor: 18 pass, 1 warn (feature-regulated@v1/compliance-review role 'compliance-officer' unresolved - unused pipeline, harmless). Required goals all done (goal, setup, codebase); only optional ABOUT remains. No re-interviewing."
+    },
+    {
+      "ts": "2026-08-19T21:29:45.395Z",
+      "phase": "setup",
+      "by": "agent:claude(on-behalf:evan,autodev-init-resume-3)",
+      "question": null,
+      "text": "RESUME 2026-08-19 (3rd session, Linux). Re-verified live this session: verify-access.sh => full access PROVEN (headless claude ran in the repo). Monitoring sidecar: systemd --user autodev-watch.service installed:true running:true; the --roots quoting patch is still in place in the unit file and in sidecar-service.mjs (survives until a plugin update). Doctor: 18 pass, 1 warn (feature-regulated@v1/compliance-review role 'compliance-officer' unresolved - unused pipeline, harmless). Required goals goal/setup/codebase all done; only optional ABOUT remains. No re-interviewing."
+    },
+    {
+      "ts": "2026-08-21T18:02:27.867Z",
+      "phase": "setup",
+      "by": "agent:claude(on-behalf:evan,settings-pass-2026-08-21)",
+      "question": "Q34 - what must pass before demo code lands?",
+      "text": "DECISION (Evan, 2026-08-21), not a leftover: the merge and deploy gates STAY unattended - both steps keep running with no person in the loop. gates-policy.json was inspected and deliberately NOT edited this pass: spec_ready=human, merge=unattended, accept=human, deploy=unattended, sp_decide=human, ex_decide=human, compliance=human. The human eyes stay where the solo-builder-review preset put them (spec approval and QA acceptance) - which is the right place for this project, because a SQL generator's failure mode is a subtly wrong number that a merge gate would never have caught anyway. Re-affirmed, not inherited."
+    },
+    {
+      "ts": "2026-08-21T18:08:20.144Z",
+      "phase": "setup",
+      "by": "agent:claude(on-behalf:evan,settings-pass-2026-08-21)",
+      "question": "Q33/Q36/Q37/Q38/Q40/Q44/Q45 - apply the settings Evan chose",
+      "text": "SETTINGS PASS 2026-08-21 (Linux box). Q33 model routing: repo-local .autodev/roster/autosql/seats.json written (reviewer-agent/tester/adversarial-reviewer -> strong; builder/conscience-checker/principles-checker/release-manager given a tier so they stop inheriting the session model); tier->model ids pinned in .claude/settings.json env. Strong tier default is claude-fable-5 and it IS runnable here (probed, with a bogus-model control), so it was NOT downgraded to claude-opus-5 - opus-5 is pinned as AUTODEV_MODEL_FALLBACK instead. All four ids probed live. Q36 ceremony: shop settings.lean stays true; T-2 must run FULL and there is NO tracker verb that sets lean after create - the driving session must force it. Q37 time tracking: .autodev/time.json written, local only (sheetWebhook/sheet null), idleMin 90 chosen from this repo's gap distribution; rate left null on purpose. The 1.00h figure was TWO bugs: time-track.mjs derives the transcript dir with replace(/\\//g,'-') so a repo path containing a space never matches Claude Code's dir, and idleMin 15 fragmented every worker run. 1.00h -> 10.50h. Q38: doctor warning cleared with a real repo-local .autodev/roster/autosql/compliance-officer.md; doctor now 19 pass, 0 warn. Q40 telemetry: ~/autodev-reports/install.json rewritten as evan-corgea-ms-7c79-6a45ef (was corgea-corgea-ms-7c79-da02f2) - history splits here, and the Windows box still reports as evanb-*. Q44: autodev/agents/review.md + autodev/instructions/build.md written as real guidance, not the raw quote-dumps shop-tailor drafted. Q45: spikes/ row added to kb/index.md. Nothing under .autodev/tickets/, .autodev/events.jsonl or spikes/ was touched."
     }
   ]
 }

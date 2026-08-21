@@ -13,6 +13,9 @@ never-deleted) is plugin doctrine — see `skills/autodev/instructions/README.md
 | What is being worked RIGHT NOW | [CURRENT-WORK.md](CURRENT-WORK.md) | The live edge + recent past; updated at every handoff |
 | What happened, day by day | [days/](days/) | Movements generated from the event log + session summaries |
 | Why autoSQL exists and how it plugs into GIMS | [wiki/autosql-architecture.md](wiki/autosql-architecture.md) | The design: one spec, one compiler, two renderers; Postgres query plane; known risks |
+| **What was DECIDED about compiling expressions to SQL, and why** | [wiki/decision-expr-to-sql.md](wiki/decision-expr-to-sql.md) | The signed ruling (Evan, 2026-08-21): don't build the compiler-plus-adapter as scoped yet; fund a correctness battery and a speed run first. The three facts it turns on, the argument it lost, and the one part still open |
+| Can the GIMS expression AST compile to Postgres SQL? (T-1 spike) | [wiki/expr-ast-to-postgres-sql.md](wiki/expr-ast-to-postgres-sql.md) | The research behind that decision: options + recommendation — demonstrable but slower, and no fallback is reportable |
+| The raw working material behind a spike | [../spikes/](../spikes/) | One folder per spike ticket: `FRAMING.md`, `recon/`, `analysis/`, `proto/`, `FINDINGS.md`. The wiki pages above are the distilled answers; this is what they were distilled from |
 
 ## Layout
 

@@ -1,0 +1,57 @@
+=== I1. upper()  Python str.upper vs Postgres upper() under C.UTF-8 ===
+    assigned code points swept : 286718
+    mismatches                 : 102   (0.036%)
+    of which the two sides return DIFFERENT LENGTHS: 102
+    first 30:
+      U+00DF LATIN SMALL LETTER SHARP S   python='SS'           postgres='ß'           
+      U+0149 LATIN SMALL LETTER N PRECEDE python='ʼN'           postgres='ŉ'           
+      U+01F0 LATIN SMALL LETTER J WITH CA python='J̌'           postgres='ǰ'           
+      U+0390 GREEK SMALL LETTER IOTA WITH python='Ϊ́'          postgres='ΐ'           
+      U+03B0 GREEK SMALL LETTER UPSILON W python='Ϋ́'          postgres='ΰ'           
+      U+0587 ARMENIAN SMALL LIGATURE ECH  python='ԵՒ'           postgres='և'           
+      U+1E96 LATIN SMALL LETTER H WITH LI python='H̱'           postgres='ẖ'           
+      U+1E97 LATIN SMALL LETTER T WITH DI python='T̈'           postgres='ẗ'           
+      U+1E98 LATIN SMALL LETTER W WITH RI python='W̊'           postgres='ẘ'           
+      U+1E99 LATIN SMALL LETTER Y WITH RI python='Y̊'           postgres='ẙ'           
+      U+1E9A LATIN SMALL LETTER A WITH RI python='Aʾ'           postgres='ẚ'           
+      U+1F50 GREEK SMALL LETTER UPSILON W python='Υ̓'           postgres='ὐ'           
+      U+1F52 GREEK SMALL LETTER UPSILON W python='Υ̓̀'          postgres='ὒ'           
+      U+1F54 GREEK SMALL LETTER UPSILON W python='Υ̓́'          postgres='ὔ'           
+      U+1F56 GREEK SMALL LETTER UPSILON W python='Υ̓͂'          postgres='ὖ'           
+      U+1F80 GREEK SMALL LETTER ALPHA WIT python='ἈΙ'           postgres='ᾈ'           
+      U+1F81 GREEK SMALL LETTER ALPHA WIT python='ἉΙ'           postgres='ᾉ'           
+      U+1F82 GREEK SMALL LETTER ALPHA WIT python='ἊΙ'           postgres='ᾊ'           
+      U+1F83 GREEK SMALL LETTER ALPHA WIT python='ἋΙ'           postgres='ᾋ'           
+      U+1F84 GREEK SMALL LETTER ALPHA WIT python='ἌΙ'           postgres='ᾌ'           
+      U+1F85 GREEK SMALL LETTER ALPHA WIT python='ἍΙ'           postgres='ᾍ'           
+      U+1F86 GREEK SMALL LETTER ALPHA WIT python='ἎΙ'           postgres='ᾎ'           
+      U+1F87 GREEK SMALL LETTER ALPHA WIT python='ἏΙ'           postgres='ᾏ'           
+      U+1F88 GREEK CAPITAL LETTER ALPHA W python='ἈΙ'           postgres='ᾈ'           
+      U+1F89 GREEK CAPITAL LETTER ALPHA W python='ἉΙ'           postgres='ᾉ'           
+      U+1F8A GREEK CAPITAL LETTER ALPHA W python='ἊΙ'           postgres='ᾊ'           
+      U+1F8B GREEK CAPITAL LETTER ALPHA W python='ἋΙ'           postgres='ᾋ'           
+      U+1F8C GREEK CAPITAL LETTER ALPHA W python='ἌΙ'           postgres='ᾌ'           
+      U+1F8D GREEK CAPITAL LETTER ALPHA W python='ἍΙ'           postgres='ᾍ'           
+      U+1F8E GREEK CAPITAL LETTER ALPHA W python='ἎΙ'           postgres='ᾎ'           
+
+=== I2. lower()  Python str.lower vs Postgres lower() under C.UTF-8 ===
+    assigned code points swept : 286718
+    mismatches                 : 1   (0.000%)
+    of which the two sides return DIFFERENT LENGTHS: 1
+    first 30:
+      U+0130 LATIN CAPITAL LETTER I WITH  python='i̇'           postgres='i'           
+
+=== I3. named witnesses, end to end through the compiler ===
+    'stra\xdfe'  upper: <DIVERGE>    py='STRASSE'      sql='STRAßE'       | lower: <AGREE>      py='straße'       sql='straße'
+    '\u0130stanbul' upper: <AGREE>      py='İSTANBUL'     sql='İSTANBUL'     | lower: <DIVERGE>    py='i̇stanbul'    sql='istanbul'
+    '\u01c5ungla' upper: <AGREE>      py='ǄUNGLA'       sql='ǄUNGLA'       | lower: <AGREE>      py='ǆungla'       sql='ǆungla'
+    '\ufb01le'   upper: <DIVERGE>    py='FILE'         sql='ﬁLE'          | lower: <AGREE>      py='ﬁle'          sql='ﬁle'
+    '\u03a3\u038a\u03a3\u03a5\u03a6\u039f\u03a3' upper: <AGREE>      py='ΣΊΣΥΦΟΣ'      sql='ΣΊΣΥΦΟΣ'      | lower: <DIVERGE>    py='σίσυφος'      sql='σίσυφοσ'
+    '\u0391\u03a3' upper: <AGREE>      py='ΑΣ'           sql='ΑΣ'           | lower: <DIVERGE>    py='ας'           sql='ασ'
+    '\u03c2'     upper: <AGREE>      py='Σ'            sql='Σ'            | lower: <AGREE>      py='ς'            sql='ς'
+    '\ufb00'     upper: <DIVERGE>    py='FF'           sql='ﬀ'            | lower: <AGREE>      py='ﬀ'            sql='ﬀ'
+    '\u0149'     upper: <DIVERGE>    py='ʼN'           sql='ŉ'            | lower: <AGREE>      py='ŉ'            sql='ŉ'
+    '\u1e9e'     upper: <AGREE>      py='ẞ'            sql='ẞ'            | lower: <AGREE>      py='ß'            sql='ß'
+
+=== I4. string ORDERING: COLLATE "C" (bytes) vs Python (code points) ===
+    pairs compared: 1996   ordering mismatches: 0

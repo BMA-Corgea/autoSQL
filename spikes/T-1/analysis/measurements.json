@@ -1,0 +1,1107 @@
+{
+  "widget": {
+    "type": "noun",
+    "noun_type": "Sample",
+    "filters": {
+      "status": "open"
+    },
+    "derive": {
+      "days_left": "days_between(today(), $.due_date)"
+    },
+    "where": "$.days_left != null and $.days_left < 7",
+    "sort": {
+      "field": "days_left",
+      "dir": "asc"
+    },
+    "limit": 50
+  },
+  "ctx": {
+    "now": "2026-08-19T12:00:00Z"
+  },
+  "collection": "noun:Sample",
+  "pg": {
+    "version": "PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+    "max_parallel_workers_per_gather": "2",
+    "work_mem": "4MB",
+    "shared_buffers": "128MB"
+  },
+  "python": "3.12.3",
+  "connect_ms": 7.1,
+  "max_scan": 20000,
+  "sizes": {
+    "1000": {
+      "table": "measure_instances_1000",
+      "reps": 9,
+      "floor": {
+        "count_only_ms": 0.44480399992608,
+        "payload_bytes": 316430,
+        "payload_scan_ms": 1.820253000005323
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 2.24,
+          "min": 2.08,
+          "max": 2.52,
+          "stdev": 0.19,
+          "n": 9
+        },
+        "deserialize_ms": {
+          "median": 3.15,
+          "min": 3.05,
+          "max": 3.26,
+          "stdev": 0.06,
+          "n": 9
+        },
+        "acquire_ms": {
+          "median": 5.5,
+          "min": 5.13,
+          "max": 5.67,
+          "stdev": 0.22,
+          "n": 9
+        },
+        "truncate_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "derive_ms": {
+          "median": 7.25,
+          "min": 7.04,
+          "max": 7.44,
+          "stdev": 0.11,
+          "n": 9
+        },
+        "filter_ms": {
+          "median": 1.07,
+          "min": 1.06,
+          "max": 1.19,
+          "stdev": 0.05,
+          "n": 9
+        },
+        "sort_ms": {
+          "median": 0.03,
+          "min": 0.02,
+          "max": 0.03,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "process_ms": {
+          "median": 8.35,
+          "min": 8.12,
+          "max": 8.66,
+          "stdev": 0.16,
+          "n": 9
+        },
+        "total_ms": {
+          "median": 13.84,
+          "min": 13.37,
+          "max": 14.3,
+          "stdev": 0.31,
+          "n": 9
+        }
+      },
+      "path_a_shape": {
+        "truncated": false,
+        "rows_acquired": 1000,
+        "rows_scanned": 1000,
+        "rows_kept": 50
+      },
+      "path_a_peak_rss_mb": 72.3,
+      "path_a_rss_growth_mb": 0.5,
+      "path_B1": {
+        "total_ms": {
+          "median": 87.95,
+          "min": 86.28,
+          "max": 89.88,
+          "stdev": 1.21,
+          "n": 9
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 57.47,
+          "min": 57.28,
+          "max": 62.55,
+          "stdev": 1.98,
+          "n": 9
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 58.0,
+          "min": 56.67,
+          "max": 61.1,
+          "stdev": 1.27,
+          "n": 9
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 1.14,
+          "min": 1.09,
+          "max": 1.32,
+          "stdev": 0.07,
+          "n": 9
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 0.32,
+        "plus_field_read": 0.33,
+        "plus_xpr_pdate_ms": 11.85,
+        "plus_native_date": 0.55
+      },
+      "path_a_driver_acquire_ms": 5.38,
+      "qualifying_rows_total": 50,
+      "answer": {
+        "truncated": false,
+        "rows_acquired": 1000,
+        "rows_scanned_by_python": 1000,
+        "qualifying_rows_in_whole_table": 50,
+        "qualifying_rows_inside_cap": 50,
+        "qualifying_rows_never_examined": 0,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 50,
+        "top50_recall": 1.0,
+        "identical_order": true,
+        "rank1_correct": true,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": []
+      },
+      "identity": {
+        "verdict": "IDENTICAL",
+        "ok": true,
+        "detail": "identical",
+        "n_rows": 50
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=54.584..55.905 rows=50 loops=1)\n  Buffers: shared hit=54\n  ->  Result (actual time=54.583..55.899 rows=50 loops=1)\n        Buffers: shared hit=54\n        ->  Sort (actual time=54.548..54.551 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: quicksort  Memory: 55kB\n              Buffers: shared hit=54\n              ->  Seq Scan on measure_instances_1000 (actual time=1.575..54.517 rows=50 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 950\n                    Buffers: shared hit=54\nPlanning Time: 1.154 ms\nExecution Time: 55.937 ms",
+      "explain_B3": "Limit (actual time=54.158..55.453 rows=50 loops=1)\n  Buffers: shared hit=57\n  ->  Result (actual time=54.157..55.447 rows=50 loops=1)\n        Buffers: shared hit=57\n        ->  Sort (actual time=54.124..54.128 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: quicksort  Memory: 55kB\n              Buffers: shared hit=57\n              ->  Bitmap Heap Scan on measure_instances_1000 (actual time=1.652..54.092 rows=50 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 526\n                    Heap Blocks: exact=54\n                    Buffers: shared hit=57\n                    ->  Bitmap Index Scan on idx_measure_instances_1000_data_gin (actual time=0.031..0.031 rows=576 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=3\nPlanning:\n  Buffers: shared hit=1\nPlanning Time: 1.287 ms\nExecution Time: 55.492 ms"
+    },
+    "10000": {
+      "table": "measure_instances_10000",
+      "reps": 9,
+      "floor": {
+        "count_only_ms": 1.3507600001503306,
+        "payload_bytes": 3156809,
+        "payload_scan_ms": 15.770613000086087
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 20.3,
+          "min": 20.01,
+          "max": 25.52,
+          "stdev": 1.77,
+          "n": 9
+        },
+        "deserialize_ms": {
+          "median": 33.73,
+          "min": 32.51,
+          "max": 52.85,
+          "stdev": 8.22,
+          "n": 9
+        },
+        "acquire_ms": {
+          "median": 54.4,
+          "min": 53.0,
+          "max": 73.42,
+          "stdev": 9.01,
+          "n": 9
+        },
+        "truncate_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "derive_ms": {
+          "median": 74.81,
+          "min": 73.27,
+          "max": 76.78,
+          "stdev": 1.35,
+          "n": 9
+        },
+        "filter_ms": {
+          "median": 12.2,
+          "min": 11.89,
+          "max": 13.19,
+          "stdev": 0.38,
+          "n": 9
+        },
+        "sort_ms": {
+          "median": 0.34,
+          "min": 0.29,
+          "max": 0.38,
+          "stdev": 0.03,
+          "n": 9
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "process_ms": {
+          "median": 87.82,
+          "min": 85.52,
+          "max": 89.49,
+          "stdev": 1.34,
+          "n": 9
+        },
+        "total_ms": {
+          "median": 142.34,
+          "min": 138.52,
+          "max": 162.18,
+          "stdev": 9.81,
+          "n": 9
+        }
+      },
+      "path_a_shape": {
+        "truncated": false,
+        "rows_acquired": 10000,
+        "rows_scanned": 10000,
+        "rows_kept": 510
+      },
+      "path_a_peak_rss_mb": 97.9,
+      "path_a_rss_growth_mb": 1.3,
+      "path_B1": {
+        "total_ms": {
+          "median": 854.07,
+          "min": 848.67,
+          "max": 863.41,
+          "stdev": 4.99,
+          "n": 9
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 554.05,
+          "min": 545.34,
+          "max": 564.45,
+          "stdev": 5.81,
+          "n": 9
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 547.53,
+          "min": 545.92,
+          "max": 551.29,
+          "stdev": 1.9,
+          "n": 9
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 6.72,
+          "min": 6.63,
+          "max": 6.9,
+          "stdev": 0.09,
+          "n": 9
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 0.88,
+        "plus_field_read": 2.45,
+        "plus_xpr_pdate_ms": 113.05,
+        "plus_native_date": 3.16
+      },
+      "path_a_driver_acquire_ms": 75.81,
+      "qualifying_rows_total": 510,
+      "answer": {
+        "truncated": false,
+        "rows_acquired": 10000,
+        "rows_scanned_by_python": 10000,
+        "qualifying_rows_in_whole_table": 510,
+        "qualifying_rows_inside_cap": 510,
+        "qualifying_rows_never_examined": 0,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 50,
+        "top50_recall": 1.0,
+        "identical_order": true,
+        "rank1_correct": true,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": []
+      },
+      "identity": {
+        "verdict": "IDENTICAL",
+        "ok": true,
+        "detail": "identical",
+        "n_rows": 50
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=550.173..551.419 rows=50 loops=1)\n  Buffers: shared hit=531\n  ->  Result (actual time=550.173..551.413 rows=50 loops=1)\n        Buffers: shared hit=531\n        ->  Sort (actual time=550.142..550.145 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 72kB\n              Buffers: shared hit=531\n              ->  Seq Scan on measure_instances_10000 (actual time=1.631..549.879 rows=510 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 9490\n                    Buffers: shared hit=531\nPlanning Time: 1.125 ms\nExecution Time: 551.449 ms",
+      "explain_B3": "Limit (actual time=549.245..550.476 rows=50 loops=1)\n  Buffers: shared hit=535\n  ->  Result (actual time=549.245..550.470 rows=50 loops=1)\n        Buffers: shared hit=535\n        ->  Sort (actual time=549.214..549.217 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 72kB\n              Buffers: shared hit=535\n              ->  Bitmap Heap Scan on measure_instances_10000 (actual time=1.880..548.956 rows=510 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 5512\n                    Heap Blocks: exact=531\n                    Buffers: shared hit=535\n                    ->  Bitmap Index Scan on idx_measure_instances_10000_data_gin (actual time=0.266..0.267 rows=6022 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=4\nPlanning:\n  Buffers: shared hit=1\nPlanning Time: 1.153 ms\nExecution Time: 550.528 ms"
+    },
+    "20000": {
+      "table": "measure_instances_20000",
+      "reps": 9,
+      "floor": {
+        "count_only_ms": 2.438572000073691,
+        "payload_bytes": 6304182,
+        "payload_scan_ms": 31.325242000093567
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 40.58,
+          "min": 40.04,
+          "max": 48.88,
+          "stdev": 2.81,
+          "n": 9
+        },
+        "deserialize_ms": {
+          "median": 89.0,
+          "min": 65.77,
+          "max": 94.59,
+          "stdev": 10.57,
+          "n": 9
+        },
+        "acquire_ms": {
+          "median": 129.43,
+          "min": 105.81,
+          "max": 142.12,
+          "stdev": 12.18,
+          "n": 9
+        },
+        "truncate_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "derive_ms": {
+          "median": 145.34,
+          "min": 142.53,
+          "max": 150.14,
+          "stdev": 2.5,
+          "n": 9
+        },
+        "filter_ms": {
+          "median": 24.53,
+          "min": 24.2,
+          "max": 25.37,
+          "stdev": 0.39,
+          "n": 9
+        },
+        "sort_ms": {
+          "median": 0.73,
+          "min": 0.69,
+          "max": 0.87,
+          "stdev": 0.05,
+          "n": 9
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "process_ms": {
+          "median": 171.06,
+          "min": 167.71,
+          "max": 176.27,
+          "stdev": 2.76,
+          "n": 9
+        },
+        "total_ms": {
+          "median": 300.1,
+          "min": 277.15,
+          "max": 313.17,
+          "stdev": 12.98,
+          "n": 9
+        }
+      },
+      "path_a_shape": {
+        "truncated": false,
+        "rows_acquired": 20000,
+        "rows_scanned": 20000,
+        "rows_kept": 1055
+      },
+      "path_a_peak_rss_mb": 124.8,
+      "path_a_rss_growth_mb": 1.2,
+      "path_B1": {
+        "total_ms": {
+          "median": 1754.2,
+          "min": 1715.31,
+          "max": 1860.17,
+          "stdev": 41.28,
+          "n": 9
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 1138.61,
+          "min": 1117.16,
+          "max": 1155.25,
+          "stdev": 12.24,
+          "n": 9
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 1128.87,
+          "min": 1114.18,
+          "max": 1144.01,
+          "stdev": 11.07,
+          "n": 9
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 13.19,
+          "min": 12.58,
+          "max": 13.69,
+          "stdev": 0.41,
+          "n": 9
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 1.71,
+        "plus_field_read": 5.09,
+        "plus_xpr_pdate_ms": 224.49,
+        "plus_native_date": 6.95
+      },
+      "path_a_driver_acquire_ms": 133.78,
+      "qualifying_rows_total": 1055,
+      "answer": {
+        "truncated": false,
+        "rows_acquired": 20000,
+        "rows_scanned_by_python": 20000,
+        "qualifying_rows_in_whole_table": 1055,
+        "qualifying_rows_inside_cap": 1055,
+        "qualifying_rows_never_examined": 0,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 50,
+        "top50_recall": 1.0,
+        "identical_order": true,
+        "rank1_correct": true,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": []
+      },
+      "identity": {
+        "verdict": "IDENTICAL",
+        "ok": true,
+        "detail": "identical",
+        "n_rows": 50
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=1159.234..1160.565 rows=50 loops=1)\n  Buffers: shared hit=1061\n  ->  Result (actual time=1159.233..1160.559 rows=50 loops=1)\n        Buffers: shared hit=1061\n        ->  Sort (actual time=1159.198..1159.202 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 72kB\n              Buffers: shared hit=1061\n              ->  Seq Scan on measure_instances_20000 (actual time=1.712..1158.582 rows=1055 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 18945\n                    Buffers: shared hit=1061\nPlanning Time: 1.219 ms\nExecution Time: 1160.597 ms",
+      "explain_B3": "Limit (actual time=1167.934..1169.241 rows=50 loops=1)\n  Buffers: shared hit=1068\n  ->  Result (actual time=1167.933..1169.235 rows=50 loops=1)\n        Buffers: shared hit=1068\n        ->  Sort (actual time=1167.900..1167.904 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 72kB\n              Buffers: shared hit=1068\n              ->  Bitmap Heap Scan on measure_instances_20000 (actual time=2.346..1167.295 rows=1055 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 11044\n                    Heap Blocks: exact=1061\n                    Buffers: shared hit=1068\n                    ->  Bitmap Index Scan on idx_measure_instances_20000_data_gin (actual time=0.551..0.551 rows=12099 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=7\nPlanning:\n  Buffers: shared hit=1\nPlanning Time: 1.234 ms\nExecution Time: 1169.276 ms"
+    },
+    "25000": {
+      "table": "measure_instances_25000",
+      "reps": 9,
+      "floor": {
+        "count_only_ms": 2.791032000004634,
+        "payload_bytes": 7881565,
+        "payload_scan_ms": 40.33029600009286
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 57.83,
+          "min": 50.39,
+          "max": 62.22,
+          "stdev": 4.87,
+          "n": 9
+        },
+        "deserialize_ms": {
+          "median": 99.24,
+          "min": 85.63,
+          "max": 128.95,
+          "stdev": 12.94,
+          "n": 9
+        },
+        "acquire_ms": {
+          "median": 159.17,
+          "min": 137.85,
+          "max": 186.56,
+          "stdev": 14.27,
+          "n": 9
+        },
+        "truncate_ms": {
+          "median": 0.29,
+          "min": 0.27,
+          "max": 0.4,
+          "stdev": 0.04,
+          "n": 9
+        },
+        "derive_ms": {
+          "median": 145.88,
+          "min": 143.34,
+          "max": 171.82,
+          "stdev": 8.82,
+          "n": 9
+        },
+        "filter_ms": {
+          "median": 24.54,
+          "min": 24.47,
+          "max": 25.43,
+          "stdev": 0.31,
+          "n": 9
+        },
+        "sort_ms": {
+          "median": 0.8,
+          "min": 0.68,
+          "max": 1.5,
+          "stdev": 0.37,
+          "n": 9
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0,
+          "n": 9
+        },
+        "process_ms": {
+          "median": 171.73,
+          "min": 168.91,
+          "max": 197.86,
+          "stdev": 8.85,
+          "n": 9
+        },
+        "total_ms": {
+          "median": 331.7,
+          "min": 309.17,
+          "max": 359.01,
+          "stdev": 16.04,
+          "n": 9
+        }
+      },
+      "path_a_shape": {
+        "truncated": true,
+        "rows_acquired": 25000,
+        "rows_scanned": 20000,
+        "rows_kept": 1054
+      },
+      "path_a_peak_rss_mb": 137.4,
+      "path_a_rss_growth_mb": 0.3,
+      "path_B1": {
+        "total_ms": {
+          "median": 2231.87,
+          "min": 2208.58,
+          "max": 2262.63,
+          "stdev": 18.31,
+          "n": 9
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 1447.17,
+          "min": 1431.95,
+          "max": 1454.12,
+          "stdev": 7.36,
+          "n": 9
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 1461.54,
+          "min": 1452.72,
+          "max": 1545.82,
+          "stdev": 39.39,
+          "n": 9
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 16.36,
+          "min": 15.97,
+          "max": 20.98,
+          "stdev": 2.07,
+          "n": 9
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 2.0,
+        "plus_field_read": 6.52,
+        "plus_xpr_pdate_ms": 287.27,
+        "plus_native_date": 8.47
+      },
+      "path_a_driver_acquire_ms": 165.38,
+      "qualifying_rows_total": 1338,
+      "answer": {
+        "truncated": true,
+        "rows_acquired": 25000,
+        "rows_scanned_by_python": 20000,
+        "qualifying_rows_in_whole_table": 1338,
+        "qualifying_rows_inside_cap": 1054,
+        "qualifying_rows_never_examined": 284,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 44,
+        "top50_recall": 0.88,
+        "identical_order": false,
+        "rank1_correct": true,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": [
+          "S-2202",
+          "S-2207",
+          "S-2265",
+          "S-2380",
+          "S-2862",
+          "S-4612"
+        ]
+      },
+      "identity": {
+        "verdict": "NOT COMPARABLE (Path A truncated at MAX_SCAN)",
+        "ok": null,
+        "detail": "the two arms are answering different questions"
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=1460.022..1461.329 rows=50 loops=1)\n  Buffers: shared hit=1326\n  ->  Result (actual time=1460.022..1461.323 rows=50 loops=1)\n        Buffers: shared hit=1326\n        ->  Sort (actual time=1459.986..1459.990 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 73kB\n              Buffers: shared hit=1326\n              ->  Seq Scan on measure_instances_25000 (actual time=1.638..1459.203 rows=1338 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 23662\n                    Buffers: shared hit=1326\nPlanning Time: 1.147 ms\nExecution Time: 1461.359 ms",
+      "explain_B3": "Limit (actual time=1443.392..1444.834 rows=50 loops=1)\n  Buffers: shared hit=1334\n  ->  Result (actual time=1443.392..1444.828 rows=50 loops=1)\n        Buffers: shared hit=1334\n        ->  Sort (actual time=1443.357..1443.362 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 73kB\n              Buffers: shared hit=1334\n              ->  Bitmap Heap Scan on measure_instances_25000 (actual time=2.604..1442.636 rows=1338 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 13846\n                    Heap Blocks: exact=1326\n                    Buffers: shared hit=1334\n                    ->  Bitmap Index Scan on idx_measure_instances_25000_data_gin (actual time=0.691..0.691 rows=15184 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=8\nPlanning:\n  Buffers: shared hit=1\nPlanning Time: 1.236 ms\nExecution Time: 1444.872 ms"
+    },
+    "100000": {
+      "table": "measure_instances_100000",
+      "reps": 7,
+      "floor": {
+        "count_only_ms": 10.561734000020806,
+        "payload_bytes": 31592810,
+        "payload_scan_ms": 53.38850999987699
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 210.02,
+          "min": 204.36,
+          "max": 223.76,
+          "stdev": 6.52,
+          "n": 7
+        },
+        "deserialize_ms": {
+          "median": 519.48,
+          "min": 488.85,
+          "max": 532.9,
+          "stdev": 16.03,
+          "n": 7
+        },
+        "acquire_ms": {
+          "median": 728.0,
+          "min": 704.22,
+          "max": 750.64,
+          "stdev": 17.79,
+          "n": 7
+        },
+        "truncate_ms": {
+          "median": 0.33,
+          "min": 0.31,
+          "max": 0.36,
+          "stdev": 0.02,
+          "n": 7
+        },
+        "derive_ms": {
+          "median": 146.36,
+          "min": 142.43,
+          "max": 154.44,
+          "stdev": 4.54,
+          "n": 7
+        },
+        "filter_ms": {
+          "median": 24.81,
+          "min": 24.69,
+          "max": 29.01,
+          "stdev": 1.58,
+          "n": 7
+        },
+        "sort_ms": {
+          "median": 0.86,
+          "min": 0.85,
+          "max": 4.42,
+          "stdev": 1.35,
+          "n": 7
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.01,
+          "stdev": 0.0,
+          "n": 7
+        },
+        "process_ms": {
+          "median": 172.28,
+          "min": 168.46,
+          "max": 187.25,
+          "stdev": 6.66,
+          "n": 7
+        },
+        "total_ms": {
+          "median": 899.26,
+          "min": 879.17,
+          "max": 921.43,
+          "stdev": 16.17,
+          "n": 7
+        }
+      },
+      "path_a_shape": {
+        "truncated": true,
+        "rows_acquired": 100000,
+        "rows_scanned": 20000,
+        "rows_kept": 1056
+      },
+      "path_a_peak_rss_mb": 337.5,
+      "path_a_rss_growth_mb": 0.8,
+      "path_B1": {
+        "total_ms": {
+          "median": 9188.5,
+          "min": 9108.53,
+          "max": 9394.69,
+          "stdev": 103.91,
+          "n": 7
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 6036.41,
+          "min": 5951.94,
+          "max": 6184.39,
+          "stdev": 94.26,
+          "n": 7
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 5950.58,
+          "min": 5900.82,
+          "max": 5965.76,
+          "stdev": 21.43,
+          "n": 7
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 33.95,
+          "min": 33.28,
+          "max": 34.37,
+          "stdev": 0.45,
+          "n": 7
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 7.51,
+        "plus_field_read": 25.74,
+        "plus_xpr_pdate_ms": 1253.52,
+        "plus_native_date": 23.55
+      },
+      "path_a_driver_acquire_ms": 900.04,
+      "qualifying_rows_total": 5202,
+      "answer": {
+        "truncated": true,
+        "rows_acquired": 100000,
+        "rows_scanned_by_python": 20000,
+        "qualifying_rows_in_whole_table": 5202,
+        "qualifying_rows_inside_cap": 1056,
+        "qualifying_rows_never_examined": 4146,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 19,
+        "top50_recall": 0.38,
+        "identical_order": false,
+        "rank1_correct": true,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": [
+          "S-411",
+          "S-5614",
+          "S-566",
+          "S-7390",
+          "S-8802",
+          "S-9409",
+          "S-11544",
+          "S-12368",
+          "S-13608",
+          "S-13696"
+        ]
+      },
+      "identity": {
+        "verdict": "NOT COMPARABLE (Path A truncated at MAX_SCAN)",
+        "ok": null,
+        "detail": "the two arms are answering different questions"
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=6003.656..6005.002 rows=50 loops=1)\n  Buffers: shared hit=1042 read=4294 written=27\n  ->  Result (actual time=5994.753..5996.093 rows=50 loops=1)\n        Buffers: shared hit=1042 read=4294 written=27\n        ->  Sort (actual time=5994.697..5994.701 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 71kB\n              Buffers: shared hit=1042 read=4294 written=27\n              ->  Seq Scan on measure_instances_100000 (actual time=1.880..5991.529 rows=5202 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 94798\n                    Buffers: shared hit=1042 read=4294 written=27\nPlanning Time: 1.246 ms\nExecution Time: 6006.172 ms",
+      "explain_B3": "Limit (actual time=6004.103..6005.467 rows=50 loops=1)\n  Buffers: shared hit=1043 read=4277\n  ->  Result (actual time=5994.878..5996.236 rows=50 loops=1)\n        Buffers: shared hit=1043 read=4277\n        ->  Sort (actual time=5994.821..5994.826 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 71kB\n              Buffers: shared hit=1043 read=4277\n              ->  Bitmap Heap Scan on measure_instances_100000 (actual time=5.171..5991.803 rows=5202 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 54932\n                    Heap Blocks: exact=5306\n                    Buffers: shared hit=1043 read=4277\n                    ->  Bitmap Index Scan on idx_measure_instances_100000_data_gin (actual time=2.951..2.952 rows=60134 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=1 read=13\nPlanning:\n  Buffers: shared read=1\nPlanning Time: 1.236 ms\nExecution Time: 6006.621 ms"
+    },
+    "1000000": {
+      "table": "measure_instances_1000000",
+      "reps": 3,
+      "floor": {
+        "count_only_ms": 53.915109999707056,
+        "payload_bytes": 317019897,
+        "payload_scan_ms": 502.1984100003465
+      },
+      "path_a": {
+        "fetch_wire_ms": {
+          "median": 2237.4,
+          "min": 2222.47,
+          "max": 2254.83,
+          "stdev": 16.2,
+          "n": 3
+        },
+        "deserialize_ms": {
+          "median": 5938.95,
+          "min": 5699.7,
+          "max": 5965.37,
+          "stdev": 146.35,
+          "n": 3
+        },
+        "acquire_ms": {
+          "median": 8161.42,
+          "min": 7937.1,
+          "max": 8220.21,
+          "stdev": 149.4,
+          "n": 3
+        },
+        "truncate_ms": {
+          "median": 0.36,
+          "min": 0.34,
+          "max": 0.37,
+          "stdev": 0.02,
+          "n": 3
+        },
+        "derive_ms": {
+          "median": 143.88,
+          "min": 143.26,
+          "max": 146.39,
+          "stdev": 1.65,
+          "n": 3
+        },
+        "filter_ms": {
+          "median": 24.98,
+          "min": 24.98,
+          "max": 25.31,
+          "stdev": 0.19,
+          "n": 3
+        },
+        "sort_ms": {
+          "median": 0.77,
+          "min": 0.76,
+          "max": 0.77,
+          "stdev": 0.01,
+          "n": 3
+        },
+        "limit_ms": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.01,
+          "stdev": 0.0,
+          "n": 3
+        },
+        "process_ms": {
+          "median": 170.01,
+          "min": 169.35,
+          "max": 172.82,
+          "stdev": 1.84,
+          "n": 3
+        },
+        "total_ms": {
+          "median": 8331.43,
+          "min": 8109.92,
+          "max": 8389.56,
+          "stdev": 147.56,
+          "n": 3
+        }
+      },
+      "path_a_shape": {
+        "truncated": true,
+        "rows_acquired": 1000000,
+        "rows_scanned": 20000,
+        "rows_kept": 1056
+      },
+      "path_a_peak_rss_mb": 2764.9,
+      "path_a_rss_growth_mb": 7.8,
+      "path_B1": {
+        "total_ms": {
+          "median": 95384.2,
+          "min": 93350.58,
+          "max": 97088.04,
+          "stdev": 1871.15,
+          "n": 3
+        }
+      },
+      "path_B1_rows": 50,
+      "path_B2": {
+        "total_ms": {
+          "median": 59590.03,
+          "min": 59269.94,
+          "max": 60409.79,
+          "stdev": 587.9,
+          "n": 3
+        }
+      },
+      "path_B2_rows": 50,
+      "path_B3": {
+        "total_ms": {
+          "median": 59609.77,
+          "min": 58478.15,
+          "max": 60589.59,
+          "stdev": 1056.63,
+          "n": 3
+        }
+      },
+      "path_B3_rows": 50,
+      "path_B4_ceiling": {
+        "total_ms": {
+          "median": 229.99,
+          "min": 228.54,
+          "max": 236.09,
+          "stdev": 4.0,
+          "n": 3
+        }
+      },
+      "path_B4_rows": 50,
+      "runtime_microcost_ms": {
+        "count_only": 42.92,
+        "plus_field_read": 106.23,
+        "plus_xpr_pdate_ms": 12059.43,
+        "plus_native_date": 247.42
+      },
+      "path_a_driver_acquire_ms": 36256.46,
+      "qualifying_rows_total": 52327,
+      "answer": {
+        "truncated": true,
+        "rows_acquired": 1000000,
+        "rows_scanned_by_python": 20000,
+        "qualifying_rows_in_whole_table": 52327,
+        "qualifying_rows_inside_cap": 1056,
+        "qualifying_rows_never_examined": 51271,
+        "answer_len_path_a": 50,
+        "answer_len_truth": 50,
+        "top50_overlap": 2,
+        "top50_recall": 0.04,
+        "identical_order": false,
+        "rank1_correct": false,
+        "best_days_left_path_a": -30.0,
+        "best_days_left_truth": -30,
+        "path_a_ids_not_in_truth": [
+          "S-12796",
+          "S-14417",
+          "S-14823",
+          "S-14994",
+          "S-15489",
+          "S-15755",
+          "S-16023",
+          "S-1675",
+          "S-17028",
+          "S-18050"
+        ]
+      },
+      "identity": {
+        "verdict": "NOT COMPARABLE (Path A truncated at MAX_SCAN)",
+        "ok": null,
+        "detail": "the two arms are answering different questions"
+      },
+      "b4_ceiling_matches_compiled_answer": {
+        "ok": true,
+        "detail": "identical"
+      },
+      "explain_B2": "Limit (actual time=81516.289..81517.643 rows=50 loops=1)\n  Buffers: shared hit=8820 read=44772\n  ->  Result (actual time=80912.969..80914.318 rows=50 loops=1)\n        Buffers: shared hit=8820 read=44772\n        ->  Sort (actual time=80912.912..80912.916 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 71kB\n              Buffers: shared hit=8820 read=44772\n              ->  Seq Scan on measure_instances_1000000 (actual time=3.493..80828.902 rows=52327 loops=1)\n                    Filter: ((collection = 'noun:Sample'::text) AND ((data -> 'status'::text) = '\"open\"'::jsonb) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 947673\n                    Buffers: shared hit=8820 read=44772\nPlanning Time: 7.875 ms\nExecution Time: 81532.134 ms",
+      "explain_B3": "Limit (actual time=64312.192..64313.583 rows=50 loops=1)\n  Buffers: shared hit=1 read=53676\n  ->  Result (actual time=64087.368..64088.753 rows=50 loops=1)\n        Buffers: shared hit=1 read=53676\n        ->  Sort (actual time=64087.312..64087.320 rows=50 loops=1)\n              Sort Key: (CASE WHEN ((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS NULL) OR (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'null'::text)) THEN 4 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN 0 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN 1 WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN 2 ELSE 3 END), (CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'boolean'::text) THEN (CASE WHEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) = 'true'::jsonb) THEN 1.0 ELSE 0.0 END)::double precision WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'number'::text) THEN xpr.f8(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) ELSE '0'::double precision END), ((CASE WHEN (jsonb_typeof(to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision))) = 'string'::text) THEN (to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) #>> '{}'::text[]) ELSE ''::text END)::text) COLLATE \"C\"\n              Sort Method: top-N heapsort  Memory: 71kB\n              Buffers: shared hit=1 read=53676\n              ->  Bitmap Heap Scan on measure_instances_1000000 (actual time=40.226..64038.784 rows=52327 loops=1)\n                    Recheck Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                    Filter: ((collection = 'noun:Sample'::text) AND xpr.truthy(to_jsonb((xpr.truthy(to_jsonb((to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)) IS DISTINCT FROM NULL::jsonb))) AND xpr.truthy(to_jsonb(xpr.ord('<'::text, to_jsonb(((xpr.pdate_ms(NULLIF((data -> 'due_date'::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb('2026-08-19'::text))) / '86400000'::double precision)), to_jsonb('7'::double precision))))))))\n                    Rows Removed by Filter: 546670\n                    Heap Blocks: exact=53587\n                    Buffers: shared hit=1 read=53676\n                    ->  Bitmap Index Scan on idx_measure_instances_1000000_data_gin (actual time=32.593..32.594 rows=598997 loops=1)\n                          Index Cond: (data @> '{\"status\": \"open\"}'::jsonb)\n                          Buffers: shared hit=1 read=89\nPlanning:\n  Buffers: shared read=1\nPlanning Time: 1.220 ms\nExecution Time: 64314.895 ms"
+    }
+  },
+  "fallback": {
+    "parse_derive_ms": 0.008844741000075373,
+    "parse_where_ms": 0.010211668000010832,
+    "compile_derive_ms": 0.002780194000024494,
+    "compile_where_ms": 0.004768305499965209,
+    "detect_uncompilable_ms": 0.004078636500025823,
+    "detected": true,
+    "reason": "numeric literal overflows to inf/nan; jsonb has no representation for it",
+    "plan_ms": 0.026604908500075908
+  },
+  "tolerant_key_probe": {
+    "records": [
+      {
+        "id": "T-1",
+        "status": "open",
+        "due_date": "2026-08-20",
+        "priority": 1
+      },
+      {
+        "id": "T-2",
+        "Status": "open",
+        "due_date": "2026-08-21",
+        "priority": 1
+      },
+      {
+        "id": "T-3",
+        "status ": "open",
+        "due_date": "2026-08-22",
+        "priority": 1
+      }
+    ],
+    "path_a_ids": [
+      "T-1",
+      "T-2",
+      "T-3"
+    ],
+    "path_b_ids": [
+      "T-1"
+    ],
+    "agree": false,
+    "rows_only_python_finds": [
+      "T-2",
+      "T-3"
+    ],
+    "rows_only_sql_finds": []
+  },
+  "generated_sql": {
+    "B1": "SELECT d.data FROM (SELECT (data || jsonb_build_object('days_left', to_jsonb((xpr.pdate_ms(nullif((data -> (%(d_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))) AS data FROM measure_instances_1000 WHERE collection = %(coll)s) d WHERE (d.data -> 'status') = %(fstatus)s::jsonb AND xpr.truthy(to_jsonb(xpr.truthy(to_jsonb(nullif((d.data -> (%(w_p0)s)::text), 'null'::jsonb) IS DISTINCT FROM NULL::jsonb)) AND xpr.truthy(to_jsonb(xpr.ord((%(w_p3)s)::text, nullif((d.data -> (%(w_p1)s)::text), 'null'::jsonb), to_jsonb((%(w_p2)s)::float8)))))) ORDER BY (CASE WHEN nullif(d.data -> 'days_left', 'null'::jsonb) IS NULL OR jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='null' THEN 4 WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='boolean' THEN 0 WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='number' THEN 1 WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='string' THEN 2 ELSE 3 END), (CASE WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='boolean' THEN (CASE WHEN nullif(d.data -> 'days_left', 'null'::jsonb)='true'::jsonb THEN 1.0 ELSE 0.0 END) WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='number' THEN xpr.f8(nullif(d.data -> 'days_left', 'null'::jsonb)) ELSE 0.0 END), (CASE WHEN jsonb_typeof(nullif(d.data -> 'days_left', 'null'::jsonb))='string' THEN (nullif(d.data -> 'days_left', 'null'::jsonb) #>> '{}') ELSE '' END) COLLATE \"C\" LIMIT 50",
+    "B2": "SELECT (data || jsonb_build_object('days_left', to_jsonb((xpr.pdate_ms(nullif((data -> (%(o_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))) FROM measure_instances_1000 WHERE collection = %(coll)s AND (data -> 'status') = %(fstatus)s::jsonb AND xpr.truthy(to_jsonb(xpr.truthy(to_jsonb(to_jsonb((xpr.pdate_ms(nullif((data -> (%(w_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) IS DISTINCT FROM NULL::jsonb)) AND xpr.truthy(to_jsonb(xpr.ord((%(w_p3)s)::text, to_jsonb((xpr.pdate_ms(nullif((data -> (%(w_p1)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8), to_jsonb((%(w_p2)s)::float8)))))) ORDER BY (CASE WHEN to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) IS NULL OR jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='null' THEN 4 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='boolean' THEN 0 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='number' THEN 1 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='string' THEN 2 ELSE 3 END), (CASE WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='boolean' THEN (CASE WHEN to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8)='true'::jsonb THEN 1.0 ELSE 0.0 END) WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='number' THEN xpr.f8(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8)) ELSE 0.0 END), (CASE WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='string' THEN (to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) #>> '{}') ELSE '' END) COLLATE \"C\" LIMIT 50",
+    "B3": "SELECT (data || jsonb_build_object('days_left', to_jsonb((xpr.pdate_ms(nullif((data -> (%(o_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))) FROM measure_instances_1000 WHERE collection = %(coll)s AND data @> %(fcontain)s::jsonb AND xpr.truthy(to_jsonb(xpr.truthy(to_jsonb(to_jsonb((xpr.pdate_ms(nullif((data -> (%(w_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) IS DISTINCT FROM NULL::jsonb)) AND xpr.truthy(to_jsonb(xpr.ord((%(w_p3)s)::text, to_jsonb((xpr.pdate_ms(nullif((data -> (%(w_p1)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8), to_jsonb((%(w_p2)s)::float8)))))) ORDER BY (CASE WHEN to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) IS NULL OR jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='null' THEN 4 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='boolean' THEN 0 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='number' THEN 1 WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='string' THEN 2 ELSE 3 END), (CASE WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='boolean' THEN (CASE WHEN to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8)='true'::jsonb THEN 1.0 ELSE 0.0 END) WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='number' THEN xpr.f8(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8)) ELSE 0.0 END), (CASE WHEN jsonb_typeof(to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8))='string' THEN (to_jsonb((xpr.pdate_ms(nullif((data -> (%(s_p0)s)::text), 'null'::jsonb)) - xpr.pdate_ms(to_jsonb(xpr.fmt_date_ms(xpr.now_ms((%(ctx)s)::jsonb), true)))) / 86400000.0::float8) #>> '{}') ELSE '' END) COLLATE \"C\" LIMIT 50",
+    "B4": "SELECT data || jsonb_build_object('days_left', to_jsonb((((data->>'due_date')::date - DATE '2026-08-19')::float8))) FROM measure_instances_1000 WHERE collection = %(coll)s AND (data -> 'status') = %(fstatus)s::jsonb AND (data ? 'due_date') AND (((data->>'due_date')::date - DATE '2026-08-19')::float8) < 7 ORDER BY (((data->>'due_date')::date - DATE '2026-08-19')::float8) LIMIT 50"
+  }
+}

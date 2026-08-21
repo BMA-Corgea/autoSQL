@@ -1,0 +1,56 @@
+=== L1. the epsilon HIDES a text divergence ===
+    list [0.1, 0.1, 0.1, 0.1, 0.1 sum <AGREE>    py=1.0                    sql=0.9999999999999999
+                                  string <DIVERGE> py='1'                    sql='0.9999999999999999'
+                                  concat <DIVERGE> py='total=1'              sql='total=0.9999999999999999'
+    list [0.1, 0.1, 0.1]          sum <AGREE>    py=0.30000000000000004    sql=0.30000000000000004
+                                  string <AGREE> py='0.30000000000000004'  sql='0.30000000000000004'
+                                  concat <AGREE> py='total=0.30000000000000004' sql='total=0.30000000000000004'
+    list [1000000000.0, 0.0001, - sum <DIVERGE>  py=0.0001                 sql=0.00010001659393310547
+                                  string <DIVERGE> py='0.0001'               sql='0.00010001659393310547'
+                                  concat <DIVERGE> py='total=0.0001'         sql='total=0.00010001659393310547'
+    -> a numeric AGREE inside float_epsilon can still be a VISIBLE text divergence,
+       because string()/concat() are exact and the epsilon does not apply to them.
+
+=== L2. array indices that do not fit int4 ===
+    $.a[3]                   <AGREE>        py=None     sql=None    
+    $.a[2147483647]          <AGREE>        py=None     sql=None    
+    $.a[2147483648]          <SQL_RAISE>    py=None     sql=None      RAISED 22003 integer out of range
+    $.a[3000000000]          <SQL_RAISE>    py=None     sql=None      RAISED 22003 integer out of range
+    $.a[-3000000000]         <SQL_RAISE>    py=None     sql=None      RAISED 22003 integer out of range
+
+=== L3. a NUL character inside a string value ===
+    python len('a\x00b') = 3 ; expr length($.s) = ?
+    <SQL_RAISE>    py=3        sql=None      RAISED 22P05 unsupported Unicode escape sequence
+    -> a record Python can hold cannot be STORED as jsonb at all; the pushdown
+       path is unreachable for it, which is a fallback trigger, not a wrong answer.
+
+=== L4. generated-SQL size vs expression size ===
+    nesting 1    source    17 chars -> SQL      171 chars  (x10)
+    nesting 5    source    81 chars -> SQL      752 chars  (x9)
+    nesting 10   source   161 chars -> SQL     1487 chars  (x9)
+    nesting 20   source   321 chars -> SQL     2957 chars  (x9)
+    nesting 40   source   641 chars -> SQL     5897 chars  (x9)
+    MAX_SOURCE_LEN is 2000 (expr.py:39); MAX_SQL_CHARS is 200000 (compile.py:51)
+
+=== L5. the clock: xpr.now_ms is STABLE, everything else IMMUTABLE ===
+    _bits        IMMUTABLE 
+    contains     IMMUTABLE 
+    count_arr    IMMUTABLE 
+    count_one    IMMUTABLE 
+    div          IMMUTABLE 
+    ecma_num     IMMUTABLE    <-- reads/depends on extra_float_digits (see battery F)
+    f8           IMMUTABLE    <-- reads/depends on extra_float_digits (see battery F)
+    fmod         IMMUTABLE 
+    fmt_date_ms  IMMUTABLE 
+    idx          IMMUTABLE 
+    length       IMMUTABLE 
+    now_ms       STABLE    
+    num          IMMUTABLE    <-- reads/depends on extra_float_digits (see battery F)
+    ord          IMMUTABLE 
+    pdate_ms     IMMUTABLE 
+    pdate_only   IMMUTABLE 
+    reduce_arr   IMMUTABLE 
+    reduce_one   IMMUTABLE 
+    round        IMMUTABLE 
+    str          IMMUTABLE    <-- reads/depends on extra_float_digits (see battery F)
+    truthy       IMMUTABLE 

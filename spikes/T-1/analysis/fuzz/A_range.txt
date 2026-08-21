@@ -1,0 +1,78 @@
+=== A. xpr.f8 range guard: measure the guard literal, then map the blast radius ===
+guard literal: digits=297 value=1.797693134862316e+296   (DBL_MAX needs 309 digits, value 1.7976931348623157e+308)
+
+-- blast radius: EVERY path that routes a JSON number through xpr.f8 --
+   <DIVERGE>      arithmetic  (compile.py _t_bin -> xpr.num -> xpr.f8)
+[DIVERGE     ] '$.a + 0'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      arithmetic
+[DIVERGE     ] '$.a * 1'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      unary minus
+[DIVERGE     ] '- $.a'  rec={'a': 1e+300}
+               py  = -1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      number()
+[DIVERGE     ] 'number($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      abs()
+[DIVERGE     ] 'abs($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      floor()
+[DIVERGE     ] 'floor($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      round()
+[DIVERGE     ] 'round($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>      string()  (xpr.str -> xpr.f8 -> ecma_num)
+[DIVERGE     ] 'string($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = None  (SQL NULL)
+   <DIVERGE>      concat()
+[DIVERGE     ] 'concat($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = ''  (string)
+   <DIVERGE>      ORDER COMPARISON -- the pushdown-predicate path
+[DIVERGE     ] '$.a < 1e301'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>      ORDER COMPARISON
+[DIVERGE     ] '$.a > 1'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>      ORDER COMPARISON, both sides
+[DIVERGE     ] '$.a >= $.a'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>      sum() via xpr.num
+[DIVERGE     ] 'sum($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>      max()
+[DIVERGE     ] 'max($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>      avg()
+[DIVERGE     ] 'avg($.l)'  rec={'l': [1e+300, 1]}
+               py  = 5e+299
+               sql = 1  (number)
+   <AGREE>        count() -- does NOT use f8
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1]}
+   <AGREE>        bare field read -- does NOT use f8
+[AGREE       ] '$.a'  rec={'a': 1e+300}
+   <AGREE>        equality -- jsonb IS NOT DISTINCT FROM, no f8
+[AGREE       ] '$.a == 1e300'  rec={'a': 1e+300}
+   <DIVERGE>      contains() -> xpr.str -> f8
+[DIVERGE     ] 'contains($.s, $.a)'  rec={'s': 'x1e+300x', 'a': 1e+300}
+               py  = True
+               sql = False  (boolean)
+   <AGREE>        truthy -- uses ::numeric not f8
+[AGREE       ] 'if($.a, 1, 2)'  rec={'a': 1e+300}
+
+16 of 20 f8-reachable paths diverge at a=1e300

@@ -1,0 +1,8 @@
+{"ts":"2026-08-19T16:50:18.060Z","kind":"stage.advanced","ticket":"T-1","from":"sp-frame","to":"sp-investigate"}
+{"ts":"2026-08-19T23:26:35.558Z","kind":"stage.advanced","ticket":"T-1","from":"sp-investigate","to":"sp-synth"}
+{"ts":"2026-08-19T23:48:21.105Z","kind":"stage.advanced","ticket":"T-1","from":"sp-synth","to":"sp-decide"}
+{"ts":"2026-08-21T17:37:01.093Z","kind":"stage.loopback","ticket":"T-1","from":"sp-decide","to":"sp-investigate","attempts":1,"no_progress_streak":1,"stuck":false}
+{"ts":"2026-08-21T17:56:13.299Z","kind":"stage.advanced","ticket":"T-2","from":"intake","to":"refine"}
+{"ts":"2026-08-21T18:19:25.591Z","kind":"stage.advanced","ticket":"T-1","from":"sp-investigate","to":"sp-synth"}
+{"ts":"2026-08-21T18:43:24.674Z","kind":"stage.advanced","ticket":"T-1","from":"sp-synth","to":"sp-decide"}
+{"ts":"2026-08-21T19:24:41.195Z","kind":"stage.advanced","ticket":"T-1","from":"sp-decide","to":"sp-spawn"}

@@ -1,0 +1,26 @@
+=== E2. date-string trimming: str.strip() vs btrim(E' \t\n\r\f\v') ===
+    expr.py:415 vs runtime.sql:273
+
+   <AGREE>        U+0020 SPACE                 python str.strip -> "'2024-01-01'"   py=1.0 sql=1
+   <DIVERGE>      U+00A0 NBSP                  python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+0085 NEL                   python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+001C FILE SEP              python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+001F UNIT SEP              python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+2000 EN QUAD               python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+2009 THIN SPACE            python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+2028 LINE SEP              python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+2029 PARA SEP              python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+3000 IDEOGRAPHIC SPACE     python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <DIVERGE>      U+000B VTAB                  python str.strip -> "'2024-01-01'"   py=1.0 sql=None   <<< DIVERGES
+   <AGREE>        U+000C FF                    python str.strip -> "'2024-01-01'"   py=1.0 sql=1
+
+=== E2b. UNICODE DIGITS inside a date, and inside number() ===
+   ASCII 0-9                  date:<AGREE>      py=1.0    sql=1      | number(): <AGREE>      py=123.0   sql=123   
+   U+0660 ARABIC-INDIC        date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+   U+06F0 EXT ARABIC-INDIC    date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+   U+0966 DEVANAGARI          date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+   U+FF10 FULLWIDTH           date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+   U+1D7CE MATH BOLD          date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+   U+104A0 OSMANYA            date:<DIVERGE>    py=1.0    sql=None   <<< | number(): <DIVERGE>    py=123.0   sql=None   <<<
+
+22 divergences in E2

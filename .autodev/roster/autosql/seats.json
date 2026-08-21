@@ -1,0 +1,13 @@
+{
+  "_note": "Repo-local seat->model-tier PREFERENCE for shop autosql (the documented override path: <repo>/.autodev/roster/<shop>/seats.json — REFERENCE.md 'Model tiers'). Same shape as the shipped baseline; a seat listed here beats the plugin baseline, an unlisted seat still inherits the baseline. Tiers are symbolic (fast|standard|strong); the tier->model id map is env (AUTODEV_MODEL_FAST/STANDARD/STRONG), pinned for this repo in .claude/settings.json.",
+  "_why_these": "Two deliberate departures from the shipped baseline, both from the same fact about this project: autoSQL GENERATES SQL, so its failure mode is a subtly wrong NUMBER that still runs clean — nothing crashes, nothing goes red. (1) The seats that have to CATCH that (reviewer-agent, tester, adversarial-reviewer) are pinned strong, because a cheap reviewer that reads SQL for style and not for arithmetic is worse than no reviewer. (2) The seats the shipped baseline leaves with NO tier at all (builder, adversarial-reviewer, conscience-checker, principles-checker, release-manager) get one, because a seat with no preference resolves to null and the dispatched worker silently inherits whatever model the driving session happens to be on — which is how every worker on T-1 ran as claude-opus-5[1m] on a routine spike stage.",
+  "seats": {
+    "reviewer-agent": "strong",
+    "tester": "strong",
+    "adversarial-reviewer": "strong",
+    "builder": "standard",
+    "conscience-checker": "standard",
+    "principles-checker": "standard",
+    "release-manager": "standard"
+  }
+}

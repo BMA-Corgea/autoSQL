@@ -1,0 +1,10 @@
+=== G1. xpr.fmod vs math.fmod ===
+    40000 random (x, y) pairs incl. subnormals, 2^-1074, DBL_MAX, +-0
+    mismatches: 0
+
+=== G2. xpr.round vs _fn_round ===
+    40000 random (x, ndigits) pairs
+    value mismatches: 0
+    raises (either side): 756
+      round(5e-324, -2.0)  -> value out of range: underflow
+      round(1.7976931348623157e+308, 3.0)  -> value out of range: overflow

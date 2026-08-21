@@ -1,0 +1,14 @@
+=== F3. an IMMUTABLE function that reads a GUC, put into an index ===
+    200 rows, every one {"a": 0.3333333333333333}
+    expr string($.a)  ->  '0.3333333333333333'   (expr.py:322-348)
+
+    xpr.str under extra_float_digits = -3 : '0.333333333333'
+    -- an index is now built in THAT session --
+    xpr.str under extra_float_digits = 1  : '0.3333333333333333'   (this is the correct answer)
+
+    WHERE string($.a) = '0.3333333333333333'  [index scan forced ]  ->   0 rows   (->  Index Scan using fuzz_guc_ix on fuzz_guc)
+    WHERE string($.a) = '0.3333333333333333'  [seq scan forced   ]  -> 200 rows   (->  Seq Scan on fuzz_guc)
+
+    If the two row counts differ, the same predicate on the same rows returns
+    two different answers depending only on the plan the planner picked --
+    which is what an incorrect IMMUTABLE declaration buys.

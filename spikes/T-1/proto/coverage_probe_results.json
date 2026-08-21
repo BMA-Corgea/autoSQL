@@ -1,0 +1,5828 @@
+[
+ {
+  "group": "cmp-matrix",
+  "name": "null==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==bool",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==number",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==string",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==list",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict==dict",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=null",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=bool",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=number",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=string",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=list",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict!=dict",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<null",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<bool",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<number",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<string",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<list",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<dict",
+  "expr": "$.a < $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=null",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=bool",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=number",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=string",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=list",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict<=dict",
+  "expr": "$.a <= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>null",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>bool",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>number",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>string",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>list",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>dict",
+  "expr": "$.a > $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "null>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": null,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "bool>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": true,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "number>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": 5,
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "string>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": "5",
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "list>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=null",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=bool",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=number",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=string",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=list",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "cmp-matrix",
+  "name": "dict>=dict",
+  "expr": "$.a >= $.b",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "b": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_null",
+  "expr": "number($.a)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_null",
+  "expr": "$.a + 0",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_null",
+  "expr": "-$.a",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_null",
+  "expr": "string($.a)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_null",
+  "expr": "concat($.a)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": "",
+  "sql": "\"\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_null",
+  "expr": "lower($.a)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_null",
+  "expr": "not $.a",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_null",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": 2.0,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_null",
+  "expr": "$.a and true",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_null",
+  "expr": "length($.a)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_null",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_null",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_null",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": null
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_null",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": null,
+   "h": [
+    null,
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_bool",
+  "expr": "number($.a)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_bool",
+  "expr": "$.a + 0",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_bool",
+  "expr": "-$.a",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": -1.0,
+  "sql": "-1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_bool",
+  "expr": "string($.a)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": "true",
+  "sql": "\"true\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_bool",
+  "expr": "concat($.a)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": "true",
+  "sql": "\"true\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_bool",
+  "expr": "lower($.a)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": "true",
+  "sql": "\"true\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_bool",
+  "expr": "not $.a",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_bool",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_bool",
+  "expr": "$.a and true",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_bool",
+  "expr": "length($.a)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_bool",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_bool",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_bool",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": true
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_bool",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": true,
+   "h": [
+    true,
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_number",
+  "expr": "number($.a)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": 5.0,
+  "sql": "5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_number",
+  "expr": "$.a + 0",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": 5.0,
+  "sql": "5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_number",
+  "expr": "-$.a",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": -5.0,
+  "sql": "-5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_number",
+  "expr": "string($.a)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_number",
+  "expr": "concat($.a)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_number",
+  "expr": "lower($.a)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_number",
+  "expr": "not $.a",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_number",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_number",
+  "expr": "$.a and true",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_number",
+  "expr": "length($.a)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_number",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_number",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_number",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": 5
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_number",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": 5,
+   "h": [
+    5,
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_string",
+  "expr": "number($.a)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": 5.0,
+  "sql": "5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_string",
+  "expr": "$.a + 0",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": 5.0,
+  "sql": "5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_string",
+  "expr": "-$.a",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": -5.0,
+  "sql": "-5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_string",
+  "expr": "string($.a)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_string",
+  "expr": "concat($.a)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_string",
+  "expr": "lower($.a)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": "5",
+  "sql": "\"5\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_string",
+  "expr": "not $.a",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_string",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_string",
+  "expr": "$.a and true",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_string",
+  "expr": "length($.a)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": 1,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_string",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_string",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_string",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": "5"
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_string",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": "5",
+   "h": [
+    "5",
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_list",
+  "expr": "number($.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_list",
+  "expr": "$.a + 0",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_list",
+  "expr": "-$.a",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_list",
+  "expr": "string($.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_list",
+  "expr": "concat($.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": "",
+  "sql": "\"\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_list",
+  "expr": "lower($.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_list",
+  "expr": "not $.a",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_list",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_list",
+  "expr": "$.a and true",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_list",
+  "expr": "length($.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": 2,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_list",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_list",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_list",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_list",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "h": [
+    [
+     1,
+     2
+    ],
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "num_dict",
+  "expr": "number($.a)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "arith_dict",
+  "expr": "$.a + 0",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_num",
+  "name": "neg_dict",
+  "expr": "-$.a",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_dict",
+  "expr": "string($.a)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "concat_dict",
+  "expr": "concat($.a)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": "",
+  "sql": "\"\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "lower_dict",
+  "expr": "lower($.a)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_dict",
+  "expr": "not $.a",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "if_dict",
+  "expr": "if($.a,1,2)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "and_dict",
+  "expr": "$.a and true",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_dict",
+  "expr": "length($.a)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": 1,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dbetween_dict",
+  "expr": "days_between($.a,\"2026-01-01\")",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "date",
+  "name": "dateadd_dict",
+  "expr": "date_add($.a,1)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "hay_dict",
+  "expr": "contains($.a,1)",
+  "record": {
+   "a": {
+    "k": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "contains",
+  "name": "needle_dict",
+  "expr": "contains($.h,$.a)",
+  "record": {
+   "a": {
+    "k": 1
+   },
+   "h": [
+    {
+     "k": 1
+    },
+    9
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_empty_list",
+  "expr": "not $.a",
+  "record": {
+   "a": []
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_empty_list",
+  "expr": "length($.a)",
+  "record": {
+   "a": []
+  },
+  "context": {},
+  "python": 0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_empty_list",
+  "expr": "string($.a)",
+  "record": {
+   "a": []
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_empty_dict",
+  "expr": "not $.a",
+  "record": {
+   "a": {}
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_empty_dict",
+  "expr": "length($.a)",
+  "record": {
+   "a": {}
+  },
+  "context": {},
+  "python": 0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_empty_dict",
+  "expr": "string($.a)",
+  "record": {
+   "a": {}
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_empty_str",
+  "expr": "not $.a",
+  "record": {
+   "a": ""
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_empty_str",
+  "expr": "length($.a)",
+  "record": {
+   "a": ""
+  },
+  "context": {},
+  "python": 0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_empty_str",
+  "expr": "string($.a)",
+  "record": {
+   "a": ""
+  },
+  "context": {},
+  "python": "",
+  "sql": "\"\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_zero",
+  "expr": "not $.a",
+  "record": {
+   "a": 0
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_zero",
+  "expr": "length($.a)",
+  "record": {
+   "a": 0
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_zero",
+  "expr": "string($.a)",
+  "record": {
+   "a": 0
+  },
+  "context": {},
+  "python": "0",
+  "sql": "\"0\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_false",
+  "expr": "not $.a",
+  "record": {
+   "a": false
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_false",
+  "expr": "length($.a)",
+  "record": {
+   "a": false
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_false",
+  "expr": "string($.a)",
+  "record": {
+   "a": false
+  },
+  "context": {},
+  "python": "false",
+  "sql": "\"false\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "truthy",
+  "name": "not_nested",
+  "expr": "not $.a",
+  "record": {
+   "a": [
+    [
+     1
+    ],
+    {
+     "x": null
+    }
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "length",
+  "name": "length_nested",
+  "expr": "length($.a)",
+  "record": {
+   "a": [
+    [
+     1
+    ],
+    {
+     "x": null
+    }
+   ]
+  },
+  "context": {},
+  "python": 2,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "to_str",
+  "name": "string_nested",
+  "expr": "string($.a)",
+  "record": {
+   "a": [
+    [
+     1
+    ],
+    {
+     "x": null
+    }
+   ]
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "length($)",
+  "expr": "length($)",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": 1,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "length($) |empty",
+  "expr": "length($)",
+  "record": {},
+  "context": {},
+  "python": 0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "string($)",
+  "expr": "string($)",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "string($) |empty",
+  "expr": "string($)",
+  "record": {},
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "$ == $",
+  "expr": "$ == $",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "$ == $ |empty",
+  "expr": "$ == $",
+  "record": {},
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "not $",
+  "expr": "not $",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "not $ |empty",
+  "expr": "not $",
+  "record": {},
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "contains($,1)",
+  "expr": "contains($,1)",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "contains($,1) |empty",
+  "expr": "contains($,1)",
+  "record": {},
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "number($)",
+  "expr": "number($)",
+  "record": {
+   "a": 1
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "bare-$",
+  "name": "number($) |empty",
+  "expr": "number($)",
+  "record": {},
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_same",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_same|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_int_float",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1
+   ],
+   "b": [
+    1.0
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_int_float|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1
+   ],
+   "b": [
+    1.0
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_bool_one",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    true
+   ],
+   "b": [
+    1
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_bool_one|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    true
+   ],
+   "b": [
+    1
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_order",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    2,
+    1
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_order|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1,
+    2
+   ],
+   "b": [
+    2,
+    1
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_len",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    1
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_len|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    1
+   ],
+   "b": [
+    1,
+    2
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_nested_null",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": [
+    null
+   ],
+   "b": [
+    null
+   ]
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "list_nested_null|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": [
+    null
+   ],
+   "b": [
+    null
+   ]
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_same",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_same|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_keyorder",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": 1,
+    "b": 2
+   },
+   "b": {
+    "b": 2,
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_keyorder|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": 1,
+    "b": 2
+   },
+   "b": {
+    "b": 2,
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_int_float",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1.0
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_int_float|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1.0
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_bool_one",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": true
+   },
+   "b": {
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_bool_one|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": true
+   },
+   "b": {
+    "a": 1
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_extra_key",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1,
+    "b": 2
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_extra_key|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": 1
+   },
+   "b": {
+    "a": 1,
+    "b": 2
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_nested",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": {
+    "a": {
+     "b": [
+      1
+     ]
+    }
+   },
+   "b": {
+    "a": {
+     "b": [
+      1
+     ]
+    }
+   }
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "dict_nested|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": {
+    "a": {
+     "b": [
+      1
+     ]
+    }
+   },
+   "b": {
+    "a": {
+     "b": [
+      1
+     ]
+    }
+   }
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "num_int_float",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 1,
+   "b": 1.0
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "num_int_float|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 1,
+   "b": 1.0
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "num_neg_zero",
+  "expr": "$.a == $.b",
+  "record": {
+   "a": 0.0,
+   "b": -0.0
+  },
+  "context": {},
+  "python": true,
+  "sql": "true",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "deep-eq",
+  "name": "num_neg_zero|ne",
+  "expr": "$.a != $.b",
+  "record": {
+   "a": 0.0,
+   "b": -0.0
+  },
+  "context": {},
+  "python": false,
+  "sql": "false",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "count()",
+  "expr": "count()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 0.0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "sum()",
+  "expr": "sum()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "avg()",
+  "expr": "avg()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "min()",
+  "expr": "min()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "max()",
+  "expr": "max()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "concat()",
+  "expr": "concat()",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": "",
+  "sql": "\"\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "coalesce(1)",
+  "expr": "coalesce(1)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "count(1,2)",
+  "expr": "count(1,2)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 2.0,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "avg(1,2)",
+  "expr": "avg(1,2)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.5,
+  "sql": "1.5",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "min(1,2)",
+  "expr": "min(1,2)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "max(1,2)",
+  "expr": "max(1,2)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 2.0,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "sum(1,2)",
+  "expr": "sum(1,2)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 3.0,
+  "sql": "3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "count($.a)",
+  "expr": "count($.a)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 3.0,
+  "sql": "3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "sum($.a)",
+  "expr": "sum($.a)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 2.0,
+  "sql": "2",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "avg($.a)",
+  "expr": "avg($.a)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "min($.a)",
+  "expr": "min($.a)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "max($.a)",
+  "expr": "max($.a)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "count(1)",
+  "expr": "count(1)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "sum(1)",
+  "expr": "sum(1)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 1.0,
+  "sql": "1",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "min($.a,$.b)",
+  "expr": "min($.a,$.b)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 3.0,
+  "sql": "3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "agg-arity",
+  "name": "max($.a,$.b)",
+  "expr": "max($.a,$.b)",
+  "record": {
+   "a": [
+    1,
+    "x",
+    null,
+    true
+   ],
+   "b": 3
+  },
+  "context": {},
+  "python": 3.0,
+  "sql": "3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "lower()",
+  "expr": "lower()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "upper()",
+  "expr": "upper()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "number()",
+  "expr": "number()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "string()",
+  "expr": "string()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "length()",
+  "expr": "length()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "abs()",
+  "expr": "abs()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "floor()",
+  "expr": "floor()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "ceil()",
+  "expr": "ceil()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "round()",
+  "expr": "round()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "contains(1)",
+  "expr": "contains(1)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "contains(1,2,3)",
+  "expr": "contains(1,2,3)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "days_between(1)",
+  "expr": "days_between(1)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "days_between(\"2026-01-01\",\"2026-01-02\",\"x\")",
+  "expr": "days_between(\"2026-01-01\",\"2026-01-02\",\"x\")",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "date_add(1)",
+  "expr": "date_add(1)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "if(1,2)",
+  "expr": "if(1,2)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "if(1,2,3,4)",
+  "expr": "if(1,2,3,4)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "coalesce()",
+  "expr": "coalesce()",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": null,
+  "sql": "SQL NULL",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "lower($.a,$.b)",
+  "expr": "lower($.a,$.b)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": "abc",
+  "sql": "\"abc\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "today(1)",
+  "expr": "today(1)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": "2026-08-19",
+  "sql": "\"2026-08-19\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "now($.a)",
+  "expr": "now($.a)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": "2026-08-19T18:01:47Z",
+  "sql": "\"2026-08-19T18:01:47Z\"",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "round(1.5,-1)",
+  "expr": "round(1.5,-1)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": 0.0,
+  "sql": "0",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "round(-2.5)",
+  "expr": "round(-2.5)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": -3.0,
+  "sql": "-3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "round(2.5)",
+  "expr": "round(2.5)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": 3.0,
+  "sql": "3",
+  "outcome": "COMPILED_AGREES"
+ },
+ {
+  "group": "arity-edge",
+  "name": "round(1.2345,2)",
+  "expr": "round(1.2345,2)",
+  "record": {
+   "a": "AbC",
+   "b": "z"
+  },
+  "context": {},
+  "python": 1.23,
+  "sql": "1.23",
+  "outcome": "COMPILED_AGREES"
+ }
+]
