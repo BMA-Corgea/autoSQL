@@ -1,6 +1,8 @@
 # Decision — don't build the expression-to-SQL compiler yet; fund two experiments first
 
-**Decided by:** `human:evan` · **Date:** 2026-08-21 · **Status:** SIGNED (one part open, §6)
+**Decided by:** `human:evan` · **Date:** 2026-08-21 · **Status:** SIGNED · both open parts closed
+2026-08-21 by **rulings on delegated authority** (§3's number, §6's ambiguity) — his delegation, not his
+decisions; either is overturnable in one line
 **Ticket:** T-1, gate `sp_decide` cleared 2026-08-21, logged as go-ahead **GA-3** in `.autodev/events.jsonl`
 **Decisions:** `ANSWERS-FROM-EVAN.md` (Q1; item 1 of the follow-up round) · **Evidence:**
 `spikes/T-1/RECHECK-2026-08-21.md`, distilled in [`expr-ast-to-postgres-sql.md`](expr-ast-to-postgres-sql.md)
@@ -53,8 +55,15 @@ The research set E2's bar as a *ratio* — beat the current path's 13.4–15.0 m
 rejected that framing. A path can be several times slower per row and still be the better product if
 the wait a person actually experiences is acceptable — and the current path is answering the wrong
 question anyway once it truncates. **E2 must be designed around a wall-clock target for a real widget
-load, not a speed ratio.** That number is not set; he gave the direction, not the figure. Setting it is
-a prerequisite to running E2.
+load, not a speed ratio.**
+
+He gave the direction, not the figure. **The figure was set on 2026-08-21 as a ruling on delegated
+authority** (GA-4, quoted in §6) — **not one bar but three, one per collection size**, because what a
+person will wait for depends on how big a question they asked: **350 ms at 20 000 rows, 1 000 ms at
+100 000, 5 500 ms at 1 000 000**, plus a kill condition that the compiled path must beat the
+in-memory path measured in the same session. Every number and its derivation is in
+`spikes/T-1/EXPERIMENTS.md` §2.2. Run 2 reports the milliseconds either way, so he can redraw any
+line afterwards without re-running anything.
 
 ## 4. Why — the three facts it turns on
 
@@ -104,23 +113,89 @@ Two further findings concern the write-up's account of itself, not its conclusio
 died mid-run and `FINDINGS.md` never says so, leaving 6 corrections unapplied, 2 still wrong in the
 published text; and a `+463%` figure cited 11 times rests on one measurement whose producing script
 did not survive — struck, the claim prices at **+2.2%**. That second one is a real argument for the
-restricted build instead, and is part of why §6 stays open.
+restricted build instead — the build shape §6 now routes into the demo rather than into GIMS.
 
-## 6. The ambiguity — OPEN, not settled
+## 6. The ambiguity — RESOLVED 2026-08-21, on delegated authority
 
-He selected **"don't build yet; fund the two experiments"**. His note alongside says something else:
+**Status: closed.** This is a **ruling on delegated authority** — a decision *I* made because Evan
+handed me the decision, not one he made himself. It is labelled that way deliberately, and he can
+overturn it in one line (end of this section).
+
+### What was ambiguous, kept as history
+
+He selected **"don't build yet; fund the two experiments"**. His note alongside read as the opposite:
 
 > "Continue. Build the bounded SQL path with explicit fallback, instrument which path ran, and run the
 > dedicated subset acceptance tests before treating that subset as production-safe."
 
 The selection points at *experiments first*; the note points at *start building the restricted
-version*. **This session acts on the selection**, because the asymmetry favours it: E1 and E2 cost two
-bounded runs and foreclose nothing, while building first risks shipping the silent-fallback failure
-the spike exists to rule out. The note is treated as **the shape any eventual build must take** —
-bounded subset, explicit fallback, instrumentation of which path ran, subset acceptance tests before
-anything is called production-safe — and, per §3, as a re-specification of E2's bar. **One line from
-Evan settles which he meant.** Until then this is open, and no build ticket should be opened on the
-strength of the note alone.
+version*. Until 2026-08-21 this section recorded that conflict as OPEN, acted on the selection, and
+said one line from him would settle it.
+
+### The authority this ruling rests on
+
+Logged as **GA-4** in `.autodev/events.jsonl`, 2026-08-21T19:43:01Z, verbatim:
+
+> "I feel like these questions can be answered with your best judgement. I give them to you to fulfill
+> what I had said in the form. I approve the spec for T-2"
+
+That authorises a *reading of his intent*. It does not authorise a preference of mine, so the ruling
+below is derived from his own recorded answers and shows its working. **One caveat on the record:**
+GA-4 is logged against ticket T-2, and its wording covers the open questions put to him generally.
+This ruling treats it as covering T-1's ambiguity too, because the ambiguity was one of those open
+questions. If he meant it narrowly, this section reverts to OPEN and nothing else changes.
+
+### The ruling
+
+**The tick and the note are not in conflict. They are about two different pieces of work.**
+
+- **The tick governs the GIMS integration.** No build work against GIMS — no compiler wired into
+  `resolve()`, no change to what a widget returns, no storage migration — until Run 1 (correctness)
+  and Run 2 (timing) have earned it. His own first clause in the same note says so in the same
+  breath: *"Do not ship the prototype as a universal replacement for Python."*
+- **The note describes work already authorised elsewhere: the demo.** "The bounded SQL path with
+  explicit fallback, instrument which path ran" **is T-2**, the fake-data UI demo. He green-lit it
+  himself (Q18), told it to reuse the throwaway generator (Q19), and required the side-by-side
+  Python answer (Q24) that makes any divergence visible rather than silent.
+- **"Acceptance tests before production-safe" is the gate on integration, not on the demo.** The demo
+  runs on invented data with both answers on screen. Nothing there is production-safe and nothing
+  claims to be. Run 1 *is* the acceptance test, and it stands between the demo and GIMS.
+
+Read that way, nothing he wrote is contradictory. The note describes the demo; the tick describes the
+integration.
+
+### The derivation — why this reading and not another
+
+| his answer | what it fixes |
+|---|---|
+| **Q18** "Green light, but only the safe operations" | he had already released the demo *before* the note — so "Continue" has an authorised home that is not GIMS |
+| **Q19** "Reuse the throwaway program as-is" | he has already agreed SQL-generating code may run inside the demo |
+| **Q24** "Both answers side by side on screen" | the instrumentation the note asks for — *which path ran, and did it agree* — is already specified, for the demo |
+| **Q3** "Yes, but only after the demo" | GIMS's contract may not change until the demo is seen. He set that ordering himself, independently of the tick |
+| **Q6 / follow-up item 6** "Right — both, correctness first" | he funded both runs in the *same* message as the note, so the note cannot mean "skip the runs" |
+| **GA-3's own first clause** "Do not ship the prototype as a universal replacement for Python" | the note is itself a restriction on shipping — which is what the tick restricts |
+| **Q1 tick** "Don't build yet" | what is left for the tick to govern is exactly the GIMS-integration build |
+
+The two rival readings each kill one of his own answers. Reading the note as *start the GIMS build*
+contradicts Q3 and Q6. Reading the tick as *stop everything* contradicts Q18. **This reading leaves
+every recorded answer standing**, which is the test a delegated reading has to pass.
+
+### What it permits and forbids, concretely
+
+| may proceed now | still gated behind the two runs |
+|---|---|
+| T-2's fake-data demo end to end, including its SQL-generating layer (Q18, Q19) | any compiler code written into either GIMS checkout |
+| the bounded subset compiler **as demo code**, with the fallback reported on screen (Q24) | adding the fallback-reporting fields `resolve()` lacks (§4, and Q3 — after the demo) |
+| Run 1 (correctness) then Run 2 (timing), in that order (Q6) | the storage migration into GIMS's `instances` table (Q14) |
+| — | calling any subset "production-safe" before Run 1 passes |
+
+**The demo's SQL layer is demo code.** It is not a build against GIMS, it may not be promoted into one
+on its own strength, and §8 keeps the standing obligation to re-read it against this decision.
+
+### How he overturns this, in one line
+
+*"The note meant start the GIMS build"* re-opens the tick. *"The tick meant stop the demo too"* halts
+T-2. Either costs one line and re-runs nothing.
 
 ## 7. Standing constraints his other answers create
 
@@ -142,9 +217,14 @@ strength of the note alone.
 
 ## 8. What happens next
 
-1. Get the one line that closes **§6** — selection or note.
-2. Set **E2's absolute wall-clock target** (§3); a proposal is being drafted for him to accept or change.
+1. ~~Get the one line that closes §6~~ — **closed 2026-08-21** by the ruling in §6. Evan may still
+   overturn it in one line; until he does, the demo proceeds and GIMS stays untouched.
+2. ~~Set E2's absolute wall-clock target~~ — **set 2026-08-21** by the ruling in `EXPERIMENTS.md` §2.2,
+   summarised in §3. Three bars, one per collection size, plus a kill condition.
 3. Spawn **E1 and E2 as tickets**, correctness first — bounded runs on instruments that already exist.
+   E1 carries one further ruling of its own (`EXPERIMENTS.md` §1.2): the above-DBL_MAX divergence
+   becomes a **reported runtime refusal** — the SQL refuses loudly instead of returning a number — so
+   the pass bar stays at zero wrong answers.
 4. **T-2, the fake-data UI demo, proceeds independently** (Q3 puts it ahead of any GIMS contract
    change). Its SQL-generation layer is still governed by this decision and must be re-read against it.
 5. **Flagged, unfunded** (`RECHECK-2026-08-21.md` §5.1): Q4 asked whether "the test rig" can report a

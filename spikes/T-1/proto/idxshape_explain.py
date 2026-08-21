@@ -13,7 +13,27 @@ import psycopg2  # noqa: E402
 # Scrubbed 2026-08-21 before first commit: the password is not in this repo, because the
 # same role owns the live glp_strong database on that container. Set AUTOSQL_SPIKE_DSN,
 # or let libpq read PGPASSWORD/~/.pgpass. See spikes/T-1/proto/README-db.md.
-DSN = os.environ.get("AUTOSQL_SPIKE_DSN") or "host=127.0.0.1 port=55433 user=glp_owner dbname=autosql_spike"
+def _spike_dsn():
+    """Fails closed on purpose. The only default that ever existed pointed at port 55433 -
+    the live glp-strong-db container, which holds real data owned by the same role.
+    Point AUTOSQL_SPIKE_DSN at a THROWAWAY Postgres. See proto/REGENERATE-CORPUS.md."""
+    import os as _os
+    dsn = _os.environ.get("AUTOSQL_SPIKE_DSN")
+    if not dsn:
+        raise SystemExit(
+            "AUTOSQL_SPIKE_DSN is not set, and there is no default.\n"
+            "  Point it at a throwaway Postgres, never at port 55433 (the live container).\n"
+            "  See spikes/T-1/proto/REGENERATE-CORPUS.md."
+        )
+    if "port=55433" in dsn:
+        raise SystemExit(
+            "Refusing to run against port 55433 - that is the live glp-strong-db container.\n"
+            "  Use a throwaway one. See spikes/T-1/proto/REGENERATE-CORPUS.md."
+        )
+    return dsn
+
+
+DSN = _spike_dsn()
 PREDS = json.load(open(sys.argv[1]))
 OUT = sys.argv[2]
 CTX = {"now": "2026-08-19T12:00:00Z"}

@@ -49,10 +49,34 @@ FIXTURE = os.path.join(GIMS, "tests", "fixtures", "expr_vectors.json")
 RESULTS_JSON = os.path.join(PROTO, "results.json")
 REPORT_MD = os.path.join(PROTO, "CONFORMANCE.md")
 
-# Scrubbed 2026-08-21 before first commit: the password is not in this repo, because the
-# same role owns the live glp_strong database on that container. Set PGPASSWORD (or use
-# ~/.pgpass) to reproduce. See spikes/T-1/proto/README-db.md.
-DSN = dict(host="127.0.0.1", port=55433, user="glp_owner", dbname="autosql_spike")
+# Scrubbed 2026-08-21 before first commit. FAILS CLOSED on purpose: there is no default
+# connection here, because the only default that ever existed pointed at port 55433 — the
+# live glp-strong-db container, which holds real data owned by the same role. Set
+# AUTOSQL_SPIKE_DSN at a THROWAWAY container. See spikes/T-1/proto/README-db.md and
+# spikes/T-1/proto/REGENERATE-CORPUS.md.
+def _dsn():
+    raw = os.environ.get("AUTOSQL_SPIKE_DSN")
+    if not raw:
+        raise SystemExit(
+            "conformance.py: AUTOSQL_SPIKE_DSN is not set, and there is no default.\n"
+            "  Point it at a throwaway Postgres, never at port 55433 (the live container):\n"
+            '    export AUTOSQL_SPIKE_DSN="host=127.0.0.1 port=55434 user=glp_owner '
+            'password=<throwaway> dbname=autosql_spike"\n'
+            "  See spikes/T-1/proto/REGENERATE-CORPUS.md."
+        )
+    out = {}
+    for tok in raw.split():
+        k, _, v = tok.partition("=")
+        out[k] = v
+    if out.get("port") == "55433":
+        raise SystemExit(
+            "conformance.py: refusing to run against port 55433 — that is the live "
+            "glp-strong-db container. Use a throwaway one (REGENERATE-CORPUS.md)."
+        )
+    return out
+
+
+DSN = _dsn()
 
 sys.path.insert(0, GIMS)
 from core.dashboard import expr  # noqa: E402  the REAL parser + evaluator

@@ -68,16 +68,22 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
 - **RESOLVED 2026-08-21** (was: T-1 waiting at `sp_decide` on `human:evan` since 2026-08-19). He
   ruled — GA-3, gate cleared. Four things it left genuinely open, none of them blocking `sp-spawn`
   from planning the two runs:
-  - **The tick and the note in his ruling point at different options.** The tick says *"don't build
-    yet; fund the two experiments"*; the note attached to it says *"build the bounded SQL path with
-    explicit fallback, instrument which path ran, and run the dedicated subset acceptance tests"*.
-    Work proceeds on the tick, treating the note as the shape any eventual build must take. Flagged to
-    him; one line settles it.
-  - **E2's absolute latency bar is not set.** He asked for *"absolute user-facing latency rather than
-    treating a 3.79×–7.15× relative slowdown as intrinsically fatal"* — the direction, not the number.
-    A proposal is being drafted for him to accept or change. The measured comparison points that exist:
-    Path A at 13.3–15.0 µs/row under the cap, ≈16.7 µs/row uncapped (an inference), and
-    `panel.json[2]`'s C-0 at ≤ 5.5 µs/row.
+  - **CLOSED 2026-08-21 — the tick and the note point at different options.** He delegated the call
+    (GA-4: *"I feel like these questions can be answered with your best judgement"*), so it is recorded
+    as a **ruling on delegated authority**, not his decision: **the tick governs the GIMS integration**
+    (nothing built against GIMS until the two runs earn it), **the note describes the demo**, which he
+    already authorised himself under Q18/Q19/Q24. Derivation in `kb/wiki/decision-expr-to-sql.md` §6.
+    He overturns it in one line.
+  - **CLOSED 2026-08-21 — E2's absolute latency bar.** Also a **ruling on delegated authority**:
+    **three bars, one per collection size**, because what a person will wait for depends on how big a
+    question they asked — **350 ms at 20 000 rows, 1 000 ms at 100 000, 5 500 ms at 1 000 000** — plus a
+    kill condition that the compiled path must beat the in-memory path measured in the same session
+    (8 331 ms at 1M). Every number derived from a measurement, in `spikes/T-1/EXPERIMENTS.md` §2.2.
+  - **NEW, and it belongs to the correctness run** — a third **ruling on delegated authority**
+    (`EXPERIMENTS.md` §1.2): expressions that can exceed the largest representable double become a
+    **reported runtime refusal** — the SQL refuses loudly instead of returning a number — so the pass
+    bar stays at **zero wrong answers**. If that detection cannot be built, it is a named carve-out and
+    the correctness run **FAILS**.
   - **Q31's corpus-regeneration notes are not written.** He said *"leave notes for how to generate a
     corpus"* when the 1 000-to-1 000 000-row test tables were deleted. Not started, and E2 needs them.
   - **DONE 2026-08-21 — the two material errors in `FINDINGS.md` are corrected.** He decided this one:

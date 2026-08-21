@@ -38,12 +38,22 @@ import psycopg2                            # noqa: E402
 
 # Connection string for the spike's scratch database.
 # Set AUTOSQL_SPIKE_DSN to reproduce, e.g.
-#   export AUTOSQL_SPIKE_DSN="host=127.0.0.1 port=55433 user=glp_owner password=<yours> dbname=autosql_spike"
+#   export AUTOSQL_SPIKE_DSN="host=127.0.0.1 port=55434 user=glp_owner password=<throwaway> dbname=autosql_spike"
 # The password is deliberately NOT in this repo: the same role owns the live glp_strong
 # database on that container. Scrubbed 2026-08-21 before first commit.
-DSN = os.environ.get("AUTOSQL_SPIKE_DSN") or (
-    "host=127.0.0.1 port=55433 user=glp_owner dbname=autosql_spike"
-)
+DSN = os.environ.get("AUTOSQL_SPIKE_DSN")
+if not DSN:
+    raise SystemExit(
+        "AUTOSQL_SPIKE_DSN is not set, and there is no default. The only default that ever\n"
+        "  existed pointed at port 55433 - the live glp-strong-db container, which holds real\n"
+        "  data owned by the same role. Point it at a THROWAWAY Postgres instead.\n"
+        "  See spikes/T-1/proto/REGENERATE-CORPUS.md."
+    )
+if "port=55433" in DSN:
+    raise SystemExit(
+        "Refusing to run against port 55433 - that is the live glp-strong-db container.\n"
+        "  Use a throwaway one. See spikes/T-1/proto/REGENERATE-CORPUS.md."
+    )
 
 _EPS = 1e-9   # expr_vectors.json float_epsilon
 

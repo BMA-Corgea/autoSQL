@@ -259,10 +259,12 @@ experiments."* His note attached to it, verbatim: *"Stands — don't build yet. 
 the prototype as a universal replacement for Python. Build the bounded SQL path with explicit
 fallback, instrument which path ran, and run the dedicated subset acceptance tests before treating
 that subset as production-safe. Benchmark absolute user-facing latency rather than treating a
-3.79×–7.15× relative slowdown as intrinsically fatal."* **One ambiguity is on the record and
-unresolved:** the tick says *don't build*, the note describes a bounded build. The work is proceeding
-on the tick, treating the note as (a) the shape any eventual build must take and (b) a
-re-specification of E2's bar. It has been flagged to him; one line settles it (§8).
+3.79×–7.15× relative slowdown as intrinsically fatal."* **The ambiguity that was on the record — the
+tick says *don't build*, the note describes a bounded build — was resolved on 2026-08-21 as a ruling
+on delegated authority** (GA-4), not by him personally: the tick governs the **GIMS integration**, the
+note describes the **demo** he had already authorised under Q18/Q19/Q24, and "acceptance tests before
+production-safe" gates the integration rather than the demo. Full derivation, and the one line that
+overturns it, in [`decision-expr-to-sql.md`](decision-expr-to-sql.md) §6.
 
 His other answers rule on **scope**. Five change the shape of whatever gets built. All 46 questions
 and all 12 follow-ups are answered and written down in `ANSWERS-FROM-EVAN.md`.
@@ -324,10 +326,12 @@ acceptance battery, and E2, the like-for-like speed run, correctness run first (
 
 **What is still genuinely open**, and none of it blocks the follow-up runs from being planned:
 
-1. **The tick-vs-note ambiguity in the ruling** (§6). One line from Evan settles whether "don't build"
-   or "build the bounded path" governs.
-2. **E2's absolute latency bar.** He set the direction — measure what the user actually waits — but not
-   the number. A proposal is being drafted for him to accept or change.
+1. ~~The tick-vs-note ambiguity in the ruling~~ — **ruled 2026-08-21 on delegated authority** (§6):
+   the tick governs GIMS integration, the note describes the already-authorised demo. Overturnable by
+   Evan in one line.
+2. ~~E2's absolute latency bar~~ — **ruled 2026-08-21 on delegated authority**: three bars, one per
+   collection size (350 ms / 1 000 ms / 5 500 ms at 20 k / 100 k / 1M), plus a kill condition that the
+   compiled path must beat the in-memory path at the same row count. `spikes/T-1/EXPERIMENTS.md` §2.2.
 3. **Q31's corpus-regeneration notes.** He asked for written instructions for regenerating the
    1 000-to-1 000 000-row test tables, which were deleted. Not started, and E2 needs them.
 4. **The two material errors still published in `FINDINGS.md`** (§2a). He answered *"fix them —

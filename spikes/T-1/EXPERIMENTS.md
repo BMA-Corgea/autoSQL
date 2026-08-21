@@ -13,9 +13,14 @@ machine, read-only, while writing this spec.
 
 **Two things in here you should read before the rest.**
 
-**(1) The number in Run 2's bar is mine, not yours, and it is the one open decision.** §2.2 proposes
-2,500 ms at a million rows, shows what that demands, and puts two other defensible lines beside it so
-you can pick. Nothing about what Run 2 measures changes if you move the line.
+**(1) Three decisions in here are mine, not yours.** You delegated them (GA-4: *"I feel like these
+questions can be answered with your best judgement"*), so they are recorded as **rulings on delegated
+authority** and each one shows the answers of yours it was derived from. They are: **§1.2** — an
+above-DBL_MAX divergence becomes a *reported runtime refusal* rather than a carve-out; **§2.2** —
+Run 2's latency bar is **three numbers, one per collection size** (350 ms / 1,000 ms / 5,500 ms), not
+one; and **§2.2's kill condition** — the compiled path must beat the in-memory path at the same row
+count. Each is overturnable by you in one line, and **nothing about what either run measures changes
+if you move a line.**
 
 **(2) Writing this spec turned up a defect that changes what Run 1 is for.** The restricted feature
 set does not pass the correctness bar today — that is already measured, in a file nobody cross-read
@@ -146,6 +151,13 @@ separately.
 **Three of these are FAIL. There is no partial credit and no "acceptable rate".** A wrong number on a
 dashboard has no acceptable rate.
 
+**A fifth outcome exists and is deliberately not one of the four: Postgres refuses.** Where the SQL
+raises an error instead of answering, the case is counted, reported and kept in the denominator — but
+it is not a wrong answer, so it does not fail the bar. That is a **ruling on delegated authority**
+made 2026-08-21; its derivation, its conditions, and what happens if it cannot be implemented are two
+subsections below. It is load-bearing: without it the corrected subset cannot pass, and with it the
+zero stays a real zero rather than a zero with an exception written under it.
+
 ### The state to beat, so a zero means something
 
 These are the current measured divergence counts from the three broad fuzz batteries, over
@@ -224,7 +236,7 @@ milliseconds — which is **284 decimal orders of magnitude** below the guard.
    It is: *after the one known defect is fixed, what else is in there, and does the picture change at the
    other two float-digit settings.* That is a question nobody can answer by argument.
 
-### And one divergence the fix does not close — Evan will have to rule on it
+### And one divergence the fix does not close — RULED: it becomes a reported runtime refusal
 
 Fixing the literal moves the guard from 1.8e296 to its correct place at 1.8e308. It does not remove
 the guard, and it cannot, because above that point the two engines genuinely cannot agree. Checked
@@ -239,16 +251,109 @@ live on this database **[measured 2026-08-21]**:
 Python's evaluator returns the float `inf` here. Postgres has no JSON *number* that means infinity.
 `runtime.sql` therefore chooses to return null instead, and says so in its own comment at the top of
 the function. That is a defensible choice and it is also, by construction, a "value → NULL"
-divergence inside the subset that no amount of fixing removes.
+divergence inside the subset that no amount of fixing removes. It is not decidable when the SQL is
+generated, either, because whether it happens depends on the row.
 
-**So the bar as written cannot be met for that one class, and the spec does not pretend otherwise.**
-Run 1 must report it as its own named line — with the measured witnesses, and with the count of how
-many generated inputs reached it — and Evan rules on it. The three options are: exclude any
-expression that could produce a magnitude above DBL_MAX (not decidable when the query is compiled,
-because it depends on the row); accept a written, named carve-out; or refuse the subset. **That is
-his call, not the run's**, and it is exactly the kind of decision that should be made with a measured
-witness in front of it rather than in the abstract. The reachability evidence above applies here too:
-nothing in Evan's real data is within 284 orders of magnitude of it.
+Three options were put up: exclude any expression that could produce a magnitude above DBL_MAX;
+accept a written, named carve-out in the pass bar; or refuse the subset.
+
+---
+
+#### THE RULING — a ruling on delegated authority, 2026-08-21
+
+**None of the three.** The divergence becomes a **reported runtime refusal**. The generated SQL
+detects the out-of-range condition *while it is running* and refuses loudly — it raises a named,
+catchable error instead of returning a number or a null — and the caller reports that as a fallback
+to the Python path. **The pass bar stays at zero wrong answers, because a reported refusal is not a
+wrong answer.**
+
+**Whose decision this is.** Evan's, delegated to me. Logged as **GA-4** in `.autodev/events.jsonl`,
+2026-08-21T19:43:01Z, verbatim:
+
+> "I feel like these questions can be answered with your best judgement. I give them to you to fulfill
+> what I had said in the form. I approve the spec for T-2"
+
+Labelled a **ruling on delegated authority**, not his personal decision, everywhere it is recorded.
+GA-4 is logged against ticket T-2 while its wording covers the open questions generally; this ruling
+treats it as covering this one. He overturns it in one line — *"take the carve-out"* or *"exclude
+those expressions"* — and only the reporting changes, nothing needs re-running.
+
+#### The derivation
+
+| source | what it says | what it forces |
+|---|---|---|
+| `FRAMING.md` §5 — the bar set *before* any evidence was collected | "A fallback to in-memory evaluation must be **reported, never silent**", and NO-GO "if any case diverges *silently* — i.e. produces a number rather than an error or an explicit fallback" | a null returned where Python has a value is precisely the silent form the spike exists to refuse. An **error** is the form the same sentence names as acceptable. The spike's own non-negotiable therefore picks the option |
+| Evan's note (Q1, re-confirmed as GA-3) | "Build the bounded SQL path with **explicit fallback, instrument which path ran**" | a refusal that is caught and named *is* that instrument. A null is not — nothing downstream can tell it from a legitimately absent value |
+| Evan's Q11 — "Not acceptable — index work stays off" | the generated query can never use an index | there is no performance argument for guessing instead of refusing. The corner being cut by substituting a null buys nothing that is still available to buy |
+
+The three offered options each fail one of those. *Excluding the expressions* cannot be done — the
+spec says so two paragraphs up, it depends on the row, not on the SQL. *A carve-out* writes the silent
+null into the bar, which is the thing `FRAMING.md` §5 forbids by name. *Refusing the subset* throws
+away a subset over a case that is 284 orders of magnitude from anything in Evan's data, without first
+asking whether the engine could simply say so.
+
+#### Why this is implementable — measured, not asserted
+
+**Most of the behaviour already exists.** Postgres float8 arithmetic already refuses rather than
+guessing. Straight from `analysis/fuzz/B_overflow.txt` and `B2_overflow.txt`:
+
+| expression | Python returns | Postgres does |
+|---|---|---|
+| `$.a * $.b` (1e150 × 1e160) | `inf` | **raises `22003`** — "value out of range: overflow" |
+| `$.qty * $.price` — labelled there "the shape a real dashboard writes" | `inf` | **raises `22003`** overflow |
+| `$.a / $.b` | `inf` | **raises `22003`** overflow |
+| `sum($.l) * sum($.l)` | `inf` | **raises `22003`** overflow |
+| `$.a * $.a` (1e-200 squared) | `0.0` | **raises `22003`** — "value out of range: **underflow**" |
+| `round($.a, 20)` at `a = 1.7e296` | raises `OverflowError` | **raises `22003`** overflow — both refuse |
+
+`B_overflow.txt`'s own count: **9 of 13 probes made Postgres raise.** So the refusal is not a
+mechanism anyone has to invent. It is what the database already does everywhere *except* the one
+place the prototype chose to substitute a null.
+
+**The one place is two lines.** `proto/runtime.sql` answers `THEN NULL::float8` on the out-of-range
+branch of `xpr.f8` and again inside `xpr.num`. Step zero already edits both to fix the 12-digit
+literal (Q7 permits it). The ruling adds: after the fix, that branch **raises**, with its own error
+identity so it can be told apart from a genuine SQL bug.
+
+**And it fits the file's own idiom.** `runtime.sql` already declares seven functions
+`LANGUAGE plpgsql IMMUTABLE` (lines 80, 196, 221, 248, 267, 319, 359), and plpgsql can `RAISE`. The two
+guard functions are `LANGUAGE sql`; converting them costs nothing this file does not already do.
+
+**One consequence, stated so nobody is surprised: a raise aborts the whole query.** The refusal is
+therefore per-widget, not per-row — one pathological row makes the entire widget fall back to Python.
+That is the conservative behaviour and it is exactly what "explicit fallback" means, but the partial
+scan is wasted work. That is a cost for Run 2 to be aware of, not a correctness problem.
+
+#### What Run 1 must now report
+
+1. **Refusals get their own line**, per battery and per float-digit setting, never pooled into the
+   agree count. A subset that passes at zero wrong answers while refusing a large share of its inputs
+   has passed the correctness bar and failed as a product, and only the count makes that visible.
+   No threshold is set here: there is no measurement to set one from. Run 1 produces the rate; Evan
+   draws a line across it afterwards if he wants one.
+2. **Underflow is counted separately from overflow.** The witnesses above show Postgres refusing on
+   underflow too, where Python returns `0.0`. Underflow is reachable at far less extreme magnitudes
+   than overflow — it needs a product or quotient that falls below the smallest double, not a value
+   near DBL_MAX — so its refusal rate is the one more likely to matter in real data. **Nobody has
+   measured it.** The §D.3 sweep that found 0 values near the overflow guard across 5 235 942 numeric
+   values looked at *stored magnitudes*; it says nothing about what an expression produces from them.
+   The measurement needed: the same read-only sweep, re-run for the smallest non-zero magnitudes.
+3. **The refusal must be distinguishable.** A raise the caller cannot tell apart from a broken query
+   is not a report. Run 1 records the SQLSTATE and message of every refusal — the existing ones are
+   `22003` — and asserts they are distinct from parse errors, type errors and missing-function errors.
+4. **A refusal is not an agreement.** Where Python returns a value and SQL refuses, that stays in the
+   run's output as a refusal, in the denominator, forever. It is being ruled *not a failure*; it is not
+   being ruled *a pass*.
+
+#### If the detection cannot be built
+
+**Then it is a carve-out and Run 1 FAILS its bar. There is no escape hatch.** If `xpr.f8` and
+`xpr.num` cannot be made to raise distinguishably, or if the raise cannot be caught and reported by
+the caller, then the divergence reverts to a named carve-out — and a carve-out is a written admission
+that the subset returns a null where Python returns a value. That is class 2 of the bar, and class 2
+is zero-tolerance. **Run 1 must record that as a FAIL and say so plainly.** No partial credit, and no
+"unreachable in practice" defence: §D.8 disclaims its own sweep in as many words, and Q15 points
+autoSQL at high-volume data nobody has sampled.
 
 ### What may not be claimed from a pass
 
@@ -453,97 +558,197 @@ record. A latency bar in absolute milliseconds is unusable against numbers taken
 **This machine is at load 16.18 on 20 cores as this is written [measured 2026-08-21].** Run 2 cannot
 start today.
 
-## 2.2 THE BAR — this is my proposal, and Evan sets the number
+## 2.2 THE BAR — ruled on delegated authority, 2026-08-21
 
-> **Flagged, because this is the one thing in this document that is not derived from the record.**
-> Evan set the direction — absolute user-facing latency — but not the number. Everything below is my
-> proposal. He should accept it, move it, or replace it. **Nothing about what Run 2 measures changes
-> if he moves it.** The run produces milliseconds; the bar is a line drawn across them afterwards.
-> Moving the line costs nothing and requires no re-run.
+> **This section used to be a proposal waiting on Evan.** He delegated it. Logged as **GA-4** in
+> `.autodev/events.jsonl`, 2026-08-21T19:43:01Z, verbatim:
+>
+> > "I feel like these questions can be answered with your best judgement. I give them to you to fulfill
+> > what I had said in the form. I approve the spec for T-2"
+>
+> So the numbers below are a **ruling on delegated authority** — mine, derived from his recorded
+> instruction, **not his own decision**, and labelled that way wherever they appear. GA-4 is logged
+> against ticket T-2 while its wording covers the open questions generally; this ruling treats it as
+> covering this one. **Nothing about what Run 2 measures changes if he moves a line.** The run produces
+> milliseconds; the bar is a line drawn across them afterwards. Moving it costs nothing and re-runs
+> nothing.
 
-### The proposed bar
+His instruction, verbatim (Q1, re-confirmed as GA-3):
+
+> "Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
+> intrinsically fatal."
+
+### The shape of the ruling: a bar per collection size, not one number
+
+**Because "what a person actually waits" is not one thing.** A 20,000-row widget is a page load; a
+million-row widget is a report someone asked for knowing it was big. Same person, different patience.
+The document's own opening table makes the point: across those two sizes the *ratio* moves by less
+than 2× while the *wait* moves by about 1,200×. A single absolute number inherits the same defect from
+the other side — set it where the million-row case is winnable and it says nothing at 20,000; set it
+where 20,000 is meaningful and the million-row case is failed before the run starts.
+
+So: **three bars, one per size.** Tight where the interaction is interactive, looser where the person
+has already accepted they asked a big question.
 
 **Measured as: the median wall clock of one complete widget resolve, on the shippable compiled path,
-on a quiet host, over at least 5 repetitions.**
+on a quiet host, over at least 5 repetitions.** *(Median = the middle measurement of the repetitions,
+so one slow outlier cannot move it. 95th percentile = the wait that 19 loads out of 20 come in under —
+the bar on the unlucky load rather than the typical one.)*
 
 | collection size | **PASS if median ≤** | and 95th percentile ≤ | today's Python, measured | is today's answer correct? |
 |---:|---:|---:|---:|:--|
 | **20,000** | **350 ms** | 700 ms | 300.10 ms | **yes** — top-50 recall 100% |
 | **100,000** | **1,000 ms** | 2,000 ms | 899.26 ms | **no** — recall 38%, 31 of 50 displayed rows do not belong |
-| **1,000,000** | **2,500 ms** | 5,000 ms | 8,331.43 ms | **no** — recall 4%, 48 of 50 rows wrong, top row wrong |
+| **1,000,000** | **5,500 ms** | **8,331 ms** | 8,331.43 ms | **no** — recall 4%, 48 of 50 rows wrong, top row wrong |
 
 All three must pass. Today's figures are `FINDINGS.md` §4.4; the recall figures are §4.7.
 
-**Plus one clause at 20,000 rows only:** the compiled path must also be within **+100 ms of the
-Python path measured in the same session**. At 20,000 rows the in-memory answer is already exactly
-right — row-for-row identical to the compiled arm — so there is no correctness being bought and no
-latency may be traded for it. 100 ms is roughly the point at which a person starts to notice a page
-got slower. Note this is an absolute increment, not a ratio; it is consistent with Evan's correction
-rather than a smuggled-back multiple.
+*On the two tail numbers at 20,000 and 100,000: the 2× allowance is a **convention, not a
+measurement**, and is flagged as such. For scale, the measured spread within the old sweep's own
+repetitions was small — Python at 20,000 ran [277.15–313.17] around a 300.10 median (±6%), at 100,000
+[879.17–921.43] around 899.26 (±2.3%), and the compiled arm at 1M [59,269.94–60,409.79] around
+59,590.03 (±1%) (§4.4). A 2× tail allowance is generous against that; its job is to catch an outlier,
+not to encode a target. **The 1M tail number is not a convention** — see the kill condition below.*
 
-### What each number is based on
+### The hard condition — it must beat what already exists
 
-**20,000 rows → 350 ms.** Anchor: the measured Python median at this size is 300.10 ms, and at this
-size the answer is already perfect. So this is a no-regression bar, not an improvement bar. The
-+50 ms of headroom sits below the threshold at which a change in page speed is perceptible.
+**At 100,000 and 1,000,000 rows the compiled path's median must be strictly below the Python path's
+median measured in the same session.** At a million rows that is the **8,331.43 ms** in the table
+above. **Failing to beat what exists is a kill, whatever the absolute number** — there would be no
+reason to build it. This document already said so about the 1M line; the ruling makes it a condition
+rather than a remark, and extends it to 100,000.
 
-**100,000 rows → 1,000 ms.** Four anchors:
-- One second is the conventional threshold below which a person keeps their train of thought. **This is a general human-factors number, not something measured on this machine or on Evan's users** — I am flagging it as the softest input to this proposal.
-- Today's Python answers in 899 ms but 62% of the displayed rows are wrong. Spending ~100 ms more to be right is a good trade.
-- The correctness-matched Python alternative — lifting the 20,000-row cap, which Evan already approved under Q16 — costs about **1.6 s** at this size. *(INFERENCE, my arithmetic, by the same method `FINDINGS.md` §5.5 uses at 1M: the already-paid 728 ms acquisition plus derive at 7.27 µs/row and filter at 1.23 µs/row over 100,000 rows.)* So 1,000 ms also beats the cheap alternative.
-- Achievability: a full scan at this size that reads one JSON key out of every row measures **25.74 ms** (`FINDINGS.md` §4.6). That is 2.6% of the budget, so 97% of the second is available for expression work. The bar is not below the physics.
+**At 20,000 rows the same principle takes a different form.** Today's answer at 20,000 rows is already
+exactly right — row-for-row identical to the compiled arm (§4.7) — so the compiled path buys no
+correctness there and cannot be justified by winning a race it does not need to win. The test at that
+size is **no perceptible regression: within +100 ms of the Python path measured in the same session.**
+100 ms is roughly the point at which a person starts to notice a page got slower. Note this is an
+absolute increment, not a ratio; it is consistent with Evan's correction rather than a smuggled-back
+multiple.
 
-**1,000,000 rows → 2,500 ms.** Five anchors:
-- **It is 3.3× faster than the 8,331 ms a person waits today** — so nobody waits longer than they do now, even though the answer stops being wrong. That is the single user-facing claim Run 2 exists to test.
-- Ten seconds is the conventional limit of held attention. 2.5 s sits four times inside it — in the "shows a spinner, does not lose the user" band. *(Again: general human-factors, not measured here.)*
-- The correctness-matched alternative — the approved cap lift — costs about **16.7 s** at 1M. *(INFERENCE, `FINDINGS.md` §5.5, re-derived from the same per-row figures; Run 2 converts it into a measurement, see §2.3.)* So 2,500 ms is ~6.7× better than the one-line change already on the books.
-- **Achievability, measured:** the unsafe native-operator arm ran this exact widget over 1,000,000 rows in **229.99 ms**, returning a row-for-row identical answer (`FINDINGS.md` §4.4). 2,500 ms therefore leaves a **10.9× budget for the cost of doing it safely**. The bar is one order of magnitude worse than what the hardware demonstrably does.
-- It is 5.0× the measured 502 ms floor for a scan that touches and serialises every row, and 23× the 106 ms floor for a scan that reads one JSON key per row (`FINDINGS.md` §4.4, §4.6).
+*(This split is the one place the ruling interprets rather than applies, so it is flagged. If Evan
+wants the strict form everywhere — compiled must beat Python at 20,000 too — that clause simply
+becomes "< the same-session Python median" and nothing else in the spec changes. Worth knowing what he
+would be choosing: the compiled arm measured **1,138.61 ms** at 20,000 rows against Python's 300.10
+(§4.4), so strict-beat-at-every-size is close to a decision taken in advance.)*
 
-### What the 1M number demands, stated plainly so it can be argued with
+**Use the same-session number, not the recorded one.** The kill test compares against Python measured
+in the same session on the same host. If that number lands far from the recorded 8,331.43 ms, that is
+itself evidence the host was not quiet — and §2.5 item 1 voids the cell.
 
-2,500 ms over 1,000,000 rows is **2.5 microseconds per row** for everything — the scan, the
-expression, and shipping the surviving rows back to Python. Against what has been measured:
+### Why 5,500 ms at a million rows, and not the 2,500 ms this document used to propose
+
+The reason is in this document's own arithmetic. Every figure here is measured or cited, none is new:
 
 | | µs per row | what it is |
 |---|---:|---|
-| native operator ceiling (unsafe) | **0.23** | `FINDINGS.md` §4.4, B4 at 1M |
 | scan that reads one JSON key, no expression | **0.11** | §4.6 at 1M |
-| **the proposed 1M bar** | **2.5** | |
-| cheapest compiled predicate ever measured (`$.status == "open"`) | **2.73** | §2.1's table |
-| the arithmetic predicate shape this run uses (`$.score * 2 > 180`) | **23.2** | §2.1's table |
+| native operator ceiling (unsafe) | **0.23** | §4.4, B4 at 1M |
+| scan that touches and serialises every row | **0.50** | §4.4 — the 502 ms floor |
+| **2,500 ms — the earlier proposal** | **2.5** | |
+| cheapest compiled predicate ever measured (`$.status == "open"`, W1) | **2.73** | §2.1's table, from `analysis/index-shape.md` §4.1 |
+| **5,500 ms — THE RULING** | **5.5** | `panel.json[2]`'s C-0 gate, restated in `FINDINGS.md` §5.7 condition 4, converted into the milliseconds it produces |
+| `$.score > 90` (W2) | **7.43** | same source |
+| **8,331 ms — the kill floor** | **8.3** | today's measured Python median at 1M, §4.4 |
 | one `xpr.pdate_ms` call | **11.95** | §4.6, constant across three orders of magnitude of table size |
+| the arithmetic predicate `$.score * 2 > 180` (W3) | **23.2** | same source as W1/W2 |
 
-Read honestly: **2.5 µs/row is below the cheapest compiled predicate that has ever been measured.**
-Clearing it would require the way expressions are emitted into SQL to get roughly ten times leaner
-than it is now — not a tune-up, a change of encoding. The native arm proves 0.23 µs/row is
-physically available, so this is an engineering claim and not a physics violation, but it is a large
-one and Evan should know that is what he would be signing.
+**2.5 µs/row is below the cheapest compiled predicate that has ever been measured.** A bar set below
+every measurement in the record is a bar the run cannot inform — it decides the answer before the run
+starts, and Run 2 is the expensive one (§2.6: an exclusive quiet host, a full corpus rebuild, 2–3
+hours). Evan's instruction was to stop treating a *multiple* as fatal and start measuring the *wait*.
+It was not an instruction to set the wait so low that only an encoding nobody has written could reach
+it.
 
-### Two other lines he could draw instead
+**5.5 µs/row is not invented for this ruling.** It is the gate the earlier panel set *before* the
+evidence was collected (`panel.json[2]`'s C-0, restated in `FINDINGS.md` §5.7 condition 4). All the
+ruling does is convert it out of the unit the record used and into the unit Evan asked for. A
+pre-registered line, restated in milliseconds, is the most defensible number available here.
 
-Given the above, here are the three defensible lines side by side, so the choice is visible:
+**And it still delivers everything the bar exists to test:**
 
-| line at 1M | per-row budget | what it means for a person | where it comes from |
+- **1.5× faster than the 8,331 ms a person waits today** — nobody waits longer than they do now, while
+  the answer stops being 96% wrong. That is the user-facing claim Run 2 exists to test.
+- Comfortably inside the ten-second conventional limit of held attention. *(General human-factors, not
+  measured on this machine or on Evan's users — flagged as the softest input to this ruling, exactly as
+  it was flagged for 2,500.)*
+- **~3× better than the correctness-matched alternative** — the 20,000-row cap lift Evan already
+  approved under Q16, which costs about **16.7 s** at 1M. *(INFERENCE, by `FINDINGS.md` §5.5's method;
+  Run 2 converts it into a measurement, §2.3.)*
+- **Achievable in principle, measured:** the unsafe native-operator arm ran this exact widget over
+  1,000,000 rows in **229.99 ms** returning a row-for-row identical answer (§4.4). 5,500 ms leaves a
+  **24× budget for the cost of doing it safely.**
+- It is **11× the 502 ms floor** for a scan that touches and serialises every row, and **52× the 106 ms
+  floor** for a scan that reads one JSON key per row (§4.4, §4.6).
+
+**What loosening the line gives up, stated so it can be argued with.** At 5,500 ms the widget is
+correct and moderately faster; it does not feel *fast*. A person waits five and a half seconds and
+watches a spinner. 2,500 ms was the line at which the compiled path would win on both axes a person
+can feel, and the ruling trades that for a bar the run can actually decide. If Evan wants the ambitious
+line back, one word restores it — and this document's own closing note applies: Run 2 reports the
+milliseconds either way, so the line can be redrawn afterwards without re-running anything.
+
+### The interactive bars — these are the tight ones
+
+**20,000 rows → 350 ms.** Anchor: the measured Python median at this size is **300.10 ms** (§4.4), and
+at this size the answer is already perfect (§4.7). So this is a no-regression bar, not an improvement
+bar. The +50 ms of headroom sits below the threshold at which a change in page speed is perceptible.
+
+**100,000 rows → 1,000 ms.** Four anchors:
+
+- One second is the conventional threshold below which a person keeps their train of thought. **This
+  is a general human-factors number, not something measured on this machine or on Evan's users** — the
+  softest input at this size, flagged as such.
+- Today's Python answers in **899.26 ms** but 62% of the displayed rows are wrong (§4.4, §4.7).
+  Spending ~100 ms more to be right is a good trade.
+- The correctness-matched Python alternative — the cap lift Evan approved under Q16 — costs about
+  **1.6 s** at this size. *(INFERENCE, my arithmetic, by `FINDINGS.md` §5.5's method at 1M: the
+  already-paid 728 ms acquisition plus derive at 7.27 µs/row and filter at 1.23 µs/row over 100,000
+  rows.)* So 1,000 ms also beats the cheap alternative.
+- **Achievability:** a full scan at this size reading one JSON key out of every row measures
+  **25.74 ms** (§4.6). That is 2.6% of the budget, leaving 97% of the second for expression work. The
+  bar is not below the physics.
+
+**Per-row budget across the three: 17.5 → 10.0 → 5.5 µs/row.** It tightens with size because a
+person's patience does not scale with the row count. **The 1,000,000-row bar is still the binding
+one** — if it passes, the other two almost certainly follow. If Evan only wants to argue about one
+number, that is still the one.
+
+### The three lines side by side, so the choice stays visible
+
+| line at 1M | per-row budget | what it means for a person | status |
 |---:|---:|---|---|
-| **2,500 ms** | 2.5 µs | the widget answers in "a couple of seconds"; correct *and* faster than today | **my proposal** |
-| 5,500 ms | 5.5 µs | correct, 1.5× faster than today, 3× faster than the approved cap lift — but still a "go get coffee" wait | the earlier panel's C-0 gate (`panel.json[2]`, restated in `FINDINGS.md` §5.7 condition 4), converted from µs/row into the milliseconds it produces |
+| 2,500 ms | 2.5 µs | correct *and* feels fast — but below every compiled predicate ever measured | the earlier proposal — **not taken** |
+| **5,500 ms** | **5.5 µs** | correct, 1.5× faster than today, ~3× faster than the approved cap lift; a spinner, not a coffee break | **RULED** |
 | 8,331 ms | 8.3 µs | correct instead of 96% wrong, but no faster than today | **the kill line** |
 
-**The 8,331 ms line is not a bar, it is a floor.** At or above it, the compiled path is not faster
-than what a person waits today, and its only remaining argument is correctness — which the cap lift
-Evan already approved under Q16 also delivers, for one line of code. A result at or above 8,331 ms
-means build nothing.
+**The 8,331 ms line is not a bar, it is a floor.** At or above it the compiled path is not faster than
+what a person waits today, and its only remaining argument is correctness — which the cap lift Evan
+already approved under Q16 also delivers, for one line of code. A result at or above 8,331 ms means
+**build nothing**.
 
-**I propose 2,500 ms.** It is the only line at which the compiled path wins on both axes a person
-can actually feel: the answer becomes right *and* the wait gets shorter. If Evan would rather set a
-bar the current emission strategy has a realistic chance of clearing without a rewrite, 5,500 ms is
-the honest choice and I would not argue with it.
+### One thing the bar cannot decide on its own: the widget
 
-**One property of absolute bars worth noticing:** the per-row budget tightens sharply with size
-(17.5 → 10 → 2.5 µs/row across the three), because a person's patience does not scale with the row
-count. **The 1,000,000-row bar is the binding one.** If it passes, the other two almost certainly
-follow. If Evan only wants to argue about one number, that is the one.
+A bar in milliseconds only means something once the widget's per-row cost is known, and the compiled
+predicates measured on the same rig differ by **8.5×** — 2.73 to 23.2 µs/row (§2.1, from
+`index-shape.md` §4.1). Against the ruled bars:
+
+| bar | budget | `$.status == "open"` · 2.73 µs | `$.score > 90` · 7.43 µs | `$.score * 2 > 180` · 23.2 µs |
+|---|---:|---|---|---|
+| 20,000 → 350 ms | 17.5 µs/row | fits | fits | **does not fit** |
+| 100,000 → 1,000 ms | 10.0 µs/row | fits | fits | **does not fit** |
+| 1,000,000 → 5,500 ms | 5.5 µs/row | fits, ~2.8 µs/row left for scan, sort and transfer | **does not fit** | **does not fit** |
+
+§2.1 names the arithmetic shape `$.score * 2 > 180` as the predicate this run uses. **On the isolated
+measurements, that shape fits none of the three bars.** Those numbers were taken as standalone
+predicate scans on a 50,000-row table, not as arm C over the corpus, so they do not settle it — but
+they make one step mandatory:
+
+**Pre-flight, before the expensive 1M pass:** run the chosen widget's predicate alone over the
+100,000-row table under `EXPLAIN (ANALYZE, BUFFERS)`, divide the execution time by the rows scanned,
+and record the µs/row. It costs one query, and it is exactly the method of `index-shape.md` §4.1. If
+that figure times 1,000,000 already exceeds 5,500 ms, the 1M pass still runs and still reports its
+milliseconds — but nobody should book the exclusive quiet host believing the answer is open.
 
 ## 2.3 What gets measured, and at what sizes
 
@@ -726,10 +931,12 @@ the cap lift Evan already approved, and it says so with a number rather than a m
 the investigation says was always the hard half: the GIMS-side changes that let a fallback be
 *reported* rather than silently taken. Nothing in either run touches that.
 
-**A note on moving the bar.** Run 2 produces milliseconds. If the 1M number lands at, say, 4,000 ms,
-that is a FAIL under this spec and a very different decision from a FAIL at 23,000 ms. The spec
-requires the number to be reported either way, and Evan can redraw the line afterwards without
-re-running anything.
+**A note on moving the bar.** Run 2 produces milliseconds. If the 1M number lands at, say, 6,500 ms,
+that is a FAIL under §2.2's ruled bar — but a FAIL that still beats the 8,331 ms a person waits today,
+which is a very different decision from a FAIL at 23,000 ms. The spec requires the number to be
+reported either way, and Evan can redraw any line afterwards without re-running anything. **What he
+cannot redraw away is the kill condition** (§2.2): at or above the same-session Python median, the
+compiled path has no argument left.
 
 ---
 
