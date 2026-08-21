@@ -1,0 +1,9 @@
+=== A2. exact boundary of the xpr.f8 guard, by bisection on the live DB ===
+largest magnitude that still round-trips : 1.79769313486231551e+296
+smallest magnitude that is CORRUPTED     : 1.79769313486231587e+296
+i.e. every finite double in [1.797693e+296, DBL_MAX] is mishandled.
+that is 12.0 decades of the float8 range, 1.8987% of representable doubles by exponent
+
+negative side: DIVERGE at -1e300
+just below   : AGREE
+just above   : DIVERGE at 1.80e296

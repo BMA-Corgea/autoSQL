@@ -1,0 +1,14 @@
+=== G2b. xpr.round vs _fn_round, 8000 probes, one query each ===
+    AGREE              7841   98.01%
+    SQL_RAISE_ONLY       94    1.18%
+    BOTH_RAISE           65    0.81%
+
+    witness SQL_RAISE_ONLY  round(5e-324, -2.0)
+        python = 0.0
+        sql    = None   RAISED value out of range: underflow
+    witness BOTH_RAISE      round(1.7976931348623157e+308, 3.0)
+        python = None   RAISED OverflowError('cannot convert float infinity to integer')
+        sql    = None   RAISED value out of range: overflow
+
+    SQL_RAISE_ONLY is a totality violation: expr.py:640 says the evaluator
+    never raises for data reasons, and Postgres aborts the whole query.

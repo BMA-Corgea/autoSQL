@@ -1,0 +1,98 @@
+   <AGREE>       count($.l)               {'l': []}                                count of empty list -> 0.0, NOT null
+   <AGREE>       sum($.l)                 {'l': []}                                sum of empty list -> null
+   <AGREE>       avg($.l)                 {'l': []}                                avg of empty list -> null
+   <AGREE>       min($.l)                 {'l': []}                                min of empty
+   <AGREE>       max($.l)                 {'l': []}                                max of empty
+   <AGREE>       count($.l)               {'l': [None, None]}                      count of all-null list
+   <AGREE>       sum($.l)                 {'l': [None, None]}                      sum of all-null list
+   <AGREE>       count($.missing)         {}                                       count of a missing field
+   <AGREE>       sum($.missing)           {}                                       sum of a missing field
+   <AGREE>       count()                  {}                                       count with NO arguments
+   <AGREE>       sum()                    {}                                       sum with no arguments
+   <AGREE>       count($.a, $.b)          {'a': None, 'b': 1}                      count, two scalar args
+   <AGREE>       sum($.a, $.b)            {'a': '3', 'b': True}                    sum coerces strings and bools
+   <AGREE>       avg($.l)                 {'l': ['1', True, None, 'x', 3]}         avg over a mixed list
+   <AGREE>       sum($.l)                 {'l': [{'x': 1}, [1], '2']}              sum over containers + a numeric string
+   <AGREE>       count($.l)               {'l': [{'x': 1}, [1], '2']}              count over the same
+   <AGREE>       count($.o)               {'o': {'a': 1, 'b': 2}}                  count of a DICT arg (not unwrapped by _as_list)
+   <AGREE>       sum($.o)                 {'o': {'a': 1, 'b': 2}}                  sum of a dict arg
+   <AGREE>       min($.l)                 {'l': [3, '2', True]}                    min mixes number/string/bool through _to_num
+   <AGREE>       sum($.l)                 {'l': [0.1, 0.2, 0.3]}                   float summation ORDER matters
+   <DIVERGE>     sum($.l)                 {'l': [1e+16, 1.0, -1e+16]}              catastrophic-cancellation order test
+                 py=1.0  sql=0 (number)
+   <AGREE>       sum($.l)                 {'l': [-0.0]}                            sum of a single negative zero
+   <AGREE>       sum($.l)                 {'l': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}   control
+   <AGREE>       if($.v, "T", "F")        {'v': 0}                                 0 is falsy
+   <AGREE>       if($.v, "T", "F")        {'v': -0.0}                              -0.0 is falsy
+   <AGREE>       if($.v, "T", "F")        {'v': ''}                                empty string
+   <AGREE>       if($.v, "T", "F")        {'v': ' '}                               one space
+   <AGREE>       if($.v, "T", "F")        {'v': []}                                empty list
+   <AGREE>       if($.v, "T", "F")        {'v': {}}                                empty dict
+   <AGREE>       if($.v, "T", "F")        {'v': [None]}                            list containing one null
+   <AGREE>       if($.v, "T", "F")        {'v': {'a': None}}                       dict with a null value
+   <AGREE>       if($.v, "T", "F")        {'v': None}                              explicit null
+   <AGREE>       if($.v, "T", "F")        {}                                       missing field
+   <AGREE>       if($.v, "T", "F")        {'v': False}                             false
+   <AGREE>       if($.v, "T", "F")        {'v': '0'}                               the STRING "0" is truthy
+   <AGREE>       if($.v, "T", "F")        {'v': 'false'}                           the STRING "false" is truthy
+   <AGREE>       $.a < $.b                {'a': True, 'b': False}                  bool operands -> null, NOT a coercion
+   <AGREE>       $.a < $.b                {'a': True, 'b': 2}                      bool vs number -> null
+   <AGREE>       $.a < $.b                {'a': 1, 'b': '2'}                       number vs string -> null
+   <AGREE>       $.a < $.b                {'a': [1], 'b': [2]}                     list vs list -> null
+   <AGREE>       $.a < $.b                {'a': None, 'b': 1}                      null operand -> null
+   <AGREE>       $.a <= $.a               {'a': 'x'}                               string self-comparison
+   <AGREE>       $.a < $.b                {'a': 'Z', 'b': 'a'}                     ASCII case ordering
+   <AGREE>       $.a < $.b                {'a': '\xe9', 'b': 'z'}                  non-ASCII ordering (codepoint vs C collation)
+   <AGREE>       $.a == $.b               {'a': True, 'b': 1}                      bool vs 1 must be FALSE (test_dashboard_expr.py:37)
+   <AGREE>       $.a == $.b               {'a': 1, 'b': 1.0}                       int vs float must be TRUE
+   <AGREE>       $.a == $.b               {'a': {'x': 1, 'y': 2}, 'b': {'y': 2, 'x dict key ORDER is irrelevant
+   <AGREE>       $.a == $.b               {'a': [1, 2], 'b': [1, 2]}               list equality
+   <AGREE>       $.a == $.b               {'a': [1, 2], 'b': [1.0, 2.0]}           list of int vs list of float
+   <AGREE>       $.a == $.b               {'a': [True], 'b': [1]}                  list of bool vs list of number
+   <AGREE>       $.a == $.b               {'a': None, 'b': None}                   null == null is TRUE
+   <AGREE>       $.a == null              {'a': None}                              explicit null literal
+   <AGREE>       $.a == null              {}                                       missing field == null
+   <AGREE>       contains($.l, $.n)       {'l': [1, 2, 3], 'n': 2}                 array membership
+   <AGREE>       contains($.l, $.n)       {'l': [1, 2, 3], 'n': 2.0}               array membership, float needle
+   <AGREE>       contains($.l, $.n)       {'l': [True], 'n': 1}                    bool element vs number needle -> FALSE
+   <AGREE>       contains($.l, $.n)       {'l': [None], 'n': None}                 null element, null needle
+   <AGREE>       contains($.l, $.n)       {'l': [[1]], 'n': [1]}                   nested list needle
+   <AGREE>       contains($.l, $.n)       {'l': [{'a': 1}], 'n': {'a': 1}}         dict needle
+   <AGREE>       contains($.s, $.n)       {'s': 'abc', 'n': ''}                    empty needle in a string
+   <AGREE>       contains($.s, $.n)       {'s': '', 'n': ''}                       empty needle in an empty string
+   <AGREE>       contains($.s, $.n)       {'s': 'abc', 'n': None}                  null needle -> FALSE
+   <AGREE>       contains($.s, $.n)       {'s': None, 'n': 'a'}                    null haystack -> FALSE (not null!)
+   <AGREE>       contains($.s, $.n)       {'s': 12345, 'n': 234}                   number haystack coerced to text
+   <AGREE>       contains($.o, $.n)       {'o': {'a': 1}, 'n': 'a'}                dict haystack -> _to_str is None -> FALSE
+   <AGREE>       length($.v)              {'v': 'abc'}                             string length
+   <AGREE>       length($.v)              {'v': ''}                                empty string
+   <AGREE>       length($.v)              {'v': []}                                empty list
+   <AGREE>       length($.v)              {'v': {}}                                empty dict
+   <AGREE>       length($.v)              {'v': {'a': 1, 'b': 2}}                  dict length = key count
+   <AGREE>       length($.v)              {'v': 12345}                             number -> null
+   <AGREE>       length($.v)              {'v': True}                              bool -> null
+   <AGREE>       length($.v)              {'v': None}                              null -> null
+   <AGREE>       length($.v)              {'v': 'e\u0301'}                         combining accent: 2 code points
+   <AGREE>       length($.v)              {'v': '\U0001f600'}                      astral emoji: 1 code point in Python
+   <AGREE>       length($.v)              {'v': '\U0001f1e6\U0001f1e7'}            flag sequence: 2 code points
+   <AGREE>       concat($.a, $.b)         {'a': None, 'b': 'x'}                    null argument becomes '' in concat
+   <AGREE>       concat($.a, $.b)         {'a': [1], 'b': 'x'}                     list argument becomes ''
+   <AGREE>       concat()                 {}                                       concat with no args -> ''
+   <AGREE>       string($.v)              {'v': True}                              bool -> 'true'
+   <AGREE>       string($.v)              {'v': [1]}                               list -> null
+   <AGREE>       string($.v)              {'v': 1e+21}                             ECMA switches to exponent at 1e21
+   <AGREE>       string($.v)              {'v': 1e+20}                             1e20 stays positional
+   <AGREE>       string($.v)              {'v': 1e-06}                             1e-6 stays positional
+   <AGREE>       string($.v)              {'v': 1e-07}                             1e-7 switches to exponent
+   <AGREE>       string($.v)              {'v': -0.0}                              negative zero -> '0'
+   <AGREE>       $.a[0]                   {'a': 'abc'}                             index into a STRING -> null (not 'a')
+   <AGREE>       $.a[0]                   {'a': 5}                                 index into a scalar -> null
+   <AGREE>       $.a[-1]                  {'a': [1, 2, 3]}                         negative index
+   <AGREE>       $.a[-4]                  {'a': [1, 2, 3]}                         out-of-range negative index
+   <AGREE>       $.a[3]                   {'a': [1, 2, 3]}                         out-of-range positive index
+   <AGREE>       $.a.b                    {'a': [1, 2]}                            key into a list -> null
+   <AGREE>       $.a.b                    {'a': 'x'}                               key into a string -> null
+   <AGREE>       $["a b"]                 {'a b': 7}                               quoted key with a space
+   <AGREE>       $.a                      {'a': None}                              JSON null vs absent are indistinguishable
+
+1 of 95 convention probes diverge

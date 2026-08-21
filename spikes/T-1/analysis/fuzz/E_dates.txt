@@ -1,0 +1,59 @@
+=== E. date parsing / formatting ===
+
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01'}                control
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00'}          hh:mm only
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01 00:00:00'}       space separator
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00.123456'} 6-digit fraction
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00.1'}     1-digit fraction
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00.1234567'} 7 digits -> both must reject
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00Z'}      Z
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00+05:30'} offset with colon
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00-0800'}  offset without colon
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T00:00:00+99:99'} absurd but regex-legal offset
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-02-29'}                leap day, leap year
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2023-02-29'}                leap day, non-leap -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '1900-02-29'}                1900 is NOT a leap year
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2000-02-29'}                2000 IS a leap year
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '0000-01-01'}                year 0 -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '0001-01-01'}                year 1, the Python minimum
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '9999-12-31'}                year 9999, the Python maximum
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-13-01'}                month 13 -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-32'}                day 32 -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T24:00:00'}       hour 24 -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01T23:59:60'}       leap second -> both NULL
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '  2024-01-01  '}            ASCII padding
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': ' 2024-01-01'}               NBSP U+00A0 padding
+   <DIVERGE>      days_between($.d, "2024-01-02")                {'d': '\u0662\u0660\u0662\u0664-\u0660\u0661-\u0660\u0661'} ARABIC-INDIC digits in a date  <<<
+                  py=1.0
+                  sql=None (SQL NULL)
+   <AGREE>        days_between($.d, "2024-01-02")                {'d': '2024-01-01\n'}              trailing newline (Python $ vs PG $)
+   <PY_RAISE>     days_between($.d, "2024-01-02")                {'d': '0001-01-01T00:00:00+14:00'} year 1 pushed BELOW datetime.min by the offset  <<<
+                  py=None  RAISED OverflowError: date value out of range
+                  sql=738886.5833333334 (number)
+   <PY_RAISE>     days_between($.d, "2024-01-02")                {'d': '9999-12-31T23:59:59-14:00'} year 9999 pushed ABOVE datetime.max by the offset  <<<
+                  py=None  RAISED OverflowError: date value out of range
+                  sql=-2913173.5833217595 (number)
+   <PY_RAISE>     days_between($.d, "2024-01-02")                {'d': '0001-01-01T00:00:00+00:01'} one minute past the minimum  <<<
+                  py=None  RAISED OverflowError: date value out of range
+                  sql=738886.0006944444 (number)
+   <PY_RAISE>     $.d == "x" or days_between($.d, "2024-01-02") > 0 {'d': '0001-01-01T00:00:00+14:00'} same, inside a boolean the dashboard would actually write  <<<
+                  py=None  RAISED OverflowError: date value out of range
+                  sql=True (boolean)
+   <AGREE>        date_add($.d, 1)                               {'d': '2024-02-28'}                date_only output
+   <AGREE>        date_add($.d, 1)                               {'d': '2024-02-28T12:00:00Z'}      datetime output
+   <AGREE>        date_add($.d, 0.5)                             {'d': '2024-02-28'}                half day on a date-only base
+   <AGREE>        date_add($.d, -0.5)                            {'d': '2024-02-28'}                negative half day
+   <AGREE>        date_add($.d, 1e9)                             {'d': '2024-01-01'}                shift far past year 9999 -> both NULL
+   <AGREE>        date_add($.d, -1e9)                            {'d': '2024-01-01'}                shift far below year 1 -> both NULL
+   <AGREE>        date_add("0001-01-01", $.n)                    {'n': -1.15740740740741e-11}       one microsecond BELOW datetime.min
+   <AGREE>        date_add("9999-12-31T23:59:59Z", $.n)          {'n': 1.15740740740741e-11}        one microsecond ABOVE datetime.max
+   <AGREE>        date_add($.d, $.n)                             {'d': '1970-01-01T00:00:00Z', 'n': 5.78703703703704e-12} +0.5 microsecond: PG numeric round() is half-AWAY, Python is half-EVEN
+   <AGREE>        date_add($.d, $.n)                             {'d': '1970-01-01T00:00:00Z', 'n': 1.73611111111111e-11} +1.5 microseconds: half-even rounds DOWN to 1, half-away rounds UP to 2
+   <AGREE>        date_add($.d, $.n)                             {'d': '1969-12-31T23:59:59Z', 'n': 1.15740740740741e-11} negative epoch side
+   <AGREE>        days_between("0001-01-01", $.d)                {'d': '9999-12-31'}                full calendar span
+   <AGREE>        days_between($.a, $.b)                         {'a': '2024-01-01T00:00:00.000001', 'b': '2024-01-01T00:00:00.000002'} one microsecond apart at a large epoch
+   <AGREE>        days_between($.a, $.b)                         {'a': '0001-01-01T00:00:00.000001', 'b': '0001-01-01T00:00:00.000002'} one microsecond apart at the far negative epoch
+   <AGREE>        now()                                          {}                                 wall clock, no ctx -- expr uses per-record, SQL uses per-query
+   <AGREE>        today()                                        {}                                 wall clock, no ctx
+
+5 of 45 date probes diverge

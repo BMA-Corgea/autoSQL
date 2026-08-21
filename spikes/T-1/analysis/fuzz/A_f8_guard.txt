@@ -1,0 +1,35 @@
+=== A1. the guard literal, measured ===
+    digits in the literal : 297
+    its float8 value      : 1.797693134862316e+296
+    DBL_MAX               : 1.7976931348623157e+308  (309 digits)
+
+=== A2. blast radius at a = 1e300 (an ordinary finite double) ===
+   <DIVERGE>    $.a + 0                py=1e+300             sql=None               arithmetic  (compile.py _t_bin -> xpr.num -> xpr.f8)  <<<
+   <DIVERGE>    $.a * 1                py=1e+300             sql=None               arithmetic  <<<
+   <DIVERGE>    - $.a                  py=-1e+300            sql=None               unary minus  <<<
+   <DIVERGE>    number($.a)            py=1e+300             sql=None               number()  <<<
+   <DIVERGE>    abs($.a)               py=1e+300             sql=None               abs()  <<<
+   <DIVERGE>    floor($.a)             py=1e+300             sql=None               floor()  <<<
+   <DIVERGE>    round($.a)             py=1e+300             sql=None               round()  <<<
+   <DIVERGE>    string($.a)            py='1e+300'           sql=None               string()  (xpr.str -> xpr.f8 -> ecma_num)  <<<
+   <DIVERGE>    concat($.a)            py='1e+300'           sql=''                 concat()  -- yields '' , not the number  <<<
+   <DIVERGE>    $.a < 1e301            py=True               sql=None               ORDER COMPARISON -- the pushdown-predicate path  <<<
+   <DIVERGE>    $.a > 1                py=True               sql=None               ORDER COMPARISON  <<<
+   <DIVERGE>    $.a >= $.a             py=True               sql=None               ORDER COMPARISON, both sides  <<<
+   <DIVERGE>    sum($.l)               py=1e+300             sql=1                  sum()  -- yields 1, a WRONG NUMBER not a null  <<<
+   <DIVERGE>    max($.l)               py=1e+300             sql=1                  max()  -- yields 1  <<<
+   <DIVERGE>    avg($.l)               py=5e+299             sql=1                  avg()  -- yields 1  <<<
+   <AGREE>      count($.l)             py=2.0                sql=2                  count() -- does NOT use f8
+   <AGREE>      $.a                    py=1e+300             sql=1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 bare field read -- does NOT use f8
+   <AGREE>      $.a == 1e300           py=True               sql=True               equality -- jsonb IS NOT DISTINCT FROM, no f8
+   <DIVERGE>    contains($.s, $.a)     py=True               sql=False              contains() -> xpr.str -> f8  <<<
+   <AGREE>      if($.a, 1, 2)          py=1.0                sql=1                  truthy -- uses ::numeric, not f8
+
+   16 of 20 paths diverge at a = 1e300
+
+=== A3. exact boundary, bisected on the live database ===
+    largest magnitude that still round-trips : 1.79769313486231551e+296
+    smallest magnitude that is CORRUPTED     : 1.79769313486231587e+296
+    negative side at -1e300                  : DIVERGES too
+    every finite double with |v| >= 1.797693e+296 is mishandled -- about 12 of the
+    float8 exponent's 632 decades.

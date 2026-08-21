@@ -1,0 +1,17 @@
+=== H. broad AST fuzz -- profile=ordinary  N=3000  seed=2026 ===
+
+    AGREE            2908   96.933%
+    PARSE_ERROR        92    3.067%
+
+    divergence classes (auto-clustered):
+
+PARSE_ERROR reasons (these are MY generator emitting invalid source, not compiler gaps):
+     119  ExprError("Unexpected token 'not'")
+
+examples:
+   date_add(((sum($.l) / $.d) < not ($.flag)), sum((("12" == $. ExprError("Unexpected token 'not'")
+   (($.b.flag[-2] <= not (("Fail" != $.n))) or if($.t.flag, $.a ExprError("Unexpected token 'not'")
+   days_between($.d[1].l, (sum($.e) - not (($.d == "FAIL"))))   ExprError("Unexpected token 'not'")
+   not ((10 <= not ($.flag)))                                   ExprError("Unexpected token 'not'")
+   (if(round(1), $.a, date_add(("" and ""), ($.a * $.a))) or (- ExprError("Unexpected token 'not'")
+   not (($.a - not (sum($.n, $.b))))                            ExprError("Unexpected token 'not'")

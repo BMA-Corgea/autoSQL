@@ -1,0 +1,19 @@
+{
+  "_schema": "time-track.mjs DEFAULTS (scripts/time-track.mjs) + commands/time.md 'Config'. Keys: enabled, idleMin, roundTo, roundMode, minimumMin, minBlockMin, client, timezone, sheetWebhook, sheet, rate.",
+  "enabled": true,
+  "idleMin": 90,
+  "roundTo": 15,
+  "roundMode": "nearest",
+  "minimumMin": 0,
+  "minBlockMin": 3,
+  "client": "autoSQL (internal - human:evan)",
+  "timezone": "America/Denver",
+  "sheetWebhook": null,
+  "sheet": null,
+  "rate": null,
+
+  "_why_idleMin_90": "Chosen from THIS repo's gap distribution, not from a target number. Sorted gaps between activity marks: 1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,3,4,5,6,11,12,13,14,17,18,21,27,31,35,38,39,56,63,70,73, then 1137, then 2406 (minutes). Every within-session gap is <= 73 min - long dispatched worker runs, where Evan is present and reading but not typing - and the next gap is 19 HOURS (went to bed). Any idleMin between 74 and 1136 gives the identical total; 90 is the round, conservative pick inside that window. The shipped 15 split every worker run into fragments, which is most of the undercount.",
+  "_why_local": "Q37, Evan 2026-08-21: configure it, keep the numbers LOCAL. sheetWebhook and sheet are explicitly null - `time-track.mjs push` has nowhere to send anything and /autodev:timesheet has nothing to connect to. Totals live in this repo (.autodev/time.jsonl for manual entries) and nowhere else.",
+  "_why_rate_null": "Deliberately unset. rate only exists to print what a period is WORTH, and nobody told this repo Evan's hourly rate - inventing one would put a fabricated money number on a timesheet, which is the exact failure this tool is built to prevent. Set it when Evan says the number.",
+  "_timezone_note": "Pinned to America/Denver rather than left null (= whatever machine ran the report). Evan works from two machines; a null zone means the same evening can land on two different invoice days depending on which box ran it."
+}

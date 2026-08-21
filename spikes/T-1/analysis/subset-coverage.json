@@ -1,0 +1,5579 @@
+{
+  "what_this_is": "Fixture coverage of the CORRECTED CONDITIONAL-GO subset defined in FINDINGS.md `f5` section 5.7.  Built during the T-1 closure pass (punch-list round), not during the original investigation.  Read-only; imports the real parser; no database. [punch]",
+  "generated_by": "spikes/T-1/proto/closure_subset_coverage.py",
+  "framing_clause": "FRAMING.md section 4 requires per-case reporting, never a summary count -- so `cases` below carries a verdict and an exclusion reason for all 130, under every reading.  FRAMING.md section 3 is not engaged: this measures, it does not fix.",
+  "provenance": {
+    "parser": "/home/corgea/Desktop/Coding Projects/GIMS-Project/core/dashboard/expr.py",
+    "parser_sha256": "90cbb56d04b08b825ef38dbd1b805ad2b877a0f5e5154e2dc38d9944f4ad4c49",
+    "fixture": "/home/corgea/Desktop/Coding Projects/GIMS-Project/tests/fixtures/expr_vectors.json",
+    "fixture_sha256": "0091df64283d91cbcae75c814d56f9a5b759881044962b068544da8e10003552",
+    "gims_tree": "GIMS-Project @ 995cc59; expression stack byte-identical to GUTS/spine/L1-memory/gims-ledger (FRAMING.md section 2, C2)",
+    "fixture_version": 1,
+    "float_epsilon": 1e-09,
+    "case_count": 130,
+    "database_touched": false,
+    "files_written": [
+      "spikes/T-1/analysis/subset-coverage.json"
+    ]
+  },
+  "subset_definition": {
+    "source": "FINDINGS.md `f5` section 5.7, quoted verbatim in the script header",
+    "starting_point_panel_json_0": {
+      "node_types": "all 10 leaf/structural",
+      "arithmetic_operators": "all 5 (+ - * / %)",
+      "comparisons": "all 6 (== != < <= > >=)",
+      "field_path_forms": "all 5, with a compile-time |literal index| < 2**31 check (D19)",
+      "functions": [
+        "abs",
+        "ceil",
+        "coalesce",
+        "count",
+        "floor",
+        "if",
+        "length",
+        "max",
+        "min",
+        "round"
+      ],
+      "functions_excluded": [
+        "avg",
+        "concat",
+        "contains",
+        "date_add",
+        "days_between",
+        "lower",
+        "now",
+        "number",
+        "string",
+        "sum",
+        "today",
+        "upper"
+      ],
+      "published_size": "36 of 48 constructs, 84 of 130 cases (64.6%)"
+    },
+    "closure_removes": {
+      "functions": [
+        "ceil",
+        "floor",
+        "round"
+      ],
+      "function_reason": "round = xa A.2 R2-R5; floor/ceil = R6 (per section 5.4(1))",
+      "operators": [
+        "%"
+      ],
+      "operator_reason": "% = xa A.2 R7 (per section 5.4(1))",
+      "qualified": "==/!= over container operands = xa A.2 R8"
+    },
+    "corrected_functions": [
+      "abs",
+      "coalesce",
+      "count",
+      "if",
+      "length",
+      "max",
+      "min"
+    ],
+    "corrected_construct_count": "32 of 48 constructs, at `f2` section 2.1's granularity: 10 leaf/structural node types + 4 arithmetic operators + 6 comparisons + 7 functions + 5 field-path forms.  48 minus the panel's 12 functions = 36; minus round/floor/ceil = 33; minus the `%` operator = 32.  The ==/!= container-operand restriction is a QUALIFIER on constructs that stay in, so it removes none from this count -- its price is measured in cases, not constructs (readings A/B/C below)."
+  },
+  "ambiguity": {
+    "the_clause": "\"==/!= over container operands (R8)\"",
+    "why_it_is_ambiguous": "The grammar has no container literal (expr.py:185-214 accepts only num/str/bool/null/$field/(/call), so `==`/`!=` can receive a list or dict ONLY from a field resolution or a pass-through function.  Whether an operand IS a container is therefore a property of the ROW, not of the AST, and a construct-keyed AVOID rule (`xc` C.1) cannot decide it statically.  Every reading is measured separately rather than one being assumed.",
+    "reading_A": "LITERAL / runtime-witnessed -- a case is OUT only if some `==`/`!=` actually received a list or dict while the real evaluator ran that case against its own record and context.  This is the clause as written.  PRIMARY.",
+    "reading_B": "STATIC OVER-APPROXIMATION -- a case is OUT if any `==`/`!=` operand COULD be a container (a `field` node, or `coalesce`/`if` over one).  This is what a compile-time AVOID rule could actually implement.",
+    "reading_C": "MAXIMAL -- a case is OUT if it uses `==`/`!=` at all.  The floor.",
+    "also_ambiguous": "Whether \"removes round / floor+ceil / %\" means dropping the construct or guarding it.  Read as dropping, because section 5.7 names those three bare while qualifying only the fourth.  A guard-only reading does not produce a different number here anyway: `xa` A.5(3) records that R4, R6 and R7 are \"not statically decidable from the AST ... they depend on the row\", so a static subset rule cannot keep those constructs under a guard."
+  },
+  "headline": {
+    "answer": 68,
+    "of": 130,
+    "pct": 52.3,
+    "quotable": "32 of 48 constructs, 68 of 130 cases (52.3%) -- measured, in the same form as section 5.7's own \"36 of 48 constructs, 84 of 130 cases (64.6%)\" for the uncorrected subset.  The correction costs 16 further fixture cases: `round` 5, `%` 7, `floor` 2, `ceil` 2.  The `==`/`!=` container-operand restriction costs nothing on this fixture -- across all 130 cases `expr._eq` is called 16 times and never once with a list or a dict operand, reproducing `f2` section 2.3's 7-of-36-cells table exactly.",
+    "reading": "A (the clause as literally written)",
+    "not_84_of_130": "84/130 is `panel.json[0]`'s UNCORRECTED subset, reproduced here as a control.  section 5.7 warns against quoting it for the corrected subset; this measurement is why."
+  },
+  "results": {
+    "panel_subset_control": {
+      "in": 84,
+      "out": 46,
+      "of": 130,
+      "pct_in": 64.6,
+      "blocking_histogram": {
+        "function days_between": 9,
+        "function string": 9,
+        "function date_add": 7,
+        "function contains": 5,
+        "function today": 5,
+        "function sum": 4,
+        "function concat": 3,
+        "function number": 3,
+        "function avg": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function upper": 1
+      },
+      "marginal_gain_if_readmitted": {
+        "function string": 8,
+        "function date_add": 7,
+        "function contains": 5,
+        "function days_between": 5,
+        "function sum": 4,
+        "function number": 3,
+        "function avg": 2,
+        "function concat": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function today": 1,
+        "function upper": 1
+      }
+    },
+    "corrected_subset_reading_A": {
+      "in": 68,
+      "out": 62,
+      "of": 130,
+      "pct_in": 52.3,
+      "blocking_histogram": {
+        "function days_between": 9,
+        "function string": 9,
+        "function date_add": 7,
+        "operator %": 7,
+        "function contains": 5,
+        "function round": 5,
+        "function today": 5,
+        "function sum": 4,
+        "function concat": 3,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function upper": 1
+      },
+      "marginal_gain_if_readmitted": {
+        "function string": 8,
+        "function date_add": 7,
+        "operator %": 7,
+        "function contains": 5,
+        "function days_between": 5,
+        "function round": 5,
+        "function sum": 4,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function concat": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function today": 1,
+        "function upper": 1
+      }
+    },
+    "corrected_subset_reading_B": {
+      "in": 62,
+      "out": 68,
+      "of": 130,
+      "pct_in": 47.7,
+      "blocking_histogram": {
+        "function days_between": 9,
+        "function string": 9,
+        "function date_add": 7,
+        "operator %": 7,
+        "==/!= with an operand that could be a container (static)": 6,
+        "function contains": 5,
+        "function round": 5,
+        "function today": 5,
+        "function sum": 4,
+        "function concat": 3,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function upper": 1
+      },
+      "marginal_gain_if_readmitted": {
+        "function string": 8,
+        "function date_add": 7,
+        "operator %": 7,
+        "==/!= with an operand that could be a container (static)": 6,
+        "function contains": 5,
+        "function days_between": 5,
+        "function round": 5,
+        "function sum": 4,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function concat": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function today": 1,
+        "function upper": 1
+      }
+    },
+    "corrected_subset_reading_C": {
+      "in": 56,
+      "out": 74,
+      "of": 130,
+      "pct_in": 43.1,
+      "blocking_histogram": {
+        "==/!= used at all (maximal reading)": 12,
+        "function days_between": 9,
+        "function string": 9,
+        "function date_add": 7,
+        "operator %": 7,
+        "function contains": 5,
+        "function round": 5,
+        "function today": 5,
+        "function sum": 4,
+        "function concat": 3,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function upper": 1
+      },
+      "marginal_gain_if_readmitted": {
+        "==/!= used at all (maximal reading)": 12,
+        "function string": 8,
+        "function date_add": 7,
+        "operator %": 7,
+        "function contains": 5,
+        "function days_between": 5,
+        "function round": 5,
+        "function sum": 4,
+        "function number": 3,
+        "function avg": 2,
+        "function ceil": 2,
+        "function concat": 2,
+        "function floor": 2,
+        "function lower": 2,
+        "function now": 1,
+        "function today": 1,
+        "function upper": 1
+      }
+    }
+  },
+  "self_check": {
+    "reproduces_panel_84_of_130": true,
+    "panel_in": 84,
+    "reproduces_panel_89_without_contains": true,
+    "panel_plus_contains": 89,
+    "eq_operand_kind_matrix": {
+      "order": [
+        "null",
+        "bool",
+        "num",
+        "str",
+        "list",
+        "dict"
+      ],
+      "rows": [
+        [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          8,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "total_eq_calls": 16,
+      "cells_touched": 7,
+      "reproduces_f2_2_3_seven_of_36_cells": true,
+      "container_cells_touched": 0
+    },
+    "eq_matrix_clock_invariant": true,
+    "evaluator_errors": [],
+    "d19_oversize_indices_found": [],
+    "all_literal_field_indices": [
+      -1,
+      1,
+      5
+    ]
+  },
+  "cases": [
+    {
+      "index": 0,
+      "group": "arithmetic",
+      "name": "add",
+      "expr": "1 + 2",
+      "functions_used": [],
+      "arith_operators_used": [
+        "+"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 1,
+      "group": "arithmetic",
+      "name": "precedence_mul_before_add",
+      "expr": "10 - 4 * 2",
+      "functions_used": [],
+      "arith_operators_used": [
+        "*",
+        "-"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 2,
+      "group": "arithmetic",
+      "name": "parens_override",
+      "expr": "(10 - 4) * 2",
+      "functions_used": [],
+      "arith_operators_used": [
+        "*",
+        "-"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 3,
+      "group": "arithmetic",
+      "name": "true_division",
+      "expr": "7 / 2",
+      "functions_used": [],
+      "arith_operators_used": [
+        "/"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 4,
+      "group": "arithmetic",
+      "name": "modulo_pos",
+      "expr": "7 % 3",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 5,
+      "group": "arithmetic",
+      "name": "modulo_neg_dividend_truncates",
+      "expr": "-5 % 3",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 6,
+      "group": "arithmetic",
+      "name": "modulo_neg_divisor_truncates",
+      "expr": "5 % -3",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 7,
+      "group": "arithmetic",
+      "name": "unary_minus",
+      "expr": "-3 + 1",
+      "functions_used": [],
+      "arith_operators_used": [
+        "+"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 8,
+      "group": "arithmetic",
+      "name": "mul_unary",
+      "expr": "2 * -3",
+      "functions_used": [],
+      "arith_operators_used": [
+        "*"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 9,
+      "group": "arithmetic",
+      "name": "divide_by_zero_is_null",
+      "expr": "5 / 0",
+      "functions_used": [],
+      "arith_operators_used": [
+        "/"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 10,
+      "group": "arithmetic",
+      "name": "modulo_by_zero_is_null",
+      "expr": "5 % 0",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 11,
+      "group": "fields",
+      "name": "simple",
+      "expr": "$.a",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 12,
+      "group": "fields",
+      "name": "nested",
+      "expr": "$.a.b",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 13,
+      "group": "fields",
+      "name": "missing_top",
+      "expr": "$.missing",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 14,
+      "group": "fields",
+      "name": "descend_into_nondict_is_null",
+      "expr": "$.a.b",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 15,
+      "group": "fields",
+      "name": "bracket_quoted_key_with_space",
+      "expr": "$[\"weird key\"]",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 16,
+      "group": "fields",
+      "name": "bracket_index",
+      "expr": "$.list[1]",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]",
+        "[n]"
+      ],
+      "literal_field_indices": [
+        1
+      ],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 17,
+      "group": "fields",
+      "name": "bracket_negative_index",
+      "expr": "$.list[-1]",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]",
+        "[-n]"
+      ],
+      "literal_field_indices": [
+        -1
+      ],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 18,
+      "group": "fields",
+      "name": "bracket_index_out_of_range_is_null",
+      "expr": "$.arr[5]",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]",
+        "[n]"
+      ],
+      "literal_field_indices": [
+        5
+      ],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 19,
+      "group": "fields",
+      "name": "deep_nested_key",
+      "expr": "$.results.ph",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 20,
+      "group": "null_propagation",
+      "name": "add_missing_field",
+      "expr": "$.a + $.b",
+      "functions_used": [],
+      "arith_operators_used": [
+        "+"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 21,
+      "group": "null_propagation",
+      "name": "add_present_fields",
+      "expr": "$.a + $.b",
+      "functions_used": [],
+      "arith_operators_used": [
+        "+"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 22,
+      "group": "null_propagation",
+      "name": "mul_nonnumeric_string",
+      "expr": "$.a * 2",
+      "functions_used": [],
+      "arith_operators_used": [
+        "*"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 23,
+      "group": "null_propagation",
+      "name": "add_numeric_string_coerces",
+      "expr": "$.a + 1",
+      "functions_used": [],
+      "arith_operators_used": [
+        "+"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 24,
+      "group": "comparison",
+      "name": "lt_true",
+      "expr": "$.n < 7",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 25,
+      "group": "comparison",
+      "name": "lt_false",
+      "expr": "$.n < 7",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 26,
+      "group": "comparison",
+      "name": "lt_missing_is_null",
+      "expr": "$.n < 7",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 27,
+      "group": "comparison",
+      "name": "eq_string_true",
+      "expr": "$.s == \"FAIL\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 28,
+      "group": "comparison",
+      "name": "eq_string_false",
+      "expr": "$.s == \"FAIL\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 29,
+      "group": "comparison",
+      "name": "neq_string_true",
+      "expr": "$.s != \"FAIL\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "!="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 30,
+      "group": "comparison",
+      "name": "eq_num_true",
+      "expr": "1 == 1",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 31,
+      "group": "comparison",
+      "name": "eq_num_false",
+      "expr": "1 == 2",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 32,
+      "group": "comparison",
+      "name": "null_eq_null",
+      "expr": "null == null",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "null"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 33,
+      "group": "comparison",
+      "name": "missing_eq_null_true",
+      "expr": "$.x == null",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "null"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 34,
+      "group": "comparison",
+      "name": "zero_eq_null_false",
+      "expr": "$.x == null",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "null"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 35,
+      "group": "comparison",
+      "name": "bool_eq_bool",
+      "expr": "true == true",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "bool",
+        "cmp"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 36,
+      "group": "comparison",
+      "name": "bool_ne_num",
+      "expr": "true == 1",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "bool",
+        "cmp",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 37,
+      "group": "comparison",
+      "name": "string_ne_num",
+      "expr": "\"2\" == 2",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 38,
+      "group": "comparison",
+      "name": "string_lex_lt",
+      "expr": "\"apple\" < \"banana\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 39,
+      "group": "comparison",
+      "name": "gte_equal",
+      "expr": "$.n >= 10",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        ">="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 40,
+      "group": "comparison",
+      "name": "order_mixed_types_is_null",
+      "expr": "$.n < \"x\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 41,
+      "group": "boolean",
+      "name": "and_ff",
+      "expr": "true and false",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "and",
+        "bool"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 42,
+      "group": "boolean",
+      "name": "or_tf",
+      "expr": "true or false",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bool",
+        "or"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 43,
+      "group": "boolean",
+      "name": "not_true",
+      "expr": "not true",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bool",
+        "not"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 44,
+      "group": "boolean",
+      "name": "not_missing_is_true",
+      "expr": "not $.x",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field",
+        "not"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 45,
+      "group": "boolean",
+      "name": "and_with_falsy_zero",
+      "expr": "$.a and $.b",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "and",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 46,
+      "group": "boolean",
+      "name": "or_with_truthy",
+      "expr": "$.a or $.b",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field",
+        "or"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 47,
+      "group": "boolean",
+      "name": "not_of_comparison",
+      "expr": "not (1 < 2)",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "cmp",
+        "not",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 48,
+      "group": "boolean",
+      "name": "range_check",
+      "expr": "$.n > 0 and $.n < 10",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<",
+        ">"
+      ],
+      "node_tags_used": [
+        "and",
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 49,
+      "group": "boolean",
+      "name": "empty_string_falsy",
+      "expr": "not \"\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "not",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 50,
+      "group": "boolean",
+      "name": "nonempty_string_truthy",
+      "expr": "not \"x\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "not",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 51,
+      "group": "boolean",
+      "name": "zero_falsy",
+      "expr": "not 0",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "not",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 52,
+      "group": "boolean",
+      "name": "empty_list_falsy",
+      "expr": "not $.list",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field",
+        "not"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 53,
+      "group": "boolean",
+      "name": "nonempty_list_truthy",
+      "expr": "not $.list",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "field",
+        "not"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 54,
+      "group": "dates",
+      "name": "today_from_now",
+      "expr": "today()",
+      "functions_used": [
+        "today"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function today"
+        ]
+      }
+    },
+    {
+      "index": 55,
+      "group": "dates",
+      "name": "now_from_now",
+      "expr": "now()",
+      "functions_used": [
+        "now"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function now"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function now"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function now"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function now"
+        ]
+      }
+    },
+    {
+      "index": 56,
+      "group": "dates",
+      "name": "days_between_today_future",
+      "expr": "days_between(today(), $.due)",
+      "functions_used": [
+        "days_between",
+        "today"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      }
+    },
+    {
+      "index": 57,
+      "group": "dates",
+      "name": "days_between_reverse_negative",
+      "expr": "days_between(\"2026-07-02\", \"2026-07-01\")",
+      "functions_used": [
+        "days_between"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      }
+    },
+    {
+      "index": 58,
+      "group": "dates",
+      "name": "days_between_two_days",
+      "expr": "days_between(\"2026-07-01\", \"2026-07-03\")",
+      "functions_used": [
+        "days_between"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      }
+    },
+    {
+      "index": 59,
+      "group": "dates",
+      "name": "days_between_fractional",
+      "expr": "days_between(\"2026-07-01T12:00:00Z\", \"2026-07-02T00:00:00Z\")",
+      "functions_used": [
+        "days_between"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      }
+    },
+    {
+      "index": 60,
+      "group": "dates",
+      "name": "days_between_offset_aware",
+      "expr": "days_between(\"2026-07-01T00:00:00+02:00\", \"2026-07-01T00:00:00Z\")",
+      "functions_used": [
+        "days_between"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      }
+    },
+    {
+      "index": 61,
+      "group": "dates",
+      "name": "days_between_bad_input_null",
+      "expr": "days_between(\"bad\", \"2026-07-01\")",
+      "functions_used": [
+        "days_between"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between"
+        ]
+      }
+    },
+    {
+      "index": 62,
+      "group": "dates",
+      "name": "date_add_days",
+      "expr": "date_add(\"2026-07-02\", 7)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 63,
+      "group": "dates",
+      "name": "date_add_negative",
+      "expr": "date_add(\"2026-07-02\", -2)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 64,
+      "group": "dates",
+      "name": "date_add_datetime_preserves_time",
+      "expr": "date_add(\"2026-07-02T10:00:00Z\", 1)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 65,
+      "group": "dates",
+      "name": "date_add_year_rollover",
+      "expr": "date_add(\"2026-12-31\", 1)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 66,
+      "group": "dates",
+      "name": "date_add_bad_input_null",
+      "expr": "date_add(\"nope\", 1)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 67,
+      "group": "coalesce",
+      "name": "second_non_null",
+      "expr": "coalesce($.a, $.b, 0)",
+      "functions_used": [
+        "coalesce"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 68,
+      "group": "coalesce",
+      "name": "all_missing_default",
+      "expr": "coalesce($.a, $.b, 0)",
+      "functions_used": [
+        "coalesce"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 69,
+      "group": "coalesce",
+      "name": "all_null_returns_null",
+      "expr": "coalesce($.a, $.b)",
+      "functions_used": [
+        "coalesce"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 70,
+      "group": "coalesce",
+      "name": "skip_literal_null",
+      "expr": "coalesce(null, 3)",
+      "functions_used": [
+        "coalesce"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "null",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 71,
+      "group": "strings",
+      "name": "lower",
+      "expr": "lower($.s)",
+      "functions_used": [
+        "lower"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      }
+    },
+    {
+      "index": 72,
+      "group": "strings",
+      "name": "upper",
+      "expr": "upper($.s)",
+      "functions_used": [
+        "upper"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function upper"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function upper"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function upper"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function upper"
+        ]
+      }
+    },
+    {
+      "index": 73,
+      "group": "strings",
+      "name": "lower_missing_null",
+      "expr": "lower($.s)",
+      "functions_used": [
+        "lower"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function lower"
+        ]
+      }
+    },
+    {
+      "index": 74,
+      "group": "strings",
+      "name": "contains_substring_true",
+      "expr": "contains($.s, \"ell\")",
+      "functions_used": [
+        "contains"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      }
+    },
+    {
+      "index": 75,
+      "group": "strings",
+      "name": "contains_substring_false",
+      "expr": "contains($.s, \"xyz\")",
+      "functions_used": [
+        "contains"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      }
+    },
+    {
+      "index": 76,
+      "group": "strings",
+      "name": "contains_list_member_true",
+      "expr": "contains($.tags, \"a\")",
+      "functions_used": [
+        "contains"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      }
+    },
+    {
+      "index": 77,
+      "group": "strings",
+      "name": "contains_list_member_false",
+      "expr": "contains($.tags, \"z\")",
+      "functions_used": [
+        "contains"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      }
+    },
+    {
+      "index": 78,
+      "group": "strings",
+      "name": "contains_missing_haystack_false",
+      "expr": "contains($.s, \"a\")",
+      "functions_used": [
+        "contains"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function contains"
+        ]
+      }
+    },
+    {
+      "index": 79,
+      "group": "strings",
+      "name": "concat_literals",
+      "expr": "concat(\"a\", \"b\", \"c\")",
+      "functions_used": [
+        "concat"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      }
+    },
+    {
+      "index": 80,
+      "group": "strings",
+      "name": "concat_fields",
+      "expr": "concat($.first, \" \", $.last)",
+      "functions_used": [
+        "concat"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat"
+        ]
+      }
+    },
+    {
+      "index": 81,
+      "group": "strings",
+      "name": "concat_with_string_of_number",
+      "expr": "concat(\"n=\", string($.n))",
+      "functions_used": [
+        "concat",
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat",
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat",
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat",
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function concat",
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 82,
+      "group": "coercion",
+      "name": "number_of_string",
+      "expr": "number(\"3.5\")",
+      "functions_used": [
+        "number"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      }
+    },
+    {
+      "index": 83,
+      "group": "coercion",
+      "name": "number_of_nonnumeric_null",
+      "expr": "number(\"abc\")",
+      "functions_used": [
+        "number"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      }
+    },
+    {
+      "index": 84,
+      "group": "coercion",
+      "name": "number_of_bool",
+      "expr": "number(true)",
+      "functions_used": [
+        "number"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bool",
+        "call"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function number"
+        ]
+      }
+    },
+    {
+      "index": 85,
+      "group": "coercion",
+      "name": "string_of_int",
+      "expr": "string(5)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 86,
+      "group": "coercion",
+      "name": "string_of_float",
+      "expr": "string(3.5)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 87,
+      "group": "coercion",
+      "name": "string_of_bool",
+      "expr": "string(true)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bool",
+        "call"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 88,
+      "group": "coercion",
+      "name": "string_of_null",
+      "expr": "string(null)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "null"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 89,
+      "group": "coercion",
+      "name": "length_string",
+      "expr": "length($.s)",
+      "functions_used": [
+        "length"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 90,
+      "group": "coercion",
+      "name": "length_list",
+      "expr": "length($.list)",
+      "functions_used": [
+        "length"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 91,
+      "group": "coercion",
+      "name": "length_number_null",
+      "expr": "length($.n)",
+      "functions_used": [
+        "length"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 92,
+      "group": "numeric_funcs",
+      "name": "abs_literal",
+      "expr": "abs(-4)",
+      "functions_used": [
+        "abs"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 93,
+      "group": "numeric_funcs",
+      "name": "abs_field",
+      "expr": "abs($.n)",
+      "functions_used": [
+        "abs"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 94,
+      "group": "numeric_funcs",
+      "name": "floor_pos",
+      "expr": "floor(3.7)",
+      "functions_used": [
+        "floor"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      }
+    },
+    {
+      "index": 95,
+      "group": "numeric_funcs",
+      "name": "ceil_pos",
+      "expr": "ceil(3.2)",
+      "functions_used": [
+        "ceil"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      }
+    },
+    {
+      "index": 96,
+      "group": "numeric_funcs",
+      "name": "floor_neg",
+      "expr": "floor(-3.2)",
+      "functions_used": [
+        "floor"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function floor"
+        ]
+      }
+    },
+    {
+      "index": 97,
+      "group": "numeric_funcs",
+      "name": "ceil_neg",
+      "expr": "ceil(-3.2)",
+      "functions_used": [
+        "ceil"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function ceil"
+        ]
+      }
+    },
+    {
+      "index": 98,
+      "group": "numeric_funcs",
+      "name": "round_half_up",
+      "expr": "round(2.5)",
+      "functions_used": [
+        "round"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      }
+    },
+    {
+      "index": 99,
+      "group": "numeric_funcs",
+      "name": "round_half_away_from_zero_neg",
+      "expr": "round(-2.5)",
+      "functions_used": [
+        "round"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      }
+    },
+    {
+      "index": 100,
+      "group": "numeric_funcs",
+      "name": "round_down",
+      "expr": "round(2.4)",
+      "functions_used": [
+        "round"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      }
+    },
+    {
+      "index": 101,
+      "group": "numeric_funcs",
+      "name": "round_ndigits",
+      "expr": "round(3.14159, 2)",
+      "functions_used": [
+        "round"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      }
+    },
+    {
+      "index": 102,
+      "group": "numeric_funcs",
+      "name": "round_ndigits_one",
+      "expr": "round(12.345, 1)",
+      "functions_used": [
+        "round"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function round"
+        ]
+      }
+    },
+    {
+      "index": 103,
+      "group": "aggregates",
+      "name": "count_list",
+      "expr": "count($.list)",
+      "functions_used": [
+        "count"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 104,
+      "group": "aggregates",
+      "name": "count_skips_null",
+      "expr": "count($.list)",
+      "functions_used": [
+        "count"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 105,
+      "group": "aggregates",
+      "name": "sum_list",
+      "expr": "sum($.list)",
+      "functions_used": [
+        "sum"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      }
+    },
+    {
+      "index": 106,
+      "group": "aggregates",
+      "name": "sum_skips_nonnumeric",
+      "expr": "sum($.list)",
+      "functions_used": [
+        "sum"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      }
+    },
+    {
+      "index": 107,
+      "group": "aggregates",
+      "name": "avg_list",
+      "expr": "avg($.list)",
+      "functions_used": [
+        "avg"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      }
+    },
+    {
+      "index": 108,
+      "group": "aggregates",
+      "name": "min_list",
+      "expr": "min($.list)",
+      "functions_used": [
+        "min"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 109,
+      "group": "aggregates",
+      "name": "max_list",
+      "expr": "max($.list)",
+      "functions_used": [
+        "max"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 110,
+      "group": "aggregates",
+      "name": "max_varargs",
+      "expr": "max(1, 5, 3)",
+      "functions_used": [
+        "max"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 111,
+      "group": "aggregates",
+      "name": "sum_varargs",
+      "expr": "sum(1, 2, 3)",
+      "functions_used": [
+        "sum"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      }
+    },
+    {
+      "index": 112,
+      "group": "aggregates",
+      "name": "avg_empty_null",
+      "expr": "avg($.list)",
+      "functions_used": [
+        "avg"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function avg"
+        ]
+      }
+    },
+    {
+      "index": 113,
+      "group": "aggregates",
+      "name": "sum_missing_null",
+      "expr": "sum($.empty)",
+      "functions_used": [
+        "sum"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function sum"
+        ]
+      }
+    },
+    {
+      "index": 114,
+      "group": "conditional",
+      "name": "if_true_branch",
+      "expr": "if($.n > 0, \"pos\", \"neg\")",
+      "functions_used": [
+        "if"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        ">"
+      ],
+      "node_tags_used": [
+        "call",
+        "cmp",
+        "field",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 115,
+      "group": "conditional",
+      "name": "if_false_branch",
+      "expr": "if($.n > 0, \"pos\", \"neg\")",
+      "functions_used": [
+        "if"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        ">"
+      ],
+      "node_tags_used": [
+        "call",
+        "cmp",
+        "field",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 116,
+      "group": "conditional",
+      "name": "if_missing_is_false",
+      "expr": "if($.x, 1, 2)",
+      "functions_used": [
+        "if"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "IN",
+        "excluded_by": []
+      }
+    },
+    {
+      "index": 117,
+      "group": "composite",
+      "name": "near_due_predicate",
+      "expr": "days_between(today(), $.due_date) < 7",
+      "functions_used": [
+        "days_between",
+        "today"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "call",
+        "cmp",
+        "field",
+        "num"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      }
+    },
+    {
+      "index": 118,
+      "group": "composite",
+      "name": "result_in_set",
+      "expr": "$.result == \"FAIL\" or $.result == \"ERROR\"",
+      "functions_used": [],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "=="
+      ],
+      "node_tags_used": [
+        "cmp",
+        "field",
+        "or",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= with an operand that could be a container (static)"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "==/!= used at all (maximal reading)"
+        ]
+      }
+    },
+    {
+      "index": 119,
+      "group": "composite",
+      "name": "overdue_label",
+      "expr": "if(days_between(today(), $.due) < 0, \"overdue\", \"ok\")",
+      "functions_used": [
+        "days_between",
+        "if",
+        "today"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [
+        "<"
+      ],
+      "node_tags_used": [
+        "call",
+        "cmp",
+        "field",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      }
+    },
+    {
+      "index": 120,
+      "group": "composite",
+      "name": "days_left_derived",
+      "expr": "days_between(today(), $.due)",
+      "functions_used": [
+        "days_between",
+        "today"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function days_between",
+          "function today"
+        ]
+      }
+    },
+    {
+      "index": 121,
+      "group": "modulo_fmod",
+      "name": "mod_float_fmod",
+      "expr": "10.5 % 3",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 122,
+      "group": "modulo_fmod",
+      "name": "mod_float_ieee",
+      "expr": "0.5 % 0.1",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "num"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 123,
+      "group": "modulo_fmod",
+      "name": "mod_large_over_small_positive",
+      "expr": "$.a % $.b",
+      "functions_used": [],
+      "arith_operators_used": [
+        "%"
+      ],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "bin",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "IN",
+        "excluded_by": []
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "operator %"
+        ]
+      }
+    },
+    {
+      "index": 124,
+      "group": "string_ecma",
+      "name": "string_small_decimal_not_exp",
+      "expr": "string($.n)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 125,
+      "group": "string_ecma",
+      "name": "string_tiny_exp",
+      "expr": "string($.n)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 126,
+      "group": "string_ecma",
+      "name": "string_large_int_float",
+      "expr": "string($.n)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 127,
+      "group": "string_ecma",
+      "name": "string_neg_small",
+      "expr": "string($.n)",
+      "functions_used": [
+        "string"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "field"
+      ],
+      "field_path_forms_used": [
+        ".ident or [\"quoted\"]"
+      ],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function string"
+        ]
+      }
+    },
+    {
+      "index": 128,
+      "group": "date_total",
+      "name": "date_add_out_of_range_null",
+      "expr": "date_add(\"9999-12-31\", 100000)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    },
+    {
+      "index": 129,
+      "group": "date_total",
+      "name": "date_add_year_padded",
+      "expr": "date_add(\"0002-01-01\", -1)",
+      "functions_used": [
+        "date_add"
+      ],
+      "arith_operators_used": [],
+      "comparisons_used": [],
+      "node_tags_used": [
+        "call",
+        "neg",
+        "num",
+        "str"
+      ],
+      "field_path_forms_used": [],
+      "literal_field_indices": [],
+      "eq_container_operands_witnessed": [],
+      "evaluator_error": null,
+      "panel_subset": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_A": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_B": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      },
+      "corrected_subset_reading_C": {
+        "verdict": "OUT",
+        "excluded_by": [
+          "function date_add"
+        ]
+      }
+    }
+  ]
+}

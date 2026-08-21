@@ -1,0 +1,46 @@
+=== C. xpr.num gate vs _to_num (expr.py:302-319) ===
+
+   <AGREE>        '12'                         ASCII -- control
+   <DIVERGE>      '\u0661\u0662\u0663'         ARABIC-INDIC digits U+0661.. -- re \d matches, float() accepts  <<<
+                  py=123.0  sql=None (SQL NULL)
+   <DIVERGE>      '\uff11\uff12\uff13'         FULLWIDTH digits U+FF11.. (common in CJK exports)  <<<
+                  py=123.0  sql=None (SQL NULL)
+   <DIVERGE>      '\u0967\u0968'               DEVANAGARI digits U+0967..  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\u07c1\u07c2'               NKO digits U+07C1..  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\xa012\xa0'                 NBSP U+00A0 padding (survives copy/paste from HTML)  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\u200912'                   THIN SPACE U+2009  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\u300012'                   IDEOGRAPHIC SPACE U+3000  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\x1f12'                     UNIT SEPARATOR U+001F (str.strip strips it, btrim does not)  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\x8512'                     NEL U+0085  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <DIVERGE>      '\u202812'                   LINE SEPARATOR U+2028  <<<
+                  py=12.0  sql=None (SQL NULL)
+   <AGREE>        '1.'                         trailing bare dot -- \d+\.\d* matches
+   <AGREE>        '+.5'                        leading plus, bare fraction
+   <AGREE>        '-.5'                        
+   <AGREE>        '.5e3'                       
+   <AGREE>        '1_000'                      underscores -- both must reject
+   <AGREE>        '0x10'                       hex -- both must reject
+   <AGREE>        'inf'                        both must reject
+   <AGREE>        'Infinity'                   both must reject
+   <AGREE>        'nan'                        both must reject
+   <DIVERGE>      '1e400'                      beyond DBL_MAX (KNOWN_DIVERGENCES num_out_of_float8_range)  <<<
+                  py=inf  sql=None (SQL NULL)
+   <DIVERGE>      '-1e400'                       <<<
+                  py=-inf  sql=None (SQL NULL)
+   <SQL_RAISE>    '1e-400'                     underflows to 0.0 in Python  <<<
+                  py=0.0  sql=None (None)  RAISED 22003 "1e-400" is out of range for type double precision
+   <AGREE>        '  12  '                     ASCII spaces -- control
+   <AGREE>        '\t12\n'                     ASCII tab/newline -- control
+   <DIVERGE>      '1e309'                      just past DBL_MAX  <<<
+                  py=inf  sql=None (SQL NULL)
+   <DIVERGE>      '1.7976931348623158e296'     just over the buggy 297-digit guard  <<<
+                  py=1.797693134862316e+296  sql=None (SQL NULL)
+
+15 of 27 string->number coercions diverge

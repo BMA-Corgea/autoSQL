@@ -1,0 +1,34 @@
+=== H. broad AST fuzz -- profile=unicode  N=4000  seed=555 ===
+
+    AGREE            3863   96.575%
+    DIVERGE             4    0.100%
+    PARSE_ERROR       133    3.325%
+
+    divergence classes (auto-clustered):
+      DIVERGE: different value                       2
+      DIVERGE: value -> NULL                         1
+      DIVERGE: NULL -> value                         1
+
+    --- DIVERGE: different value (2) ---
+        expr : ($.b % sum(-2.25, if($.o, max($.t), ($.n[2][0].o.o + 0.5))))
+        rec  : {"a": "\u01c5", "b": 100, "c": false, "s": 42, "t": "\uff11\uff12\uff13", "l": 2, "o": true, "n": "\u01c5", "flag": null}
+        py   : 100.0
+        sql  : 1 (number)
+
+        expr : not (- (($.l or - ($.s))))
+        rec  : {"a": {"flag": "2024-01-01", "o": "\u0130stanbul"}, "b": 12345.678, "s": "\u0661\u0662\u0663", "t": "", "e": -1, "o": "2024-01-01T00:00:00+05:30", "n": {"e": "\u0661\u0662\u0663"}}
+        py   : False
+        sql  : True (boolean)
+
+    --- DIVERGE: value -> NULL (1) ---
+        expr : ($.a / sum("\u0661\u0662\u0663", 0.1))
+        rec  : {"a": "\u0661\u0662\u0663", "b": 0.1, "c": "", "s": " 12 ", "e": 0, "l": 1000, "o": -0.001}
+        py   : 1230.0
+        sql  : None (SQL NULL)
+
+    --- DIVERGE: NULL -> value (1) ---
+        expr : if(round(min(if($.t, $.b, "\uff11\uff12\uff13"), $.e)), max(("\ud83d\ude42" * days_between(true, $.a))), (not (if(0.1, $.n, $.t)) > (($.d and null) or ("\ufb00" and $.d))))
+        rec  : {"a": "\uff11\uff12\uff13", "c": {"t": 3}, "d": {"flag": "\u00c5NGSTR\u00d6M"}, "e": "\uff11\uff12\uff13", "l": [-1], "o": 2, "n": [], "flag": {}}
+        py   : None
+        sql  : True (boolean)
+

@@ -1,0 +1,87 @@
+=== D. raw-JSON rows: jsonb `numeric` vs Python `float` ===
+
+   <AGREE>        $.a == $.b               {"a": 1.0000000000000001, "b": 1.0000000000000002}
+                  18 sig digits: the SAME double in Python, DISTINCT numerics in jsonb
+   <DIVERGE>      $.a == 1                 {"a": 1.00000000000000001}
+                  19 sig digits -> Python double is exactly 1.0  <<<
+                  python decoded record = {'a': 1.0}
+                  py=True  sql=False (boolean)
+   <AGREE>        $.a != $.b               {"a": 1.0000000000000001, "b": 1.0000000000000002}
+                  the != face of the same case
+   <AGREE>        contains($.l, $.a)       {"l": [1.0000000000000002], "a": 1.0000000000000001}
+                  contains() array branch uses jsonb equality, _eq uses float equality
+   <AGREE>        $.a < $.b                {"a": 1.0000000000000001, "b": 1.0000000000000002}
+                  ORDER goes through xpr.f8 so it should agree -- control
+   <DIVERGE>      if($.a, 1, 2)            {"a": 1e-400}
+                  truthy() casts to NUMERIC: 1e-400 is nonzero in jsonb, 0.0 (falsy) in Python  <<<
+                  python decoded record = {'a': 0.0}
+                  py=2.0  sql=1 (number)
+   <DIVERGE>      if($.a, 1, 2)            {"a": 1e-4000}
+                  even further below float8  <<<
+                  python decoded record = {'a': 0.0}
+                  py=2.0  sql=1 (number)
+   <DIVERGE>      not $.a                  {"a": 1e-400}
+                  the not() face  <<<
+                  python decoded record = {'a': 0.0}
+                  py=True  sql=False (boolean)
+   <DIVERGE>      $.a and true             {"a": 1e-400}
+                  the and() face  <<<
+                  python decoded record = {'a': 0.0}
+                  py=False  sql=True (boolean)
+   <SQL_RAISE>    number($.a)              {"a": 1e-400}
+                  number() on a jsonb numeric that underflows float8  <<<
+                  python decoded record = {'a': 0.0}
+                  py=0.0  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <SQL_RAISE>    $.a + 0                  {"a": 1e-400}
+                  arithmetic on it  <<<
+                  python decoded record = {'a': 0.0}
+                  py=0.0  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <SQL_RAISE>    string($.a)              {"a": 1e-400}
+                  string() on it  <<<
+                  python decoded record = {'a': 0.0}
+                  py='0'  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <DIVERGE>      number($.a)              {"a": 1e400}
+                  jsonb numeric ABOVE DBL_MAX  <<<
+                  python decoded record = {'a': inf}
+                  py=inf  sql=None (SQL NULL)
+Traceback (most recent call last):
+  File "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/analysis/fuzz/D_rawjson.py", line 60, in <module>
+    o = run_case(src, mode="raw", raw=raw, note=note)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/analysis/fuzz/differ.py", line 148, in run_case
+    elif matches(sql_val, py):
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/analysis/fuzz/differ.py", line 49, in matches
+    return math.isclose(float(actual), float(expected), rel_tol=0, abs_tol=_EPS)
+                        ^^^^^^^^^^^^^
+OverflowError: int too large to convert to float
+   <SQL_RAISE>    number($.a)              {"a": 1e-400}
+                  number() on a jsonb numeric that underflows float8  <<<
+                  python decoded record = {'a': 0.0}
+                  py=0.0  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <SQL_RAISE>    $.a + 0                  {"a": 1e-400}
+                  arithmetic on it  <<<
+                  python decoded record = {'a': 0.0}
+                  py=0.0  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <SQL_RAISE>    string($.a)              {"a": 1e-400}
+                  string() on it  <<<
+                  python decoded record = {'a': 0.0}
+                  py='0'  sql=None (None)  RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+   <DIVERGE>      number($.a)              {"a": 1e400}
+                  jsonb numeric ABOVE DBL_MAX  <<<
+                  python decoded record = {'a': inf}
+                  py=inf  sql=None (SQL NULL)
+   <DIVERGE>      $.a                      {"a": 1e400}
+                  bare read of a jsonb numeric above DBL_MAX  <<<
+                  python decoded record = {'a': inf}
+                  py=inf  sql=10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 (number)
+   <AGREE>        $.a == 100               {"a": 1e2}
+                  jsonb drops the exponent spelling (storage_aws.py:326-335) -- control
+   <AGREE>        length($.s)              {"s": "\ud83d\ude00"}
+                  astral char via surrogate pair: Python len==1, PG length==1
+   <AGREE>        $.a == $.b               {"a": 0.1, "b": 0.10}
+                  trailing-zero spelling -- control
+   <AGREE>        $.a == 0.3               {"a": 0.30000000000000004}
+                  control: must be false both sides
+
+10 of 18 raw-JSON probes diverge

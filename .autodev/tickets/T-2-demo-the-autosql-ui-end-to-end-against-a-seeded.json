@@ -1,0 +1,70 @@
+{
+  "id": "T-2",
+  "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
+  "type": "feature",
+  "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
+  "stage": "refine",
+  "status": "spec",
+  "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
+  "pipeline_version": "feature@v1",
+  "modifiers": [
+    "design"
+  ],
+  "pipeline": [
+    "intake",
+    "refine",
+    "design",
+    "queue",
+    "locate",
+    "plan",
+    "build",
+    "auto-review",
+    "gate",
+    "verify",
+    "uat",
+    "release",
+    "monitor"
+  ],
+  "passport": [
+    "2026-08-19 created as feature \"Demo the autoSQL UI end-to-end against a seeded fake-data database\" on feature@v1 by agent:claude(on-behalf:evan,autodev-init-resume-3)",
+    "2026-08-21 added modifier design by agent:claude(on-behalf:evan,GA-2) (+design): Evan Q27: 'Add a design stage and a look sign-off' — he approves the look before the demo UI is built, rather than first seeing it at the accept gate.",
+    "2026-08-21 advanced intake → refine · intake on claude-opus-5[1m]"
+  ],
+  "assignees": {},
+  "links": {},
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": [
+    {
+      "from": "intake",
+      "to": "refine",
+      "by": "agent:claude(on-behalf:evan,GA-2)",
+      "at": "2026-08-21T17:56:13.292Z"
+    }
+  ],
+  "pins": {
+    "design": "design@v1"
+  },
+  "receipts": {
+    "intake": {
+      "evidence": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json — need captured, type=feature, deduped against the only other open ticket (T-1), design modifier pinned (design@v1); scope decisions Q18-Q27 recorded in ANSWERS-FROM-EVAN.md",
+      "kind": "other",
+      "fingerprint": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json — need captured, type=feature, deduped against the only other open ticket (T-1), design modifier pinned (design@v1); scope decisions Q18-Q27 recorded in ANSWERS-FROM-EVAN.md",
+      "by": "agent:claude(on-behalf:evan,GA-2)",
+      "at": "2026-08-21T17:56:13.291Z",
+      "model": "claude-opus-5[1m]"
+    }
+  }
+}

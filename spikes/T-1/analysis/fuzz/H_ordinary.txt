@@ -1,0 +1,7 @@
+=== H. broad AST fuzz -- profile=ordinary  N=4000  seed=2026 ===
+
+    AGREE            3881   97.025%
+    PARSE_ERROR       119    2.975%
+
+    divergence classes (auto-clustered):
+

@@ -1,0 +1,41 @@
+=== B. overflow / underflow through the compiler ===
+   <SQL_RAISE>    $.a * $.b              multiply overflow  <<<
+                  py=inf
+                  sql=None  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    $.qty * $.price        the shape a real dashboard writes  <<<
+                  py=inf
+                  sql=None  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    $.a / $.b              divide overflow  <<<
+                  py=inf
+                  sql=None  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    sum($.l) * sum($.l)    sum then multiply  <<<
+                  py=inf
+                  sql=None  RAISED 22003 value out of range: overflow
+   <SQL_RAISE>    $.a * $.a              multiply UNDERFLOW -- Python 0.0, Postgres RAISES  <<<
+                  py=0.0
+                  sql=None  RAISED 22003 value out of range: underflow
+   <SQL_RAISE>    $.a / $.b              divide UNDERFLOW  <<<
+                  py=0.0
+                  sql=None  RAISED 22003 value out of range: underflow
+   <BOTH_RAISE>   round($.a, 20)         round(): x*10^nd overflows inside xpr.round  <<<
+                  py=None  RAISED OverflowError: cannot convert float infinity to integer
+                  sql=None  RAISED 22003 value out of range: overflow
+   <BOTH_RAISE>   round($.a, -350)       round(x,-350): 10^-350 underflows  <<<
+                  py=None  RAISED ZeroDivisionError: float division by zero
+                  sql=None  RAISED 22003 value out of range: underflow
+   <SQL_RAISE>    round($.a, -2)         round(subnormal, -2): scaled underflows  <<<
+                  py=0.0
+                  sql=None  RAISED 22003 value out of range: underflow
+   <AGREE>        $.a + $.a              add -- cannot overflow while the f8 guard is wrong
+   <AGREE>        sum($.l)               sum -- likewise
+   <AGREE>        $.a * 0                subnormal * 0 -- control, must not raise
+   <AGREE>        days_between($.d, $.e) control
+
+   9 of 13 probes made Postgres raise
+
+=== B2. direct SQL: what + and sum do once the operand guard is correct ===
+   select 1e308::float8 + 1e308::float8                             => RAISED value out of range: overflow
+   select sum(v) from (values(1e308::float8),(1e308::float8)) s(v)  => RAISED value out of range: overflow
+   select 1e-300::float8 * 1e-300::float8                           => RAISED value out of range: underflow
+   select 10::float8 ^ 400::float8                                  => RAISED value out of range: overflow
+   select 10::float8 ^ (-350)::float8                               => RAISED value out of range: underflow

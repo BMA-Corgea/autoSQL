@@ -1,0 +1,31 @@
+=== F1. random-double differential: xpr.ecma_num vs _num_to_str ===
+    3947 finite doubles, extra_float_digits = 1 (the PG16 default)
+    mismatches: 6
+      5.406880994759566e+16      python='54068809947595660'      sql='54068809947595664'     
+      5.055697085316874e+16      python='50556970853168740'      sql='50556970853168736'     
+      -5.07962564609621e+16      python='-50796256460962100'     sql='-50796256460962096'    
+      5.69108802594099e+16       python='56910880259409900'      sql='56910880259409904'     
+      -8.74862378158006e+16      python='-87486237815800600'     sql='-87486237815800610'    
+      3.960139583556706e+16      python='39601395835567060'      sql='39601395835567056'     
+
+=== F2. the GUC.  xpr.ecma_num is declared IMMUTABLE (runtime.sql:80) ===
+    value                    python _num_to_str         xpr.ecma_num @ efd=
+                                                         efd=1                     efd=0                     efd=-1                    efd=-5                    efd=3                   
+    0.1                      '0.1'                      '0.1'                     '0.1'                     '0.1'                     '0.1'                     '0.1'                   
+    0.3333333333333333       '0.3333333333333333'       '0.3333333333333333'      '0.333333333333333'       '0.33333333333333'        '0.3333333333'            '0.3333333333333333'       <<< GUC-DEPENDENT
+    1e-07                    '1e-7'                     '1e-7'                    '1e-7'                    '1e-7'                    '1e-7'                    '1e-7'                  
+    0.6666666666666666       '0.6666666666666666'       '0.6666666666666666'      '0.666666666666667'       '0.66666666666667'        '0.6666666667'            '0.6666666666666666'       <<< GUC-DEPENDENT
+    1.2345678901234567       '1.2345678901234567'       '1.2345678901234567'      '1.23456789012346'        '1.2345678901235'         '1.23456789'              '1.2345678901234567'       <<< GUC-DEPENDENT
+    1e+21                    '1e+21'                    '1e+21'                   '1e+21'                   '1e+21'                   '1e+21'                   '1e+21'                 
+    5e-324                   '5e-324'                   '5e-324'                  '4.94065645841247e-324'   '4.9406564584125e-324'    '4.940656458e-324'        '5e-324'                   <<< GUC-DEPENDENT
+    123.456                  '123.456'                  '123.456'                 '123.456'                 '123.456'                 '123.456'                 '123.456'               
+    4 of 8 probe values change answer with the GUC
+
+=== F3. can a wrong value be FROZEN into an index? ===
+    row is {"a": 0.1};  python string($.a) == '0.1'
+    live (heap) value now                 : '0.1'
+    index built while extra_float_digits=-5
+    plan for the indexed query            : Index Scan using fuzz_guc_ix on fuzz_guc   Index Cond: (CASE WHEN ((data -> 'a'::text) IS NULL) THEN NULL::text WHEN (jsonb_typeof((data -> 'a'::text)) = 'null'::text) THEN NULL::text WHEN (jsonb_typeof((data -> 'a'::text)) = 'boolean'::text) THEN CASE WHEN ((data -> 'a'::text) = 'true'::jsonb) THEN 'true'::text ELSE 'false'::text END WHEN (jsonb_typeof((data -> 'a'::text)) = 'number'::text) THEN xpr.ecma_num(CASE WHEN ((data -> 'a'::text) IS NULL) THEN NULL::double precision WHEN (jsonb_typeof((data -> 'a'::text)) <> 'number'::text) THEN NULL::double precision WHEN (abs((((data -> 'a'::text) #>> '{}'::text[]))::numeric) > '179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'::numeric) THEN NULL::double precision ELSE (((data -> 'a'::text) #>> '{}'::text[]))::double precision END) WHEN (jsonb_typeof((data -> 'a'::text)) = 'string'::text) THEN ((data -> 'a'::text) #>> '{}'::text[]) ELSE NULL::text END = '0.1'::text)
+    rows returned VIA THE INDEX           : [(1,)]
+    rows returned via a seq scan          : [(1,)]
+    (no split-brain observed in this configuration -- see notes)

@@ -1,0 +1,174 @@
+INJECTING into the real per-case loop:
+  I1  case 'add'
+      constant wrong number (999) where Python says 3.0
+      MUST emit outcome = COMPILED_DIVERGES
+  I2  case 'precedence_mul_before_add'
+      compiler refuses: raises Uncompilable
+      MUST emit outcome = DID_NOT_COMPILE
+  I3  case 'parens_override'
+      SQL that raises at execution time (integer division by zero)
+      MUST emit outcome = SQL_ERROR
+  I4  case 'divide_by_zero_is_null'
+      jsonb 'null' where Python has None — decodes EQUAL, breaks the SQL-NULL representation contract
+      MUST emit outcome = COMPILED_DIVERGES
+  I5  case 'true_division'
+      3.50000001 where Python says 3.5 — off by 1e-8, just ABOVE the 1e-9 absolute epsilon
+      MUST emit outcome = COMPILED_DIVERGES
+  I6  case 'modulo_pos'
+      1.0000000001 where Python says 1.0 — off by 1e-10, just BELOW the 1e-9 absolute epsilon. Agreeing here is CORRECT, not lenient.
+      MUST emit outcome = COMPILED_AGREES
+
+TOTALS AS EMITTED BY THE HARNESS
+{
+ "cases": 130,
+ "compiled_agrees": 125,
+ "compiled_diverges": 3,
+ "did_not_compile": 1,
+ "sql_error": 1,
+ "pass_rate_denominator": 130,
+ "pass_rate": 0.9615384615384616
+}
+
+PER-INJECTION — what the harness ACTUALLY emitted
+--------------------------------------------------------------------------
+I1  case 'add'
+    expr                 '1 + 2'
+    python_value         3.0
+    sql (injected)       'to_jsonb(999::float8)'
+    sql_is_null          False
+    sql_jsonb_typeof     'number'
+    sql_value            999
+    mirrored_rule_agrees False
+    cause_shape          'numeric difference |999.0 - 3.0| = 996.0 > 1e-09'
+    cause                'UNCLASSIFIED'
+    injection fired      1 time(s)
+    EXPECTED outcome     COMPILED_DIVERGES
+    EMITTED  outcome     COMPILED_DIVERGES      <-- OK
+
+I2  case 'precedence_mul_before_add'
+    expr                 '10 - 4 * 2'
+    python_value         2.0
+    uncompilable_reason  'INJECTED: this construct is not compilable (deliberate)'
+    injection fired      1 time(s)
+    EXPECTED outcome     DID_NOT_COMPILE
+    EMITTED  outcome     DID_NOT_COMPILE      <-- OK
+
+I3  case 'parens_override'
+    expr                 '(10 - 4) * 2'
+    python_value         12.0
+    sql (injected)       'to_jsonb((1::int / 0::int))'
+    sql_is_null          None
+    sql_jsonb_typeof     None
+    sql_value            None
+    mirrored_rule_agrees None
+    sql_error            22012 'ERROR:  division by zero'
+    cause                'Postgres raised where expr returns a value or null (totality violation)'
+    injection fired      1 time(s)
+    EXPECTED outcome     SQL_ERROR
+    EMITTED  outcome     SQL_ERROR      <-- OK
+
+I4  case 'divide_by_zero_is_null'
+    expr                 '5 / 0'
+    python_value         None
+    sql (injected)       "'null'::jsonb"
+    sql_is_null          False
+    sql_jsonb_typeof     'null'
+    sql_value            None
+    mirrored_rule_agrees True
+    cause_shape          "SQL returned jsonb 'null' at top level, not SQL NULL (representation leak)"
+    cause                'UNCLASSIFIED'
+    injection fired      1 time(s)
+    EXPECTED outcome     COMPILED_DIVERGES
+    EMITTED  outcome     COMPILED_DIVERGES      <-- OK
+
+I5  case 'true_division'
+    expr                 '7 / 2'
+    python_value         3.5
+    sql (injected)       'to_jsonb(3.50000001::float8)'
+    sql_is_null          False
+    sql_jsonb_typeof     'number'
+    sql_value            3.50000001
+    mirrored_rule_agrees False
+    cause_shape          'numeric difference |3.50000001 - 3.5| = 9.99999993922529e-09 > 1e-09'
+    cause                'UNCLASSIFIED'
+    injection fired      1 time(s)
+    EXPECTED outcome     COMPILED_DIVERGES
+    EMITTED  outcome     COMPILED_DIVERGES      <-- OK
+
+I6  case 'modulo_pos'
+    expr                 '7 % 3'
+    python_value         1.0
+    sql (injected)       'to_jsonb(1.0000000001::float8)'
+    sql_is_null          False
+    sql_jsonb_typeof     'number'
+    sql_value            1.0000000001
+    mirrored_rule_agrees True
+    injection fired      1 time(s)
+    EXPECTED outcome     COMPILED_AGREES
+    EMITTED  outcome     COMPILED_AGREES      <-- OK
+
+COUNTS
+    expected {'COMPILED_AGREES': 125, 'COMPILED_DIVERGES': 3, 'DID_NOT_COMPILE': 1, 'SQL_ERROR': 1}
+    emitted  {'COMPILED_AGREES': 125, 'COMPILED_DIVERGES': 3, 'DID_NOT_COMPILE': 1, 'SQL_ERROR': 1}
+    pass_rate 125/130 = 0.9615384615384616
+
+RESULT: every injected failure was emitted as the outcome it should be.
+
+==============================================================================
+LINE HIT COUNTS — conformance.py outcome-assignment branches, UNDER INJECTION
+==============================================================================
+
+A  DID_NOT_COMPILE   (except Uncompilable)   lines 377-382   TOTAL HITS = 7
+      377  hits=1     |             except proto_compile.Uncompilable as exc:
+      378  hits=2     |                 entry.update(outcome="DID_NOT_COMPILE", uncompilable_reason=exc.reason,
+      379  hits=1     |                              sql=None, sql_display=None, sql_value=None, cause=None)
+      380  hits=1     |                 counts["DID_NOT_COMPILE"] += 1
+      381  hits=1     |                 entries.append(entry)
+      382  hits=1     |                 continue
+
+B  SQL_ERROR         (except SqlRaised)   lines 396-404   TOTAL HITS = 9
+      396  hits=1     |             except SqlRaised as exc:
+      397  hits=1     |                 conn.rollback()
+      398  hits=2     |                 entry.update(outcome="SQL_ERROR", sql_value=None,
+      399  hits=1     |                              sql_error={"sqlstate": exc.sqlstate, "message": exc.message},
+      400  hits=1     |                              cause="Postgres raised where expr returns a value or null "
+  **  401  hits=0     |                                    "(totality violation)")
+      402  hits=1     |                 counts["SQL_ERROR"] += 1
+      403  hits=1     |                 entries.append(entry)
+      404  hits=1     |                 continue
+
+C  COMPILED_AGREES   (if agree and not leak)   lines 443-448   TOTAL HITS = 503
+      443  hits=128   |             if agree and not leak:
+      444  hits=125   |                 entry.update(outcome="COMPILED_AGREES", cause=None)
+      445  hits=125   |                 counts["COMPILED_AGREES"] += 1
+      446  hits=125   |                 if not strict:
+  **  447  hits=0     |                     entry["note"] = ("mirrored rule agrees, stricter deep check does not "
+  **  448  hits=0     |                                      "— see 'strict-vs-mirrored' in the report")
+
+D  COMPILED_DIVERGES (else)   lines 449-455   TOTAL HITS = 18
+  **  449  hits=0     |             else:
+      450  hits=6     |                 entry.update(
+      451  hits=3     |                     outcome="COMPILED_DIVERGES",
+      452  hits=3     |                     cause=CAUSES.get(name, "UNCLASSIFIED"),
+      453  hits=3     |                     cause_shape=cause_shape(py_value, sql_value, is_null, jtype),
+  **  454  hits=0     |                 )
+      455  hits=3     |                 counts["COMPILED_DIVERGES"] += 1
+
+------------------------------------------------------------------------------
+SUMMARY (the assignment lines only)
+------------------------------------------------------------------------------
+  line  377  hits=1      DID_NOT_COMPILE
+  line  378  hits=2      entry.update(outcome=DID_NOT_COMPILE)
+  line  380  hits=1      counts["DID_NOT_COMPILE"] += 1
+  line  396  hits=1      SQL_ERROR
+  line  398  hits=2      entry.update(outcome=SQL_ERROR)
+  line  402  hits=1      counts["SQL_ERROR"] += 1
+  line  443  hits=128    if agree and not leak
+  line  444  hits=125    entry.update(outcome=COMPILED_AGREES)
+  line  445  hits=125    counts["COMPILED_AGREES"] += 1
+  line  449  hits=0      else:
+  line  451  hits=3      outcome=COMPILED_DIVERGES
+  line  455  hits=3      counts["COMPILED_DIVERGES"] += 1
+
+main() returned 0
+total distinct lines of conformance.py executed: 221

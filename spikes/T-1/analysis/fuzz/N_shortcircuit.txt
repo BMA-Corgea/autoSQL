@@ -1,0 +1,15 @@
+=== N. short-circuit vs eager evaluation ===
+
+   <AGREE>        false and ($.big * $.big)                      left is false: Python never touches the right
+   <AGREE>        $.f and ($.big * $.big)                        same, via a field
+   <AGREE>        true or ($.big * $.big)                        left is true: Python never touches the right
+   <AGREE>        $.t or ($.big * $.big)                         same, via a field
+   <AGREE>        false and ($.tiny * $.tiny)                    underflow on the skipped side
+   <AGREE>        false and $.l[3000000000]                      int4 index overflow on the skipped side
+   <AGREE>        if(false, ($.big * $.big), 0)                  CONTROL: if() compiles to CASE, which IS lazy
+   <AGREE>        if(true, 0, ($.big * $.big))                   CONTROL: the untaken else-branch
+   <AGREE>        coalesce($.t, ($.big * $.big))                 COALESCE: SQL skips it, Python evaluates it (both total)
+   <AGREE>        not (false and ($.big * $.big))                nested under not()
+   <AGREE>        (false and ($.big * $.big)) or true            nested under or()
+
+0 of 11 evaluation-order probes diverge

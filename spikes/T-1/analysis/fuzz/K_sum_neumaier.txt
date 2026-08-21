@@ -1,0 +1,37 @@
+=== K0. the mechanism, stated once and checked ===
+    builtin sum([1e+16, 1.0, -1e+16])               = 1.0
+    plain left-to-right accumulation = 0.0
+    -> CPython 3.12's sum() is compensated; 3.12.3
+    postgres sum(float8 ORDER BY ord) = 0.0
+
+=== K1. sum() over 20000 random lists, by profile ===
+    profile                               lists  diverge     rate
+    money, mixed sign                      3315        0    0.00%
+    big value +- small corrections         3342     3333   99.73%
+    credits then matching debits           3364       19    0.56%
+    mixed magnitudes                       3320      284    8.55%
+    plain positives                        3370        0    0.00%
+    hand-picked awkward values             3289      732   22.26%
+    TOTAL                                 20000     4368   21.84%
+
+    the divergence is ALWAYS larger than the fixture's float_epsilon (1e-9)?
+      [big value +- small corrections] python=-19.389960123269056      postgres=16.0                      |diff|=35.389960123269056
+      [big value +- small corrections] python=18.66362840010126        postgres=-16.0                     |diff|=34.66362840010126
+      [big value +- small corrections] python=-3.171894336831741       postgres=-32.0                     |diff|=28.82810566316826
+      [big value +- small corrections] python=35.88097926563132        postgres=64.0                      |diff|=28.119020734368682
+      [big value +- small corrections] python=5.489696086413119        postgres=32.0                      |diff|=26.51030391358688
+      [big value +- small corrections] python=9.902603931625613        postgres=-16.0                     |diff|=25.902603931625613
+      [big value +- small corrections] python=24.739840233148264       postgres=0.0                       |diff|=24.739840233148264
+      [big value +- small corrections] python=-24.033320770371         postgres=0.0                       |diff|=24.033320770371
+
+=== K2. end to end through the compiler ===
+    sum [1e+16, 1.0, -1e+16]               <DIVERGE>    py=1.0                    sql=0
+    avg                                    <DIVERGE>    py=0.3333333333333333     sql=0
+    sum [1e+17, 3.0, -1e+17]               <DIVERGE>    py=3.0                    sql=0
+    avg                                    <DIVERGE>    py=1.0                    sql=0
+    sum [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 <AGREE>      py=1.0                    sql=0.9999999999999999
+    avg                                    <AGREE>      py=0.1                    sql=0.09999999999999999
+    sum [1000000000.0, 0.0001, -1000000000 <DIVERGE>    py=0.0001                 sql=0.00010001659393310547
+    avg                                    <DIVERGE>    py=3.3333333333333335e-05 sql=3.333886464436849e-05
+    sum [1234567.89, -1234567.88, 0.01]    <AGREE>      py=0.020000000009313228   sql=0.020000000009313228
+    avg                                    <AGREE>      py=0.006666666669771076   sql=0.006666666669771076

@@ -1,0 +1,93 @@
+  [ok ] NC1 unknown AST tag -> Uncompilable   (unknown AST tag 'no_such_tag')
+  [ok ] NC2 matches(999.0, 3.0) is False
+  [ok ] NC3a matches(3.0 + 1e-10, 3.0) is True
+  [ok ] NC3b matches(3.0 + 1e-8, 3.0) is False
+  [ok ] NC3c ABSOLUTE: matches(1e9 + 1.0, 1e9) is False
+  [ok ] NC4a matches(True, 1) is False
+  [ok ] NC4b matches(1, True) is False
+  [ok ] NC4c matches(True, True) is True
+  [ok ] NC4d matches(False, 0.0) is False
+  [ok ] NC5a matches(None, None) is True
+  [ok ] NC5b matches(None, 0.0) is False
+  [ok ] NC5c matches(0.0, None) is False
+  [ok ] NC6a mirrored rule passes [True] vs [1]
+  [ok ] NC6b strict check rejects [True] vs [1]
+  [ok ] NC7 division_by_zero -> SqlRaised   (22012)
+  [ok ] NC8a NULL::jsonb -> is_sql_null True, jsonb_typeof None
+  [ok ] NC8b 'null'::jsonb -> is_sql_null False, jsonb_typeof 'null'
+  [ok ] NC9 data column is live (record 1 vs 2)
+  [ok ] NC10 ctx bind is live
+  [ok ] NC11 wrong SQL for fixture case 'add' is caught   (python=3.0 sql=999)
+  [ok ] NC12 SQL NULL where Python has a value is caught
+  [ok ] NC13 a number where Python has null is caught (FRAMING §5)   (python=None sql=0)
+  [ok ] NC14 stray % refused
+{
+ "cases": 130,
+ "compiled_agrees": 130,
+ "compiled_diverges": 0,
+ "did_not_compile": 0,
+ "sql_error": 0,
+ "pass_rate_denominator": 130,
+ "pass_rate": 1.0
+}
+control (python vs fixture expect) failures: 0
+mutation probe: 44 of 130 cases changed answer on an empty record; 24 field-reading cases did NOT change
+
+==============================================================================
+LINE HIT COUNTS — conformance.py outcome-assignment branches, normal run
+==============================================================================
+
+A  DID_NOT_COMPILE   (except Uncompilable)   lines 377-382   TOTAL HITS = 0
+  **  377  hits=0     |             except proto_compile.Uncompilable as exc:
+  **  378  hits=0     |                 entry.update(outcome="DID_NOT_COMPILE", uncompilable_reason=exc.reason,
+  **  379  hits=0     |                              sql=None, sql_display=None, sql_value=None, cause=None)
+  **  380  hits=0     |                 counts["DID_NOT_COMPILE"] += 1
+  **  381  hits=0     |                 entries.append(entry)
+  **  382  hits=0     |                 continue
+
+B  SQL_ERROR         (except SqlRaised)   lines 396-404   TOTAL HITS = 0
+  **  396  hits=0     |             except SqlRaised as exc:
+  **  397  hits=0     |                 conn.rollback()
+  **  398  hits=0     |                 entry.update(outcome="SQL_ERROR", sql_value=None,
+  **  399  hits=0     |                              sql_error={"sqlstate": exc.sqlstate, "message": exc.message},
+  **  400  hits=0     |                              cause="Postgres raised where expr returns a value or null "
+  **  401  hits=0     |                                    "(totality violation)")
+  **  402  hits=0     |                 counts["SQL_ERROR"] += 1
+  **  403  hits=0     |                 entries.append(entry)
+  **  404  hits=0     |                 continue
+
+C  COMPILED_AGREES   (if agree and not leak)   lines 443-448   TOTAL HITS = 520
+      443  hits=130   |             if agree and not leak:
+      444  hits=130   |                 entry.update(outcome="COMPILED_AGREES", cause=None)
+      445  hits=130   |                 counts["COMPILED_AGREES"] += 1
+      446  hits=130   |                 if not strict:
+  **  447  hits=0     |                     entry["note"] = ("mirrored rule agrees, stricter deep check does not "
+  **  448  hits=0     |                                      "— see 'strict-vs-mirrored' in the report")
+
+D  COMPILED_DIVERGES (else)   lines 449-455   TOTAL HITS = 0
+  **  449  hits=0     |             else:
+  **  450  hits=0     |                 entry.update(
+  **  451  hits=0     |                     outcome="COMPILED_DIVERGES",
+  **  452  hits=0     |                     cause=CAUSES.get(name, "UNCLASSIFIED"),
+  **  453  hits=0     |                     cause_shape=cause_shape(py_value, sql_value, is_null, jtype),
+  **  454  hits=0     |                 )
+  **  455  hits=0     |                 counts["COMPILED_DIVERGES"] += 1
+
+------------------------------------------------------------------------------
+SUMMARY (the assignment lines only)
+------------------------------------------------------------------------------
+  line  377  hits=0      DID_NOT_COMPILE
+  line  378  hits=0      entry.update(outcome=DID_NOT_COMPILE)
+  line  380  hits=0      counts["DID_NOT_COMPILE"] += 1
+  line  396  hits=0      SQL_ERROR
+  line  398  hits=0      entry.update(outcome=SQL_ERROR)
+  line  402  hits=0      counts["SQL_ERROR"] += 1
+  line  443  hits=130    if agree and not leak
+  line  444  hits=130    entry.update(outcome=COMPILED_AGREES)
+  line  445  hits=130    counts["COMPILED_AGREES"] += 1
+  line  449  hits=0      else:
+  line  451  hits=0      outcome=COMPILED_DIVERGES
+  line  455  hits=0      counts["COMPILED_DIVERGES"] += 1
+
+main() returned 0
+total distinct lines of conformance.py executed: 466

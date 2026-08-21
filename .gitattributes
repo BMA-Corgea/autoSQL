@@ -1,0 +1,6 @@
+# Evan works from Windows and Linux; without this, CRLF/LF churn rewrites whole files
+# and destroys line-level blame on every KB edit.
+* text=auto
+*.md text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf

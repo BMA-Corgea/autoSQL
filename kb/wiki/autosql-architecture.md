@@ -80,7 +80,12 @@ Postgres is primary. SQLite does not get primacy.
   can honour expr's *total / returns-null* contract faithfully.
 - expr is strict-ISO **UTC-only**; that maps onto `timestamptz`. SQLite's date functions are
   string manipulation.
-- JSONB + GIN beats JSON1 for pushdown. `migrations/pg/0002_instances_data_gin.sql` exists.
+- JSONB + GIN beats JSON1 for pushdown. `migrations/pg/0002_instances_data_gin.sql` exists **in
+  `GUTS/spine/L1-memory/gims-ledger`** — *not* in `GIMS-Project`, which has no Postgres layer at all.
+  **T-1 measured that index and it is the wrong shape for compiled expression predicates**: across 36
+  plans the `GIN (data jsonb_path_ops)` was used 0 times, because neither `jsonb` GIN opclass carries
+  the comparison operators the generated SQL needs. See
+  [expr-ast-to-postgres-sql.md](expr-ast-to-postgres-sql.md).
 - Full window frames (`RANGE`/`GROUPS`/`EXCLUDE`), `FILTER (WHERE …)`, `DISTINCT ON`,
   ordered-set aggregates. The proposal's **"collapse, never sample"** rule for heartbeats
   becomes one window pass:
@@ -97,7 +102,8 @@ against; it is out of scope here.
 
 ## The pgvector reframe
 
-`core/storage/sql.py` records a measured profile (2026-08-03, `guts-code`, 6333 vectors,
+`core/storage/sql.py` — **in `GUTS/spine/L1-memory/gims-ledger`, not `GIMS-Project`** — records a
+measured profile (2026-08-03, `guts-code`, 6333 vectors,
 384-dim, 65.3 MB JSON):
 
 ```
