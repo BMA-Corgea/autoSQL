@@ -47,7 +47,7 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
   minutes — not the "two-page summary" earlier handoffs called it). **Next:** `sp-spawn` turns the
   ruling into build tickets for **E1** (the subset acceptance battery) and **E2** (the like-for-like
   speed run), correctness run first per Q6.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — `refine`
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — design
   **Unblocked and moving.** Out of `intake` since 2026-08-21 on Evan's scope answers, with a **design
   stage added** (modifier `design@v1`, his Q27: he approves the look before the demo UI is built rather
   than first seeing it at accept). Now at `refine` writing the spec; the `spec_ready` gate is uncleared

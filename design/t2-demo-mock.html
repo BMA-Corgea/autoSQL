@@ -1,0 +1,1284 @@
+<title>autoSQL Picking Screen</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════════════
+   T-2 VISUAL TARGET — the autoSQL picking screen, in GIMS's house style.
+   Tokens below are WATERY's own, copied verbatim from
+   GUTS/spine/L1-memory/gims-ledger/static/styles/watery.css.
+   Colour roles are strict: green = surface, tan = card frame,
+   cyan/aqua = accent + icon-chip edges, blue = action.
+   Semantic layer on top of that, used by this screen only:
+   green = the panes agree · coral = they disagree · amber = refused.
+   ══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:#06140f; --bg2:#0a1f1a; --surface:#0e2a23; --surface2:#143a30;
+  --card:#11362a; --card-2:#173f2f;
+  --card-border:rgba(99,224,193,0.24);
+  --card-edge:rgba(216,189,138,0.55);
+  --card-edge-strong:rgba(230,203,152,0.82);
+  --border:rgba(140,230,200,0.14); --border2:rgba(140,230,200,0.30);
+  --text:#e8f4ee; --text-mid:#a6cabd; --text-soft:#6f988b; --text-mute:#436055;
+  --accent:#2dd4bf; --accent-2:#6ee7c7;
+  --accent-light:rgba(45,212,191,0.14); --accent-glow:rgba(45,212,191,0.32);
+  --blue:#4f9dff; --blue-2:#74b9ff; --blue-light:rgba(79,157,255,0.14);
+  --blue-glow:rgba(79,157,255,0.36); --blue-border:rgba(79,157,255,0.42);
+  --blue-text:#bcd9ff; --blue-cta-1:#1d56c9; --blue-cta-2:#2970d8;
+  --warm:#f4c987; --warm-2:#f0a868; --warm-glow:rgba(244,201,135,0.16);
+  --glow-aqua:rgba(45,212,191,0.10); --glow-floor:rgba(20,90,72,0.22);
+  --green:#34e0a1; --green-light:rgba(52,224,161,0.13);
+  --green-glow:rgba(52,224,161,0.40); --green-text:#6ef0bf;
+  --amber:#f6c560; --amber-light:rgba(246,197,96,0.13);
+  --red:#f0726a; --red-light:rgba(240,114,106,0.10);
+  --red-border:rgba(240,114,106,0.32); --red-text:#f89a93;
+  --shadow-sm:0 1px 3px rgba(2,18,14,0.34), 0 1px 2px rgba(2,18,14,0.24);
+  --shadow-md:0 5px 22px rgba(2,18,14,0.46), 0 2px 7px rgba(2,18,14,0.3);
+  --shadow-lg:0 14px 44px rgba(2,14,11,0.6), 0 5px 16px rgba(2,18,14,0.4);
+  --radius:13px; --radius-sm:9px; --radius-lg:18px;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+body {
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:14px; line-height:1.5; color:var(--text); min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(ellipse 55% 45% at 18% -5%,  var(--warm-glow) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 85% 8%,   var(--glow-aqua) 0%, transparent 58%),
+    radial-gradient(ellipse 80% 70% at 60% 108%, var(--glow-floor) 0%, transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+}
+body::before{
+  content:''; position:fixed; inset:-20%; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(ellipse 40% 36% at 25% 12%, var(--warm-glow) 0%, transparent 62%),
+    radial-gradient(ellipse 44% 40% at 78% 30%, var(--glow-aqua) 0%, transparent 62%);
+  animation: drift 22s ease-in-out infinite alternate;
+}
+
+/* ── motion — "Gentle Watery" ─────────────────────────────────────── */
+@keyframes drift { from{transform:translate3d(0,0,0) scale(1);} to{transform:translate3d(2.5%,2%,0) scale(1.06);} }
+@keyframes rise  { from{opacity:0; transform:translateY(7px);} to{opacity:1; transform:translateY(0);} }
+@keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 var(--green-glow);} 50%{box-shadow:0 0 0 6px transparent;} }
+@keyframes ripple { 0%{background-position:-200% center;} 100%{background-position:200% center;} }
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+}
+
+/* ── shared Watery primitives ─────────────────────────────────────── */
+.icon{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.icon-sm{ width:13px; height:13px; }
+.icon-lg{ width:20px; height:20px; }
+
+.panel{ background:linear-gradient(180deg,var(--card),var(--surface));
+  border:2px solid var(--card-edge); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-md); overflow:hidden; animation:rise .4s ease both; }
+.panel-head{ display:flex; align-items:center; gap:9px; padding:12px 16px;
+  border-bottom:1px solid var(--card-edge); }
+.panel-head .icon{ color:var(--accent); }
+.panel-title{ font-size:11px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1.1px; color:var(--text-soft); }
+.panel-body{ padding:16px; }
+
+.icon-chip{ display:grid; place-items:center; flex-shrink:0; width:26px; height:26px;
+  border-radius:var(--radius-sm); color:var(--accent); background:var(--accent-light);
+  border:1px solid var(--card-border); }
+.icon-chip .icon{ width:14px; height:14px; }
+.count-pill{ font-size:11px; font-weight:700; color:var(--accent);
+  background:var(--accent-light); border:1px solid var(--card-border);
+  border-radius:99px; padding:1px 9px; text-align:center; font-variant-numeric:tabular-nums; }
+
+.chip{ display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:99px;
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  border:1px solid var(--border2); color:var(--text-mid); background:var(--surface2); white-space:nowrap; }
+.chip.accent{ color:var(--accent); border-color:rgba(45,212,191,.4); background:var(--accent-light); }
+.chip.ok{ color:var(--green-text); border-color:rgba(52,224,161,.4); background:var(--green-light); }
+.chip.warn{ color:var(--amber); border-color:rgba(246,197,96,.4); background:var(--amber-light); }
+.chip.bad{ color:var(--red-text); border-color:var(--red-border); background:var(--red-light); }
+
+.btn-primary{ position:relative; overflow:hidden; color:#fff; border:none; padding:11px 14px;
+  background:linear-gradient(135deg,var(--blue-cta-1) 0%,var(--blue-cta-2) 100%);
+  box-shadow:0 4px 20px var(--blue-glow); border-radius:var(--radius-sm); cursor:pointer;
+  font-weight:700; font-family:inherit; font-size:13px; letter-spacing:.2px;
+  display:inline-flex; align-items:center; justify-content:center; gap:7px; width:100%;
+  transition:transform .14s, box-shadow .18s; }
+.btn-primary::before{ content:''; position:absolute; inset:0; opacity:0;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%);
+  background-size:200% 100%; transition:opacity .2s; }
+.btn-primary:hover{ transform:translateY(-2px); box-shadow:0 8px 30px var(--blue-glow); }
+.btn-primary:hover::before{ opacity:1; animation:ripple 1.1s ease forwards; }
+
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   PAGE SHELL
+   ══════════════════════════════════════════════════════════════════ */
+.wrap{ max-width:1520px; margin:0 auto; padding:22px 20px 56px; }
+
+.masthead{ display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+.brand{ display:flex; align-items:center; gap:11px; }
+.brand-mark{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
+  color:var(--accent); background:var(--accent-light); border:1px solid var(--card-border); }
+.brand-mark .icon{ width:21px; height:21px; }
+.brand h1{ font-size:19px; font-weight:700; letter-spacing:-.2px; line-height:1.15; }
+.brand p{ font-size:12px; color:var(--text-soft); margin-top:1px; }
+.masthead-right{ margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+.banner{ display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin-bottom:16px;
+  border:1px solid var(--border2); border-left:3px solid var(--warm);
+  border-radius:var(--radius-sm); background:rgba(244,201,135,.055);
+  font-size:12.5px; color:var(--text-mid); line-height:1.45; }
+.banner .icon{ color:var(--warm); margin-top:1px; }
+.banner b{ color:var(--text); font-weight:600; }
+
+/* ── state tabs ───────────────────────────────────────────────────── */
+.tabbar{ display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); padding-bottom:0; margin-bottom:18px; }
+.tabs{ display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:0; }
+.tab{ position:relative; display:inline-flex; align-items:center; gap:8px;
+  padding:8px 13px 10px; background:transparent; border:1px solid transparent;
+  border-bottom:none; border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+  color:var(--text-soft); font:inherit; font-size:12.5px; font-weight:600;
+  cursor:pointer; transition:color .16s, background .16s, border-color .16s; }
+.tab .tab-n{ font-size:10px; font-weight:700; width:17px; height:17px; border-radius:50%;
+  display:grid; place-items:center; background:var(--surface2); color:var(--text-soft);
+  border:1px solid var(--border); font-variant-numeric:tabular-nums; transition:inherit; }
+.tab:hover{ color:var(--text); background:rgba(140,230,200,.05); }
+.tab[aria-selected="true"]{ color:var(--text); background:var(--accent-light);
+  border-color:var(--card-border); }
+.tab[aria-selected="true"] .tab-n{ background:var(--accent); color:#04211b; border-color:var(--accent); }
+.tab[aria-selected="true"]::after{ content:''; position:absolute; left:10px; right:10px; bottom:-1px;
+  height:2px; border-radius:2px; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); }
+.legend{ display:flex; gap:14px; flex-wrap:wrap; padding-bottom:9px; }
+.legend span{ display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--text-soft); }
+.legend i{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+.lg-ok{ background:var(--green); } .lg-bad{ background:var(--red); } .lg-warn{ background:var(--amber); }
+
+/* ── two-column body ──────────────────────────────────────────────── */
+.layout{ display:grid; grid-template-columns:352px minmax(0,1fr); gap:18px; align-items:start; }
+
+/* ── picking panel ────────────────────────────────────────────────── */
+.ops{ list-style:none; display:flex; flex-direction:column; gap:2px; }
+.op{ display:grid; grid-template-columns:20px 26px minmax(0,1fr); gap:10px; align-items:center;
+  padding:8px 9px; border-radius:var(--radius-sm); border:1px solid transparent;
+  transition:background .16s, border-color .16s; }
+.op-n{ font-size:10.5px; font-weight:700; color:var(--text-mute); text-align:right;
+  font-variant-numeric:tabular-nums; }
+.op-name{ display:block; font-size:12.5px; font-weight:600; color:var(--text-mid); line-height:1.25; }
+.op-val{ display:block; font-family:var(--mono); font-size:11.5px; color:var(--text-mute);
+  margin-top:2px; overflow-wrap:anywhere; line-height:1.35; }
+.op.is-on{ background:rgba(45,212,191,.055); border-color:var(--card-border); }
+.op.is-on .op-name{ color:var(--text); }
+.op.is-on .op-val{ color:var(--accent-2); }
+.op.is-off .icon-chip{ color:var(--text-mute); background:transparent; border-color:var(--border); }
+.op.is-refused{ background:rgba(246,197,96,.07); border-color:rgba(246,197,96,.34); }
+.op.is-refused .icon-chip{ color:var(--amber); background:var(--amber-light); border-color:rgba(246,197,96,.4); }
+.op.is-refused .op-name{ color:var(--text); }
+.op.is-refused .op-val{ color:var(--amber); text-decoration:line-through; text-decoration-color:rgba(246,197,96,.5); }
+.op-flag{ grid-column:3; font-size:10.5px; font-weight:700; letter-spacing:.4px;
+  text-transform:uppercase; color:var(--amber); margin-top:3px; }
+
+.pick-foot{ border-top:1px solid var(--border); padding:14px 16px 16px;
+  display:flex; flex-direction:column; gap:9px; }
+.pick-note{ font-size:11px; color:var(--text-mute); line-height:1.4; }
+
+.sidecard{ margin-top:16px; }
+.srcmeta{ display:flex; flex-direction:column; gap:9px; }
+.srcrow{ display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  font-size:12px; padding-bottom:8px; border-bottom:1px dashed var(--border); }
+.srcrow:last-child{ border-bottom:none; padding-bottom:0; }
+.srcrow .k{ color:var(--text-soft); font-family:var(--mono); font-size:11.5px; }
+.srcrow .v{ color:var(--text); font-variant-numeric:tabular-nums; font-weight:600; }
+.srcrow.dim .k, .srcrow.dim .v{ color:var(--text-mute); font-weight:400; }
+
+/* ══════════════════════════════════════════════════════════════════
+   VERDICT BAND — the correctness control, stated in plain English
+   ══════════════════════════════════════════════════════════════════ */
+.verdict{ border-radius:var(--radius-lg); border:1px solid var(--border2);
+  border-left:4px solid var(--text-mute); background:linear-gradient(180deg,var(--card),var(--surface));
+  box-shadow:var(--shadow-sm); padding:15px 18px; animation:rise .34s ease both; }
+.verdict-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.verdict-ico{ width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex-shrink:0; }
+.verdict-ico .icon{ width:17px; height:17px; }
+.verdict h2{ font-size:16px; font-weight:700; letter-spacing:-.15px; text-wrap:balance; }
+.verdict-body{ margin-top:9px; font-size:13.5px; line-height:1.62; color:var(--text-mid);
+  max-width:78ch; }
+.verdict-body b{ color:var(--text); font-weight:600; }
+.verdict-body code, .mono{ font-family:var(--mono); font-size:12.5px; }
+.verdict-body .num{ font-family:var(--mono); font-weight:700; font-variant-numeric:tabular-nums;
+  padding:0 3px; border-radius:3px; }
+.verdict-body p + p{ margin-top:8px; }
+.verdict-ref{ margin-top:11px; padding-top:9px; border-top:1px dashed var(--border);
+  font-size:11px; color:var(--text-mute); font-family:var(--mono); }
+
+.verdict.t-ok{ border-left-color:var(--green); }
+.verdict.t-ok .verdict-ico{ color:var(--green); background:var(--green-light); border:1px solid rgba(52,224,161,.34); }
+.verdict.t-ok .num{ color:var(--green-text); background:var(--green-light); }
+.verdict.t-bad{ border-left-color:var(--red); }
+.verdict.t-bad .verdict-ico{ color:var(--red-text); background:var(--red-light); border:1px solid var(--red-border); }
+.verdict.t-bad .num{ color:var(--red-text); background:var(--red-light); }
+.verdict.t-warn{ border-left-color:var(--amber); }
+.verdict.t-warn .verdict-ico{ color:var(--amber); background:var(--amber-light); border:1px solid rgba(246,197,96,.34); }
+.verdict.t-warn .num{ color:var(--amber); background:var(--amber-light); }
+
+/* ── enforcement strip: gate → compile → probes → execute ─────────── */
+.rail{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0;
+  margin-top:14px; border:1px solid var(--border); border-radius:var(--radius);
+  background:rgba(6,20,15,.36); overflow:hidden; }
+.stop{ position:relative; padding:10px 12px 11px 12px; display:flex; gap:9px; align-items:flex-start;
+  border-right:1px solid var(--border); min-width:0; }
+.stop:last-child{ border-right:none; }
+.stop-dot{ width:19px; height:19px; border-radius:50%; flex:0 0 auto; display:grid; place-items:center;
+  border:1.5px solid var(--border2); color:var(--text-mute); background:var(--surface2); margin-top:1px; }
+.stop-dot .icon{ width:11px; height:11px; stroke-width:2.4; }
+.stop-t{ min-width:0; }
+.stop-name{ display:block; font-size:11.5px; font-weight:700; letter-spacing:.3px;
+  text-transform:uppercase; color:var(--text-soft); line-height:1.2; }
+.stop-sub{ display:block; font-size:11px; color:var(--text-mute); margin-top:3px;
+  line-height:1.35; overflow-wrap:anywhere; }
+.stop.s-done .stop-dot{ color:var(--accent); border-color:rgba(45,212,191,.5); background:var(--accent-light); }
+.stop.s-done .stop-name{ color:var(--text-mid); }
+.stop.s-stop{ background:rgba(246,197,96,.07); }
+.stop.s-stop .stop-dot{ color:var(--amber); border-color:rgba(246,197,96,.55); background:var(--amber-light); }
+.stop.s-stop .stop-name{ color:var(--amber); }
+.stop.s-stop .stop-sub{ color:var(--text-mid); }
+.stop.s-none .stop-dot{ border-style:dashed; }
+.stop.s-none .stop-name, .stop.s-none .stop-sub{ opacity:.62; }
+.stop.s-skip{ opacity:.42; }
+.stop.s-skip .stop-dot{ border-style:dashed; background:transparent; }
+
+/* ══════════════════════════════════════════════════════════════════
+   THE REDUCTION BLOCK — operation 9, made legible
+   ══════════════════════════════════════════════════════════════════ */
+.reduce{ margin-top:16px; }
+.reduce-top{ display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:14px; }
+.reduce-fig{ display:flex; align-items:baseline; gap:9px; }
+.reduce-num{ font-size:40px; font-weight:700; line-height:1; color:var(--green-text);
+  font-variant-numeric:tabular-nums; letter-spacing:-1px; text-shadow:0 0 26px var(--green-glow); }
+.reduce-of{ font-size:13px; color:var(--text-soft); }
+.reduce-of b{ color:var(--text-mid); font-variant-numeric:tabular-nums; font-weight:600; }
+.reduce-pct{ margin-left:auto; font-size:13px; color:var(--text-soft); font-variant-numeric:tabular-nums; }
+.reduce-pct b{ color:var(--text); font-size:18px; font-weight:700; }
+
+.bar{ position:relative; height:12px; border-radius:99px; overflow:hidden;
+  background:rgba(140,230,200,.07); border:1px solid var(--border); }
+.bar-fill{ position:absolute; inset:0 auto 0 0; border-radius:99px;
+  background:linear-gradient(90deg,var(--green),var(--accent-2));
+  box-shadow:0 0 16px var(--green-glow); }
+.bar-scale{ display:flex; justify-content:space-between; margin-top:5px;
+  font-size:10.5px; color:var(--text-mute); font-variant-numeric:tabular-nums; }
+
+.beats{ margin-top:18px; }
+.beats-lab{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:8px;
+  font-size:11.5px; font-weight:700; color:var(--text-mid); font-family:var(--mono); }
+.beats-lab span{ letter-spacing:0; font-weight:400; color:var(--text-mute);
+  font-family:'Inter',sans-serif; font-size:11px; }
+.beatgrid{ display:grid; grid-template-columns:repeat(56,minmax(0,1fr)); gap:3px; }
+.beat{ aspect-ratio:1; border-radius:2px; background:rgba(140,230,200,.075); }
+.beat.on{ background:var(--green); box-shadow:0 0 7px var(--green-glow); }
+.beats-note{ margin-top:11px; font-size:12.5px; color:var(--text-mid); line-height:1.55; max-width:74ch; }
+.beats-note b{ color:var(--text); font-weight:600; }
+
+/* ══════════════════════════════════════════════════════════════════
+   THE SIDE-BY-SIDE — one panel, two halves, one spine
+   ══════════════════════════════════════════════════════════════════ */
+.cmp{ margin-top:16px; }
+.cmp .panel-head{ gap:10px; }
+.cmp-head-right{ margin-left:auto; display:flex; align-items:center; gap:8px; }
+
+.cmp-scroll{ overflow-x:auto; }
+.cmp-grid{ display:grid; grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr); min-width:640px; }
+
+.cmp-cell{ min-width:0; animation:rise .3s ease both; animation-delay:calc(var(--i,0) * 15ms); }
+
+/* pane headers */
+.pane-head{ display:flex; align-items:center; gap:9px; padding:12px 16px;
+  border-bottom:1px solid var(--border); }
+.pane-head .icon-chip{ width:24px; height:24px; }
+.pane-head > span:nth-child(2){ min-width:0; }
+.pane-name{ display:block; font-size:12.5px; font-weight:700; color:var(--text); line-height:1.2; }
+.pane-sub{ display:block; font-size:11px; color:var(--text-mute); margin-top:1px; }
+.pane-count{ margin-left:auto; }
+
+/* column header + data rows share one template per state */
+.rowcells{ display:grid; grid-template-columns:var(--cols); gap:10px; align-items:center;
+  padding:7px 16px; font-family:var(--mono); font-size:12.5px;
+  font-variant-numeric:tabular-nums; }
+.colhead{ padding-top:9px; padding-bottom:9px; font-family:'Inter',sans-serif; font-size:10px;
+  font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:var(--text-mute);
+  border-bottom:1px solid var(--border); background:rgba(6,20,15,.28); }
+.datarow{ border-bottom:1px solid rgba(140,230,200,.055); color:var(--text-mid);
+  border-left:3px solid transparent; padding-left:13px; transition:background .12s; }
+.datarow.alt{ background:rgba(255,255,255,.014); }
+.datarow.hot{ background:rgba(45,212,191,.07); }
+.cell-key{ color:var(--text-soft); }
+.cell-num{ text-align:right; color:var(--text); }
+.cell-null{ color:var(--text-mute); font-style:italic; }
+.cell-t{ color:var(--green-text); }
+.cell-f{ color:var(--text-soft); }
+.cell-lab{ font-family:'Inter',sans-serif; font-size:12px; color:var(--text-soft);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cell-mono{ color:var(--text-mid); }
+.cell-bool{ font-weight:600; }
+.cell-warn{ color:var(--amber); }
+.st-ok{ color:var(--green-text); } .st-warn{ color:var(--amber); } .st-error{ color:var(--red-text); }
+
+/* the differing row — marked on BOTH sides */
+.datarow.warn{ background:rgba(246,197,96,.07); border-left-color:var(--amber); }
+.datarow.warn.hot{ background:rgba(246,197,96,.12); }
+.datarow.diff{ background:rgba(240,114,106,.085); border-left-color:var(--red); }
+.datarow.diff.hot{ background:rgba(240,114,106,.14); }
+.diffcell{ position:relative; display:inline-block; padding:1px 7px; border-radius:5px;
+  border:1px solid var(--red-border); background:rgba(240,114,106,.14);
+  color:var(--red-text); font-weight:700; }
+.cell-num .diffcell{ margin-left:auto; }
+
+/* the spine */
+.spine{ display:grid; place-items:center;
+  background-image:linear-gradient(var(--border),var(--border));
+  background-size:1px 100%; background-position:center; background-repeat:no-repeat; }
+.spine.spine-ok{ background-image:linear-gradient(rgba(52,224,161,.26),rgba(52,224,161,.26)); }
+.spine.spine-band{ background-color:rgba(6,20,15,.28); border-bottom:1px solid var(--border); }
+.spine-mark{ width:17px; height:17px; border-radius:50%; display:grid; place-items:center;
+  background:var(--card); border:1px solid var(--border2); color:var(--text-mute); }
+.spine-mark .icon{ width:10px; height:10px; stroke-width:2.6; }
+.spine-ok .spine-mark{ color:var(--green); border-color:rgba(52,224,161,.45); }
+.spine.spine-diff{ background-image:linear-gradient(var(--red),var(--red)); }
+.spine-diff .spine-mark{ width:22px; height:22px; color:#2a0d0b; background:var(--red);
+  border-color:var(--red); box-shadow:0 0 0 4px rgba(240,114,106,.18); font-weight:700; }
+.spine-diff::before, .spine-diff::after{ content:''; position:absolute; top:50%; width:14px;
+  height:1px; background:var(--red); }
+.spine-diff{ position:relative; }
+.spine-diff::before{ left:0; } .spine-diff::after{ right:0; }
+.spine-head{ background-image:none; }
+.spine-head .spine-mark{ width:22px; height:22px; font-size:9.5px; font-weight:700;
+  letter-spacing:.4px; color:var(--text-soft); background:var(--surface2); }
+
+/* pane footnote */
+.pane-note{ padding:11px 16px 14px; font-size:11.5px; color:var(--text-mute);
+  line-height:1.5; border-top:1px solid var(--border); }
+.pane-note b{ color:var(--text-mid); font-weight:600; }
+
+/* empty / refused pane bodies */
+.pane-empty{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:9px; padding:44px 22px; text-align:center; min-height:190px; }
+.pane-empty .icon-chip{ width:34px; height:34px; color:var(--text-mute);
+  background:transparent; border-style:dashed; border-color:var(--border2); }
+.pane-empty .icon-chip .icon{ width:17px; height:17px; }
+.pane-empty-t{ font-size:13px; font-weight:600; color:var(--text-soft); }
+.pane-empty-s{ font-size:12px; color:var(--text-mute); max-width:34ch; line-height:1.5; }
+
+.pane-refused{ padding:20px 18px; display:flex; flex-direction:column; gap:11px; min-height:190px; }
+.refused-head{ display:flex; align-items:center; gap:9px; }
+.refused-head .icon-chip{ color:var(--amber); background:var(--amber-light); border-color:rgba(246,197,96,.4); }
+.refused-t{ font-size:13.5px; font-weight:700; color:var(--text); }
+.refused-body{ font-size:12.5px; color:var(--text-mid); line-height:1.6; }
+.refused-body b{ color:var(--text); }
+.refused-rows{ margin-top:2px; padding:9px 12px; border-radius:var(--radius-sm);
+  border:1px solid rgba(246,197,96,.3); background:rgba(246,197,96,.06);
+  font-family:var(--mono); font-size:12px; color:var(--amber); }
+.refused-rows span{ color:var(--text-soft); }
+
+.mobile-sep{ display:none; }
+
+/* ══════════════════════════════════════════════════════════════════
+   THE SQL PANE
+   ══════════════════════════════════════════════════════════════════ */
+.sqlpanel{ margin-top:16px; }
+.sql-scroll{ overflow-x:auto; max-width:100%; min-width:0; padding:16px 18px; }
+pre.sql{ font-family:var(--mono); font-size:12.5px; line-height:1.72; color:var(--text-mid);
+  white-space:pre; tab-size:2; min-width:0; }
+pre.sql .k{ color:var(--accent); font-weight:600; }
+pre.sql .f{ color:var(--accent-2); }
+pre.sql .s{ color:var(--warm); }
+pre.sql .n{ color:var(--warm); }
+pre.sql .c{ color:var(--text-mute); font-style:italic; }
+pre.sql .o{ color:var(--text-soft); }
+pre.sql .id{ color:var(--text); }
+pre.sql .alias{ color:var(--warm-2); font-weight:700; padding:1px 3px; border-radius:4px;
+  background:rgba(240,168,104,.11); box-shadow:inset 0 0 0 1px rgba(240,168,104,.34); }
+pre.sql .dead{ opacity:.45; }
+
+.sql-foot{ border-top:1px solid var(--card-edge); padding:12px 18px 14px;
+  display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+.sql-foot-t{ font-size:11.5px; color:var(--text-mute); line-height:1.55; max-width:64ch; flex:1; min-width:240px; }
+.sql-foot-t b{ color:var(--text-mid); font-weight:600; }
+.session{ display:flex; gap:7px; flex-wrap:wrap; }
+.session .chip{ font-family:var(--mono); text-transform:none; letter-spacing:0; font-weight:500; font-size:11px; }
+
+/* the gate's tree walk (state 3) */
+.gatewalk{ padding:16px 18px; }
+.gw-title{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px;
+  color:var(--text-soft); margin-bottom:11px; }
+.gw-row{ display:grid; grid-template-columns:16px minmax(0,1fr) auto; gap:11px; align-items:center;
+  padding:7px 0; border-bottom:1px dashed rgba(140,230,200,.09); }
+.gw-row:last-child{ border-bottom:none; }
+.gw-mark{ width:16px; height:16px; border-radius:50%; display:grid; place-items:center; }
+.gw-mark .icon{ width:10px; height:10px; stroke-width:2.6; }
+.gw-ok .gw-mark{ color:var(--green); background:var(--green-light); }
+.gw-no .gw-mark{ color:var(--amber); background:var(--amber-light); }
+.gw-node{ font-family:var(--mono); font-size:12.5px; color:var(--text-mid); overflow-wrap:anywhere; }
+.gw-node em{ font-style:normal; color:var(--text-mute); }
+.gw-no .gw-node strong{ color:var(--amber); font-weight:700; }
+.gw-ok .gw-node strong{ color:var(--text); font-weight:600; }
+.gw-why{ font-size:11.5px; color:var(--text-mute); text-align:right; }
+.gw-no .gw-why{ color:var(--amber); }
+.gw-foot{ margin-top:13px; padding-top:12px; border-top:1px solid var(--border);
+  font-size:12.5px; color:var(--text-mid); line-height:1.6; max-width:76ch; }
+.gw-foot b{ color:var(--text); font-weight:600; }
+
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width:1080px){
+  .layout{ grid-template-columns:minmax(0,1fr); }
+  .ops{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+  .op{ grid-template-columns:18px 24px minmax(0,1fr); gap:8px; align-items:start; }
+  .op .icon-chip{ width:24px; height:24px; }
+  .rail{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .stop:nth-child(2){ border-right:none; }
+  .stop:nth-child(-n+2){ border-bottom:1px solid var(--border); }
+}
+@media (max-width:760px){
+  .wrap{ padding:16px 13px 44px; }
+  .brand h1{ font-size:17px; }
+  .ops{ grid-template-columns:minmax(0,1fr); }
+  .beatgrid{ grid-template-columns:repeat(28,minmax(0,1fr)); gap:2px; }
+  .reduce-num{ font-size:34px; }
+
+  /* the two panes stack — the spine drops out and each row keeps its own
+     marking, so the same row is still findable on both sides. */
+  .cmp-grid{ display:block; min-width:0; }
+  .rowcells{ grid-template-columns:var(--cols-m, var(--cols)); }
+  .cmp-cell{ grid-column:auto !important; grid-row:auto !important; }
+  .spine{ display:none !important; }
+  .mobile-sep{ display:flex; align-items:center; gap:10px; padding:13px 16px;
+    background:rgba(6,20,15,.4); border-top:1px solid var(--card-edge);
+    border-bottom:1px solid var(--card-edge); font-size:11px; font-weight:700;
+    letter-spacing:.9px; text-transform:uppercase; color:var(--text-soft); }
+  .mobile-sep .icon{ color:var(--accent); }
+  .rowcells{ padding-left:12px; padding-right:12px; font-size:12px; gap:8px; }
+  .datarow{ padding-left:9px; }
+  pre.sql{ font-size:11.5px; }
+}
+@media (max-width:560px){
+  .rail{ grid-template-columns:minmax(0,1fr); }
+  .stop{ border-right:none; border-bottom:1px solid var(--border); }
+  .stop:last-child{ border-bottom:none; }
+  .stop:nth-child(-n+2){ border-bottom:1px solid var(--border); }
+  .legend{ display:none; }
+}
+</style>
+
+<svg style="display:none" aria-hidden="true">
+  <!-- Watery line-icon idiom: geometry only, 24x24, stroke=currentColor -->
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.2c3.6 4.3 6 7.3 6 10a6 6 0 0 1-12 0c0-2.7 2.4-5.7 6-10z"/><path d="M9.2 14.4a2.9 2.9 0 0 0 2.6 2.6"/></symbol>
+  <symbol id="i-noun" viewBox="0 0 24 24"><path d="M12 3 21 7.5v9L12 21 3 16.5v-9z"/><path d="M3 7.5 12 12l9-4.5"/><path d="M12 12v9"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l2 5.3 5.3 2-5.3 2-2 5.3-2-5.3-5.3-2 5.3-2z"/><path d="M18.5 16l.7 2 .8-.7"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3.5 5.5h17l-6.5 8v5l-4 2v-7z"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4.5v15"/><path d="M3.8 16.2 7 19.5l3.2-3.3"/><path d="M17 19.5v-15"/><path d="M13.8 7.8 17 4.5l3.2 3.3"/></symbol>
+  <symbol id="i-cap" viewBox="0 0 24 24"><path d="M4 6h16M4 11h16"/><path d="M4 16.5h5M11.5 16.5h2.5M16.5 16.5h3.5"/></symbol>
+  <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M17.5 5.5H6.5l6 6.5-6 6.5h11"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2.8 15.2c2.6-6.4 5.9-6.4 8.5 0s5.9 6.4 8.5 0"/><path d="M2.8 9.4c2.6-4.4 5.9-4.4 8.5 0"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M2.5 12.5h4l2.8-6.6 4 14.2 2.8-7.6h5.4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19.5 7"/></symbol>
+  <symbol id="i-neq" viewBox="0 0 24 24"><path d="M5 9.5h14M5 15h14"/><path d="M15.5 3.5 8.5 20.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.8 20 6v6.2c0 4.6-3.4 7.6-8 9.1-4.6-1.5-8-4.5-8-9.1V6z"/><path d="M8.6 12.6 11 15l4.4-4.6"/></symbol>
+  <symbol id="i-shield-stop" viewBox="0 0 24 24"><path d="M12 2.8 20 6v6.2c0 4.6-3.4 7.6-8 9.1-4.6-1.5-8-4.5-8-9.1V6z"/><path d="M9.2 9.2 14.8 14.8M14.8 9.2 9.2 14.8"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="M15.4 15.4 20 20"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.2"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5"/></symbol>
+  <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3.2" y="4.2" width="17.6" height="15.6" rx="2"/><path d="M12 4.2v15.6"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.6h.01"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3.5 21.5 20H2.5z"/><path d="M12 10v4.5"/><path d="M12 17.6h.01"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.8 19 12 7 19.2z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5 3.5 12l5 4.5M15.5 7.5 20.5 12l-5 4.5"/><path d="M13.5 4.5 10.5 19.5"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-python" viewBox="0 0 24 24"><path d="M4 8.5h6.5a2 2 0 0 0 2-2V4.6a2 2 0 0 0-2-2H7.4a2 2 0 0 0-2 2v3.9"/><path d="M20 15.5h-6.5a2 2 0 0 0-2 2v1.9a2 2 0 0 0 2 2h3.1a2 2 0 0 0 2-2v-3.9"/><path d="M4 8.5v5.4a2 2 0 0 0 2 2h6"/><path d="M20 15.5V10a2 2 0 0 0-2-2h-6"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg></span>
+      <div>
+        <h1>autoSQL &mdash; the picking screen</h1>
+        <p>A pick, the SQL it wrote, and both answers to it.</p>
+      </div>
+    </div>
+    <div class="masthead-right">
+      <span class="chip accent">T&#8209;2 &middot; design stage</span>
+      <span class="chip">visual target &middot; not a build</span>
+    </div>
+  </header>
+
+  <div class="banner">
+    <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+    <div>
+      <b>Every record on this screen is invented</b>, and the heartbeat shape in particular was made
+      up &mdash; no heartbeat schema exists in either GIMS checkout. This page is a design target:
+      nothing here is connected to a database, and the five states below are the five outcomes the
+      built screen has to be able to show.
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tabs" role="tablist" aria-label="Screen states" id="tabs"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="lg-ok"></i>the panes agree</span>
+      <span><i class="lg-bad"></i>they disagree</span>
+      <span><i class="lg-warn"></i>refused</span>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- ── LEFT: the picking panel ────────────────────────────────── -->
+    <div>
+      <section class="panel" aria-label="The pick">
+        <div class="panel-head">
+          <svg class="icon" aria-hidden="true"><use href="#i-columns"/></svg>
+          <span class="panel-title">The pick</span>
+          <span class="count-pill" style="margin-left:auto">9 operations</span>
+        </div>
+        <div class="panel-body" style="padding:10px 10px 4px">
+          <ul class="ops" id="ops"></ul>
+        </div>
+        <div class="pick-foot">
+          <button class="btn-primary" id="run">
+            <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>
+            Run this pick
+          </button>
+          <p class="pick-note">
+            Every visitor gets these controls and this SQL &mdash; there is no author/viewer split.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel sidecard" aria-label="The seeded database">
+        <div class="panel-head">
+          <svg class="icon" aria-hidden="true"><use href="#i-noun"/></svg>
+          <span class="panel-title">The seeded database</span>
+        </div>
+        <div class="panel-body">
+          <div class="srcmeta" id="srcmeta"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ── RIGHT: verdict, rail, reduction, the two panes, the SQL ── -->
+    <div>
+      <div id="verdict"></div>
+      <div class="rail" id="rail"></div>
+      <div id="reduce"></div>
+
+      <section class="panel cmp" aria-label="The same pick, two answers">
+        <div class="panel-head">
+          <svg class="icon" aria-hidden="true"><use href="#i-columns"/></svg>
+          <span class="panel-title">The same pick, two answers</span>
+          <div class="cmp-head-right" id="cmphead"></div>
+        </div>
+        <div class="cmp-scroll">
+          <div class="cmp-grid" id="cmp"></div>
+        </div>
+      </section>
+
+      <section class="panel sqlpanel" aria-label="The generated SQL">
+        <div class="panel-head">
+          <svg class="icon" aria-hidden="true"><use href="#i-terminal"/></svg>
+          <span class="panel-title" id="sqltitle">The generated SQL</span>
+        </div>
+        <div id="sqlbody"></div>
+        <div class="sql-foot">
+          <p class="sql-foot-t" id="sqlfoot"></p>
+          <div class="session">
+            <span class="chip">extra_float_digits = 1</span>
+            <span class="chip">TimeZone = UTC</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════
+   The nine operations of the picking panel. Names are the spec's own.
+   ════════════════════════════════════════════════════════════════════ */
+const OPS = [
+  { n:1, name:"Choose a source",             icon:"i-noun"    },
+  { n:2, name:"Computed columns",            icon:"i-sparkle" },
+  { n:3, name:"One filter",                  icon:"i-filter"  },
+  { n:4, name:"Sort field",                  icon:"i-sort"    },
+  { n:5, name:"Row cap",                     icon:"i-cap"     },
+  { n:6, name:"Aggregate",                   icon:"i-sigma"   },
+  { n:7, name:"Time buckets",                icon:"i-clock"   },
+  { n:8, name:"Rolling window",              icon:"i-wave"    },
+  { n:9, name:"Show only rows that changed", icon:"i-pulse"   }
+];
+
+const SOURCES = [
+  { k:"noun:Heartbeat", v:"8,400 rows" },
+  { k:"noun:Sample",    v:"2,000 rows" },
+  { k:"noun:EdgeCase",  v:"10 rows"    }
+];
+
+/* ════════════════════════════════════════════════════════════════════
+   THE FIVE STATES
+   ════════════════════════════════════════════════════════════════════ */
+const STATES = [
+{
+  id:"agree", n:1, tab:"Agreement", tabIcon:"i-check",
+  tone:"ok", icon:"i-check",
+  head:"Both panes agree, to the digit.",
+  body:`<p>Eight rows, eight matches. The rolling average divides by <b>1</b> on the sender&rsquo;s
+        first beat, by <b>2</b> on the second and by <b>3</b> from the third onward &mdash; the
+        short&#8209;window convention, applied identically on both sides. Both round half&#8209;up to
+        six decimal places after the division, which is why <span class="num">48.333333</span> is
+        the same six digits in both panes rather than nearly the same.</p>`,
+  ref:"walkthrough step 8 &middot; §7.1 window rule &middot; §7.2 exact-decimal rule",
+  picks:["noun:Heartbeat", 'alive = $.status == "ok"', null, null, "8", null, null,
+         "3-point trailing mean of $.payload.load, per sender", null],
+  active:[true,true,false,false,true,false,false,true,false],
+  rail:[["done","Gate","32 constructs accepted"],["done","Compile","1 expression → SQL"],
+        ["done","Probes","1 asked · 0 offending rows"],["done","Execute","8 rows returned"]],
+  cmp:{
+    mode:"rows",
+    cols:"104px 54px 58px minmax(104px,1fr)",
+    colsM:"94px 42px 44px minmax(76px,1fr)",
+    heads:["key","load","alive","rolling_avg"],
+    sqlNote:"Postgres <b>avg() OVER (ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)</b>, accumulated in <b>numeric</b>, then <b>round(x, 6)</b> &mdash; which rounds half away from zero.",
+    pyNote:"The same eight rows read out of the same database and walked in Python, in <b>decimal.Decimal</b>, quantized with <b>ROUND_HALF_UP</b> &mdash; never handed the SQL query&rsquo;s result.",
+    rows:[
+      { c:["hb-01-0000","41","true","41.000000"], t:[0,1,2,3] },
+      { c:["hb-01-0001","41","true","41.000000"], t:[0,1,2,3] },
+      { c:["hb-01-0002","63","true","48.333333"], t:[0,1,2,3] },
+      { c:["hb-01-0003","63","true","55.666667"], t:[0,1,2,3] },
+      { c:["hb-01-0004","63","true","63.000000"], t:[0,1,2,3] },
+      { c:["hb-01-0005","47","true","57.666667"], t:[0,1,2,3] },
+      { c:["hb-01-0006","47","true","52.333333"], t:[0,1,2,3] },
+      { c:["hb-01-0007","88","false","60.666667"], t:[0,1,2,3] }
+    ]
+  },
+  sql:`-- session values, SET on every connection the demo opens
+SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- probe (b) - is either == operand actually a container on some row?
+SELECT count(*) FROM demo.records
+ WHERE collection = 'noun:Heartbeat'
+   AND ( jsonb_typeof(nullif(data -> 'status', 'null'::jsonb)) IN ('object','array')
+      OR jsonb_typeof(to_jsonb('ok'))                          IN ('object','array') );
+-- 0 rows. the pick proceeds.
+
+-- probe (a) - not run: nothing in this pick reaches a numeric context
+--             through a compiled expression.
+
+-- the pick
+SELECT key,
+       data #> '{payload,load}'                                 AS load,
+       to_jsonb( nullif(data -> 'status', 'null'::jsonb)
+                 IS NOT DISTINCT FROM to_jsonb('ok') )          AS "alive",
+       round( avg( CASE WHEN jsonb_typeof(data #> '{payload,load}') = 'number'
+                        THEN ((data #> '{payload,load}') #>> '{}')::numeric END )
+                OVER ( PARTITION BY (data ->> 'sender_id')
+                       ORDER BY     (data ->> 'ts'), key
+                       ROWS BETWEEN 2 PRECEDING AND CURRENT ROW ), 6 )
+                                                                AS "rolling_avg"
+  FROM demo.records
+ WHERE collection = 'noun:Heartbeat'
+ ORDER BY key ASC
+ LIMIT 8;`,
+  sqlFoot:`Shown with its bind parameters substituted in, so it reads as a real query. <b>What runs is the parameterised form</b> &mdash; every value and every JSON field name handed to Postgres separately. The one boxed word is the alias: the only piece of typed text SQL has no bind position for, and it is checked against a strict allowlist before it is emitted.`
+},
+
+{
+  id:"disagree", n:2, tab:"Disagreement", tabIcon:"i-neq",
+  tone:"bad", icon:"i-neq",
+  head:"The panes disagree on one row.",
+  body:`<p>Row <code>edge-01</code>, column <code>biggest</code>. Python computes
+        <span class="num">1e+300</span>. The SQL returns <span class="num">1</span>.</p>
+        <p>The row holds <code>l = [1e300, 1]</code>. A guard inside <code>runtime.sql</code> is
+        written to <b>297 digits</b> where the real limit needs <b>309</b>, so
+        <code>max()</code> discards the larger value and answers with the smaller one.
+        <b>Nothing on the SQL side reports an error</b> &mdash; on its own it returns a plausible
+        number. This is the defect the demo was released with, and it is the entire reason both
+        answers are on screen.</p>`,
+  ref:"walkthrough step 11 &middot; §5 the correctness control &middot; the eighth row of §5&rsquo;s divergence table",
+  picks:["noun:EdgeCase","biggest = max($.l)",null,null,null,null,null,null,null],
+  active:[true,true,false,false,false,false,false,false,false],
+  rail:[["done","Gate","max is one of the 7 kept functions"],["done","Compile","1 expression → SQL"],
+        ["done","Probes","1 asked · 0 offending rows"],["done","Execute","10 rows returned"]],
+  cmp:{
+    mode:"rows",
+    cols:"78px minmax(150px,1fr) minmax(96px,132px)",
+    colsM:"66px minmax(92px,1fr) minmax(66px,94px)",
+    heads:["key","what the row is for","biggest"],
+    sqlNote:"<b>compile.py</b>, reused unmodified, emits <b>xpr.reduce_one('max', &hellip;)</b>. The demo does not touch it and does not patch what it gets wrong.",
+    pyNote:"GIMS&rsquo;s own <b>expr.py</b>, vendored byte&#8209;identically, evaluating the same expression over the same ten rows.",
+    rows:[
+      { c:["edge-00","value inside the guard's blind band","null"],      t:[0,4,5] },
+      { c:["edge-01","list holding 1e300 and 1","1"], py:{2:"1e+300"}, diff:2, t:[0,4,3] },
+      { c:["edge-02","boundary just below the shipped guard","9.9e+295"],t:[0,4,3] },
+      { c:["edge-03","container operand","null"],                        t:[0,4,5] },
+      { c:["edge-04","above the largest double","null"],                 t:[0,4,5] },
+      { c:["edge-05","ordinary control row","42"],                       t:[0,4,3] },
+      { c:["edge-06","binary-fraction control row","0.2"],               t:[0,4,3] },
+      { c:["edge-07","empty list","null"],                               t:[0,4,5] },
+      { c:["edge-08","negative values","-1"],                            t:[0,4,3] },
+      { c:["edge-09","the shipped guard's own literal","null"],          t:[0,4,5] }
+    ]
+  },
+  sql:`SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- probe (a) - is any operand at or above the largest double the database can hold?
+SELECT key FROM demo.records
+ WHERE collection = 'noun:EdgeCase'
+   AND jsonb_typeof( nullif(data -> 'l', 'null'::jsonb) ) = 'number'
+   AND abs( (nullif(data -> 'l', 'null'::jsonb) #>> '{}')::numeric )
+         >= 1.7976931348623157e+308::numeric;
+-- 0 rows, and deliberately so. this probe tests the REAL limit - 309 digits.
+-- the defect below lives in the twelve decades between that and the 297-digit
+-- guard inside runtime.sql, and refusing here would hide exactly what this
+-- screen exists to show.
+
+-- the pick
+SELECT key,
+       data -> 'label'                                                       AS label,
+       to_jsonb( xpr.reduce_one('max', nullif(data -> 'l', 'null'::jsonb)) ) AS "biggest"
+  FROM demo.records
+ WHERE collection = 'noun:EdgeCase'
+ ORDER BY key ASC;`,
+  sqlFoot:`The SQL ran cleanly and returned a number. Read on its own it looks like an answer, which is why it is never read on its own. <b>The disagreement is the finding</b>, not an error the demo suffered.`
+},
+
+{
+  id:"gate", n:3, tab:"Refused before running", tabIcon:"i-shield",
+  tone:"warn", icon:"i-shield-stop",
+  head:"Refused before any SQL existed.",
+  body:`<p><code>round</code> is outside the safe subset &mdash; the 32 of the expression
+        language&rsquo;s 48 constructs the investigation checked. The gate read the expression,
+        named the construct and stopped. <b>No SQL was generated, no statement was prepared, and
+        nothing was sent to the database.</b></p>
+        <p>This is a correct outcome, not a failure. <code>compile.py</code> implements
+        <code>round</code> at line 394: without the gate in front of it, this pick would have
+        compiled, run, and printed a number.</p>`,
+  ref:"walkthrough step 10 &middot; §4.4 layer 1, the static gate",
+  picks:["noun:Heartbeat","hot = round($.payload.load, 1)",null,null,null,null,null,null,null],
+  active:[true,"refused",false,false,false,false,false,false,false],
+  rail:[["stop","Gate","round is not one of the 7 kept functions"],
+        ["skip","Compile","not reached"],
+        ["skip","Probes","not reached"],
+        ["skip","Execute","not reached"]],
+  cmp:{
+    mode:"empty",
+    emptyTitle:"No result",
+    emptySub:"The pick was declined, so there is nothing for either side to answer.",
+    sqlNote:"A refusal that happens after the SQL has run is not a refusal. This one happened before there was any.",
+    pyNote:"Python is not asked either. Answering a pick the screen has just declared out of scope would be answering a question it refused to accept."
+  },
+  gate:{
+    title:"What the gate saw, node by node",
+    walk:[
+      { ok:false, node:'<strong>call</strong> <em>round</em>', why:"not one of the seven kept functions" },
+      { ok:true,  node:'&nbsp;&nbsp;&#9500;&#9472; <strong>field</strong> <em>$.payload.load</em>', why:"field path · form 2 (.ident)" },
+      { ok:true,  node:'&nbsp;&nbsp;&#9492;&#9472; <strong>num</strong> <em>1</em>', why:"leaf" }
+    ],
+    foot:`The gate is an <b>allowlist</b>, not a list of the sixteen refused names. A block&#8209;list
+          goes stale the moment GIMS&rsquo;s expression language grows a twenty&#8209;third function;
+          an allowlist fails closed &mdash; the new function is simply not among the seven, and is
+          refused until somebody deliberately adds it. The seven it keeps are
+          <b>abs, coalesce, count, if, length, max, min</b>.`
+  },
+  sqlFoot:`The two session values are still shown, because they are properties of the connection rather than of this pick.`
+},
+
+{
+  id:"probe", n:4, tab:"Refused while running", tabIcon:"i-search",
+  tone:"warn", icon:"i-warning",
+  head:"Refused while running &mdash; one row out of ten made it unanswerable.",
+  body:`<p>The gate accepted this expression: there is nothing wrong with it. Reading the rows is
+        what settled it. Row <code>edge-04</code> carries <code>huge = 1e400</code>, a magnitude
+        above the largest number Postgres can represent as a double, so the pick was abandoned
+        before its own query ran.</p>
+        <p>The SQL pane has no number and says so. <b>The Python pane still shows Python&rsquo;s
+        answer, labelled</b> &mdash; <code>inf</code>, printed literally rather than sent as a null.
+        Because both panes are permanently on screen, nobody can mistake that for the SQL&rsquo;s
+        answer, and that is what makes this a <b>reported</b> fallback rather than a silent one.</p>`,
+  ref:"walkthrough step 13 &middot; §4.5 layer 2, member (a)",
+  picks:["noun:EdgeCase","scaled = $.huge * 1",null,null,null,null,null,null,null],
+  active:[true,true,false,false,false,false,false,false,false],
+  rail:[["done","Gate","* and $.huge both inside the subset"],
+        ["done","Compile","1 expression → SQL"],
+        ["stop","Probes","1 row at or above the largest double"],
+        ["skip","Execute","never sent"]],
+  cmp:{
+    mode:"sql-refused",
+    cols:"78px minmax(150px,1fr) minmax(96px,132px)",
+    colsM:"66px minmax(92px,1fr) minmax(66px,94px)",
+    heads:["key","what the row is for","scaled"],
+    refusedTitle:"No number to show.",
+    refusedBody:`The out&#8209;of&#8209;range probe found a value at or above
+      <span class="mono">1.7976931348623157e+308</span> among the rows this pick reads. The whole
+      pick is abandoned, not the offending row &mdash; one pathological row makes the entire widget
+      fall back, which is the conservative behaviour.`,
+    refusedRows:"1 of 10 rows &middot; <span>key</span> edge-04 &middot; <span>field</span> $.huge",
+    pyNote:"Python&rsquo;s answer, shown as the labelled fallback. <b>inf</b> is rendered as text, never as a JSON null &mdash; a null there would be indistinguishable from a disagreement.",
+    rows:[
+      { c:["edge-00","value inside the guard's blind band","null"], t:[0,4,5] },
+      { c:["edge-01","list holding 1e300 and 1","null"],            t:[0,4,5] },
+      { c:["edge-02","boundary just below the shipped guard","null"],t:[0,4,5] },
+      { c:["edge-03","container operand","null"],                   t:[0,4,5] },
+      { c:["edge-04","above the largest double","inf"], mark:"warn", t:[0,4,6] },
+      { c:["edge-05","ordinary control row","null"],                t:[0,4,5] },
+      { c:["edge-06","binary-fraction control row","null"],         t:[0,4,5] },
+      { c:["edge-07","empty list","null"],                          t:[0,4,5] },
+      { c:["edge-08","negative values","null"],                     t:[0,4,5] },
+      { c:["edge-09","the shipped guard's own literal","null"],     t:[0,4,5] }
+    ]
+  },
+  sql:`SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- probe (a) - is any operand at or above the largest double the database can hold?
+SELECT key FROM demo.records
+ WHERE collection = 'noun:EdgeCase'
+   AND jsonb_typeof( nullif(data -> 'huge', 'null'::jsonb) ) = 'number'
+   AND abs( (nullif(data -> 'huge', 'null'::jsonb) #>> '{}')::numeric )
+         >= 1.7976931348623157e+308::numeric;
+-- 1 row: edge-04. the pick is abandoned here.
+-- read as RAW jsonb through ::numeric - never through xpr.f8, which returns
+-- NULL for exactly these values and would answer "nothing to refuse".
+
+-- the pick's own query. compiled, and never sent:
+SELECT key,
+       data -> 'label'                       AS label,
+       to_jsonb( xpr.num(nullif(data -> 'huge', 'null'::jsonb))
+                 * xpr.num(to_jsonb(1.0)) )  AS "scaled"
+  FROM demo.records
+ WHERE collection = 'noun:EdgeCase'
+ ORDER BY key ASC;`,
+  sqlDeadFrom:14,
+  sqlFoot:`The probe is one extra query per pick, over at most 8,400 small rows. It is affordable because the database is deliberately small, and there is no timing claim anywhere on this screen for it to spoil.`
+},
+
+{
+  id:"changed", n:5, tab:"Only what changed", tabIcon:"i-pulse",
+  tone:"ok", icon:"i-check",
+  head:"912 of 8,400 beats survive, and both panes keep the same ones.",
+  body:`<p>Out of a stream of mostly identical repeats, this keeps only the beats whose value
+        differs from the one before it, per sender. What it compares is <b>the record minus its
+        ordering key</b> &mdash; <code>status</code> and <code>payload</code>, jointly. The
+        timestamp is excluded by construction.</p>
+        <p>That exclusion is the whole operation. <b>Put the timestamp back and every row differs
+        from its predecessor</b>: 8,400 kept, a filter that filters nothing, and both panes agreeing
+        with each other perfectly about it.</p>`,
+  ref:"walkthrough step 9 &middot; §7.1 comparison rule &middot; the case the project was pitched on",
+  picks:["noun:Heartbeat",null,null,null,null,null,null,null,"on · per sender, ordered by ts then key"],
+  active:[true,false,false,false,false,false,false,false,true],
+  rail:[["none","Gate","no expression typed"],["none","Compile","nothing to compile"],
+        ["none","Probes","no operand to ask about"],["done","Execute","912 rows returned"]],
+  reduce:{ kept:912, total:8400, pct:"10.9",
+    sender:"hb-01", beats:168,
+    on:[0,7,13,26,31,44,58,63,71,86,94,103,120,128,139,147,155,163],
+    note:`Eighteen of this sender&rsquo;s 168 beats changed something. <b>If the comparison
+      included <code>ts</code>, every cell above would be lit</b> and the count would read 8,400 &mdash;
+      which is why the number, not the screenful of rows, is the thing to check.` },
+  cmp:{
+    mode:"rows",
+    cols:"112px minmax(150px,1fr) 62px 52px",
+    colsM:"98px 128px 50px 40px",
+    heads:["key","ts","status","load"],
+    sqlNote:"<b>lag(data - 'ts') &hellip; IS DISTINCT FROM (data - 'ts')</b> over one window frame. Never <b>&lt;&gt;</b>: lag() is NULL at each sender&rsquo;s first beat, and <b>NULL &lt;&gt; x</b> is NULL, which would drop all 50 first beats.",
+    pyNote:"Grouped by <b>sender_id</b>, sorted by <b>(ts, key)</b>, walked in order, comparing the parsed dict minus its <b>ts</b> key &mdash; content equality, key order irrelevant. The first row of each group is always kept.",
+    rows:[
+      { c:["hb-01-0000","2026-08-14T00:00:00Z","ok","41"],    t:[0,8,7,3] },
+      { c:["hb-01-0007","2026-08-14T07:00:00Z","ok","63"],    t:[0,8,7,3] },
+      { c:["hb-01-0013","2026-08-14T13:00:00Z","warn","88"],  t:[0,8,7,3] },
+      { c:["hb-01-0026","2026-08-15T02:00:00Z","ok","52"],    t:[0,8,7,3] },
+      { c:["hb-01-0031","2026-08-15T07:00:00Z","ok","47"],    t:[0,8,7,3] },
+      { c:["hb-01-0044","2026-08-15T20:00:00Z","ok","61"],    t:[0,8,7,3] },
+      { c:["hb-01-0058","2026-08-16T10:00:00Z","error","97"], t:[0,8,7,3] },
+      { c:["hb-01-0063","2026-08-16T15:00:00Z","ok","55"],    t:[0,8,7,3] }
+    ],
+    tail:"first 8 of 912 kept rows, under ORDER BY key"
+  },
+  sql:`SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- no expression was typed, so neither probe has an operand to ask about.
+
+SELECT key,
+       data -> 'ts'              AS ts,
+       data -> 'status'          AS status,
+       data #> '{payload,load}'  AS load
+  FROM ( SELECT key, data,
+                lag( data - 'ts' ) OVER ( PARTITION BY (data ->> 'sender_id')
+                                          ORDER BY     (data ->> 'ts'), key )
+                  IS DISTINCT FROM ( data - 'ts' )    AS "changed"
+           FROM demo.records
+          WHERE collection = 'noun:Heartbeat' ) w
+ WHERE "changed"
+ ORDER BY key ASC;
+-- data - 'ts' removes the ordering key from the compared value. sender_id
+-- cannot vary inside the partition it is the key of, so what can actually
+-- differ is status and payload, compared jointly.`,
+  sqlFoot:`Every result this screen shows or compares carries a total order ending in <b>key</b>, a column no two rows can share. Without it Postgres promises no order at all here, and the two panes could disagree about &ldquo;the first five&rdquo; while both were correct.`
+}
+];
+
+/* ════════════════════════════════════════════════════════════════════
+   Cell tone table (index into row.t)
+   ════════════════════════════════════════════════════════════════════ */
+const TONES = ["cell-key","cell-num","cell-bool","cell-num","cell-lab",
+               "cell-null cell-num","cell-num cell-warn","cell-status","cell-mono"];
+
+function svg(id, cls){
+  return '<svg class="' + (cls||"icon") + '" aria-hidden="true"><use href="#' + id + '"/></svg>';
+}
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/* ── the SQL tokenizer ─────────────────────────────────────────────── */
+const KW = new Set(["SELECT","FROM","WHERE","AND","OR","NOT","ORDER","BY","GROUP","LIMIT","AS",
+  "OVER","PARTITION","ROWS","BETWEEN","PRECEDING","CURRENT","ROW","CASE","WHEN","THEN","ELSE",
+  "END","IS","DISTINCT","IN","SET","TIME","ZONE","ASC","DESC","NULLS","LAST","NULL","ON","WITH"]);
+const FN = new Set(["count","round","avg","abs","lag","sum","min","max","to_jsonb","jsonb_typeof",
+  "nullif","date_trunc","to_char","xpr.reduce_one","xpr.num","xpr.f8","xpr.ord","xpr.div"]);
+
+function sqlHTML(src, deadFrom){
+  const lines = src.split("\n");
+  return lines.map(function(line, i){
+    const dead = (typeof deadFrom === "number" && i >= deadFrom) ? ' class="dead"' : "";
+    return "<span" + dead + ">" + tokenLine(line) + "</span>";
+  }).join("\n");
+}
+function tokenLine(line){
+  if (/^\s*--/.test(line)) return '<span class="c">' + esc(line) + "</span>";
+  const re = /('(?:[^']|'')*')|("[^"]*")|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|([A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*)|(\s+)|([\s\S])/g;
+  let out = "", m;
+  while ((m = re.exec(line)) !== null){
+    if (m[1])      out += '<span class="s">'  + esc(m[1]) + "</span>";
+    else if (m[2]) out += '<span class="alias">' + esc(m[2]) + "</span>";
+    else if (m[3]) out += '<span class="n">'  + esc(m[3]) + "</span>";
+    else if (m[4]){
+      const w = m[4];
+      if (KW.has(w.toUpperCase()) && w === w.toUpperCase()) out += '<span class="k">' + esc(w) + "</span>";
+      else if (FN.has(w)) out += '<span class="f">' + esc(w) + "</span>";
+      else out += '<span class="id">' + esc(w) + "</span>";
+    }
+    else if (m[5]) out += m[5];
+    else           out += '<span class="o">' + esc(m[6]) + "</span>";
+  }
+  return out;
+}
+
+/* ── the picking panel ─────────────────────────────────────────────── */
+function renderOps(st){
+  document.getElementById("ops").innerHTML = OPS.map(function(op, i){
+    const a = st.active[i];
+    const cls = a === "refused" ? "is-refused" : (a ? "is-on" : "is-off");
+    const val = st.picks[i] || "not set";
+    const flag = a === "refused"
+      ? '<span class="op-flag">refused by the gate</span>' : "";
+    return '<li class="op ' + cls + '">' +
+      '<span class="op-n">' + op.n + "</span>" +
+      '<span class="icon-chip">' + svg(op.icon) + "</span>" +
+      '<span class="op-t"><span class="op-name">' + op.name + "</span>" +
+      '<span class="op-val">' + esc(val) + "</span></span>" + flag + "</li>";
+  }).join("");
+}
+
+function renderSources(st){
+  const active = st.picks[0];
+  document.getElementById("srcmeta").innerHTML =
+    SOURCES.map(function(s){
+      const on = s.k === active;
+      return '<div class="srcrow' + (on ? "" : " dim") + '">' +
+        '<span class="k">' + s.k + "</span><span class=\"v\">" + s.v + "</span></div>";
+    }).join("") +
+    '<div class="srcrow dim"><span class="k">total</span><span class="v">10,410 rows</span></div>';
+}
+
+/* ── verdict + rail ────────────────────────────────────────────────── */
+function renderVerdict(st){
+  document.getElementById("verdict").innerHTML =
+    '<div class="verdict t-' + st.tone + '">' +
+      '<div class="verdict-top">' +
+        '<span class="verdict-ico">' + svg(st.icon) + "</span>" +
+        "<h2>" + st.head + "</h2>" +
+      "</div>" +
+      '<div class="verdict-body">' + st.body + "</div>" +
+      '<div class="verdict-ref">' + st.ref + "</div>" +
+    "</div>";
+}
+
+const STOPICON = { done:"i-check", stop:"i-x", skip:"i-dash", none:"i-dash" };
+function renderRail(st){
+  document.getElementById("rail").innerHTML = st.rail.map(function(s){
+    return '<div class="stop s-' + s[0] + '">' +
+      '<span class="stop-dot">' + svg(STOPICON[s[0]]) + "</span>" +
+      '<span class="stop-t"><span class="stop-name">' + s[1] + "</span>" +
+      '<span class="stop-sub">' + s[2] + "</span></span></div>";
+  }).join("");
+}
+
+/* ── the reduction block (state 5 only) ────────────────────────────── */
+function renderReduce(st){
+  const el = document.getElementById("reduce");
+  if (!st.reduce){ el.innerHTML = ""; return; }
+  const r = st.reduce;
+  const beats = [];
+  for (let i = 0; i < r.beats; i++){
+    beats.push('<span class="beat' + (r.on.indexOf(i) >= 0 ? " on" : "") + '"></span>');
+  }
+  el.innerHTML =
+    '<section class="panel reduce" aria-label="What survived">' +
+      '<div class="panel-head">' + svg("i-pulse") +
+        '<span class="panel-title">What survived</span></div>' +
+      '<div class="panel-body">' +
+        '<div class="reduce-top">' +
+          '<div class="reduce-fig"><span class="reduce-num">' + r.kept.toLocaleString() + "</span>" +
+            '<span class="reduce-of">of <b>' + r.total.toLocaleString() + "</b> beats kept</span></div>" +
+          '<div class="reduce-pct"><b>' + r.pct + "%</b> of the collection</div>" +
+        "</div>" +
+        '<div class="bar"><span class="bar-fill" style="width:' + r.pct + '%"></span></div>' +
+        '<div class="bar-scale"><span>0</span><span>' + r.total.toLocaleString() + " beats</span></div>" +
+        '<div class="beats">' +
+          '<div class="beats-lab">' + r.sender +
+            " <span>&mdash; every one of its " + r.beats + " beats, lit where the record changed</span></div>" +
+          '<div class="beatgrid">' + beats.join("") + "</div>" +
+          '<p class="beats-note">' + r.note + "</p>" +
+        "</div>" +
+      "</div></section>";
+}
+
+/* ── the side-by-side ──────────────────────────────────────────────── */
+function paneHead(kind, sub, count, col, row){
+  const icon = kind === "sql" ? "i-terminal" : "i-python";
+  const name = kind === "sql" ? "SQL &mdash; Postgres" : "Python &mdash; in&#8209;memory";
+  return '<div class="cmp-cell pane-head" style="grid-column:' + col + ';grid-row:' + row + '">' +
+    '<span class="icon-chip">' + svg(icon) + "</span>" +
+    '<span><span class="pane-name">' + name + "</span>" +
+    '<span class="pane-sub">' + sub + "</span></span>" +
+    (count ? '<span class="count-pill pane-count">' + count + "</span>" : "") +
+    "</div>";
+}
+
+function cellHTML(v, tone, isDiff){
+  const inner = isDiff ? '<span class="diffcell">' + esc(v) + "</span>" : esc(v);
+  return '<span class="' + tone + '">' + inner + "</span>";
+}
+
+function statusTone(v){
+  return "st-" + (v === "ok" ? "ok" : v === "warn" ? "warn" : "error");
+}
+
+function renderCmp(st){
+  const c = st.cmp, grid = document.getElementById("cmp");
+  const head = document.getElementById("cmphead");
+  let out = "";
+
+  /* ── both panes empty ── */
+  if (c.mode === "empty"){
+    head.innerHTML = '<span class="chip warn">refused</span>';
+    const empty = function(col){
+      return '<div class="cmp-cell" style="grid-column:' + col + ';grid-row:2">' +
+        '<div class="pane-empty">' +
+          '<span class="icon-chip">' + svg("i-lock") + "</span>" +
+          '<span class="pane-empty-t">' + c.emptyTitle + "</span>" +
+          '<span class="pane-empty-s">' + c.emptySub + "</span>" +
+        "</div>" +
+        '<div class="pane-note">' + (col === 1 ? c.sqlNote : c.pyNote) + "</div></div>";
+    };
+    out = paneHead("sql","the pick was declined","",1,1) + empty(1) +
+      '<div class="cmp-cell spine spine-head" style="grid-column:2;grid-row:1">' +
+        '<span class="spine-mark">vs</span></div>' +
+      '<div class="cmp-cell spine spine-band" style="grid-column:2;grid-row:2"></div>' +
+      '<div class="mobile-sep">' + svg("i-dash") + " the same pick, answered the other way</div>" +
+      paneHead("py","the pick was declined","",3,1) + empty(3);
+    grid.style.setProperty("--cols","1fr");
+    grid.innerHTML = out;
+    return;
+  }
+
+  const n = c.rows.length;
+  const lastRow = 2 + n;      /* header=1, colhead=2, data=3..(2+n) */
+  grid.style.setProperty("--cols", c.cols);
+  grid.style.setProperty("--cols-m", c.colsM || c.cols);
+
+  /* column headers */
+  const colhead = function(col){
+    return '<div class="cmp-cell rowcells colhead" style="grid-column:' + col + ';grid-row:2">' +
+      c.heads.map(function(h){ return "<span>" + h + "</span>"; }).join("") + "</div>";
+  };
+
+  /* data rows for one side; side = "sql" | "py" */
+  const dataRows = function(col, side){
+    return c.rows.map(function(r, i){
+      const vals = r.c.slice();
+      if (side === "py" && r.py) Object.keys(r.py).forEach(function(k){ vals[k] = r.py[k]; });
+      const cells = vals.map(function(v, j){
+        let tone = TONES[r.t[j]] || "cell";
+        if (tone === "cell-status") tone = "cell " + statusTone(v);
+        if (tone === "cell-bool")   tone = "cell-bool " + (v === "true" ? "cell-t" : "cell-f");
+        return cellHTML(v, tone, r.diff === j);
+      }).join("");
+      return '<div class="cmp-cell rowcells datarow' +
+        (i % 2 ? " alt" : "") + (r.mark ? " " + r.mark : "") +
+        (r.diff !== undefined ? " diff" : "") +
+        '" data-r="' + i + '" style="grid-column:' + col + ';grid-row:' + (3 + i) +
+        ';--i:' + i + '">' + cells + "</div>";
+    }).join("");
+  };
+
+  const note = function(col, text, row){
+    return '<div class="cmp-cell pane-note" style="grid-column:' + col + ';grid-row:' + row + '">' +
+      text + "</div>";
+  };
+
+  const diffCount = c.rows.filter(function(r){ return r.diff !== undefined; }).length;
+  head.innerHTML = diffCount
+    ? '<span class="chip bad">' + diffCount + " row differs</span>"
+    : '<span class="chip ok">' + n + " of " + n + " identical</span>";
+
+  /* ── the SQL side refused, the Python side answered ── */
+  if (c.mode === "sql-refused"){
+    head.innerHTML = '<span class="chip warn">refused at the probe</span>';
+    out += paneHead("sql","no answer for this pick","",1,1);
+    out += '<div class="cmp-cell" style="grid-column:1;grid-row:2 / ' + (lastRow + 2) + '">' +
+      '<div class="pane-refused">' +
+        '<div class="refused-head"><span class="icon-chip">' + svg("i-warning") + "</span>" +
+        '<span class="refused-t">' + c.refusedTitle + "</span></div>" +
+        '<div class="refused-body">' + c.refusedBody + "</div>" +
+        '<div class="refused-rows">' + c.refusedRows + "</div>" +
+      "</div></div>";
+    out += '<div class="cmp-cell spine spine-head" style="grid-column:2;grid-row:1">' +
+      '<span class="spine-mark">vs</span></div>';
+    out += '<div class="cmp-cell spine" style="grid-column:2;grid-row:2 / ' + (lastRow + 2) + '"></div>';
+    out += '<div class="mobile-sep">' + svg("i-dash") + " the same pick, answered the other way</div>";
+    out += paneHead("py","answered, and labelled as a fallback", n + " rows", 3, 1);
+    out += colhead(3) + dataRows(3, "py") + note(3, c.pyNote, lastRow + 1);
+    grid.innerHTML = out;
+    bindHover();
+    return;
+  }
+
+  /* ── both sides answered ── */
+  const sub = c.tail || (n + " rows");
+  out += paneHead("sql", sub, n + " rows", 1, 1);
+  out += colhead(1) + dataRows(1, "sql") + note(1, c.sqlNote, lastRow + 1);
+
+  /* the spine */
+  out += '<div class="cmp-cell spine spine-head" style="grid-column:2;grid-row:1">' +
+    '<span class="spine-mark">vs</span></div>';
+  out += '<div class="cmp-cell spine spine-band' + (diffCount ? "" : " spine-ok") +
+    '" style="grid-column:2;grid-row:2"></div>';
+  out += c.rows.map(function(r, i){
+    const isDiff = r.diff !== undefined;
+    return '<div class="cmp-cell spine ' + (isDiff ? "spine-diff" : "spine-ok") +
+      '" data-r="' + i + '" style="grid-column:2;grid-row:' + (3 + i) + '">' +
+      '<span class="spine-mark">' + (isDiff ? "&ne;" : svg("i-check")) + "</span></div>";
+  }).join("");
+  out += '<div class="cmp-cell spine' + (diffCount ? "" : " spine-ok") +
+    '" style="grid-column:2;grid-row:' + (lastRow + 1) + '"></div>';
+
+  out += '<div class="mobile-sep">' + svg("i-dash") + " the same pick, answered the other way</div>";
+  out += paneHead("py", sub, n + " rows", 3, 1);
+  out += colhead(3) + dataRows(3, "py") + note(3, c.pyNote, lastRow + 1);
+
+  grid.innerHTML = out;
+  bindHover();
+}
+
+/* hovering any row lights the same row on BOTH sides */
+function bindHover(){
+  const grid = document.getElementById("cmp");
+  grid.querySelectorAll("[data-r]").forEach(function(el){
+    el.addEventListener("mouseenter", function(){
+      grid.querySelectorAll('[data-r="' + el.dataset.r + '"]').forEach(function(x){ x.classList.add("hot"); });
+    });
+    el.addEventListener("mouseleave", function(){
+      grid.querySelectorAll('[data-r="' + el.dataset.r + '"]').forEach(function(x){ x.classList.remove("hot"); });
+    });
+  });
+}
+
+/* ── the SQL pane ──────────────────────────────────────────────────── */
+function renderSQL(st){
+  const body = document.getElementById("sqlbody");
+  const title = document.getElementById("sqltitle");
+  if (st.gate){
+    title.textContent = "No SQL was generated";
+    body.innerHTML = '<div class="gatewalk">' +
+      '<div class="gw-title">' + st.gate.title + "</div>" +
+      st.gate.walk.map(function(w){
+        return '<div class="gw-row ' + (w.ok ? "gw-ok" : "gw-no") + '">' +
+          '<span class="gw-mark">' + svg(w.ok ? "i-check" : "i-x") + "</span>" +
+          '<span class="gw-node">' + w.node + "</span>" +
+          '<span class="gw-why">' + w.why + "</span></div>";
+      }).join("") +
+      '<p class="gw-foot">' + st.gate.foot + "</p></div>";
+  } else {
+    title.textContent = "The generated SQL";
+    body.innerHTML = '<div class="sql-scroll"><pre class="sql">' +
+      sqlHTML(st.sql, st.sqlDeadFrom) + "</pre></div>";
+  }
+  document.getElementById("sqlfoot").innerHTML = st.sqlFoot;
+}
+
+/* ── tabs + wiring ─────────────────────────────────────────────────── */
+let current = 0;
+
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = STATES.map(function(s, i){
+    return '<button class="tab" role="tab" id="tab-' + s.id + '" aria-selected="' +
+      (i === current) + '" data-i="' + i + '">' +
+      '<span class="tab-n">' + s.n + "</span>" + s.tab + "</button>";
+  }).join("");
+  document.getElementById("tabs").querySelectorAll(".tab").forEach(function(b){
+    b.addEventListener("click", function(){ show(Number(b.dataset.i)); });
+    b.addEventListener("keydown", function(e){
+      if (e.key === "ArrowRight") show((Number(b.dataset.i) + 1) % STATES.length);
+      if (e.key === "ArrowLeft")  show((Number(b.dataset.i) + STATES.length - 1) % STATES.length);
+    });
+  });
+}
+
+function show(i, fromUrl){
+  current = i;
+  const st = STATES[i];
+  if (!fromUrl && location.hash !== "#" + st.id) history.replaceState(null, "", "#" + st.id);
+  renderTabs();
+  renderOps(st); renderSources(st);
+  renderVerdict(st); renderRail(st); renderReduce(st);
+  renderCmp(st); renderSQL(st);
+  const t = document.getElementById("tab-" + st.id);
+  if (t && document.activeElement && document.activeElement.classList.contains("tab")) t.focus();
+}
+
+document.getElementById("run").addEventListener("click", function(){ show(current); });
+
+/* the address bar names the state, so a single state can be linked or bookmarked */
+function fromHash(){
+  const id = (location.hash || "").replace("#","");
+  const i = STATES.findIndex(function(s){ return s.id === id; });
+  return i < 0 ? 0 : i;
+}
+window.addEventListener("hashchange", function(){ show(fromHash(), true); });
+show(fromHash(), true);
+</script>
