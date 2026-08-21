@@ -18,7 +18,6 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
 
 <!-- What is in motion right now: one line per active ticket/effort —
      what, why, where it stands, what is next. Never pruned while live. -->
-- **T-1** (spike) — Compile the GIMS dashboard expression AST to Postgres SQL — sp-spawn
   cleared 2026-08-21**
   **Ruled. Evan decided NO-GO: don't build yet, fund the two follow-up runs** — recorded as go-ahead
   **GA-3** in `.autodev/events.jsonl` with his words verbatim. It went backwards first: he ruled on
@@ -58,6 +57,8 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
   and Q18 sets the limit it releases under: *"Green light, but only the safe operations."* Its
   SQL-generation layer is still what the T-1 ruling governs, so the ticket gets re-read against the
   ruling as the spec is written.
+- **T-3** (spike) — Correctness run: does the restricted expression subset ever return a wrong numb… — sp-frame
+- **T-4** (spike) — Timing run: how long does a person actually wait, generated SQL vs today's Pyth… — sp-frame
 
 ## Waiting on
 
@@ -122,6 +123,7 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-08-21 **T-1 COMPLETE** — Compile the GIMS dashboard expression AST to Postgres SQL
 - **2026-08-21 — T-1's ruling signed (GA-3).** NO-GO on the compiler-plus-adapter architecture; fund
   E1 and E2 instead. The `sp_decide` gate is cleared and T-1's research phase is finished.
 

@@ -6,3 +6,4 @@
 {"ts":"2026-08-21T18:19:25.591Z","kind":"stage.advanced","ticket":"T-1","from":"sp-investigate","to":"sp-synth"}
 {"ts":"2026-08-21T18:43:24.674Z","kind":"stage.advanced","ticket":"T-1","from":"sp-synth","to":"sp-decide"}
 {"ts":"2026-08-21T19:24:41.195Z","kind":"stage.advanced","ticket":"T-1","from":"sp-decide","to":"sp-spawn"}
+{"ts":"2026-08-21T19:26:07.807Z","kind":"pipeline.complete","ticket":"T-1","at":"sp-spawn"}

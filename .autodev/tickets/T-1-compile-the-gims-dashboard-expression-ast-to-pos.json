@@ -4,7 +4,7 @@
   "type": "spike",
   "title": "Compile the GIMS dashboard expression AST to Postgres SQL",
   "stage": "sp-spawn",
-  "status": "spike_done",
+  "status": "complete",
   "spec": "QUESTION: can core/dashboard/expr.py's AST be compiled to Postgres SQL that agrees with the Python evaluator on every case in tests/fixtures/expr_vectors.json, so that api/dashboard/sources.py can push derive/where/sort/limit into the database instead of scanning up to MAX_SCAN=20000 rows in memory?\n\nFINDINGS REQUIRED:\n1. Conformance: a third runtime (AST to SQL) run against every case in expr_vectors.json, honouring float_epsilon. Report pass/fail per case, not a summary. Any divergence named with its cause (NULL propagation, numeric coercion, date parsing).\n2. Coverage: which grammar constructs compile, which cannot, and what the fallback rule is. The 'query' source uses cascade_deep_search and is expected NOT to push down - confirm and bound it.\n3. JSON-path shape: what the generated SQL actually looks like over JSONB arbitrary-key records, and which indexes it needs (compare against migrations/pg/0002_instances_data_gin.sql).\n4. Measurement: end-to-end timing vs the current in-memory path on a representative widget, stated as numbers, in the manner of the existing RAG pushdown profile in core/storage/sql.py.\n5. Recommendation: go / no-go on the standalone-compiler-plus-thin-GIMS-adapter architecture, with the reasoning.\n\nOUT OF SCOPE: the UI, window/aggregate functions (the tier above expr), the prepositional-phrase adapter, any GIMS storage migration, and anything touching writes, locks or invariants (D12c: locks never move).\n\nNON-NEGOTIABLE: a fallback to in-memory evaluation must be reported, never silent. A silently-wrong number is the failure mode this whole project exists to prevent.",
   "pipeline_version": "spike@v2",
   "modifiers": [],
@@ -16,11 +16,11 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-08-21 sp-investigate: worker started (claude-opus-5[1m]) · attempt 5 17:37",
     "2026-08-21 advanced sp-investigate → sp-synth · sp-investigate on claude-opus-5[1m]",
     "2026-08-21 advanced sp-synth → sp-decide · sp-synth on claude-opus-5[1m]",
     "2026-08-21 gate sp_decide cleared by agent:claude(on-behalf:evan,GA-3) on go-ahead GA-3 (\"Stands — don't build yet. Continue. Do not ship the prototyp\")",
-    "2026-08-21 advanced sp-decide → sp-spawn · sp-decide on claude-opus-5[1m]"
+    "2026-08-21 advanced sp-decide → sp-spawn · sp-decide on claude-opus-5[1m]",
+    "2026-08-21 pipeline complete at sp-spawn"
   ],
   "assignees": {},
   "links": {},
@@ -37,8 +37,9 @@
   "decision_authority": "recommend-and-wait",
   "risk": "medium",
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "T-3 (correctness run) and T-4 (timing run) created from the ruling, both linked --after T-1, each carrying its spec from spikes/T-1/EXPERIMENTS.md and each recording what it is blocked on. No build tickets: the ruling was do-not-build-yet, so a build has to be earned from these two results."
   },
   "history": [
     {
@@ -116,7 +117,16 @@
       "by": "agent:claude(on-behalf:evan,GA-3)",
       "at": "2026-08-21T19:24:41.193Z",
       "model": "claude-opus-5[1m]"
+    },
+    "sp-spawn": {
+      "evidence": "T-3 (correctness run) and T-4 (timing run) created from the ruling, both linked --after T-1, each carrying its spec from spikes/T-1/EXPERIMENTS.md and each recording what it is blocked on. No build tickets: the ruling was do-not-build-yet, so a build has to be earned from these two results.",
+      "kind": "other",
+      "fingerprint": "T-3 (correctness run) and T-4 (timing run) created from the ruling, both linked --after T-1, each carrying its spec from spikes/T-1/EXPERIMENTS.md and each recording what it is blocked on. No build tickets: the ruling was do-not-build-yet, so a build has to be earned from these two results.",
+      "by": "agent:claude(on-behalf:evan,GA-3)",
+      "at": "2026-08-21T19:26:07.805Z",
+      "model": "claude-opus-5[1m]"
     }
   },
-  "bounces": {}
+  "bounces": {},
+  "completed": true
 }

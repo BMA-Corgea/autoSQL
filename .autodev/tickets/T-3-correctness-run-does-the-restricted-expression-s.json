@@ -1,0 +1,41 @@
+{
+  "id": "T-3",
+  "slug": "correctness-run-does-the-restricted-expression-s",
+  "type": "spike",
+  "title": "Correctness run: does the restricted expression subset ever return a wrong number?",
+  "stage": "sp-frame",
+  "status": "spike_todo",
+  "spec": "THE RUN Evan funded first (his Q6: 'Both, correctness run first'). Full spec: spikes/T-1/EXPERIMENTS.md section 1.\n\nQUESTION: on the restricted subset only, does the generated SQL ever disagree with the Python evaluator — a different value, a value turning into null, a null turning into a value, or Python raising where SQL quietly returns a number?\n\nPASS BAR: zero wrong answers of any kind. Not 'few'. Zero.\n\nBINDING CONSTRAINTS (Evan's answers, ANSWERS-FROM-EVAN.md):\n- Q10: run the 130 cases at all three extra_float_digits values and report each separately.\n- Q11: no database indexes, ever. Do not assume index help anywhere.\n- Q7: the throwaway instruments under spikes/T-1/proto and analysis/fuzz MAY be edited in place.\n- Q2: this run IS the acceptance test. The 130-case fixture was ruled inadequate for a third runtime.\n\nKNOWN BEFORE STARTING: EXPERIMENTS.md section 1.2 records that the restricted subset FAILS this bar today — there is a 12-character defect in a guard literal, and one divergence survives fixing it (expressions that can produce a magnitude above the largest representable double, which is not decidable when the SQL is generated because it depends on the row).\n\nBLOCKED ON EVAN: how to handle that surviving divergence — exclude such expressions, write a named carve-out into the bar, or refuse the subset. Do not pick for him.",
+  "pipeline_version": "spike@v2",
+  "modifiers": [],
+  "pipeline": [
+    "sp-frame",
+    "sp-investigate",
+    "sp-synth",
+    "sp-decide",
+    "sp-spawn"
+  ],
+  "passport": [
+    "2026-08-21 created as spike \"Correctness run: does the restricted expression subset ever return a wrong number?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)"
+  ],
+  "assignees": {},
+  "links": {},
+  "depends_on": [
+    "T-1"
+  ],
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}

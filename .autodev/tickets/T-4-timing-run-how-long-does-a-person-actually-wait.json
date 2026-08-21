@@ -1,0 +1,42 @@
+{
+  "id": "T-4",
+  "slug": "timing-run-how-long-does-a-person-actually-wait",
+  "type": "spike",
+  "title": "Timing run: how long does a person actually wait, generated SQL vs today's Python?",
+  "stage": "sp-frame",
+  "status": "spike_todo",
+  "spec": "THE SECOND RUN Evan funded (his Q6). Full spec: spikes/T-1/EXPERIMENTS.md section 2.\n\nEVAN RE-SPECIFIED THIS RUN'S BAR HIMSELF, verbatim: 'Benchmark absolute user-facing latency rather than treating a 3.79x-7.15x relative slowdown as intrinsically fatal.' A 3.79x slowdown on an 8 ms query is 30 ms and nobody notices; the same ratio at a million rows is seconds. So the bar is milliseconds waited, not a ratio.\n\nQUESTION: at realistic row counts, how long does a person wait for the generated SQL compared with GIMS's current in-memory path?\n\nBLOCKED ON EVAN — the bar is a number only he can set. EXPERIMENTS.md section 2.2 offers three, each grounded in a measurement: 2,500 ms at one million rows (proposed), 5,500 ms (the earlier panel's floor converted to milliseconds), or 8,331 ms (marked as a kill line rather than a bar). He picks or names his own.\n\nBINDING CONSTRAINTS:\n- Q11: no database indexes. The measured 3.79x-7.15x gap is therefore a floor, not a starting point — index use was the only route by which it could have closed.\n- Q8 / follow-up item 7: no real widget was named, so the run uses an invented subset-legal widget, LABELLED as invented in the readout. If Evan names a real one before the run starts it substitutes directly and nothing else changes.\n- The scratch database is gone (follow-up item 31: 'Leave it gone'), so the 1k-to-1M corpus must be rebuilt from proto/load_data.py first. Written instructions for that are still outstanding — his Q31 note.\n- Needs an exclusive quiet window on the host; a loaded machine makes the result inadmissible.",
+  "pipeline_version": "spike@v2",
+  "modifiers": [],
+  "pipeline": [
+    "sp-frame",
+    "sp-investigate",
+    "sp-synth",
+    "sp-decide",
+    "sp-spawn"
+  ],
+  "passport": [
+    "2026-08-21 created as spike \"Timing run: how long does a person actually wait, generated SQL vs today's Python?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)"
+  ],
+  "assignees": {},
+  "links": {},
+  "depends_on": [
+    "T-1",
+    "T-3"
+  ],
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}
