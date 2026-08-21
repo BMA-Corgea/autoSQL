@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>autoSQL Picking Screen</title>
 
 <style>
@@ -39,7 +40,7 @@
   --shadow-md:0 5px 22px rgba(2,18,14,0.46), 0 2px 7px rgba(2,18,14,0.3);
   --shadow-lg:0 14px 44px rgba(2,14,11,0.6), 0 5px 16px rgba(2,18,14,0.4);
   --radius:13px; --radius-sm:9px; --radius-lg:18px;
-  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 body {
@@ -186,7 +187,7 @@ body::before{
 
 .pick-foot{ border-top:1px solid var(--border); padding:14px 16px 16px;
   display:flex; flex-direction:column; gap:9px; }
-.pick-note{ font-size:11px; color:var(--text-mute); line-height:1.4; }
+.pick-note{ font-size:11px; color:var(--text-mid); line-height:1.4; }
 
 .sidecard{ margin-top:16px; }
 .srcmeta{ display:flex; flex-direction:column; gap:9px; }
@@ -240,7 +241,7 @@ body::before{
 .stop-t{ min-width:0; }
 .stop-name{ display:block; font-size:11.5px; font-weight:700; letter-spacing:.3px;
   text-transform:uppercase; color:var(--text-soft); line-height:1.2; }
-.stop-sub{ display:block; font-size:11px; color:var(--text-mute); margin-top:3px;
+.stop-sub{ display:block; font-size:11px; color:var(--text-mid); margin-top:3px;
   line-height:1.35; overflow-wrap:anywhere; }
 .stop.s-done .stop-dot{ color:var(--accent); border-color:rgba(45,212,191,.5); background:var(--accent-light); }
 .stop.s-done .stop-name{ color:var(--text-mid); }
@@ -303,7 +304,7 @@ body::before{
 .pane-head .icon-chip{ width:24px; height:24px; }
 .pane-head > span:nth-child(2){ min-width:0; }
 .pane-name{ display:block; font-size:12.5px; font-weight:700; color:var(--text); line-height:1.2; }
-.pane-sub{ display:block; font-size:11px; color:var(--text-mute); margin-top:1px; }
+.pane-sub{ display:block; font-size:11px; color:var(--text-mid); margin-top:1px; }
 .pane-count{ margin-left:auto; }
 
 /* column header + data rows share one template per state */
@@ -361,7 +362,7 @@ body::before{
   letter-spacing:.4px; color:var(--text-soft); background:var(--surface2); }
 
 /* pane footnote */
-.pane-note{ padding:11px 16px 14px; font-size:11.5px; color:var(--text-mute);
+.pane-note{ padding:11px 16px 14px; font-size:11.5px; color:var(--text-mid);
   line-height:1.5; border-top:1px solid var(--border); }
 .pane-note b{ color:var(--text-mid); font-weight:600; }
 
@@ -372,7 +373,7 @@ body::before{
   background:transparent; border-style:dashed; border-color:var(--border2); }
 .pane-empty .icon-chip .icon{ width:17px; height:17px; }
 .pane-empty-t{ font-size:13px; font-weight:600; color:var(--text-soft); }
-.pane-empty-s{ font-size:12px; color:var(--text-mute); max-width:34ch; line-height:1.5; }
+.pane-empty-s{ font-size:12px; color:var(--text-mid); max-width:34ch; line-height:1.5; }
 
 .pane-refused{ padding:20px 18px; display:flex; flex-direction:column; gap:11px; min-height:190px; }
 .refused-head{ display:flex; align-items:center; gap:9px; }
@@ -407,7 +408,7 @@ pre.sql .dead{ opacity:.45; }
 
 .sql-foot{ border-top:1px solid var(--card-edge); padding:12px 18px 14px;
   display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-.sql-foot-t{ font-size:11.5px; color:var(--text-mute); line-height:1.55; max-width:64ch; flex:1; min-width:240px; }
+.sql-foot-t{ font-size:11.5px; color:var(--text-mid); line-height:1.55; max-width:64ch; flex:1; min-width:240px; }
 .sql-foot-t b{ color:var(--text-mid); font-weight:600; }
 .session{ display:flex; gap:7px; flex-wrap:wrap; }
 .session .chip{ font-family:var(--mono); text-transform:none; letter-spacing:0; font-weight:500; font-size:11px; }
@@ -427,7 +428,7 @@ pre.sql .dead{ opacity:.45; }
 .gw-node em{ font-style:normal; color:var(--text-mute); }
 .gw-no .gw-node strong{ color:var(--amber); font-weight:700; }
 .gw-ok .gw-node strong{ color:var(--text); font-weight:600; }
-.gw-why{ font-size:11.5px; color:var(--text-mute); text-align:right; }
+.gw-why{ font-size:11.5px; color:var(--text-mid); text-align:right; }
 .gw-no .gw-why{ color:var(--amber); }
 .gw-foot{ margin-top:13px; padding-top:12px; border-top:1px solid var(--border);
   font-size:12.5px; color:var(--text-mid); line-height:1.6; max-width:76ch; }
@@ -472,7 +473,7 @@ pre.sql .dead{ opacity:.45; }
   .stop{ border-right:none; border-bottom:1px solid var(--border); }
   .stop:last-child{ border-bottom:none; }
   .stop:nth-child(-n+2){ border-bottom:1px solid var(--border); }
-  .legend{ display:none; }
+  .legend{ gap:10px; font-size:10.5px; }
 }
 </style>
 
@@ -533,7 +534,7 @@ pre.sql .dead{ opacity:.45; }
 
   <div class="tabbar">
     <div class="tabs" role="tablist" aria-label="Screen states" id="tabs"></div>
-    <div class="legend" aria-hidden="true">
+    <div class="legend" role="list" aria-label="What the colours mean">
       <span><i class="lg-ok"></i>the panes agree</span>
       <span><i class="lg-bad"></i>they disagree</span>
       <span><i class="lg-warn"></i>refused</span>
@@ -701,7 +702,7 @@ SELECT key,
  WHERE collection = 'noun:Heartbeat'
  ORDER BY key ASC
  LIMIT 8;`,
-  sqlFoot:`Shown with its bind parameters substituted in, so it reads as a real query. <b>What runs is the parameterised form</b> &mdash; every value and every JSON field name handed to Postgres separately. The one boxed word is the alias: the only piece of typed text SQL has no bind position for, and it is checked against a strict allowlist before it is emitted.`
+  sqlFoot:`Shown with its bind parameters substituted in, so it reads as a real query. <b>What runs is the parameterised form</b> &mdash; every value and every JSON field name handed to Postgres separately. The boxed words are identifiers &mdash; column names, not values. Of them, only the alias you typed came from a person, and it is checked against a strict allowlist before it is emitted; SQL has no bind position for an identifier, which is why the check exists.`
 },
 
 {
