@@ -112,10 +112,49 @@ body::before{
 .btn-primary::before{ content:''; position:absolute; inset:0; opacity:0;
   background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%);
   background-size:200% 100%; transition:opacity .2s; }
-.btn-primary:hover{ transform:translateY(-2px); box-shadow:0 8px 30px var(--blue-glow); }
-.btn-primary:hover::before{ opacity:1; animation:ripple 1.1s ease forwards; }
+.btn-primary:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 8px 30px var(--blue-glow); }
+.btn-primary:hover:not(:disabled)::before{ opacity:1; animation:ripple 1.1s ease forwards; }
+.btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* .btn — watery.css:158-166, verbatim */
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:7px; padding:9px 14px;
+  font-size:13px; font-weight:600; font-family:inherit; border:1.5px solid var(--border2);
+  border-radius:var(--radius-sm); background:var(--surface2); color:var(--text); cursor:pointer;
+  transition:transform .12s, box-shadow .15s, background .15s, border-color .15s, color .15s; }
+.btn:hover:not(:disabled){ border-color:var(--accent); color:#fff; transform:translateY(-1px);
+  box-shadow:0 3px 14px var(--accent-glow); }
+.btn:active:not(:disabled){ transform:translateY(0); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn.sm{ padding:6px 10px; font-size:12px; }
+.btn.ghost{ background:transparent; border-color:var(--border); }
+.btn .icon{ width:14px; height:14px; }
+
+/* fields — watery.css:147-155, verbatim */
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field-label{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.8px;
+  color:var(--text-soft); display:flex; align-items:center; gap:5px; }
+.input, .select, textarea.input{ width:100%; padding:9px 12px; font-size:13px; font-family:inherit;
+  border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface2);
+  color:var(--text); outline:none; appearance:none;
+  transition:border-color .18s, box-shadow .18s, background .18s; }
+.input:focus, .select:focus, textarea.input:focus{ border-color:var(--accent);
+  background:rgba(45,212,191,.06); box-shadow:0 0 0 3px var(--accent-glow); }
+.input:hover:not(:focus):not(:disabled), .select:hover:not(:focus):not(:disabled){ border-color:var(--border2); }
+textarea.input{ resize:vertical; min-height:64px; line-height:1.5; }
+
+/* toggle — watery.css:198-205, verbatim */
+.toggle{ position:relative; display:inline-block; width:34px; height:18px; flex-shrink:0; }
+.toggle input{ position:absolute; inset:0; opacity:0; margin:0; cursor:pointer; z-index:1; }
+.toggle .track{ position:absolute; inset:0; background:rgba(140,230,200,.1);
+  border:1px solid rgba(140,230,200,.2); border-radius:99px; transition:background .2s, border-color .2s; }
+.toggle .track::after{ content:''; position:absolute; top:2px; left:2px; width:12px; height:12px;
+  background:rgba(230,244,238,.55); border-radius:50%; transition:transform .2s, background .2s; }
+.toggle input:checked + .track{ background:var(--accent); border-color:var(--accent); }
+.toggle input:checked + .track::after{ transform:translateX(16px); background:#04211b; }
 
 :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:4px; }
+.input:focus-visible, .select:focus-visible, textarea.input:focus-visible{ outline:none; }
+.toggle input:focus-visible + .track{ outline:2px solid var(--accent); outline-offset:2px; }
 
 /* ══════════════════════════════════════════════════════════════════
    PAGE SHELL
@@ -164,30 +203,112 @@ body::before{
 /* ── two-column body ──────────────────────────────────────────────── */
 .layout{ display:grid; grid-template-columns:352px minmax(0,1fr); gap:18px; align-items:start; }
 
-/* ── picking panel ────────────────────────────────────────────────── */
-.ops{ list-style:none; display:flex; flex-direction:column; gap:2px; }
-.op{ display:grid; grid-template-columns:20px 26px minmax(0,1fr); gap:10px; align-items:center;
-  padding:8px 9px; border-radius:var(--radius-sm); border:1px solid transparent;
-  transition:background .16s, border-color .16s; }
+/* ══════════════════════════════════════════════════════════════════
+   THE PICKING PANEL — the half a person operates.
+   Nine operations, each one a real control in Watery's own primitives.
+   ══════════════════════════════════════════════════════════════════ */
+.ops{ list-style:none; display:flex; flex-direction:column; }
+.op{ padding:11px 8px 13px; border-top:1px solid rgba(140,230,200,.075);
+  border-left:2px solid transparent; transition:background .16s, border-color .16s; }
+.op:first-child{ border-top:none; }
+.op-hd{ display:grid; grid-template-columns:15px 24px minmax(0,1fr) auto; gap:9px; align-items:center; }
+.op-hd .icon-chip{ width:24px; height:24px; }
 .op-n{ font-size:10.5px; font-weight:700; color:var(--text-mute); text-align:right;
   font-variant-numeric:tabular-nums; }
-.op-name{ display:block; font-size:12.5px; font-weight:600; color:var(--text-mid); line-height:1.25; }
-.op-val{ display:block; font-family:var(--mono); font-size:11.5px; color:var(--text-mute);
-  margin-top:2px; overflow-wrap:anywhere; line-height:1.35; }
-.op.is-on{ background:rgba(45,212,191,.055); border-color:var(--card-border); }
+.op-name{ font-size:12.5px; font-weight:600; color:var(--text-mid); line-height:1.25; }
+.op-state{ font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+  color:var(--text-mute); white-space:nowrap; }
+
+/* the control well, indented under the operation's own name */
+.op-ctl{ margin:10px 0 0 7px; padding-left:17px; border-left:1px solid rgba(140,230,200,.10);
+  display:flex; flex-direction:column; gap:9px; }
+.ctl-row{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px; }
+.ctl-row > .field{ min-width:0; }
+.ctl-grow{ flex:1 1 108px; }
+.ctl-grow2{ flex:2.1 1 148px; }
+.ctl-fix{ flex:0 0 auto; margin-left:auto; }
+.ctl-eq{ flex:0 0 auto; font-family:var(--mono); font-size:15px; font-weight:600;
+  color:var(--text-soft); padding-bottom:9px; }
+.ctl-hint{ font-size:10.5px; line-height:1.45; color:var(--text-soft); }
+.ctl-hint b{ color:var(--text-mid); font-weight:600; }
+.ctl-toggle{ display:flex; align-items:center; gap:11px; }
+.ctl-toggle-lab{ font-size:12.5px; font-weight:600; color:var(--text-mid); }
+.mono-in{ font-family:var(--mono); font-size:12px; }
+
+/* a select needs a visible caret; watery.css sets appearance:none and draws none,
+   so the caret is a positioned sibling and .select itself is untouched (D14). */
+.sel-wrap{ position:relative; display:block; }
+.sel-wrap .select{ padding-right:30px; }
+.sel-wrap .caret{ position:absolute; right:10px; top:50%; margin-top:-5px; width:11px; height:11px;
+  pointer-events:none; color:var(--text-soft); }
+.sel-wrap:has(.select:disabled) .caret{ color:var(--text-mute); opacity:.5; }
+
+/* what this operation is NOT allowed to ask — R13 and R14 rule these fixed */
+.ctl-fixed{ display:flex; align-items:flex-start; gap:7px; padding:7px 9px;
+  border:1px dashed var(--border); border-radius:var(--radius-sm); background:rgba(6,20,15,.32);
+  font-size:10.5px; line-height:1.45; color:var(--text-soft); }
+.ctl-fixed .icon{ width:12px; height:12px; margin-top:1px; color:var(--text-soft); }
+.ctl-fixed b{ color:var(--text-mid); font-weight:600; }
+.ctl-fixed .mono{ font-size:10.5px; }
+
+/* the reason a control is off or refused, said in words next to the control */
+.op-why{ display:flex; align-items:flex-start; gap:7px; margin:9px 0 0 24px;
+  font-size:11px; line-height:1.45; color:var(--text-soft); }
+.op-why .icon{ width:12px; height:12px; margin-top:2px; flex:0 0 auto; }
+.op-why b{ color:var(--text-mid); font-weight:600; }
+.op-why .mono{ font-size:11px; }
+
+/* ── operation states ─────────────────────────────────────────────── */
+.op.is-on{ background:rgba(45,212,191,.05); border-left-color:var(--accent); }
 .op.is-on .op-name{ color:var(--text); }
-.op.is-on .op-val{ color:var(--accent-2); }
+.op.is-on .op-state{ color:var(--accent); }
 .op.is-off .icon-chip{ color:var(--text-mute); background:transparent; border-color:var(--border); }
-.op.is-refused{ background:rgba(246,197,96,.07); border-color:rgba(246,197,96,.34); }
-.op.is-refused .icon-chip{ color:var(--amber); background:var(--amber-light); border-color:rgba(246,197,96,.4); }
+
+/* DISABLED — this operation is illegal with the rest of the pick */
+.op.is-disabled{ background:rgba(6,20,15,.28); }
+.op.is-disabled .op-name{ color:var(--text-mute); }
+.op.is-disabled .op-state{ color:var(--text-mute); }
+.op.is-disabled .field-label{ color:var(--text-mute); }
+.op.is-disabled .icon-chip{ color:var(--text-mute); background:transparent;
+  border-color:var(--border); border-style:dashed; }
+.op.is-disabled .op-why .icon{ color:var(--text-mute); }
+.input:disabled, .select:disabled, textarea.input:disabled{ opacity:.5; cursor:not-allowed;
+  background:rgba(6,20,15,.4); border-style:dashed; color:var(--text-mute); }
+.toggle.is-disabled{ opacity:.45; }
+.toggle input:disabled{ cursor:not-allowed; }
+
+/* REFUSED — the person typed something the checks decline. Amber, never coral. */
+.op.is-refused{ background:rgba(246,197,96,.07); border-left-color:var(--amber); }
+.op.is-refused .icon-chip{ color:var(--amber); background:var(--amber-light);
+  border-color:rgba(246,197,96,.4); }
 .op.is-refused .op-name{ color:var(--text); }
-.op.is-refused .op-val{ color:var(--amber); text-decoration:line-through; text-decoration-color:rgba(246,197,96,.5); }
-.op-flag{ grid-column:3; font-size:10.5px; font-weight:700; letter-spacing:.4px;
-  text-transform:uppercase; color:var(--amber); margin-top:3px; }
+.op.is-refused .op-state{ color:var(--amber); }
+.op.is-refused .op-why{ color:var(--amber); }
+.op.is-refused .op-why .icon{ color:var(--amber); }
+.input.is-invalid, .select.is-invalid, textarea.input.is-invalid{
+  border-color:rgba(246,197,96,.62); background:rgba(246,197,96,.07); color:var(--amber); }
+.input.is-invalid:focus, textarea.input.is-invalid:focus{ border-color:var(--amber);
+  box-shadow:0 0 0 3px rgba(246,197,96,.3); }
+
+/* FOCUS, drawn rather than only reachable — one control per view carries the ring a
+   keyboard user would see, so a static screenshot shows a builder what to build. */
+.input.is-focus, .select.is-focus, textarea.input.is-focus{ border-color:var(--accent);
+  background:rgba(45,212,191,.06); box-shadow:0 0 0 3px var(--accent-glow); }
+.input.is-invalid.is-focus, textarea.input.is-invalid.is-focus{ border-color:var(--amber);
+  box-shadow:0 0 0 3px rgba(246,197,96,.3); }
+.focus-tag{ display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:700;
+  letter-spacing:.5px; text-transform:uppercase; color:var(--accent); }
+.focus-tag .icon{ width:10px; height:10px; }
+.op.is-refused .focus-tag{ color:var(--amber); }
 
 .pick-foot{ border-top:1px solid var(--border); padding:14px 16px 16px;
   display:flex; flex-direction:column; gap:9px; }
 .pick-note{ font-size:11px; color:var(--text-mid); line-height:1.4; }
+.pick-dirty{ display:flex; align-items:flex-start; gap:8px; padding:9px 11px;
+  border-radius:var(--radius-sm); border:1px solid rgba(246,197,96,.34);
+  background:rgba(246,197,96,.07); font-size:11px; line-height:1.45; color:var(--amber); }
+.pick-dirty .icon{ width:13px; height:13px; margin-top:1px; flex:0 0 auto; }
+.pick-dirty[hidden]{ display:none; }
 
 .sidecard{ margin-top:16px; }
 .srcmeta{ display:flex; flex-direction:column; gap:9px; }
@@ -291,6 +412,12 @@ body::before{
    ══════════════════════════════════════════════════════════════════ */
 .cmp{ margin-top:16px; }
 .cmp .panel-head{ gap:10px; }
+/* DR-1 signal 2 of 3: the frame around the pair goes coral when they differ.
+   Watery's role table makes the frame tan; this is the one named exception to
+   it (D3), taken explicitly rather than by quietly bending the rule. */
+.cmp.is-diff{ border-color:rgba(240,114,106,.8); box-shadow:0 0 0 1px rgba(240,114,106,.2), var(--shadow-md); }
+.cmp.is-diff .panel-head{ border-bottom-color:rgba(240,114,106,.5); }
+.cmp.is-diff .mobile-sep{ border-top-color:rgba(240,114,106,.5); border-bottom-color:rgba(240,114,106,.5); }
 .cmp-head-right{ margin-left:auto; display:flex; align-items:center; gap:8px; }
 
 .cmp-scroll{ overflow-x:auto; }
@@ -433,15 +560,31 @@ pre.sql .dead{ opacity:.45; }
 .gw-foot{ margin-top:13px; padding-top:12px; border-top:1px solid var(--border);
   font-size:12.5px; color:var(--text-mid); line-height:1.6; max-width:76ch; }
 .gw-foot b{ color:var(--text); font-weight:600; }
+.gw-skip .gw-mark{ color:var(--text-mute); background:rgba(140,230,200,.06); }
+.gw-skip .gw-node, .gw-skip .gw-why{ opacity:.55; }
+
+/* what the check stopped from being written — the refusal, made watchable */
+.gw-never{ margin-top:14px; padding:11px 13px; border-radius:var(--radius-sm);
+  border:1px dashed rgba(246,197,96,.4); background:rgba(246,197,96,.05); }
+.gw-never-t{ display:flex; align-items:center; gap:7px; font-size:10.5px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.6px; color:var(--amber); margin-bottom:9px; }
+.gw-never-t .icon{ width:13px; height:13px; }
+.gw-never pre{ font-family:var(--mono); font-size:12px; line-height:1.7; color:var(--text-mute);
+  white-space:pre-wrap; overflow-wrap:anywhere; }
+.gw-never pre s{ text-decoration-color:rgba(246,197,96,.5); }
+.gw-never pre .hot{ color:var(--amber); font-weight:700; }
+.gw-never-s{ margin-top:9px; font-size:11.5px; line-height:1.55; color:var(--text-mid); max-width:74ch; }
+.gw-never-s b{ color:var(--text); font-weight:600; }
 
 /* ══════════════════════════════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════ */
 @media (max-width:1080px){
   .layout{ grid-template-columns:minmax(0,1fr); }
-  .ops{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
-  .op{ grid-template-columns:18px 24px minmax(0,1fr); gap:8px; align-items:start; }
-  .op .icon-chip{ width:24px; height:24px; }
+  /* the nine operations go two-up once the column is no longer a column */
+  .ops{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; }
+  .op{ border-top:1px solid rgba(140,230,200,.075); }
+  .op:nth-child(2){ border-top:none; }
   .rail{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .stop:nth-child(2){ border-right:none; }
   .stop:nth-child(-n+2){ border-bottom:1px solid var(--border); }
@@ -450,8 +593,17 @@ pre.sql .dead{ opacity:.45; }
   .wrap{ padding:16px 13px 44px; }
   .brand h1{ font-size:17px; }
   .ops{ grid-template-columns:minmax(0,1fr); }
+  .op:nth-child(2){ border-top:1px solid rgba(140,230,200,.075); }
   .beatgrid{ grid-template-columns:repeat(28,minmax(0,1fr)); gap:2px; }
   .reduce-num{ font-size:34px; }
+
+  /* the picker's controls go one-up; nothing is allowed to force the page wider */
+  .op-ctl{ margin-left:0; padding-left:13px; }
+  .op-why{ margin-left:13px; }
+  .ctl-grow, .ctl-grow2{ flex:1 1 100%; }
+  .ctl-eq{ display:none; }
+  .gw-row{ grid-template-columns:16px minmax(0,1fr); row-gap:3px; }
+  .gw-why{ grid-column:2; text-align:left; }
 
   /* the two panes stack — the spine drops out and each row keeps its own
      marking, so the same row is still findable on both sides. */
@@ -503,6 +655,11 @@ pre.sql .dead{ opacity:.45; }
   <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5 3.5 12l5 4.5M15.5 7.5 20.5 12l-5 4.5"/><path d="M13.5 4.5 10.5 19.5"/></symbol>
   <symbol id="i-dash" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M6 9.5 12 15.5 18 9.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M9 5.5v5a3 3 0 0 1-3 3"/><path d="M18 5.5v5a3 3 0 0 1-3 3"/><path d="M3.5 20.5h17"/></symbol>
   <symbol id="i-python" viewBox="0 0 24 24"><path d="M4 8.5h6.5a2 2 0 0 0 2-2V4.6a2 2 0 0 0-2-2H7.4a2 2 0 0 0-2 2v3.9"/><path d="M20 15.5h-6.5a2 2 0 0 0-2 2v1.9a2 2 0 0 0 2 2h3.1a2 2 0 0 0 2-2v-3.9"/><path d="M4 8.5v5.4a2 2 0 0 0 2 2h6"/><path d="M20 15.5V10a2 2 0 0 0-2-2h-6"/></symbol>
 </svg>
 
@@ -517,6 +674,9 @@ pre.sql .dead{ opacity:.45; }
       </div>
     </div>
     <div class="masthead-right">
+      <span class="chip warn">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#i-warning"/></svg>invented data</span>
+      <span class="count-pill" id="hdcount">10,410 rows</span>
       <span class="chip accent">T&#8209;2 &middot; design stage</span>
       <span class="chip">visual target &middot; not a build</span>
     </div>
@@ -527,8 +687,8 @@ pre.sql .dead{ opacity:.45; }
     <div>
       <b>Every record on this screen is invented</b>, and the heartbeat shape in particular was made
       up &mdash; no heartbeat schema exists in either GIMS checkout. This page is a design target:
-      nothing here is connected to a database, and the five states below are the five outcomes the
-      built screen has to be able to show.
+      the controls on the left are drawn rather than wired to anything, and the seven states below
+      are the seven outcomes the built screen has to be able to show.
     </div>
   </div>
 
@@ -541,7 +701,7 @@ pre.sql .dead{ opacity:.45; }
     </div>
   </div>
 
-  <div class="layout">
+  <div class="layout" id="statepanel" role="tabpanel" tabindex="-1" aria-labelledby="tab-agree">
 
     <!-- ── LEFT: the picking panel ────────────────────────────────── -->
     <div>
@@ -551,10 +711,15 @@ pre.sql .dead{ opacity:.45; }
           <span class="panel-title">The pick</span>
           <span class="count-pill" style="margin-left:auto">9 operations</span>
         </div>
-        <div class="panel-body" style="padding:10px 10px 4px">
+        <div class="panel-body" style="padding:6px 10px 4px">
           <ul class="ops" id="ops"></ul>
         </div>
         <div class="pick-foot">
+          <div class="pick-dirty" id="dirty" hidden>
+            <svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>
+            <span>The controls no longer describe the answers below. Press <b>Run this pick</b> to
+              put them back &mdash; in the built screen it would run the changed pick instead.</span>
+          </div>
           <button class="btn-primary" id="run">
             <svg class="icon" aria-hidden="true"><use href="#i-play"/></svg>
             Run this pick
@@ -582,7 +747,7 @@ pre.sql .dead{ opacity:.45; }
       <div class="rail" id="rail"></div>
       <div id="reduce"></div>
 
-      <section class="panel cmp" aria-label="The same pick, two answers">
+      <section class="panel cmp" id="cmppanel" aria-label="The same pick, two answers">
         <div class="panel-head">
           <svg class="icon" aria-hidden="true"><use href="#i-columns"/></svg>
           <span class="panel-title">The same pick, two answers</span>
@@ -601,10 +766,7 @@ pre.sql .dead{ opacity:.45; }
         <div id="sqlbody"></div>
         <div class="sql-foot">
           <p class="sql-foot-t" id="sqlfoot"></p>
-          <div class="session">
-            <span class="chip">extra_float_digits = 1</span>
-            <span class="chip">TimeZone = UTC</span>
-          </div>
+          <div class="session" id="session"></div>
         </div>
       </section>
     </div>
@@ -636,6 +798,31 @@ const SOURCES = [
   { k:"noun:EdgeCase",  v:"10 rows"    }
 ];
 
+/* Each collection's TOP-LEVEL field names, read out of the data at operation 1
+   (§4.10, "SELECT DISTINCT k FROM demo.records, LATERAL jsonb_object_keys(data)").
+   The picker below offers exactly these plus the paths inside them, and §4.10's
+   alias check refuses a computed column that collides with one. */
+const FIELDS = {
+  "noun:Heartbeat":{
+    all:["$.sender_id","$.ts","$.status","$.payload","$.payload.load","$.payload.note"],
+    num:["$.payload.load"],
+    top:"sender_id, ts, status, payload"
+  },
+  "noun:Sample":{
+    all:["$.id","$.status","$.due_date","$.priority","$.field_0","$.field_1","$.field_2","…"],
+    num:["$.priority","$.field_0","$.field_1"],
+    top:"id, status, due_date, priority, field_0 … field_14"
+  },
+  "noun:EdgeCase":{
+    all:["$.label","$.a","$.l","$.huge","$.where"],
+    num:["$.a","$.huge"],
+    top:"label, a, l, huge, where"
+  }
+};
+
+const AGGS   = ["count","sum","avg","min","max"];
+const BUCKET = [["off","not bucketed"],["hour","per hour"],["day","per day"]];
+
 /* ════════════════════════════════════════════════════════════════════
    THE FIVE STATES
    ════════════════════════════════════════════════════════════════════ */
@@ -650,9 +837,11 @@ const STATES = [
         six decimal places after the division, which is why <span class="num">48.333333</span> is
         the same six digits in both panes rather than nearly the same.</p>`,
   ref:"walkthrough step 8 &middot; §7.1 window rule &middot; §7.2 exact-decimal rule",
-  picks:["noun:Heartbeat", 'alive = $.status == "ok"', null, null, "8", null, null,
-         "3-point trailing mean of $.payload.load, per sender", null],
-  active:[true,true,false,false,true,false,false,true,false],
+  form:{ source:"noun:Heartbeat",
+         cc:[{ name:"alive", expr:'$.status == "ok"' }],
+         filter:"", sortField:"", sortDir:"asc", cap:"8",
+         aggFn:"none", aggField:"", bucket:"off",
+         winField:"$.payload.load", changed:false },
   rail:[["done","Gate","32 constructs accepted"],["done","Compile","1 expression → SQL"],
         ["done","Probes","1 asked · 0 offending rows"],["done","Execute","8 rows returned"]],
   cmp:{
@@ -706,7 +895,137 @@ SELECT key,
 },
 
 {
-  id:"disagree", n:2, tab:"Disagreement", tabIcon:"i-neq",
+  id:"buckets", n:2, tab:"Time buckets", tabIcon:"i-clock",
+  tone:"ok", icon:"i-check",
+  head:"Seven buckets, seven counts, and both panes agree on all fourteen.",
+  body:`<p>Grouping 8,400 beats by UTC day gives <b>7 buckets of 1,200</b> &mdash; 50 senders &times;
+        24 hours &times; 7 days, which is arithmetic and not luck. Both panes agree on the counts
+        <em>and</em> on the seven labels <b>as strings</b>, which is the half that is easy to lose:
+        left to themselves the two engines spell the same instant differently &mdash;
+        <code>2026-08-14 00:00:00+00</code> on one side, <code>2026-08-14T00:00:00+00:00</code> on
+        the other &mdash; and two spellings of one instant are two different keys.</p>
+        <p><b>The session time zone is what makes this seven rather than eight.</b> It is set to
+        <code>UTC</code> on every connection the demo opens, and it is on this screen in exactly one
+        place: the strip at the foot of the SQL pane. Leave it at whatever the container inherited
+        &mdash; <code>America/New_York</code>, say &mdash; and every day starts four or five hours
+        later, the same 8,400 beats land in <b>eight</b> buckets with two of them partial, and both
+        panes are still computing perfectly correctly. That is a disagreement about nothing,
+        manufactured by a setting nobody at the screen can otherwise see.</p>`,
+  ref:"walkthrough step 7 &middot; §7.1 time-bucket rule &middot; AC-26, AC-43",
+  form:{ source:"noun:Heartbeat", cc:[],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"count", aggField:"", bucket:"day", winField:"", changed:false,
+         focusBucket:true },
+  sessionHot:"tz",
+  rail:[["none","Gate","no expression typed"],["none","Compile","nothing to compile"],
+        ["none","Probes","no operand to ask about"],["done","Execute","7 rows returned"]],
+  cmp:{
+    mode:"rows",
+    cols:"minmax(150px,1fr) 84px",
+    colsM:"minmax(124px,1fr) 66px",
+    heads:["bucket","agg"],
+    sqlNote:"<b>date_trunc('day', (data -&gt;&gt; 'ts')::timestamptz)</b>, grouped and counted. The cast is <b>timestamptz</b> and never <b>timestamp</b> &mdash; plain <b>timestamp</b> parses the trailing <b>Z</b> and then silently discards it, which gives the same answer on this seed and a wrong one the moment the data is not UTC. A cast that is correct by luck is worse than one that is wrong.",
+    pyNote:"The same rows read out of the same database, parsed into <b>aware UTC datetimes</b>, truncated in UTC and formatted with the same fixed-width string. Never a naive datetime &mdash; a naive datetime is the Python spelling of the <b>::timestamp</b> mistake.",
+    rows:[
+      { c:["2026-08-14T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-15T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-16T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-17T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-18T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-19T00:00:00Z","1200"], t:[8,3] },
+      { c:["2026-08-20T00:00:00Z","1200"], t:[8,3] }
+    ],
+    tail:"7 buckets, ordered by bucket"
+  },
+  sql:`SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- no expression was typed, so neither probe has an operand to ask about.
+
+SELECT to_char( date_trunc('day', (data ->> 'ts')::timestamptz) AT TIME ZONE 'UTC',
+                'YYYY-MM-DD"T"HH24:MI:SS"Z"' )              AS "bucket",
+       count(*)                                             AS "agg"
+  FROM demo.records
+ WHERE collection = 'noun:Heartbeat'
+ GROUP BY date_trunc('day', (data ->> 'ts')::timestamptz)
+ ORDER BY date_trunc('day', (data ->> 'ts')::timestamptz) ASC;
+-- GROUP BY gives exactly one row per bucket, so ORDER BY the bucket is already
+-- a total order - which is why operation 4's sort is switched off on the left:
+-- there is nothing left for it to decide.`,
+  sqlFoot:`Both session values sit at the foot of this pane for the same reason: each of them changes
+    the answer, and neither is visible anywhere else on the screen. <b>extra_float_digits</b> decides
+    how many digits a float prints; <b>TimeZone</b> decides where a day starts. This is the pick
+    where the second one is the whole difference between seven rows and eight.`
+},
+
+
+{
+  id:"changed", n:3, tab:"Only what changed", tabIcon:"i-pulse",
+  tone:"ok", icon:"i-check",
+  head:"912 of 8,400 beats survive, and both panes keep the same ones.",
+  body:`<p>Out of a stream of mostly identical repeats, this keeps only the beats whose value
+        differs from the one before it, per sender. What it compares is <b>the record minus its
+        ordering key</b> &mdash; <code>status</code> and <code>payload</code>, jointly. The
+        timestamp is excluded by construction.</p>
+        <p>That exclusion is the whole operation. <b>Put the timestamp back and every row differs
+        from its predecessor</b>: 8,400 kept, a filter that filters nothing, and both panes agreeing
+        with each other perfectly about it.</p>`,
+  ref:"walkthrough step 9 &middot; §7.1 comparison rule &middot; the case the project was pitched on",
+  form:{ source:"noun:Heartbeat", cc:[],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"none", aggField:"", bucket:"off", winField:"", changed:true },
+  rail:[["none","Gate","no expression typed"],["none","Compile","nothing to compile"],
+        ["none","Probes","no operand to ask about"],["done","Execute","912 rows returned"]],
+  reduce:{ kept:912, total:8400, pct:"10.9",
+    sender:"hb-01", beats:168,
+    on:[0,7,13,26,31,44,58,63,71,86,94,103,120,128,139,147,155,163],
+    note:`Eighteen of this sender&rsquo;s 168 beats changed something. <b>If the comparison
+      included <code>ts</code>, every cell above would be lit</b> and the count would read 8,400 &mdash;
+      which is why the number, not the screenful of rows, is the thing to check.` },
+  cmp:{
+    mode:"rows",
+    cols:"112px minmax(150px,1fr) 62px 52px",
+    colsM:"98px 128px 50px 40px",
+    heads:["key","ts","status","load"],
+    sqlNote:"<b>lag(data - 'ts') &hellip; IS DISTINCT FROM (data - 'ts')</b> over one window frame. Never <b>&lt;&gt;</b>: lag() is NULL at each sender&rsquo;s first beat, and <b>NULL &lt;&gt; x</b> is NULL, which would drop all 50 first beats.",
+    pyNote:"Grouped by <b>sender_id</b>, sorted by <b>(ts, key)</b>, walked in order, comparing the parsed dict minus its <b>ts</b> key &mdash; content equality, key order irrelevant. The first row of each group is always kept.",
+    rows:[
+      { c:["hb-01-0000","2026-08-14T00:00:00Z","ok","41"],    t:[0,8,7,3] },
+      { c:["hb-01-0007","2026-08-14T07:00:00Z","ok","63"],    t:[0,8,7,3] },
+      { c:["hb-01-0013","2026-08-14T13:00:00Z","warn","88"],  t:[0,8,7,3] },
+      { c:["hb-01-0026","2026-08-15T02:00:00Z","ok","52"],    t:[0,8,7,3] },
+      { c:["hb-01-0031","2026-08-15T07:00:00Z","ok","47"],    t:[0,8,7,3] },
+      { c:["hb-01-0044","2026-08-15T20:00:00Z","ok","61"],    t:[0,8,7,3] },
+      { c:["hb-01-0058","2026-08-16T10:00:00Z","error","97"], t:[0,8,7,3] },
+      { c:["hb-01-0063","2026-08-16T15:00:00Z","ok","55"],    t:[0,8,7,3] }
+    ],
+    tail:"first 8 of 912 kept rows, under ORDER BY key"
+  },
+  sql:`SET extra_float_digits = 1;
+SET TIME ZONE 'UTC';
+
+-- no expression was typed, so neither probe has an operand to ask about.
+
+SELECT key,
+       data -> 'ts'              AS ts,
+       data -> 'status'          AS status,
+       data #> '{payload,load}'  AS load
+  FROM ( SELECT key, data,
+                lag( data - 'ts' ) OVER ( PARTITION BY (data ->> 'sender_id')
+                                          ORDER BY     (data ->> 'ts'), key )
+                  IS DISTINCT FROM ( data - 'ts' )    AS "changed"
+           FROM demo.records
+          WHERE collection = 'noun:Heartbeat' ) w
+ WHERE "changed"
+ ORDER BY key ASC;
+-- data - 'ts' removes the ordering key from the compared value. sender_id
+-- cannot vary inside the partition it is the key of, so what can actually
+-- differ is status and payload, compared jointly.`,
+  sqlFoot:`Every result this screen shows or compares carries a total order ending in <b>key</b>, a column no two rows can share. Without it Postgres promises no order at all here, and the two panes could disagree about &ldquo;the first five&rdquo; while both were correct.`
+},
+
+{
+  id:"disagree", n:4, tab:"Disagreement", tabIcon:"i-neq",
   tone:"bad", icon:"i-neq",
   head:"The panes disagree on one row.",
   body:`<p>Row <code>edge-01</code>, column <code>biggest</code>. Python computes
@@ -718,8 +1037,10 @@ SELECT key,
         number. This is the defect the demo was released with, and it is the entire reason both
         answers are on screen.</p>`,
   ref:"walkthrough step 11 &middot; §5 the correctness control &middot; the eighth row of §5&rsquo;s divergence table",
-  picks:["noun:EdgeCase","biggest = max($.l)",null,null,null,null,null,null,null],
-  active:[true,true,false,false,false,false,false,false,false],
+  form:{ source:"noun:EdgeCase",
+         cc:[{ name:"biggest", expr:"max($.l)" }],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"none", aggField:"", bucket:"off", winField:"", changed:false },
   rail:[["done","Gate","max is one of the 7 kept functions"],["done","Compile","1 expression → SQL"],
         ["done","Probes","1 asked · 0 offending rows"],["done","Execute","10 rows returned"]],
   cmp:{
@@ -767,7 +1088,7 @@ SELECT key,
 },
 
 {
-  id:"gate", n:3, tab:"Refused before running", tabIcon:"i-shield",
+  id:"gate", n:5, tab:"Refused: the expression", tabIcon:"i-shield",
   tone:"warn", icon:"i-shield-stop",
   head:"Refused before any SQL existed.",
   body:`<p><code>round</code> is outside the safe subset &mdash; the 32 of the expression
@@ -778,8 +1099,14 @@ SELECT key,
         <code>round</code> at line 394: without the gate in front of it, this pick would have
         compiled, run, and printed a number.</p>`,
   ref:"walkthrough step 10 &middot; §4.4 layer 1, the static gate",
-  picks:["noun:Heartbeat","hot = round($.payload.load, 1)",null,null,null,null,null,null,null],
-  active:[true,"refused",false,false,false,false,false,false,false],
+  form:{ source:"noun:Heartbeat",
+         cc:[{ name:"hot", expr:"round($.payload.load, 1)", exprBad:true }],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"none", aggField:"", bucket:"off", winField:"", changed:false,
+         refused:2,
+         refusedWhy:'<b>round</b> is not one of the seven functions the subset keeps &mdash; ' +
+           '<span class="mono">abs, coalesce, count, if, length, max, min</span>. Refused before ' +
+           "any SQL existed." },
   rail:[["stop","Gate","round is not one of the 7 kept functions"],
         ["skip","Compile","not reached"],
         ["skip","Probes","not reached"],
@@ -794,9 +1121,9 @@ SELECT key,
   gate:{
     title:"What the gate saw, node by node",
     walk:[
-      { ok:false, node:'<strong>call</strong> <em>round</em>', why:"not one of the seven kept functions" },
-      { ok:true,  node:'&nbsp;&nbsp;&#9500;&#9472; <strong>field</strong> <em>$.payload.load</em>', why:"field path · form 2 (.ident)" },
-      { ok:true,  node:'&nbsp;&nbsp;&#9492;&#9472; <strong>num</strong> <em>1</em>', why:"leaf" }
+      { s:"no", node:'<strong>call</strong> <em>round</em>', why:"not one of the seven kept functions" },
+      { s:"ok", node:'&nbsp;&nbsp;&#9500;&#9472; <strong>field</strong> <em>$.payload.load</em>', why:"field path · form 2 (.ident)" },
+      { s:"ok", node:'&nbsp;&nbsp;&#9492;&#9472; <strong>num</strong> <em>1</em>', why:"leaf" }
     ],
     foot:`The gate is an <b>allowlist</b>, not a list of the sixteen refused names. A block&#8209;list
           goes stale the moment GIMS&rsquo;s expression language grows a twenty&#8209;third function;
@@ -808,7 +1135,87 @@ SELECT key,
 },
 
 {
-  id:"probe", n:4, tab:"Refused while running", tabIcon:"i-search",
+  id:"alias", n:6, tab:"Refused: the column name", tabIcon:"i-lock",
+  tone:"warn", icon:"i-lock",
+  head:"Refused before any SQL existed &mdash; the column name.",
+  body:`<p>The expression on the right of the <code>=</code> is fine and was never the problem.
+        <b>The name on the left is.</b> It is the one piece of what a person types that has to be
+        written into the SQL text &mdash; SQL has no bind-parameter slot for a column name, so
+        <code>SELECT &hellip; AS %(name)s</code> is not a statement in Postgres or anywhere else
+        &mdash; and it is therefore checked against a strict allowlist <b>before</b> it is emitted.
+        This name is not on it.</p>
+        <p>The refusal names the name and the rule, and it never says <em>invalid input</em>:
+        <b>&ldquo;<code>alive&quot;; DROP TABLE demo.records; --</code> is not a usable column name:
+        letters, digits and underscore only, starting with a letter or underscore, at most 63
+        characters.&rdquo;</b> Nothing was assembled, nothing was prepared, nothing was sent, both
+        panes stay empty, and <code>noun:Heartbeat</code> still returns its 8,400 rows on the next
+        pick.</p>
+        <p>Retype the name as <code>alive</code> and it is accepted &mdash; the SQL pane then shows
+        it emitted double-quoted, as the boxed <code>AS &quot;alive&quot;</code> on the
+        <b>Agreement</b> state&rsquo;s statement. That pair is the whole of R10: the check is what
+        stands between the two.</p>`,
+  ref:"walkthrough step 14 &middot; §4.10 the alias allowlist &middot; R10, AC-38, AC-45",
+  form:{ source:"noun:Heartbeat",
+         cc:[{ name:'alive"; DROP TABLE demo.records; --', expr:'$.status == "ok"',
+                nameBad:true, focusName:true }],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"none", aggField:"", bucket:"off", winField:"", changed:false,
+         refused:2,
+         refusedWhy:`Not a usable column name: <b>letters, digits and underscore only</b>, starting
+           with a letter or underscore, at most 63 characters. Refused before any SQL existed.` },
+  rail:[["stop","Gate","the alias is not a usable column name"],
+        ["skip","Compile","not reached"],
+        ["skip","Probes","not reached"],
+        ["skip","Execute","not reached"]],
+  cmp:{
+    mode:"empty",
+    emptyTitle:"No result",
+    emptySub:"The pick was declined before a statement existed, so there is nothing for either side to answer.",
+    sqlNote:"There is no statement to show, and that is the point of where the check sits: it runs before the alias is emitted, so nothing was ever assembled to send.",
+    pyNote:"Python is not asked either, and that is a rule rather than a convenience: <b>the identical check runs on the identical string on this side</b>. A name accepted on one pane and refused on the other would key a column in one and nothing in the other &mdash; the check itself would become a disagreement generator."
+  },
+  gate:{
+    title:"What the alias check ran, in order",
+    walk:[
+      { s:"no",   node:'<strong>1</strong> &nbsp;pattern &mdash; <em>re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,62}")</em>',
+        why:'stops at the <span class="mono">&quot;</span> &mdash; and at the space, the <span class="mono">;</span>, the <span class="mono">.</span> and the <span class="mono">-</span>' },
+      { s:"skip", node:'<strong>2</strong> &nbsp;length &mdash; <em>1 to 63 characters</em>, Postgres&rsquo;s own limit', why:"not reached" },
+      { s:"skip", node:'<strong>3</strong> &nbsp;not a reserved name &mdash; <em>collection, key, data</em> and the four the builder emits, <em>bucket, rolling_avg, changed, agg</em>', why:"not reached" },
+      { s:"skip", node:'<strong>4</strong> &nbsp;not a top-level field of <em>noun:Heartbeat</em> &mdash; <em>sender_id, ts, status, payload</em>, read out of the data at operation 1', why:"not reached" },
+      { s:"skip", node:'<strong>5</strong> &nbsp;not an alias already defined in this pick', why:"not reached" }
+    ],
+    never:{
+      title:"What the check kept out of the statement",
+      code:`SELECT key,
+       to_jsonb( <span class="c">&hellip;</span> )  AS "<span class="hot">alive"; DROP TABLE demo.records; --</span>"
+  FROM demo.records
+ WHERE collection = 'noun:Heartbeat'`,
+      note:`<b>Never built, never prepared, never sent</b> &mdash; this is the text the check
+        refused, printed so the control can be watched working rather than taken on trust. It is
+        what <b>re.match</b> would have allowed: <code>re.match</code> anchors only the beginning,
+        so it matches the leading <code>alive</code>, returns happily, and leaves everything after
+        it to be pasted straight in. <b>re.fullmatch</b> is the whole difference, and it is written
+        into the spec as a pattern rather than as a description because a description is what a
+        build re-derives differently.`
+    },
+    foot:`The rule is an <b>allowlist</b>, for the same reason the expression gate is one. Escaping
+      asks <em>&ldquo;is there any input I have failed to neutralise?&rdquo;</em> &mdash; open-ended,
+      answered wrongly the first time a case is missed, and the cases here are genuinely confusable:
+      the doubling rule inside a quoted <b>identifier</b> is not the one inside a quoted
+      <b>literal</b>. An allowlist asks <em>&ldquo;is this one of the shapes already known to be
+      safe?&rdquo;</em>, so every future Unicode form and every driver quirk lands outside it and is
+      refused. It <b>fails closed</b>, and it costs nothing real &mdash; <b>alive</b>, <b>busy</b>,
+      <b>days_left</b> and <b>pct_ok</b> are all already inside the pattern.`
+  },
+  sqlFoot:`The two session values are still shown, because they are properties of the connection
+    rather than of this pick. <b>Every place this alias could be emitted runs the same check on the
+    same string</b> &mdash; a computed column becomes selectable below, so one name can also reach
+    the sort, the aggregate and the rolling window. There is one validator and every emission calls
+    it; none of them re-implements the rule.`
+},
+
+{
+  id:"probe", n:7, tab:"Refused while running", tabIcon:"i-search",
   tone:"warn", icon:"i-warning",
   head:"Refused while running &mdash; one row out of ten made it unanswerable.",
   body:`<p>The gate accepted this expression: there is nothing wrong with it. Reading the rows is
@@ -820,8 +1227,10 @@ SELECT key,
         Because both panes are permanently on screen, nobody can mistake that for the SQL&rsquo;s
         answer, and that is what makes this a <b>reported</b> fallback rather than a silent one.</p>`,
   ref:"walkthrough step 13 &middot; §4.5 layer 2, member (a)",
-  picks:["noun:EdgeCase","scaled = $.huge * 1",null,null,null,null,null,null,null],
-  active:[true,true,false,false,false,false,false,false,false],
+  form:{ source:"noun:EdgeCase",
+         cc:[{ name:"scaled", expr:"$.huge * 1" }],
+         filter:"", sortField:"", sortDir:"asc", cap:"",
+         aggFn:"none", aggField:"", bucket:"off", winField:"", changed:false },
   rail:[["done","Gate","* and $.huge both inside the subset"],
         ["done","Compile","1 expression → SQL"],
         ["stop","Probes","1 row at or above the largest double"],
@@ -874,70 +1283,6 @@ SELECT key,
  ORDER BY key ASC;`,
   sqlDeadFrom:14,
   sqlFoot:`The probe is one extra query per pick, over at most 8,400 small rows. It is affordable because the database is deliberately small, and there is no timing claim anywhere on this screen for it to spoil.`
-},
-
-{
-  id:"changed", n:5, tab:"Only what changed", tabIcon:"i-pulse",
-  tone:"ok", icon:"i-check",
-  head:"912 of 8,400 beats survive, and both panes keep the same ones.",
-  body:`<p>Out of a stream of mostly identical repeats, this keeps only the beats whose value
-        differs from the one before it, per sender. What it compares is <b>the record minus its
-        ordering key</b> &mdash; <code>status</code> and <code>payload</code>, jointly. The
-        timestamp is excluded by construction.</p>
-        <p>That exclusion is the whole operation. <b>Put the timestamp back and every row differs
-        from its predecessor</b>: 8,400 kept, a filter that filters nothing, and both panes agreeing
-        with each other perfectly about it.</p>`,
-  ref:"walkthrough step 9 &middot; §7.1 comparison rule &middot; the case the project was pitched on",
-  picks:["noun:Heartbeat",null,null,null,null,null,null,null,"on · per sender, ordered by ts then key"],
-  active:[true,false,false,false,false,false,false,false,true],
-  rail:[["none","Gate","no expression typed"],["none","Compile","nothing to compile"],
-        ["none","Probes","no operand to ask about"],["done","Execute","912 rows returned"]],
-  reduce:{ kept:912, total:8400, pct:"10.9",
-    sender:"hb-01", beats:168,
-    on:[0,7,13,26,31,44,58,63,71,86,94,103,120,128,139,147,155,163],
-    note:`Eighteen of this sender&rsquo;s 168 beats changed something. <b>If the comparison
-      included <code>ts</code>, every cell above would be lit</b> and the count would read 8,400 &mdash;
-      which is why the number, not the screenful of rows, is the thing to check.` },
-  cmp:{
-    mode:"rows",
-    cols:"112px minmax(150px,1fr) 62px 52px",
-    colsM:"98px 128px 50px 40px",
-    heads:["key","ts","status","load"],
-    sqlNote:"<b>lag(data - 'ts') &hellip; IS DISTINCT FROM (data - 'ts')</b> over one window frame. Never <b>&lt;&gt;</b>: lag() is NULL at each sender&rsquo;s first beat, and <b>NULL &lt;&gt; x</b> is NULL, which would drop all 50 first beats.",
-    pyNote:"Grouped by <b>sender_id</b>, sorted by <b>(ts, key)</b>, walked in order, comparing the parsed dict minus its <b>ts</b> key &mdash; content equality, key order irrelevant. The first row of each group is always kept.",
-    rows:[
-      { c:["hb-01-0000","2026-08-14T00:00:00Z","ok","41"],    t:[0,8,7,3] },
-      { c:["hb-01-0007","2026-08-14T07:00:00Z","ok","63"],    t:[0,8,7,3] },
-      { c:["hb-01-0013","2026-08-14T13:00:00Z","warn","88"],  t:[0,8,7,3] },
-      { c:["hb-01-0026","2026-08-15T02:00:00Z","ok","52"],    t:[0,8,7,3] },
-      { c:["hb-01-0031","2026-08-15T07:00:00Z","ok","47"],    t:[0,8,7,3] },
-      { c:["hb-01-0044","2026-08-15T20:00:00Z","ok","61"],    t:[0,8,7,3] },
-      { c:["hb-01-0058","2026-08-16T10:00:00Z","error","97"], t:[0,8,7,3] },
-      { c:["hb-01-0063","2026-08-16T15:00:00Z","ok","55"],    t:[0,8,7,3] }
-    ],
-    tail:"first 8 of 912 kept rows, under ORDER BY key"
-  },
-  sql:`SET extra_float_digits = 1;
-SET TIME ZONE 'UTC';
-
--- no expression was typed, so neither probe has an operand to ask about.
-
-SELECT key,
-       data -> 'ts'              AS ts,
-       data -> 'status'          AS status,
-       data #> '{payload,load}'  AS load
-  FROM ( SELECT key, data,
-                lag( data - 'ts' ) OVER ( PARTITION BY (data ->> 'sender_id')
-                                          ORDER BY     (data ->> 'ts'), key )
-                  IS DISTINCT FROM ( data - 'ts' )    AS "changed"
-           FROM demo.records
-          WHERE collection = 'noun:Heartbeat' ) w
- WHERE "changed"
- ORDER BY key ASC;
--- data - 'ts' removes the ordering key from the compared value. sender_id
--- cannot vary inside the partition it is the key of, so what can actually
--- differ is status and payload, compared jointly.`,
-  sqlFoot:`Every result this screen shows or compares carries a total order ending in <b>key</b>, a column no two rows can share. Without it Postgres promises no order at all here, and the two panes could disagree about &ldquo;the first five&rdquo; while both were correct.`
 }
 ];
 
@@ -957,7 +1302,7 @@ function esc(s){
 /* ── the SQL tokenizer ─────────────────────────────────────────────── */
 const KW = new Set(["SELECT","FROM","WHERE","AND","OR","NOT","ORDER","BY","GROUP","LIMIT","AS",
   "OVER","PARTITION","ROWS","BETWEEN","PRECEDING","CURRENT","ROW","CASE","WHEN","THEN","ELSE",
-  "END","IS","DISTINCT","IN","SET","TIME","ZONE","ASC","DESC","NULLS","LAST","NULL","ON","WITH"]);
+  "END","IS","DISTINCT","IN","SET","TIME","ZONE","AT","ASC","DESC","NULLS","LAST","NULL","ON","WITH"]);
 const FN = new Set(["count","round","avg","abs","lag","sum","min","max","to_jsonb","jsonb_typeof",
   "nullif","date_trunc","to_char","xpr.reduce_one","xpr.num","xpr.f8","xpr.ord","xpr.div"]);
 
@@ -988,27 +1333,252 @@ function tokenLine(line){
   return out;
 }
 
-/* ── the picking panel ─────────────────────────────────────────────── */
-function renderOps(st){
+/* ════════════════════════════════════════════════════════════════════
+   THE PICKING PANEL — nine operations, nine controls.
+   Everything here is drawn in watery.css's own primitives: .field /
+   .field-label / .input / .select / textarea.input / .toggle / .btn.
+   Nothing is wired to a database; the controls exist so a builder has
+   something to copy, and so the DISABLED and FOCUS states are visible
+   rather than described.
+   ════════════════════════════════════════════════════════════════════ */
+
+function attr(s){ return esc(s).replace(/"/g, "&quot;"); }
+
+function fieldEl(label, inner, cls, extra){
+  return '<label class="field ' + (cls || "") + '"' + (extra || "") + '>' +
+    '<span class="field-label">' + label + "</span>" + inner + "</label>";
+}
+function row(inner){ return '<div class="ctl-row">' + inner + "</div>"; }
+function hint(t){ return '<p class="ctl-hint">' + t + "</p>"; }
+function fixed(t){
+  return '<p class="ctl-fixed">' + svg("i-lock") + "<span>" + t + "</span></p>";
+}
+function sel(key, opts, value, dis, cls){
+  return '<span class="sel-wrap"><select class="select' + (cls ? " " + cls : "") +
+    '" data-k="' + key + '"' + (dis ? " disabled" : "") + ">" +
+    opts.map(function(o){
+      const v = Array.isArray(o) ? o[0] : o, t = Array.isArray(o) ? o[1] : o;
+      return '<option value="' + attr(v) + '"' + (v === value ? " selected" : "") +
+        ">" + esc(t) + "</option>";
+    }).join("") + "</select>" + svg("i-caret", "icon caret") + "</span>";
+}
+function txt(key, value, dis, cls, ph){
+  return '<input class="input mono-in' + (cls ? " " + cls : "") + '" type="text" data-k="' + key +
+    '" value="' + attr(value || "") + '"' + (ph ? ' placeholder="' + attr(ph) + '"' : "") +
+    (dis ? " disabled" : "") + ">";
+}
+
+/* the alias vocabulary a later operation can pick from: real field paths of the
+   chosen collection, plus every computed column already accepted in this pick */
+function fieldOpts(f, numericOnly){
+  const F = FIELDS[f.source];
+  const paths = (numericOnly ? F.num : F.all).filter(function(p){ return p !== "…"; });
+  const aliases = f.cc.filter(function(c){ return c.name && !c.nameBad; })
+                      .map(function(c){ return [c.name, c.name + "   (computed)"]; });
+  return [["", "— none —"]].concat(paths.map(function(p){ return [p, p]; }), aliases);
+}
+
+/* ── which operations this pick makes illegal, and why ──────────────
+   Both rules are the spec's, not the mock's:
+   X1  operations 7, 8 and 9 read `$.ts` and `$.sender_id`; only
+       noun:Heartbeat carries them (§4.10's per-collection field lists,
+       §7.1's window rule and time-bucket rule).
+   X2  operation 6 collapses rows to one number per group while operation 8
+       emits one per row (§7.3's builder table: `AS "agg"` vs
+       `AS "rolling_avg"`), and a bucketed result is ordered by `bucket`
+       rather than by operation 4 (§7.1's time-bucket rule).            */
+function locksFor(f){
+  const L = {};
+  if (f.source !== "noun:Heartbeat"){
+    const why = 'Reads <span class="mono">$.ts</span> and <span class="mono">$.sender_id</span>. ' +
+      "<b>" + esc(f.source) + "</b> has neither &mdash; its top-level fields are " +
+      '<span class="mono">' + esc(FIELDS[f.source].top) + "</span>.";
+    L[7] = why; L[8] = why; L[9] = why;
+  }
+  if (!L[8] && f.aggFn !== "none"){
+    L[8] = "The aggregate reduces every row to one number; the rolling window emits one number " +
+      "<b>per row</b>. One statement cannot emit both.";
+  }
+  if (f.bucket !== "off"){
+    L[4] = 'A bucketed result is ordered by <span class="mono">bucket</span> &mdash; fixed by ' +
+      "operation 7, not chosen here.";
+  }
+  return L;
+}
+
+/* ── the nine controls ─────────────────────────────────────────────── */
+const CTL = [
+
+/* 1 — choose a source */
+function(f, dis){
+  return row(fieldEl("Collection",
+      sel("source", SOURCES.map(function(s){ return [s.k, s.k + "   ·   " + s.v]; }),
+          f.source, dis), "ctl-grow")) +
+    hint("A <b>closed set</b> of three, sent as a bind parameter. Choosing one re-reads that " +
+      "collection&rsquo;s top-level field names &mdash; which fill every picker below.");
+},
+
+/* 2 — computed columns */
+function(f, dis){
+  const rows = f.cc.map(function(c, j){
+    return '<div class="ctl-row">' +
+      fieldEl("Name",
+        '<input class="input mono-in' + (c.nameBad ? " is-invalid" : "") +
+          (c.focusName ? " is-focus" : "") + '" type="text" data-cc="' + j +
+          '" data-f="name" value="' + attr(c.name) + '" placeholder="alive"' +
+          (c.nameBad ? ' aria-invalid="true"' : "") + (dis ? " disabled" : "") + ">",
+        "ctl-grow") +
+      '<span class="ctl-eq">=</span>' +
+      fieldEl("Expression",
+        '<input class="input mono-in' + (c.exprBad ? " is-invalid" : "") +
+          (c.focusExpr ? " is-focus" : "") + '" type="text" data-cc="' + j +
+          '" data-f="expr" value="' + attr(c.expr) + '" placeholder="$.status == &quot;ok&quot;"' +
+          (c.exprBad ? ' aria-invalid="true"' : "") + (dis ? " disabled" : "") + ">",
+        "ctl-grow2") +
+      '<button type="button" class="btn sm ghost ctl-fix" data-act="rm-cc" data-cc="' + j +
+        '" aria-label="Remove computed column ' + (j + 1) + '"' + (dis ? " disabled" : "") + ">" +
+        svg("i-x") + "</button></div>";
+  }).join("");
+  return rows +
+    '<div class="ctl-row"><button type="button" class="btn sm ghost" data-act="add-cc"' +
+      (dis ? " disabled" : "") + ">" + svg("i-plus") + " Add computed column</button>" +
+      (f.cc.some(function(c){ return c.focusName || c.focusExpr; })
+        ? '<span class="focus-tag">' + svg("i-pin") + " keyboard focus</span>" : "") +
+    "</div>" +
+    hint("Right of the <span class=\"mono\">=</span>, every value and field name goes down as a " +
+      "bind parameter. <b>The name left of it is the one thing that reaches SQL text</b>, so it is " +
+      "checked against §4.10&rsquo;s allowlist before it is emitted.");
+},
+
+/* 3 — one filter */
+function(f, dis){
+  return row(fieldEl("Keep only rows where this is true",
+      '<textarea class="input mono-in" rows="2" data-k="filter" placeholder="$.status != &quot;ok&quot;"' +
+        (dis ? " disabled" : "") + ">" + esc(f.filter || "") + "</textarea>", "ctl-grow")) +
+    hint("One filter, one expression, through the same static gate the computed columns use.");
+},
+
+/* 4 — sort field */
+function(f, dis){
+  return row(
+      fieldEl("Field", sel("sortField", fieldOpts(f, false), f.sortField, dis), "ctl-grow") +
+      fieldEl("Direction", sel("sortDir", [["asc","ascending"],["desc","descending"]],
+        f.sortDir, dis), "ctl-grow")) +
+    hint("Nulls last, <b>ties broken by <span class=\"mono\">key</span> ascending even when the " +
+      "sort is descending</b> (§7.4).");
+},
+
+/* 5 — row cap */
+function(f, dis){
+  return row(fieldEl("Rows, at most",
+      '<input class="input mono-in" type="number" inputmode="numeric" min="1" max="20000" step="1" ' +
+        'data-k="cap" value="' + attr(f.cap || "") + '" placeholder="8"' +
+        (dis ? " disabled" : "") + ">", "ctl-grow")) +
+    hint("Applied <b>after</b> the sort. Range-checked as a positive integer no greater than " +
+      "<span class=\"mono\">20,000</span>; anything else is refused before a query is built.");
+},
+
+/* 6 — aggregate */
+function(f, dis){
+  const fnDis  = dis;
+  const argDis = dis || f.aggFn === "none" || f.aggFn === "count";
+  return row(
+      fieldEl("Function", sel("aggFn", [["none","— none —"]].concat(AGGS), f.aggFn, fnDis), "ctl-grow") +
+      fieldEl("Of field", sel("aggField", fieldOpts(f, true), f.aggField, argDis), "ctl-grow")) +
+    hint(f.aggFn === "count"
+      ? "<b><span class=\"mono\">count</span> counts rows, so it takes no field</b> &mdash; the " +
+        "field picker is off. The other four read one numeric field."
+      : "A closed set of five, accumulated in <span class=\"mono\">numeric</span> and emitted as " +
+        "<span class=\"mono\">AS &quot;agg&quot;</span>.");
+},
+
+/* 7 — time buckets */
+function(f, dis){
+  const fo = !!f.focusBucket && !dis;
+  return row(fieldEl("Granularity", sel("bucket", BUCKET, f.bucket, dis, fo ? "is-focus" : ""),
+        "ctl-grow") +
+      (fo ? '<span class="focus-tag">' + svg("i-pin") + " keyboard focus</span>" : "")) +
+    fixed("<b>Two granularities and no more.</b> <span class=\"mono\">hour</span> and " +
+      "<span class=\"mono\">day</span> are what Q20&rsquo;s own option text names, so they are a " +
+      "closed set (§4.4 row 7) &mdash; there is no week, no month and no free-text unit. What " +
+      "aggregates inside a bucket is operation 6&rsquo;s function.") +
+    hint("<b>The session time zone decides where a day starts</b>, which is why the SQL pane " +
+      "prints it: it is the difference between seven buckets and eight.");
+},
+
+/* 8 — rolling window */
+function(f, dis){
+  return row(fieldEl("Numeric field", sel("winField", fieldOpts(f, true), f.winField, dis), "ctl-grow")) +
+    fixed("<b>The field is the whole of this operation&rsquo;s input.</b> Width <b>3</b>, " +
+      "<b>trailing</b>, and an <b>arithmetic mean</b> are all fixed by R14 &mdash; there is " +
+      "deliberately no width box, no direction switch and no second aggregate here.") +
+    hint("Per sender, ordered by <span class=\"mono\">ts</span> then <span class=\"mono\">key</span>. " +
+      "First beat divides by 1, second by 2 &mdash; never by a phantom 3.");
+},
+
+/* 9 — show only rows that changed */
+function(f, dis){
+  return '<div class="ctl-toggle"><span class="toggle' + (dis ? " is-disabled" : "") + '">' +
+      '<input type="checkbox" id="op9-changed" data-k="changed"' + (f.changed ? " checked" : "") +
+        (dis ? " disabled" : "") + '><span class="track"></span></span>' +
+      '<label class="ctl-toggle-lab" for="op9-changed">Keep only rows whose value differs ' +
+      "from the one before, per sender</label></div>" +
+    fixed("<b>An on/off toggle is the only control this operation gets.</b> What it compares is " +
+      "the record minus its ordering key &mdash; <span class=\"mono\">status</span> and " +
+      "<span class=\"mono\">payload</span>, jointly &mdash; fixed by R13, so <b>there is no " +
+      "picker for it and there must not be one</b> (AC-40(e)).") +
+    hint("Each sender&rsquo;s first beat has no predecessor and is always kept.");
+}
+];
+
+const OPSTATE = { on:"on", off:"not set", refused:"refused", disabled:"unavailable" };
+
+/* an operation is "on" when its own control carries a value — derived from the
+   controls rather than stored beside them, so editing one lights it up */
+function isOn(f, n){
+  switch(n){
+    case 1: return true;
+    case 2: return f.cc.some(function(c){ return c.name || c.expr; });
+    case 3: return !!f.filter;
+    case 4: return !!f.sortField;
+    case 5: return !!f.cap;
+    case 6: return f.aggFn !== "none";
+    case 7: return f.bucket !== "off";
+    case 8: return !!f.winField;
+    case 9: return !!f.changed;
+  }
+  return false;
+}
+
+function renderOps(f){
+  const L = locksFor(f);
   document.getElementById("ops").innerHTML = OPS.map(function(op, i){
-    const a = st.active[i];
-    const cls = a === "refused" ? "is-refused" : (a ? "is-on" : "is-off");
-    const val = st.picks[i] || "not set";
-    const flag = a === "refused"
-      ? '<span class="op-flag">refused by the gate</span>' : "";
+    const dis = L[op.n] !== undefined;
+    const ref = f.refused === op.n;
+    const on  = !dis && !ref && isOn(f, op.n);
+    const cls = dis ? "is-disabled" : ref ? "is-refused" : on ? "is-on" : "is-off";
+    const key = dis ? "disabled" : ref ? "refused" : on ? "on" : "off";
+    let why = "";
+    if (dis){
+      why = '<p class="op-why">' + svg("i-ban") + "<span>" + L[op.n] + "</span></p>";
+    } else if (ref && f.refusedWhy){
+      why = '<p class="op-why">' + svg("i-warning") + "<span>" + f.refusedWhy + "</span></p>";
+    }
     return '<li class="op ' + cls + '">' +
-      '<span class="op-n">' + op.n + "</span>" +
-      '<span class="icon-chip">' + svg(op.icon) + "</span>" +
-      '<span class="op-t"><span class="op-name">' + op.name + "</span>" +
-      '<span class="op-val">' + esc(val) + "</span></span>" + flag + "</li>";
+      '<div class="op-hd"><span class="op-n">' + op.n + "</span>" +
+        '<span class="icon-chip">' + svg(op.icon) + "</span>" +
+        '<span class="op-name">' + op.name + "</span>" +
+        '<span class="op-state">' + OPSTATE[key] + "</span></div>" +
+      '<div class="op-ctl">' + CTL[i](f, dis) + "</div>" + why + "</li>";
   }).join("");
 }
 
-function renderSources(st){
-  const active = st.picks[0];
+function renderSources(f){
+  const rowsFor = { "noun:Heartbeat":"8,400 rows", "noun:Sample":"2,000 rows", "noun:EdgeCase":"10 rows" };
+  document.getElementById("hdcount").textContent = rowsFor[f.source] + " in this source";
   document.getElementById("srcmeta").innerHTML =
     SOURCES.map(function(s){
-      const on = s.k === active;
+      const on = s.k === f.source;
       return '<div class="srcrow' + (on ? "" : " dim") + '">' +
         '<span class="k">' + s.k + "</span><span class=\"v\">" + s.v + "</span></div>";
     }).join("") +
@@ -1092,6 +1662,10 @@ function statusTone(v){
 function renderCmp(st){
   const c = st.cmp, grid = document.getElementById("cmp");
   const head = document.getElementById("cmphead");
+  const panel = document.getElementById("cmppanel");
+  const differs = c.mode === "rows" &&
+    c.rows.some(function(r){ return r.diff !== undefined; });
+  panel.classList.toggle("is-diff", differs);
   let out = "";
 
   /* ── both panes empty ── */
@@ -1224,15 +1798,22 @@ function renderSQL(st){
   const body = document.getElementById("sqlbody");
   const title = document.getElementById("sqltitle");
   if (st.gate){
+    const GWICON = { ok:"i-check", no:"i-x", skip:"i-dash" };
     title.textContent = "No SQL was generated";
     body.innerHTML = '<div class="gatewalk">' +
       '<div class="gw-title">' + st.gate.title + "</div>" +
       st.gate.walk.map(function(w){
-        return '<div class="gw-row ' + (w.ok ? "gw-ok" : "gw-no") + '">' +
-          '<span class="gw-mark">' + svg(w.ok ? "i-check" : "i-x") + "</span>" +
+        const k = w.s || (w.ok ? "ok" : "no");
+        return '<div class="gw-row gw-' + k + '">' +
+          '<span class="gw-mark">' + svg(GWICON[k]) + "</span>" +
           '<span class="gw-node">' + w.node + "</span>" +
           '<span class="gw-why">' + w.why + "</span></div>";
       }).join("") +
+      (st.gate.never
+        ? '<div class="gw-never"><div class="gw-never-t">' + svg("i-shield-stop") +
+            st.gate.never.title + "</div><pre><s>" + st.gate.never.code + "</s></pre>" +
+            '<p class="gw-never-s">' + st.gate.never.note + "</p></div>"
+        : "") +
       '<p class="gw-foot">' + st.gate.foot + "</p></div>";
   } else {
     title.textContent = "The generated SQL";
@@ -1240,39 +1821,161 @@ function renderSQL(st){
       sqlHTML(st.sql, st.sqlDeadFrom) + "</pre></div>";
   }
   document.getElementById("sqlfoot").innerHTML = st.sqlFoot;
+
+  /* the two session values, which live nowhere else on the screen */
+  const hot = st.sessionHot;
+  document.getElementById("session").innerHTML =
+    '<span class="chip' + (hot === "fd" ? " accent" : "") + '">extra_float_digits = 1</span>' +
+    '<span class="chip' + (hot === "tz" ? " accent" : "") + '">TimeZone = UTC</span>';
 }
 
-/* ── tabs + wiring ─────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════
+   THE STATE TABS
+   The strip is built ONCE. Changing state updates aria-selected and the
+   roving tabindex in place; it never replaces the buttons. An earlier
+   version re-rendered the strip on every change, which destroyed the
+   focused button mid-keypress, dropped focus to <body>, and made arrow
+   navigation die after exactly one press.
+   ════════════════════════════════════════════════════════════════════ */
 let current = 0;
+let TABS = [];
 
-function renderTabs(){
-  document.getElementById("tabs").innerHTML = STATES.map(function(s, i){
-    return '<button class="tab" role="tab" id="tab-' + s.id + '" aria-selected="' +
-      (i === current) + '" data-i="' + i + '">' +
+function buildTabs(){
+  const strip = document.getElementById("tabs");
+  strip.innerHTML = STATES.map(function(s, i){
+    return '<button type="button" class="tab" role="tab" id="tab-' + s.id +
+      '" aria-controls="statepanel" aria-selected="' + (i === 0) +
+      '" tabindex="' + (i === 0 ? "0" : "-1") + '" data-i="' + i + '">' +
       '<span class="tab-n">' + s.n + "</span>" + s.tab + "</button>";
   }).join("");
-  document.getElementById("tabs").querySelectorAll(".tab").forEach(function(b){
-    b.addEventListener("click", function(){ show(Number(b.dataset.i)); });
-    b.addEventListener("keydown", function(e){
-      if (e.key === "ArrowRight") show((Number(b.dataset.i) + 1) % STATES.length);
-      if (e.key === "ArrowLeft")  show((Number(b.dataset.i) + STATES.length - 1) % STATES.length);
-    });
+  TABS = Array.prototype.slice.call(strip.querySelectorAll(".tab"));
+
+  TABS.forEach(function(b, i){
+    b.addEventListener("click", function(){ show(i); });
+  });
+
+  /* one listener on the strip: the buttons outlive every state change, so
+     the element the browser is focusing is still there when the key repeats */
+  strip.addEventListener("keydown", function(e){
+    const n = TABS.length;
+    let t = -1;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") t = (current + 1) % n;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") t = (current + n - 1) % n;
+    else if (e.key === "Home") t = 0;
+    else if (e.key === "End")  t = n - 1;
+    else return;
+    e.preventDefault();
+    show(t);
+    TABS[t].focus();
   });
 }
 
+function syncTabs(){
+  TABS.forEach(function(b, i){
+    const on = i === current;
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.getElementById("statepanel")
+    .setAttribute("aria-labelledby", "tab-" + STATES[current].id);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   THE LIVE PICK
+   `live` is a working copy of the state's own pick that the controls on
+   the left write into. Editing it re-draws the picker — so the DISABLED
+   rules can be watched firing rather than only read about — and marks the
+   pick as no longer describing the answers on the right. "Run this pick"
+   puts the state's own pick back.
+   ════════════════════════════════════════════════════════════════════ */
+let live = null, canon = "";
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+function paintPick(){
+  renderOps(live);
+  renderSources(live);
+  document.getElementById("dirty").hidden = JSON.stringify(live) === canon;
+}
+
+const opsEl = document.getElementById("ops");
+
+function readControl(el, p){
+  if (el.dataset.cc !== undefined && el.dataset.f){
+    const c = p.cc[Number(el.dataset.cc)];
+    if (c) c[el.dataset.f] = el.value;
+    return;
+  }
+  const k = el.dataset.k;
+  if (k) p[k] = el.type === "checkbox" ? el.checked : el.value;
+}
+
+function ctlSelector(el){
+  if (el.dataset.cc !== undefined && el.dataset.f)
+    return '[data-cc="' + el.dataset.cc + '"][data-f="' + el.dataset.f + '"]';
+  if (el.dataset.k) return '[data-k="' + el.dataset.k + '"]';
+  return null;
+}
+
+/* Typing does NOT redraw the picker. Redrawing it under a caret is the same
+   bug the tab strip had: the focused element is replaced mid-keystroke and
+   the next key goes nowhere. Text is committed on `change` (i.e. on blur),
+   which is also when a real validator would speak. */
+opsEl.addEventListener("input", function(e){
+  readControl(e.target, live);
+  document.getElementById("dirty").hidden = JSON.stringify(live) === canon;
+});
+
+opsEl.addEventListener("change", function(e){
+  const el = e.target;
+  const held = document.activeElement === el;   /* selects + the toggle; not a blurred input */
+  const sel = ctlSelector(el);
+  readControl(el, live);
+  if (el.dataset.cc !== undefined && live.cc[Number(el.dataset.cc)]){
+    const c = live.cc[Number(el.dataset.cc)];
+    c.nameBad = false; c.exprBad = false; c.focusName = false; c.focusExpr = false;
+    live.refused = 0; live.refusedWhy = "";
+  }
+  /* switching source re-reads that collection's top-level field names, so
+     anything picked out of the old collection's vocabulary is dropped (§4.10) */
+  if (el.dataset.k === "source"){ live.sortField = ""; live.aggField = ""; live.winField = ""; }
+  live.focusBucket = false;
+  paintPick();
+  if (held && sel){
+    const back = opsEl.querySelector(sel);
+    if (back) back.focus();
+  }
+});
+
+opsEl.addEventListener("click", function(e){
+  const b = e.target.closest("[data-act]");
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === "add-cc") live.cc.push({ name:"", expr:"" });
+  if (act === "rm-cc")  live.cc.splice(Number(b.dataset.cc), 1);
+  live.focusBucket = false;
+  paintPick();
+  /* keep the keyboard where the person left it */
+  const back = act === "add-cc"
+    ? opsEl.querySelector('[data-cc="' + (live.cc.length - 1) + '"][data-f="name"]')
+    : opsEl.querySelector('[data-act="add-cc"]');
+  if (back) back.focus();
+});
+
+document.getElementById("run").addEventListener("click", function(){ show(current); });
+
+/* ── show a state ──────────────────────────────────────────────────── */
 function show(i, fromUrl){
   current = i;
   const st = STATES[i];
   if (!fromUrl && location.hash !== "#" + st.id) history.replaceState(null, "", "#" + st.id);
-  renderTabs();
-  renderOps(st); renderSources(st);
+  syncTabs();
+  live = clone(st.form);
+  canon = JSON.stringify(live);
+  paintPick();
   renderVerdict(st); renderRail(st); renderReduce(st);
   renderCmp(st); renderSQL(st);
-  const t = document.getElementById("tab-" + st.id);
-  if (t && document.activeElement && document.activeElement.classList.contains("tab")) t.focus();
 }
-
-document.getElementById("run").addEventListener("click", function(){ show(current); });
 
 /* the address bar names the state, so a single state can be linked or bookmarked */
 function fromHash(){
@@ -1281,5 +1984,7 @@ function fromHash(){
   return i < 0 ? 0 : i;
 }
 window.addEventListener("hashchange", function(){ show(fromHash(), true); });
+
+buildTabs();
 show(fromHash(), true);
 </script>
