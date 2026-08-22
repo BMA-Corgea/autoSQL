@@ -1,0 +1,231 @@
+########## BEFORE  AUTOSQL_EFD=1 ##########
+=== A_range. xpr.f8 blast radius at a = 1e300 (efd=1) ===
+   <DIVERGE>  [SUBSET]  arithmetic  (compile.py _t_bin -> xpr.num -> xpr.f8)
+[DIVERGE     ] '$.a + 0'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  arithmetic
+[DIVERGE     ] '$.a * 1'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  unary minus
+[DIVERGE     ] '- $.a'  rec={'a': 1e+300}
+               py  = -1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  number()
+[DIVERGE     ] 'number($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  abs()
+[DIVERGE     ] 'abs($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  floor()
+[DIVERGE     ] 'floor($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  round()
+[DIVERGE     ] 'round($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  string()  (xpr.str -> xpr.f8 -> ecma_num)
+[DIVERGE     ] 'string($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  concat()  -- yields '' , not the number
+[DIVERGE     ] 'concat($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = ''  (string)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON -- the pushdown-predicate path
+[DIVERGE     ] '$.a < 1e301'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON
+[DIVERGE     ] '$.a > 1'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON, both sides
+[DIVERGE     ] '$.a >= $.a'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  sum() via xpr.num
+[DIVERGE     ] 'sum($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [SUBSET]  max()
+[DIVERGE     ] 'max($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [  out ]  avg()
+[DIVERGE     ] 'avg($.l)'  rec={'l': [1e+300, 1]}
+               py  = 5e+299
+               sql = 1  (number)
+   <AGREE>  [SUBSET]  count() -- does NOT use f8
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1]}
+   <AGREE>  [SUBSET]  bare field read -- does NOT use f8
+[AGREE       ] '$.a'  rec={'a': 1e+300}
+   <AGREE>  [SUBSET]  equality -- jsonb IS NOT DISTINCT FROM, no f8
+[AGREE       ] '$.a == 1e300'  rec={'a': 1e+300}
+   <DIVERGE>  [  out ]  contains() -> xpr.str -> f8
+[DIVERGE     ] 'contains($.s, $.a)'  rec={'s': 'x1e+300x', 'a': 1e+300}
+               py  = True
+               sql = False  (boolean)
+   <AGREE>  [SUBSET]  truthy -- uses ::numeric not f8
+[AGREE       ] 'if($.a, 1, 2)'  rec={'a': 1e+300}
+
+16 of 20 f8-reachable paths diverge at a=1e300; 8 of the 12 in-subset paths
+extra_float_digits read-back: 1
+########## BEFORE  AUTOSQL_EFD=0 ##########
+=== A_range. xpr.f8 blast radius at a = 1e300 (efd=0) ===
+   <DIVERGE>  [SUBSET]  arithmetic  (compile.py _t_bin -> xpr.num -> xpr.f8)
+[DIVERGE     ] '$.a + 0'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  arithmetic
+[DIVERGE     ] '$.a * 1'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  unary minus
+[DIVERGE     ] '- $.a'  rec={'a': 1e+300}
+               py  = -1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  number()
+[DIVERGE     ] 'number($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  abs()
+[DIVERGE     ] 'abs($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  floor()
+[DIVERGE     ] 'floor($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  round()
+[DIVERGE     ] 'round($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  string()  (xpr.str -> xpr.f8 -> ecma_num)
+[DIVERGE     ] 'string($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  concat()  -- yields '' , not the number
+[DIVERGE     ] 'concat($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = ''  (string)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON -- the pushdown-predicate path
+[DIVERGE     ] '$.a < 1e301'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON
+[DIVERGE     ] '$.a > 1'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON, both sides
+[DIVERGE     ] '$.a >= $.a'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  sum() via xpr.num
+[DIVERGE     ] 'sum($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [SUBSET]  max()
+[DIVERGE     ] 'max($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [  out ]  avg()
+[DIVERGE     ] 'avg($.l)'  rec={'l': [1e+300, 1]}
+               py  = 5e+299
+               sql = 1  (number)
+   <AGREE>  [SUBSET]  count() -- does NOT use f8
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1]}
+   <AGREE>  [SUBSET]  bare field read -- does NOT use f8
+[AGREE       ] '$.a'  rec={'a': 1e+300}
+   <AGREE>  [SUBSET]  equality -- jsonb IS NOT DISTINCT FROM, no f8
+[AGREE       ] '$.a == 1e300'  rec={'a': 1e+300}
+   <DIVERGE>  [  out ]  contains() -> xpr.str -> f8
+[DIVERGE     ] 'contains($.s, $.a)'  rec={'s': 'x1e+300x', 'a': 1e+300}
+               py  = True
+               sql = False  (boolean)
+   <AGREE>  [SUBSET]  truthy -- uses ::numeric not f8
+[AGREE       ] 'if($.a, 1, 2)'  rec={'a': 1e+300}
+
+16 of 20 f8-reachable paths diverge at a=1e300; 8 of the 12 in-subset paths
+extra_float_digits read-back: 0
+########## BEFORE  AUTOSQL_EFD=-3 ##########
+=== A_range. xpr.f8 blast radius at a = 1e300 (efd=-3) ===
+   <DIVERGE>  [SUBSET]  arithmetic  (compile.py _t_bin -> xpr.num -> xpr.f8)
+[DIVERGE     ] '$.a + 0'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  arithmetic
+[DIVERGE     ] '$.a * 1'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  unary minus
+[DIVERGE     ] '- $.a'  rec={'a': 1e+300}
+               py  = -1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  number()
+[DIVERGE     ] 'number($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  abs()
+[DIVERGE     ] 'abs($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  floor()
+[DIVERGE     ] 'floor($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  round()
+[DIVERGE     ] 'round($.a)'  rec={'a': 1e+300}
+               py  = 1e+300
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  string()  (xpr.str -> xpr.f8 -> ecma_num)
+[DIVERGE     ] 'string($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  concat()  -- yields '' , not the number
+[DIVERGE     ] 'concat($.a)'  rec={'a': 1e+300}
+               py  = '1e+300'
+               sql = ''  (string)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON -- the pushdown-predicate path
+[DIVERGE     ] '$.a < 1e301'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON
+[DIVERGE     ] '$.a > 1'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [SUBSET]  ORDER COMPARISON, both sides
+[DIVERGE     ] '$.a >= $.a'  rec={'a': 1e+300}
+               py  = True
+               sql = None  (SQL NULL)
+   <DIVERGE>  [  out ]  sum() via xpr.num
+[DIVERGE     ] 'sum($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [SUBSET]  max()
+[DIVERGE     ] 'max($.l)'  rec={'l': [1e+300, 1]}
+               py  = 1e+300
+               sql = 1  (number)
+   <DIVERGE>  [  out ]  avg()
+[DIVERGE     ] 'avg($.l)'  rec={'l': [1e+300, 1]}
+               py  = 5e+299
+               sql = 1  (number)
+   <AGREE>  [SUBSET]  count() -- does NOT use f8
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1]}
+   <AGREE>  [SUBSET]  bare field read -- does NOT use f8
+[AGREE       ] '$.a'  rec={'a': 1e+300}
+   <AGREE>  [SUBSET]  equality -- jsonb IS NOT DISTINCT FROM, no f8
+[AGREE       ] '$.a == 1e300'  rec={'a': 1e+300}
+   <DIVERGE>  [  out ]  contains() -> xpr.str -> f8
+[DIVERGE     ] 'contains($.s, $.a)'  rec={'s': 'x1e+300x', 'a': 1e+300}
+               py  = True
+               sql = False  (boolean)
+   <AGREE>  [SUBSET]  truthy -- uses ::numeric not f8
+[AGREE       ] 'if($.a, 1, 2)'  rec={'a': 1e+300}
+
+16 of 20 f8-reachable paths diverge at a=1e300; 8 of the 12 in-subset paths
+extra_float_digits read-back: -3

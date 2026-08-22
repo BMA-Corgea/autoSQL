@@ -1,0 +1,54 @@
+=== H. broad AST fuzz -- profile=sub_ordinary  N=4000  seed=2026 ===
+    SUBSET battery: every counted expression mechanically verified inside
+    the corrected 32-construct subset (closure_subset_coverage walker);
+    ==/!= draws whose operands reached _eq as containers: DISCARDED, counted.
+
+    AGREE                      3799   94.975%
+    DIVERGE                       2    0.050%
+    PARSE_ERROR                 125    3.125%
+    DISCARDED_container_eq       74    1.850%
+    ran =                      3801   (agree+diverge+refusal+raise+nullness; refusals stay IN)
+
+    divergence classes (auto-clustered):
+      DIVERGE (class 1): different value                       2
+
+    --- DIVERGE (class 1): different value (2) ---
+        expr : (max(count(- ($.t)), $.d) - count($.e, if(if(12345.678, $.s.c, $.d.l), ($.o - null), ("2024-01-01" / $.d))))
+        rec  : {"a": "1e3", "b": -2.25, "c": true, "s": "0001-01-01", "t": {"s": 3.14159}, "d": "１２３", "e": "FAIL", "l": "12", "n": 12345.678, "flag": -1}
+        py   : 122.0
+        sql  : -1 (number)
+
+        expr : coalesce((- (($.d[-2] + true)) >= count(coalesce(10, $.flag), ($.b[1].o.s + $.l))), - (($.a[-2][1] or $.n)))
+        rec  : {"a": 0, "b": {"flag": null}, "c": -0.001, "t": false, "d": ["１２３", {"n": null, "a": "abcabc"}], "e": 7, "l": "9999-12-31", "n": 2, "flag": null}
+        py   : False
+        sql  : -1 (number)
+
+    ALL wrong-answer cases (classes 1-4), in full -- 2 found:
+      [DIVERGE (class 1): different value] (max(count(- ($.t)), $.d) - count($.e, if(if(12345.678, $.s.c, $.d.l), ($.o - null), ("2024-01-01" / $.d))))
+            rec={"a": "1e3", "b": -2.25, "c": true, "s": "0001-01-01", "t": {"s": 3.14159}, "d": "１２３", "e": "FAIL", "l": "12", "n": 12345.678, "flag": -1}
+            py=122.0  sql=-1 (number)
+      [DIVERGE (class 1): different value] coalesce((- (($.d[-2] + true)) >= count(coalesce(10, $.flag), ($.b[1].o.s + $.l))), - (($.a[-2][1] or $.n)))
+            rec={"a": 0, "b": {"flag": null}, "c": -0.001, "t": false, "d": ["１２３", {"n": null, "a": "abcabc"}], "e": 7, "l": "9999-12-31", "n": 2, "flag": null}
+            py=False  sql=-1 (number)
+
+    domain-gate witnesses (framing 5.3 half two; py-mode rows):
+      UNTESTED  old guard boundary, below (1.79769313486231551e296) (not reached by this battery)
+      UNTESTED  old guard boundary, above (1.79769313486231587e296) (not reached by this battery)
+      UNTESTED  real limit DBL_MAX (1.7976931348623157e308)    (not reached by this battery)
+      UNTESTED  real limit, just below (1.7976931348623155e308) (not reached by this battery)
+      UNTESTED  1e200 (infinity composable: 1e200*1e200)       (not reached by this battery)
+      UNTESTED  subnormal 5e-324                               (not reached by this battery)
+      UNTESTED  subnormal 1e-320                               (not reached by this battery)
+      UNTESTED  2**53                                          (not reached by this battery)
+      UNTESTED  2**53 + 2                                      (not reached by this battery)
+      UNTESTED  0.0                                            (not reached by this battery)
+      UNTESTED  -0.0                                           (not reached by this battery)
+      REACHED   coercing string ' 7 '                          e.g. (max(min(max("abcabc", $.a))) - max(length(- ($.c))))
+      REACHED   coercing string '1e3'                          e.g. $.t.l
+      REACHED   coercing string '１２３' (full-width)             e.g. $.o
+
+    fingerprints (inadmissibility item 5):
+      expr.py     sha256=90cbb56d04b08b82
+      compile.py  sha256=b71b153802d0df94
+      runtime.sql sha256=1c58d548a6045aa6
+      efd requested=1 read-back=1  seed=2026  N=4000  wall=3.0s

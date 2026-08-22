@@ -364,7 +364,12 @@ def run() -> Dict[str, Any]:
 
     with conn.cursor() as cur:
         cur.execute("SET statement_timeout = '20s'")
-        cur.execute("SET extra_float_digits = 1")     # PG12+ default; pinned, see below
+        # T-3 (2026-08-22, spec 1.4 item 1): parameterised via AUTOSQL_EFD -- Q10 requires the
+        # run at extra_float_digits = 1, 0 and -3.  Was pinned to 1 here since the first run.
+        _efd_req = os.environ.get("AUTOSQL_EFD", "1")
+        if _efd_req not in ("1", "0", "-3"):
+            raise SystemExit("AUTOSQL_EFD must be one of 1, 0, -3; got %r" % _efd_req)
+        cur.execute("SET extra_float_digits = %s", (int(_efd_req),))
         cur.execute("select version(), current_setting('extra_float_digits')")
         pg_version, efd = cur.fetchone()
         conn.commit()

@@ -1,0 +1,15 @@
+CREATE TABLE
+INSERT 0 4
+          probe          | kept  
+-------------------------+-------
+ WHERE xpr.truthy(v)     | {1,4}
+ WHERE v IS NULL         | {2}
+ WHERE v = 'null'::jsonb | {3}
+(3 rows)
+
+      probe      | ordering  
+-----------------+-----------
+ ORDER BY v ASC  | {3,4,1,2}
+ ORDER BY v DESC | {2,1,4,3}
+(2 rows)
+

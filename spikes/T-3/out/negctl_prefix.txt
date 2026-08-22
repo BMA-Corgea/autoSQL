@@ -1,0 +1,57 @@
+########## AUTOSQL_EFD=1 ##########
+=== T-3 negative control: differ.py under deliberate injection ===
+mode: PRE-FIX (no XPR01 yet)
+  N1   class 1 (different value)                                  expected DIVERGE      got DIVERGE      kind=None         OK
+  N2   class 2 (value -> null)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N3   class 3 (null -> value)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N4   class 4 (PY_RAISE: Python raises, SQL returns a value)     expected PY_RAISE     got PY_RAISE     kind=None         OK
+  N5   SKIPPED (pre-fix runtime has no named refusal yet)
+  N6   NAMED refusal -- float8 overflow (22003)                   expected SQL_REFUSAL  got SQL_REFUSAL  kind=overflow     OK
+  N7   NAMED refusal -- float8 underflow (22003), counted separat expected SQL_REFUSAL  got SQL_REFUSAL  kind=underflow    OK
+  N8   UNEXPLAINED raise -- must NOT be scored as a refusal       expected SQL_RAISE    got SQL_RAISE    kind=None         OK
+  N9   UNCOMPILABLE (honest gap, never a pass)                    expected UNCOMPILABLE got UNCOMPILABLE kind=None         OK
+  N10  NULLNESS (jsonb 'null' where Python has None)              expected NULLNESS     got NULLNESS     kind=None         OK
+  SANE non-injected '1 + 2'                                   -> AGREE (must be AGREE)
+
+  extra_float_digits requested=1  session read-back=1
+
+RESULT: every injected failure landed in its declared class.  The rig can fail.
+exit=0
+########## AUTOSQL_EFD=0 ##########
+=== T-3 negative control: differ.py under deliberate injection ===
+mode: PRE-FIX (no XPR01 yet)
+  N1   class 1 (different value)                                  expected DIVERGE      got DIVERGE      kind=None         OK
+  N2   class 2 (value -> null)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N3   class 3 (null -> value)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N4   class 4 (PY_RAISE: Python raises, SQL returns a value)     expected PY_RAISE     got PY_RAISE     kind=None         OK
+  N5   SKIPPED (pre-fix runtime has no named refusal yet)
+  N6   NAMED refusal -- float8 overflow (22003)                   expected SQL_REFUSAL  got SQL_REFUSAL  kind=overflow     OK
+  N7   NAMED refusal -- float8 underflow (22003), counted separat expected SQL_REFUSAL  got SQL_REFUSAL  kind=underflow    OK
+  N8   UNEXPLAINED raise -- must NOT be scored as a refusal       expected SQL_RAISE    got SQL_RAISE    kind=None         OK
+  N9   UNCOMPILABLE (honest gap, never a pass)                    expected UNCOMPILABLE got UNCOMPILABLE kind=None         OK
+  N10  NULLNESS (jsonb 'null' where Python has None)              expected NULLNESS     got NULLNESS     kind=None         OK
+  SANE non-injected '1 + 2'                                   -> AGREE (must be AGREE)
+
+  extra_float_digits requested=0  session read-back=0
+
+RESULT: every injected failure landed in its declared class.  The rig can fail.
+exit=0
+########## AUTOSQL_EFD=-3 ##########
+=== T-3 negative control: differ.py under deliberate injection ===
+mode: PRE-FIX (no XPR01 yet)
+  N1   class 1 (different value)                                  expected DIVERGE      got DIVERGE      kind=None         OK
+  N2   class 2 (value -> null)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N3   class 3 (null -> value)                                    expected DIVERGE      got DIVERGE      kind=None         OK
+  N4   class 4 (PY_RAISE: Python raises, SQL returns a value)     expected PY_RAISE     got PY_RAISE     kind=None         OK
+  N5   SKIPPED (pre-fix runtime has no named refusal yet)
+  N6   NAMED refusal -- float8 overflow (22003)                   expected SQL_REFUSAL  got SQL_REFUSAL  kind=overflow     OK
+  N7   NAMED refusal -- float8 underflow (22003), counted separat expected SQL_REFUSAL  got SQL_REFUSAL  kind=underflow    OK
+  N8   UNEXPLAINED raise -- must NOT be scored as a refusal       expected SQL_RAISE    got SQL_RAISE    kind=None         OK
+  N9   UNCOMPILABLE (honest gap, never a pass)                    expected UNCOMPILABLE got UNCOMPILABLE kind=None         OK
+  N10  NULLNESS (jsonb 'null' where Python has None)              expected NULLNESS     got NULLNESS     kind=None         OK
+  SANE non-injected '1 + 2'                                   -> AGREE (must be AGREE)
+
+  extra_float_digits requested=-3  session read-back=-3
+
+RESULT: every injected failure landed in its declared class.  The rig can fail.
+exit=0
