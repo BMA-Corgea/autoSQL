@@ -1,0 +1,147 @@
+######## B2_overflow efd=1 ########
+=== B2. overflow and underflow, post-step-zero (efd=1) ===
+   <SQL_REFUSAL:overflow>  multiply: smallest realistic overflow
+[SQL_REFUSAL ] '$.a * $.b'  rec={'a': 1e+150, 'b': 1e+160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  divide
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e+150, 'b': 1e-160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  the shape a real dashboard writes
+[SQL_REFUSAL ] '$.qty * $.price'  rec={'qty': 1e+200, 'price': 1e+200}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  ADDITION overflow -- impossible pre-fix, possible now that operands come through
+[SQL_REFUSAL ] '($.a + $.b)'  rec={'a': 1.7976931348623157e+308, 'b': 1.7976931348623157e+308}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  negated addition overflow
+[SQL_REFUSAL ] '- ($.a + $.a)'  rec={'a': 1.7976931348623157e+308}
+               py  = -inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  aggregate feeding overflow
+[SQL_REFUSAL ] 'max($.l) * 10'  rec={'l': [1.7976931348623157e+308, 1]}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:underflow>  multiply UNDERflow
+[SQL_REFUSAL ] '$.a * $.a'  rec={'a': 1e-200}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <SQL_REFUSAL:underflow>  divide underflow
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e-300, 'b': 1e+100}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  subnormal * 0 -- exact zero, no underflow raise
+[AGREE       ] '$.a * 0'  rec={'a': 1e-320}
+   <AGREE>  smallest subnormal doubled -- exact, fine
+[AGREE       ] '$.a + $.a'  rec={'a': 5e-324}
+   <AGREE>  underflow just past the subnormal floor
+[AGREE       ] '$.a * $.b'  rec={'a': 2e-162, 'b': 2e-162}
+   <SQL_REFUSAL:underflow>  underflow inside a FILTER-shaped truthy
+[SQL_REFUSAL ] 'if(($.a * $.a), 1, 2)'  rec={'a': 1e-200}
+               py  = 2.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  count never touches f8 -- control
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1e-300]}
+
+refusal kinds histogram: {'overflow': 6, 'underflow': 3, None: 4}
+extra_float_digits read-back: 1
+######## B2_overflow efd=0 ########
+=== B2. overflow and underflow, post-step-zero (efd=0) ===
+   <SQL_REFUSAL:overflow>  multiply: smallest realistic overflow
+[SQL_REFUSAL ] '$.a * $.b'  rec={'a': 1e+150, 'b': 1e+160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  divide
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e+150, 'b': 1e-160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  the shape a real dashboard writes
+[SQL_REFUSAL ] '$.qty * $.price'  rec={'qty': 1e+200, 'price': 1e+200}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  ADDITION overflow -- impossible pre-fix, possible now that operands come through
+[SQL_REFUSAL ] '($.a + $.b)'  rec={'a': 1.7976931348623157e+308, 'b': 1.7976931348623157e+308}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  negated addition overflow
+[SQL_REFUSAL ] '- ($.a + $.a)'  rec={'a': 1.7976931348623157e+308}
+               py  = -inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:guard>  aggregate feeding overflow
+[SQL_REFUSAL ] 'max($.l) * 10'  rec={'l': [1.7976931348623157e+308, 1]}
+               py  = inf
+               sql = None  (None)  RAISED XPR01 xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)
+   <SQL_REFUSAL:underflow>  multiply UNDERflow
+[SQL_REFUSAL ] '$.a * $.a'  rec={'a': 1e-200}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <SQL_REFUSAL:underflow>  divide underflow
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e-300, 'b': 1e+100}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  subnormal * 0 -- exact zero, no underflow raise
+[AGREE       ] '$.a * 0'  rec={'a': 1e-320}
+   <AGREE>  smallest subnormal doubled -- exact, fine
+[AGREE       ] '$.a + $.a'  rec={'a': 5e-324}
+   <AGREE>  underflow just past the subnormal floor
+[AGREE       ] '$.a * $.b'  rec={'a': 2e-162, 'b': 2e-162}
+   <SQL_REFUSAL:underflow>  underflow inside a FILTER-shaped truthy
+[SQL_REFUSAL ] 'if(($.a * $.a), 1, 2)'  rec={'a': 1e-200}
+               py  = 2.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  count never touches f8 -- control
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1e-300]}
+
+refusal kinds histogram: {'overflow': 5, 'guard': 1, 'underflow': 3, None: 4}
+extra_float_digits read-back: 0
+######## B2_overflow efd=-3 ########
+=== B2. overflow and underflow, post-step-zero (efd=-3) ===
+   <SQL_REFUSAL:overflow>  multiply: smallest realistic overflow
+[SQL_REFUSAL ] '$.a * $.b'  rec={'a': 1e+150, 'b': 1e+160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  divide
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e+150, 'b': 1e-160}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  the shape a real dashboard writes
+[SQL_REFUSAL ] '$.qty * $.price'  rec={'qty': 1e+200, 'price': 1e+200}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  ADDITION overflow -- impossible pre-fix, possible now that operands come through
+[SQL_REFUSAL ] '($.a + $.b)'  rec={'a': 1.7976931348623157e+308, 'b': 1.7976931348623157e+308}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  negated addition overflow
+[SQL_REFUSAL ] '- ($.a + $.a)'  rec={'a': 1.7976931348623157e+308}
+               py  = -inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:overflow>  aggregate feeding overflow
+[SQL_REFUSAL ] 'max($.l) * 10'  rec={'l': [1.7976931348623157e+308, 1]}
+               py  = inf
+               sql = None  (None)  RAISED 22003 value out of range: overflow
+   <SQL_REFUSAL:underflow>  multiply UNDERflow
+[SQL_REFUSAL ] '$.a * $.a'  rec={'a': 1e-200}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <SQL_REFUSAL:underflow>  divide underflow
+[SQL_REFUSAL ] '$.a / $.b'  rec={'a': 1e-300, 'b': 1e+100}
+               py  = 0.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  subnormal * 0 -- exact zero, no underflow raise
+[AGREE       ] '$.a * 0'  rec={'a': 1e-320}
+   <AGREE>  smallest subnormal doubled -- exact, fine
+[AGREE       ] '$.a + $.a'  rec={'a': 5e-324}
+   <AGREE>  underflow just past the subnormal floor
+[AGREE       ] '$.a * $.b'  rec={'a': 2e-162, 'b': 2e-162}
+   <SQL_REFUSAL:underflow>  underflow inside a FILTER-shaped truthy
+[SQL_REFUSAL ] 'if(($.a * $.a), 1, 2)'  rec={'a': 1e-200}
+               py  = 2.0
+               sql = None  (None)  RAISED 22003 value out of range: underflow
+   <AGREE>  count never touches f8 -- control
+[AGREE       ] 'count($.l)'  rec={'l': [1e+300, 1e-300]}
+
+refusal kinds histogram: {'overflow': 6, 'underflow': 3, None: 4}
+extra_float_digits read-back: -3

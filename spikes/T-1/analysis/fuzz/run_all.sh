@@ -17,6 +17,9 @@ cd "$(dirname "$0")" || exit 1
 run() { echo; echo "##### $1 #####"; "$PY" "$1" ${2:-} ${3:-} ${4:-}; }
 
 run A_f8_guard.py          # the 297-digit guard literal + its blast radius
+run A_range.py             # producer written by T-3: the 20-path blast radius (before/after step zero)
+run A2_boundary.py         # producer written by T-3: bisect of the guard boundary
+run B2_overflow.py         # producer written by T-3: overflow AND underflow, post-step-zero
 run B_overflow.py          # float8 overflow AND underflow -> 22003, query aborted
 run C_numgate.py           # xpr.num's ASCII gate vs Python's Unicode-aware _to_num
 run D_rawjson.py           # jsonb `numeric` vs Python `float` on non-Python-written rows

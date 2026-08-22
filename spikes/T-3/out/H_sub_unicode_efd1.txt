@@ -1,0 +1,111 @@
+=== H. broad AST fuzz -- profile=sub_unicode  N=4000  seed=2026 ===
+    SUBSET battery: every counted expression mechanically verified inside
+    the corrected 32-construct subset (closure_subset_coverage walker);
+    ==/!= draws whose operands reached _eq as containers: DISCARDED, counted.
+
+    AGREE                      3782   94.550%
+    DIVERGE                      17    0.425%
+    PARSE_ERROR                 133    3.325%
+    DISCARDED_container_eq       68    1.700%
+    ran =                      3799   (agree+diverge+refusal+raise+nullness; refusals stay IN)
+
+    divergence classes (auto-clustered):
+      DIVERGE (class 2): value -> NULL                        12
+      DIVERGE (class 1): different value                       5
+
+    --- DIVERGE (class 2): value -> NULL (12) ---
+        expr : max("\u03a3\u038a\u03a3\u03a5\u03a6\u039f\u03a3", coalesce($.flag, (abs($.b) / ("" or true))))
+        rec  : {"a": null, "b": "ǅ", "s": false, "d": true, "l": "ΣΊΣΥΦΟΣ", "n": "2024-01-01", "flag": "١٢٣"}
+        py   : 123.0
+        sql  : None (SQL NULL)
+
+        expr : (abs(((42 - 2) + ($.l + $.c))) - coalesce(coalesce(12345.678, $.n[0]), ($.b + abs("2023-12-31T23:59:59Z"))))
+        rec  : {"a": false, "b": 99999, "c": "１２３", "s": -1, "t": "é", "d": "ÅNGSTRÖM", "e": [-1, {"s": "2023-12-31T23:59:59Z", "n": "ﬁ"}], "l": 10, "o": "ﬁ", "n": {"e": "１２３", "c": " 7 "}, "flag": {}}
+        py   : -12172.678
+        sql  : None (SQL NULL)
+
+    --- DIVERGE (class 1): different value (5) ---
+        expr : min(max($.n, ((1000 / $.o) == min($.a))), (- (min($.o[2].d, true)) - $.d.a[2]))
+        rec  : {"a": {"flag": {"n": 0.5}}, "b": false, "c": [0.1, 1000], "s": "ÅNGSTRÖM", "t": 1000, "d": 2, "l": "١٢٣", "o": "İstanbul", "n": "１２３", "flag": "ﬁ"}
+        py   : 123.0
+        sql  : 1 (number)
+
+        expr : - (((count($.d, false) - $.d) != $.o[-2][0].n))
+        rec  : {"t": null, "d": "１２３", "e": "", "flag": null}
+        py   : -1.0
+        sql  : 0 (number)
+
+    ALL wrong-answer cases (classes 1-4), in full -- 17 found:
+      [DIVERGE (class 2): value -> NULL] max("\u03a3\u038a\u03a3\u03a5\u03a6\u039f\u03a3", coalesce($.flag, (abs($.b) / ("" or true))))
+            rec={"a": null, "b": "ǅ", "s": false, "d": true, "l": "ΣΊΣΥΦΟΣ", "n": "2024-01-01", "flag": "١٢٣"}
+            py=123.0  sql=None (SQL NULL)
+      [DIVERGE (class 1): different value] min(max($.n, ((1000 / $.o) == min($.a))), (- (min($.o[2].d, true)) - $.d.a[2]))
+            rec={"a": {"flag": {"n": 0.5}}, "b": false, "c": [0.1, 1000], "s": "ÅNGSTRÖM", "t": 1000, "d": 2, "l": "١٢٣", "o": "İstanbul", "n": "１２３", "flag": "ﬁ"}
+            py=123.0  sql=1 (number)
+      [DIVERGE (class 2): value -> NULL] (abs(((42 - 2) + ($.l + $.c))) - coalesce(coalesce(12345.678, $.n[0]), ($.b + abs("2023-12-31T23:59:59Z"))))
+            rec={"a": false, "b": 99999, "c": "１２３", "s": -1, "t": "é", "d": "ÅNGSTRÖM", "e": [-1, {"s": "2023-12-31T23:59:59Z", "n": "ﬁ"}], "l": 10, "o": "ﬁ", "n": {"e": "１２３", "c": " 7 "}, "flag": {}}
+            py=-12172.678  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] (coalesce(length(($.b != $.d)), not ($.o[-1])) + $.e)
+            rec={"a": {"d": 99999}, "c": " 7 ", "s": "ǅ", "t": {"t": 7}, "d": -1, "e": "１２３", "l": "é", "o": 1000, "n": [{}, 10, "١٢٣"], "flag": 0.1}
+            py=124.0  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] max($.t)
+            rec={"a": "ß", "b": {}, "c": {}, "t": "１２３", "e": null, "n": false, "flag": 1.5}
+            py=123.0  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] ($.a * if((min($.e) + $.l), min(($.flag > 0), $.d.s), max(($.c or "\u01c5"), $.n)))
+            rec={"a": "١٢٣", "b": ["ǅ", {}], "c": false, "s": "ﬁ", "d": true, "e": {}, "l": [false, {"a": 2}], "o": [-1], "n": [], "flag": "é"}
+            py=123.0  sql=None (SQL NULL)
+      [DIVERGE (class 1): different value] - (((count($.d, false) - $.d) != $.o[-2][0].n))
+            rec={"t": null, "d": "１２３", "e": "", "flag": null}
+            py=-1.0  sql=0 (number)
+      [DIVERGE (class 2): value -> NULL] - (min($.e, $.s))
+            rec={"a": 12345.678, "c": "ﬁ", "s": [{"a": 3}, 0], "t": "ÅNGSTRÖM", "e": "١٢٣", "l": true, "o": "é", "n": {}}
+            py=-123.0  sql=None (SQL NULL)
+      [DIVERGE (class 1): different value] max(if($.l.s[-2], if(1000, if($.c.flag.l[-2][1], $.l[2], $.flag.a), if($.b.d, 1, $.n)), count(($.s or 1.5), - ("\u0661\u0662\u0663"))), $.l)
+            rec={"a": "ÅNGSTRÖM", "b": "2024-02-29", "c": 3, "d": 42, "e": [], "l": "１２３", "o": "ﬀ", "n": "2024-01-01T00:00:00+05:30", "flag": "ÅNGSTRÖM"}
+            py=123.0  sql=1 (number)
+      [DIVERGE (class 1): different value] coalesce(min($.b), 0.1)
+            rec={"b": "１２３", "c": [], "s": [], "t": {"flag": [null]}, "e": "not a date", "o": [" 12 ", " 7 "], "n": "ÅNGSTRÖM", "flag": 2}
+            py=123.0  sql=0.1 (number)
+      [DIVERGE (class 2): value -> NULL] (((($.t[-1][-1] and $.a.d.l[0]) + $.e) - $.l) - abs(0))
+            rec={"c": {"n": null}, "t": {"o": [1000, "1e3"]}, "e": 7, "l": "١٢٣", "o": "straße", "flag": [false]}
+            py=-116.0  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] coalesce($.l, min($.c))
+            rec={"a": "not a date", "b": "ﬁ", "c": "１２３", "s": [], "d": {}, "e": 0.5, "o": "ß", "flag": [null, "ﬁ", {"d": 10, "b": " 7 "}]}
+            py=123.0  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] (((not ($.e.t) / ($.flag / -0.001)) + min(coalesce($.s.d, $.o))) > - (count($.n)))
+            rec={"a": null, "b": null, "c": -0.001, "s": false, "d": [-1, ["2024-13-45"]], "e": {"o": "１２３"}, "o": "１２３", "n": [{}, "İstanbul"], "flag": "é"}
+            py=True  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] ($.s > max($.l, if(false, 12345.678, $.b)))
+            rec={"a": "İstanbul", "b": "１２３", "s": 1, "t": 1, "e": 100, "l": [5, {}, {"d": "9999-12-31"}], "n": 10}
+            py=False  sql=None (SQL NULL)
+      [DIVERGE (class 2): value -> NULL] (count("1e3") - if(- ("1e3"), $.flag, $.o))
+            rec={"a": "", "b": 3, "s": [], "t": "é", "d": true, "e": "🙂", "l": null, "o": "ﬀ", "flag": "１２３"}
+            py=-122.0  sql=None (SQL NULL)
+      [DIVERGE (class 1): different value] count(coalesce($.e[1][0], - (if($.n[-1], $.d, $.s))), coalesce(5, (($.flag[2] < false) < $.d)))
+            rec={"a": [], "b": 5, "c": "1e3", "s": "１２３", "t": 7, "d": {"a": [3], "b": {"e": "é"}}, "l": false, "n": 1, "flag": {}}
+            py=2.0  sql=1 (number)
+      [DIVERGE (class 2): value -> NULL] min($.e, (coalesce(-2.25, false) * (max($.flag[0]) * max($.flag.c[-1]))))
+            rec={"a": "ᾀ", "c": {}, "s": [null, 7], "d": -0.001, "e": "١٢٣", "l": null, "o": {}, "flag": []}
+            py=123.0  sql=None (SQL NULL)
+
+    domain-gate witnesses (framing 5.3 half two; py-mode rows):
+      UNTESTED  old guard boundary, below (1.79769313486231551e296) (not reached by this battery)
+      UNTESTED  old guard boundary, above (1.79769313486231587e296) (not reached by this battery)
+      UNTESTED  real limit DBL_MAX (1.7976931348623157e308)    (not reached by this battery)
+      UNTESTED  real limit, just below (1.7976931348623155e308) (not reached by this battery)
+      UNTESTED  1e200 (infinity composable: 1e200*1e200)       (not reached by this battery)
+      UNTESTED  subnormal 5e-324                               (not reached by this battery)
+      UNTESTED  subnormal 1e-320                               (not reached by this battery)
+      UNTESTED  2**53                                          (not reached by this battery)
+      UNTESTED  2**53 + 2                                      (not reached by this battery)
+      UNTESTED  0.0                                            (not reached by this battery)
+      UNTESTED  -0.0                                           (not reached by this battery)
+      REACHED   coercing string ' 7 '                          e.g. 0
+      REACHED   coercing string '1e3'                          e.g. $.o
+      REACHED   coercing string '１２３' (full-width)             e.g. $.o
+
+    fingerprints (inadmissibility item 5):
+      expr.py     sha256=90cbb56d04b08b82
+      compile.py  sha256=b71b153802d0df94
+      runtime.sql sha256=1c58d548a6045aa6
+      efd requested=1 read-back=1  seed=2026  N=4000  wall=3.0s

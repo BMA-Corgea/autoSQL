@@ -15,3 +15,4 @@
 {"ts":"2026-08-22T17:52:03.627Z","kind":"stage.advanced","ticket":"T-3","from":"sp-frame","to":"sp-investigate"}
 {"ts":"2026-08-22T18:09:14.586Z","kind":"stage.advanced","ticket":"T-2","from":"locate","to":"plan"}
 {"ts":"2026-08-22T18:09:23.325Z","kind":"stage.advanced","ticket":"T-2","from":"plan","to":"build"}
+{"ts":"2026-08-22T18:24:32.143Z","kind":"stage.advanced","ticket":"T-3","from":"sp-investigate","to":"sp-synth"}

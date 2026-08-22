@@ -55,7 +55,37 @@ if "port=55433" in DSN:
         "  Use a throwaway one. See spikes/T-1/proto/REGENERATE-CORPUS.md."
     )
 
+# T-3 (2026-08-22, spec EXPERIMENTS.md 1.4 item 1 / framing C3): the float-digit setting is
+# an ARGUMENT now, not a pin.  Q10 requires the correctness run at all three values, and this
+# file's old hard-coded `SET extra_float_digits = 1` would have run all three "settings" at 1.
+EFD = os.environ.get("AUTOSQL_EFD", "1")
+if EFD not in ("1", "0", "-3"):
+    raise SystemExit(
+        "AUTOSQL_EFD must be one of 1, 0, -3 (Q10's three settings); got %r" % EFD
+    )
+EFD_READBACK = None   # filled on first connect; batteries record it beside their counts
+
 _EPS = 1e-9   # expr_vectors.json float_epsilon
+
+# The SQLSTATE the step-zero runtime raises for its NAMED out-of-float8-range refusal
+# (the GA-4 ruling: raise loudly instead of returning NULL).  Anything arriving with this
+# code is xpr.f8/xpr.num refusing on purpose.
+GUARD_REFUSAL_SQLSTATE = "XPR01"
+
+
+def refusal_kind(pgcode, message):
+    """framing 4.5/C4: a refusal must be IDENTIFIABLE.  Returns the named kind for a
+    deliberate refusal, or None for an unexplained raise (which stays a defect)."""
+    if pgcode == GUARD_REFUSAL_SQLSTATE:
+        return "guard"                       # xpr.f8/xpr.num named refusal (step zero)
+    if pgcode == "22003":
+        m = (message or "").lower()
+        if "underflow" in m:
+            return "underflow"               # counted separately per framing 4.7
+        if "overflow" in m:
+            return "overflow"
+        return "out_of_range"                # e.g. float8 input parse of a subnormal-below-min
+    return None
 
 
 def matches(actual, expected) -> bool:
@@ -71,12 +101,19 @@ _conn = None
 
 
 def conn():
-    global _conn
+    global _conn, EFD_READBACK
     if _conn is None:
         _conn = psycopg2.connect(DSN)
         _conn.autocommit = True
         with _conn.cursor() as cur:
-            cur.execute("SET extra_float_digits = 1")   # PG12+ default, pinned
+            cur.execute("SET statement_timeout = '20s'")      # same value conformance.py uses
+            cur.execute("SET extra_float_digits = %s", (int(EFD),))   # was pinned to 1; see EFD
+            cur.execute("select current_setting('extra_float_digits')")
+            EFD_READBACK = cur.fetchone()[0]
+        if EFD_READBACK != EFD:
+            raise SystemExit(
+                "positive-control failure: requested extra_float_digits=%s, session says %s"
+                % (EFD, EFD_READBACK))
     return _conn
 
 
@@ -90,9 +127,16 @@ def run_case(src, record=None, ctx=None, mode="py", raw=None, note=""):
     verdict is one of:
       AGREE            both produced a value and matches() is True
       DIVERGE          both produced a value and matches() is False
-      SQL_RAISE        Postgres raised where Python returned  (totality violation)
+      SQL_REFUSAL      Postgres raised a NAMED, deliberate refusal where Python
+                       returned (T-3 split, framing C4/R7: SQLSTATE XPR01 = the
+                       step-zero guard, or 22003 overflow/underflow/out-of-range;
+                       out["refusal_kind"] says which).  Allowed by the GA-4
+                       ruling; counted, never a pass and never a fail.
+      SQL_RAISE        Postgres raised something UNNAMED where Python returned --
+                       an unexplained raise, still a defect line
       PY_RAISE         Python raised where Postgres returned  (expr is not total!)
-      BOTH_RAISE       both raised
+      BOTH_RAISE       both raised (reported on the refusal line -- neither side
+                       produced an answer, so nothing can be wrong)
       UNCOMPILABLE     compile.py refused (an honest gap, never a pass)
       NULLNESS         values decode equal but one side is SQL NULL and the other
                        jsonb 'null' -- a leak of the representation contract
@@ -140,7 +184,10 @@ def run_case(src, record=None, ctx=None, mode="py", raw=None, note=""):
     except psycopg2.Error as e:
         is_null = jt = vt = None
         sql_raised = f"{e.pgcode} {str(e).strip().splitlines()[0]}"
+        out["sqlstate"] = e.pgcode
+        out["refusal_kind"] = refusal_kind(e.pgcode, str(e))
     out["sql_raised"] = sql_raised
+    out["efd"] = EFD_READBACK
 
     if sql_raised is None:
         sql_val = None if (is_null or jt == "null") else json.loads(vt)
@@ -166,7 +213,10 @@ def run_case(src, record=None, ctx=None, mode="py", raw=None, note=""):
     elif py_raised:
         out["verdict"] = "PY_RAISE"          # expr claims to be total; it is not
     elif sql_raised:
-        out["verdict"] = "SQL_RAISE"         # FRAMING section 5: highest severity
+        # T-3 split (framing C4, ruling R7): a NAMED refusal is the GA-4 ruling's intended
+        # behaviour and must not be scored with genuine defects; an unexplained raise stays
+        # SQL_RAISE and stays a defect.  Under T-1's framing every raise was one class.
+        out["verdict"] = ("SQL_REFUSAL" if out.get("refusal_kind") else "SQL_RAISE")
     elif py is None and jt == "null":
         out["verdict"] = "NULLNESS"
     else:

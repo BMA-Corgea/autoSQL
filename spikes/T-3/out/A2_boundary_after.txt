@@ -1,0 +1,14 @@
+######## A2_boundary efd=1 ########
+=== A2. exact boundary of the xpr.f8 guard, by bisection (efd=1) ===
+largest magnitude that still round-trips : 1.79769313486231571e+308  (= DBL_MAX itself)
+no CORRUPTED region among py-representable finite doubles at this setting.
+first magnitude past DBL_MAX (raw 1e309) : SQL_REFUSAL:guard
+negative side at -1e300                  : AGREE
+######## A2_boundary efd=0 ########
+=== A2. exact boundary of the xpr.f8 guard, by bisection (efd=0) ===
+largest magnitude that still round-trips : 4.16075161600000000e+09
+smallest that no longer AGREEs           : 4.16075161600000048e+09  (verdict DIVERGE)
+######## A2_boundary efd=-3 ########
+=== A2. exact boundary of the xpr.f8 guard, by bisection (efd=-3) ===
+largest magnitude that still round-trips : 3.22122752000000000e+09
+smallest that no longer AGREEs           : 3.22122752000000048e+09  (verdict DIVERGE)
