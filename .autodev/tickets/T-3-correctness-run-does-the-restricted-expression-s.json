@@ -3,7 +3,7 @@
   "slug": "correctness-run-does-the-restricted-expression-s",
   "type": "spike",
   "title": "Correctness run: does the restricted expression subset ever return a wrong number?",
-  "stage": "sp-synth",
+  "stage": "sp-decide",
   "status": "spike_review",
   "spec": "THE RUN Evan funded first (his Q6: 'Both, correctness run first'). Full spec: spikes/T-1/EXPERIMENTS.md section 1.\n\nQUESTION: on the restricted subset only, does the generated SQL ever disagree with the Python evaluator — a different value, a value turning into null, a null turning into a value, or Python raising where SQL quietly returns a number?\n\nPASS BAR: zero wrong answers of any kind. Not 'few'. Zero.\n\nBINDING CONSTRAINTS (Evan's answers, ANSWERS-FROM-EVAN.md):\n- Q10: run the 130 cases at all three extra_float_digits values and report each separately.\n- Q11: no database indexes, ever. Do not assume index help anywhere.\n- Q7: the throwaway instruments under spikes/T-1/proto and analysis/fuzz MAY be edited in place.\n- Q2: this run IS the acceptance test. The 130-case fixture was ruled inadequate for a third runtime.\n\nKNOWN BEFORE STARTING: EXPERIMENTS.md section 1.2 records that the restricted subset FAILS this bar today — there is a 12-character defect in a guard literal, and one divergence survives fixing it (expressions that can produce a magnitude above the largest representable double, which is not decidable when the SQL is generated because it depends on the row).\n\nBLOCKED ON EVAN: how to handle that surviving divergence — exclude such expressions, write a named carve-out into the bar, or refuse the subset. Do not pick for him.",
   "pipeline_version": "spike@v2",
@@ -16,11 +16,11 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-08-21 created as spike \"Correctness run: does the restricted expression subset ever return a wrong number?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)",
-    "2026-08-22 sp-frame: worker started (claude-fable-5) 17:40",
     "2026-08-22 advanced sp-frame → sp-investigate · sp-frame on claude-fable-5",
     "2026-08-22 sp-investigate: worker started (claude-fable-5) 17:52",
-    "2026-08-22 advanced sp-investigate → sp-synth · sp-investigate on claude-fable-5"
+    "2026-08-22 advanced sp-investigate → sp-synth · sp-investigate on claude-fable-5",
+    "2026-08-22 sp-synth: worker started (claude-fable-5) 18:25",
+    "2026-08-22 advanced sp-synth → sp-decide · sp-synth on claude-fable-5"
   ],
   "assignees": {},
   "links": {},
@@ -53,6 +53,12 @@
       "to": "sp-synth",
       "by": "agent:claude(on-behalf:evan,GA-6)",
       "at": "2026-08-22T18:24:32.136Z"
+    },
+    {
+      "from": "sp-synth",
+      "to": "sp-decide",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-22T18:33:36.652Z"
     }
   ],
   "receipts": {
@@ -70,6 +76,14 @@
       "fingerprint": "spikes/T-3/FINDINGS.md (599 lines, verdict in §10) + 29 raw outputs in spikes/T-3/out/ (controls, 9 fuzz battery outputs, domain gate, boundary bisect, overflow, timestamp witness, nullness/immutable probes, fixture JSONs x6); instrument edits in spikes/T-1/analysis/fuzz/{differ.py,H_ast_fuzz.py,A_range.py,A2_boundary.py,B2_overflow.py,run_all.sh} and spikes/T-1/proto/{runtime.sql,conformance.py}; handoff updated at .autodev/handoffs/T-3.md",
       "by": "agent:claude(on-behalf:evan,GA-6)",
       "at": "2026-08-22T18:24:32.134Z",
+      "model": "claude-fable-5"
+    },
+    "sp-synth": {
+      "evidence": "spikes/T-3/SYNTHESIS.md (406 lines, 8 sections — the decision document: the answer, the two mechanisms with worked examples, the prevalence qualifier at the top of §3, four options A–D each with its honest case plus a read-only homework item, a labelled recommendation with its own weakest point stated, what is still unknown, and the evidence-integrity note), backed by spikes/T-3/FINDINGS.md and the 29 raw outputs in spikes/T-3/out/ it was spot-checked against; handoff trail in .autodev/handoffs/T-3.md",
+      "kind": "other",
+      "fingerprint": "spikes/T-3/SYNTHESIS.md (406 lines, 8 sections — the decision document: the answer, the two mechanisms with worked examples, the prevalence qualifier at the top of §3, four options A–D each with its honest case plus a read-only homework item, a labelled recommendation with its own weakest point stated, what is still unknown, and the evidence-integrity note), backed by spikes/T-3/FINDINGS.md and the 29 raw outputs in spikes/T-3/out/ it was spot-checked against; handoff trail in .autodev/handoffs/T-3.md",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-22T18:33:36.649Z",
       "model": "claude-fable-5"
     }
   }
