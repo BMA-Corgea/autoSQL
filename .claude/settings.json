@@ -7,5 +7,17 @@
     "AUTODEV_MODEL_STANDARD": "claude-sonnet-5",
     "AUTODEV_MODEL_STRONG": "claude-fable-5",
     "AUTODEV_MODEL_FALLBACK": "claude-opus-5"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node \"$CLAUDE_PLUGIN_ROOT/scripts/notify.mjs\" process --root . --shop autosql >/dev/null 2>&1; ops/notify-telegram.sh >/dev/null 2>&1 || true"
+          }
+        ]
+      }
+    ]
   }
 }

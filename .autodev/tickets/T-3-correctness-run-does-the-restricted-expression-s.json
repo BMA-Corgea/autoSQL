@@ -16,7 +16,8 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-08-21 created as spike \"Correctness run: does the restricted expression subset ever return a wrong number?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)"
+    "2026-08-21 created as spike \"Correctness run: does the restricted expression subset ever return a wrong number?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)",
+    "2026-08-22 sp-frame: worker started (claude-fable-5) 17:40"
   ],
   "assignees": {},
   "links": {},

@@ -1,0 +1,202 @@
+{
+  "_source": "REPO-LOCAL OVERRIDE (autosql). Copied from the plugin's data/gates.json on 2026-08-22 and extended with a `design` gate, per Evan's wrapup item 4 answer under GA-6: 'Make it a real checkpoint'. Repo-local because tracker.mjs resolves gates.json from .autodev/data/ first and falls back to the plugin \u2014 so this survives a plugin update, which a patch to the plugin cache would not. When the plugin ships its own design gate, delete this file and this repo inherits it again.",
+  "gates": {
+    "spec_ready": {
+      "name": "spec_ready",
+      "position": "refine",
+      "question": "Is this spec ready to build from? Read the acceptance criteria: are they testable, is the scope what you actually want, and is anything missing that you would regret discovering after the build?",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Read the ticket's spec and acceptance criteria. If you cannot tell what 'done' looks like from the ACs alone, the spec is not ready \u2014 send it back with the question that stumped you."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "human"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "merge": {
+      "name": "merge",
+      "position": "gate",
+      "question": "Should this change land on the shared branch now? The automated checks are green and review findings are resolved or waived \u2014 do you accept those waivers and want this code in the codebase?",
+      "keyholder": {
+        "seat": "human:lead",
+        "instructions": "Open the PR. Check the review findings and any waivers; a green suite is necessary but not sufficient. If a waiver makes you uneasy, hold and say why."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "unattended"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "accept": {
+      "name": "accept",
+      "position": "uat",
+      "question": "Is this what you actually asked for? Compare the finished work against your original intent \u2014 not against the spec. Does it do what you meant, and would you show it to someone?",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Use the thing, do not just read about it. Follow the acceptance package's numbered checklist against the running product. Judge intent-conformance: the spec can be satisfied while the intent is not."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "auto-when-green"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "acceptance-package"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "deploy": {
+      "name": "deploy",
+      "position": "release",
+      "question": "Ship this to production now? Verification is green \u2014 is the timing right (no one mid-demo, someone reachable if it breaks), and is the rollback path confirmed?",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Confirm the rollback path exists before saying yes. If you would not want to be paged about this change tonight, hold it until you would."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "unattended"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "sp_decide": {
+      "name": "sp_decide",
+      "position": "sp-decide",
+      "question": "The research is in \u2014 options, evidence, and a recommendation. Do you accept the recommendation, pick another option, or send it back for more digging?",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Read the synthesis, not just the recommendation. Ruling 29: a spike's decision_authority can dial this per spike (autonomous | recommend-and-wait | auto-unless-contested) via the ticket's per-gate override; the shop policy here is the default."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "human"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "ex_decide": {
+      "name": "ex_decide",
+      "position": "ex-decide",
+      "question": "The experiment window closed and the numbers are in. Against the decision rule you set at frame time: keep it, kill it, or iterate?",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Read the readout numbers against YOUR framed decision rule \u2014 the rule's verdict is a recommendation, not a clearance. If the numbers are ambiguous, iterate is an honest answer."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {}
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "compliance": {
+      "name": "compliance",
+      "position": "compliance-review",
+      "question": "Does this change meet the team's compliance obligations \u2014 data handling, audit trail, accessibility, regulatory requirements \u2014 with the evidence attached, before it goes any further?",
+      "keyholder": {
+        "seat": "human:compliance-officer",
+        "instructions": "Check the compliance checklist for this change class. Every obligation gets an explicit yes-with-evidence or a named blocker; 'probably fine' is a hold, not a pass."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {}
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    },
+    "design": {
+      "name": "design",
+      "position": "design",
+      "question": "Is this the look you want built? You are seeing the screen as a drawing, before anyone writes it. Layout, wording, how loudly it says what it needs to say \u2014 say it now, while changing it is layout work rather than rework.",
+      "keyholder": {
+        "seat": "human:owner",
+        "instructions": "Open the mock and drive it \u2014 do not judge it from a description. Click every state it offers, and look at it on the monitor you will actually use. If a drawing cannot settle something, the design brief's open-questions section is where to answer it."
+      },
+      "policy": {
+        "default": "human",
+        "shops": {
+          "solo-builder": "human"
+        }
+      },
+      "notify": {
+        "channel": null,
+        "template": "decision-packet"
+      },
+      "clears_by": [
+        "human:<id>",
+        "agent:<role>(on-behalf:<human>,<ref>)",
+        "policy:auto-when-green",
+        "policy:unattended"
+      ]
+    }
+  },
+  "_policy_values": "human (the human's call; an agent MAY clear on their behalf, recorded honestly as agent:...(on-behalf:<human>,<why>)) | human:strict (ONLY a confirmed human \u2014 on-behalf refused, so the gate truly holds and unattended work stops there) | auto-when-green | unattended"
+}

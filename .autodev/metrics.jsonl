@@ -10,3 +10,5 @@
 {"ts":"2026-08-21T22:19:32.481Z","kind":"stage.advanced","ticket":"T-2","from":"refine","to":"design"}
 {"ts":"2026-08-21T23:43:06.649Z","kind":"stage.advanced","ticket":"T-2","from":"design","to":"queue"}
 {"ts":"2026-08-22T05:41:03.729Z","kind":"ticket.blocked","ticket":"T-2","stage":"queue"}
+{"ts":"2026-08-22T17:35:49.015Z","kind":"ticket.unblocked","ticket":"T-2","stage":"queue"}
+{"ts":"2026-08-22T17:39:51.250Z","kind":"stage.advanced","ticket":"T-2","from":"queue","to":"locate"}

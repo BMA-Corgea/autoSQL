@@ -298,3 +298,72 @@ the 46-question form (`QUESTIONS-FOR-EVAN.md`) and the 12-item follow-up (`WAITI
 - **Q31's note** — write instructions for regenerating the 1,000-to-1,000,000-row test corpus. Not started.
 - **Q1's ambiguity** — the tick says don't build, the note says build the bounded path. Acting on the tick; one line from him settles it.
 - **The speed run's absolute latency bar** — he set the direction, not the number. A proposal is being drafted for him to accept or change.
+
+---
+
+# Round three — the wrap-up form · 22 Aug 2026
+
+Asked and answered in session on 2026-08-22, before he went AFK for the day. Recorded as
+**GA-6** on T-2, T-3 and T-4 with `scope_confirmed: true`. His framing, verbatim:
+
+> "so I'm going to be AFK for most of the day. Open the form for me and let me answer the
+> questions, but with those, I need you to take over and be as autonomous as possible, using
+> your best judgement and previously answered questions for guidance for what I want, and
+> getting through the available tickets"
+
+**Nine of the 38 items answered — every item that gated today's work.** The remaining 29 fall to
+best judgement under GA-6; each is recorded where it is taken and each stays one line to overturn.
+
+**Item 1.** GA-4 approved one ticket; it was used to rule on three. How far did that sentence reach?
+
+→ **It covered everything I was asked**
+
+> The scope-confirm that was missing on GA-4 is now on the record as GA-6. All ~21 rulings stand,
+> including those on T-1 and T-3. Nothing reverted, nothing re-run.
+
+**Item 2.** Your tick said don't build; your note said build.
+
+→ **Right — tick is GIMS, note is the demo**
+
+**Item 3.** The demo screen's look — you have not seen it.
+
+→ **Approve as drawn**
+
+> APPLIED — T-2's block lifted on this answer; it was the block's own stated remedy. The build
+> copies the mock exactly. The five open questions in the design brief's §9 fall to the builder.
+
+**Item 4.** The design stage exists; the look sign-off has no stopping point.
+
+→ **Make it a real checkpoint**
+
+> APPLIED — repo-local `.autodev/data/gates.json` (survives plugin updates; tracker resolves
+> repo-first) now carries a `design` gate, policy `human:strict` in `gates-policy.json`. Strict
+> on purpose: plain `human` allows on-behalf clearing under a broad go-ahead, which is the exact
+> route by which the look nearly got built unseen. Doctor: 19 pass.
+
+**Item 5.** "Full process for the demo" was never switched on.
+
+→ **Run the rest of T-2 full, starting tomorrow**
+
+> APPLIED — `shop.json` `settings.lean` = false. Flip back once T-2 ships.
+
+**Item 6.** Last night's work is not committed, and not on your other machine.
+
+→ *Moot — already committed and pushed before he was asked.* HEAD `f274cd7` = `origin/main`.
+
+**Item 27.** Nothing actually sends the Telegram ping when work stops.
+
+→ **Install the automatic hook**
+
+> APPLIED and PROVEN — `Stop` hook in `.claude/settings.json`; `notify-telegram.sh --test` sent a
+> ping that reached his phone. Running commentary left off, as he chose.
+
+**Item 28.** Three tickets are ready at once, and two of them cannot share this machine.
+
+→ **Correctness run alongside the demo, timing run alone later**
+
+**Item 31.** Three AutoDev bugs written up, never sent.
+
+→ **File it**
+
+> One issue, all three bugs, under his GitHub account; link returned to him.

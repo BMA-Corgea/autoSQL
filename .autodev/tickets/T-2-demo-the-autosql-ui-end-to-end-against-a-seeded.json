@@ -3,8 +3,8 @@
   "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
   "type": "feature",
   "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
-  "stage": "queue",
-  "status": "todo",
+  "stage": "locate",
+  "status": "locating",
   "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
   "pipeline_version": "feature@v1",
   "modifiers": [
@@ -26,11 +26,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-21 advanced intake → refine · intake on claude-opus-5[1m]",
-    "2026-08-21 gate spec_ready cleared by agent:claude(on-behalf:evan,GA-4) on go-ahead GA-4 (\"I feel like these questions can be answered with your best j\")",
-    "2026-08-21 advanced refine → design · refine on claude-opus-5[1m]",
-    "2026-08-21 advanced design → queue · design on claude-opus-5[1m]",
-    "2026-08-22 BLOCKED at queue: HOLD FOR EVAN'S LOOK SIGN-OFF. His Q27 asked for 'a design stage and a look sign-off'; the design modifier gave T-2 a design STAGE but this pipeline has no design GATE, so the ticket flowed to 'queue' with nothing stopping it. It got there under GA-5 ('Be as autonomous as possible'), which is his AFK note, not approval of the screen. Without this block, the next session told to keep going would build the UI he has never seen. The design is published at https://claude.ai/code/artifact/334be0e8-4bda-4893-909f-293fd6b74e47 and paged to him. Unblock when he has looked."
+    "2026-08-22 BLOCKED at queue: HOLD FOR EVAN'S LOOK SIGN-OFF. His Q27 asked for 'a design stage and a look sign-off'; the design modifier gave T-2 a design STAGE but this pipeline has no design GATE, so the ticket flowed to 'queue' with nothing stopping it. It got there under GA-5 ('Be as autonomous as possible'), which is his AFK note, not approval of the screen. Without this block, the next session told to keep going would build the UI he has never seen. The design is published at https://claude.ai/code/artifact/334be0e8-4bda-4893-909f-293fd6b74e47 and paged to him. Unblock when he has looked.",
+    "2026-08-22 unblocked at queue: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.",
+    "2026-08-22 advanced queue → locate · queue on claude-opus-5[1m]",
+    "2026-08-22 locate: worker started (claude-fable-5) 17:41",
+    "2026-08-22 checkpoint accept: human → human:strict by agent:claude(on-behalf:evan,GA-6): Wrapup items 35/36, ruled under GA-6 best-judgement. Evan's Q34 named QA acceptance as his safety net, and items 35/36 point out it has never been a real stop - a 'human' gate is clearable on his behalf, so nothing has ever actually waited for him. Hardened on THIS TICKET ONLY (not shop-wide: he did not answer 35/36, and a per-ticket override is the reversible version). Effect: T-2 physically cannot ship until Evan himself clears it with --i-am-human. This matches the decision already taken this session to drive T-2 to uat and stop there rather than accept on his behalf."
   ],
   "assignees": {},
   "links": {},
@@ -43,7 +43,11 @@
     "ex_decide": false,
     "compliance": false
   },
-  "overrides": {},
+  "overrides": {
+    "gates": {
+      "accept": "human:strict"
+    }
+  },
   "loop": {
     "validator_passed": false,
     "attempts": 0
@@ -66,6 +70,12 @@
       "to": "queue",
       "by": "agent:claude(on-behalf:evan,GA-5)",
       "at": "2026-08-21T23:43:06.648Z"
+    },
+    {
+      "from": "queue",
+      "to": "locate",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-22T17:39:51.243Z"
     }
   ],
   "pins": {
@@ -95,12 +105,14 @@
       "by": "agent:claude(on-behalf:evan,GA-5)",
       "at": "2026-08-21T23:43:06.647Z",
       "model": "claude-opus-5[1m]"
+    },
+    "queue": {
+      "evidence": ".autodev/specs/T-2-queue.md — ordering of T-2/T-3/T-4 decided against Evan's wrapup item 28 answer, with the ready-for-agent input list (spec, punchlist, approved visual target) and the explicit GIMS no-touch boundary from item 2.",
+      "kind": "other",
+      "fingerprint": ".autodev/specs/T-2-queue.md — ordering of T-2/T-3/T-4 decided against Evan's wrapup item 28 answer, with the ready-for-agent input list (spec, punchlist, approved visual target) and the explicit GIMS no-touch boundary from item 2.",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-22T17:39:51.242Z",
+      "model": "claude-opus-5[1m]"
     }
-  },
-  "blocked": {
-    "reason": "HOLD FOR EVAN'S LOOK SIGN-OFF. His Q27 asked for 'a design stage and a look sign-off'; the design modifier gave T-2 a design STAGE but this pipeline has no design GATE, so the ticket flowed to 'queue' with nothing stopping it. It got there under GA-5 ('Be as autonomous as possible'), which is his AFK note, not approval of the screen. Without this block, the next session told to keep going would build the UI he has never seen. The design is published at https://claude.ai/code/artifact/334be0e8-4bda-4893-909f-293fd6b74e47 and paged to him. Unblock when he has looked.",
-    "remedy": "Evan looks at the artifact and says go, or says what to change. Then: tracker.mjs unblock T-2 --by <actor>",
-    "since": "2026-08-22T05:41:03.728Z",
-    "by": "agent:claude(on-behalf:evan,GA-5)"
   }
 }

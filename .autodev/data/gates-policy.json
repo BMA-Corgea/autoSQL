@@ -7,6 +7,7 @@
     "deploy": "unattended",
     "sp_decide": "human",
     "ex_decide": "human",
-    "compliance": "human"
+    "compliance": "human",
+    "design": "human:strict"
   }
 }
