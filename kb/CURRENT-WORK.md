@@ -5,133 +5,156 @@ Target size: ~2 pages. The **live edge** — what is in motion right now — is 
 past keeps ~15 items or ~30 days, one line each with the WHY; anything older is dropped here and found
 via the reference table below.
 
+**Last rewritten at the 2026-08-21/22 wrap-up, from the ticket files, `.autodev/events.jsonl` and
+the files on disk.** The previous version had drifted badly — it described T-2 as still writing its spec, called a
+document that exists "not started", and its first bullet had lost its opening line. Every figure below
+was re-read from the file it came from.
+
 **Process words used below, in plain terms.** A ticket moves through *stages*. A spike (a
 time-boxed investigation, not a build) runs `sp-frame` → `sp-investigate` → `sp-synth` → `sp-decide`
 → `sp-spawn`: frame the question, do the research, write it up, get the human ruling, then turn the
 accepted option into build tickets. A feature runs `intake` (turn the request into a scoped ticket)
-→ `refine` (write the spec) → `design` → build and on. A *gate* is a checkpoint a ticket cannot pass
-until a named person signs it — "uncleared" means nobody has signed yet. A *modifier* is an optional
-extra stage bolted onto the standard pipeline (`design@v1` = add a design stage). A ticket's
-*passport* is the running log inside its own ticket file of every move it made and why.
+→ `refine` (write the spec) → `design` → `queue` → build and on. A *gate* is a checkpoint a ticket
+cannot pass until a named person signs it — "uncleared" means nobody has signed yet. A *block* is a
+deliberate stop recorded on a ticket, with a reason and a remedy. A *modifier* is an optional extra
+stage bolted onto the standard pipeline (`design@v1` = add a design stage). A ticket's *passport* is
+the running log inside its own ticket file of every move it made and why. A *go-ahead* (GA-*n*) is a
+recorded line from Evan authorising a class of decisions, logged verbatim with a timestamp. A *ruling
+on delegated authority* is a decision a session took **for** him under one of those — always labelled,
+always showing its derivation, always overturnable by one line from him.
 
 ## Live edge
 
 <!-- What is in motion right now: one line per active ticket/effort —
      what, why, where it stands, what is next. Never pruned while live. -->
-  cleared 2026-08-21**
-  **Ruled. Evan decided NO-GO: don't build yet, fund the two follow-up runs** — recorded as go-ahead
-  **GA-3** in `.autodev/events.jsonl` with his words verbatim. It went backwards first: he ruled on
-  2026-08-21 but made it conditional on two checks (Q4: prove the test rig can report a failure; Q5:
-  reconstruct the missing reports), so the ruling was **stated, not signed** and the `sp_decide` gate
-  stayed uncleared. T-1 returned to `sp-investigate` for exactly those two items, both came back done
-  (`spikes/T-1/RECHECK-2026-08-21.md`), and he then signed. **The ruling:** NO-GO on the
-  standalone-compiler-plus-thin-adapter architecture as scoped — not "impossible" (all 130 fixture
-  cases agree exactly, with no case needing the 1e-9 tolerance) and not "discard the work", but "do
-  not fund this on this evidence; run E1 and E2 first". It turns on three facts, none of which the
-  re-check touched: `resolve()` has no field through which a fallback could be reported; the compiled
-  path is 3.79×–7.15× slower with no crossover (and Q11 turns index use off permanently, removing the
-  only route by which that could ever have closed); and 18 of 33 divergence classes are undetectable
-  at query time, with the CONDITIONAL-GO subset covering only 68/130 (52.3%). What the re-check moved:
-  the rig is **proven able to report a failure**, so 130/130 is a credible fact — which *removes* the
-  stated ground for calling the fixture-adequacy leg "firmer"; and it found two holes `FINDINGS.md`
-  did not disclose (a closure seat — one reviewing agent — died mid-pass, leaving 6 verification
-  corrections unapplied, 2 of them wrong in the published text; and `+463%`, cited 11 times, rests
-  on an unreproducible number that prices at +2.2% without it). **Both wrong numbers are now fixed**:
-  Evan authorised the amendment (GA-3, "Fix them — re-fingerprint the document"), it ran on
-  2026-08-21, and the three remaining corrections are cosmetic and named in the closure log.
-  Evidence: `spikes/T-1/FINDINGS.md` (5,528 lines, sha256
-  `bcda73d6…` — superseding `33c62975…` and, before that, `67fbe421…`; the `.parts/` fragment tree
-  now rebuilds it byte-identically, so regenerating it can no longer silently revert the amendment)
-  + `RECHECK-2026-08-21.md`; the decision page
-  `kb/wiki/expr-ast-to-postgres-sql.md` carries all of it (~4,400 words, about ten printed pages, ~15
-  minutes — not the "two-page summary" earlier handoffs called it). **Next:** `sp-spawn` turns the
-  ruling into build tickets for **E1** (the subset acceptance battery) and **E2** (the like-for-like
-  speed run), correctness run first per Q6.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — design
-  **Unblocked and moving.** Out of `intake` since 2026-08-21 on Evan's scope answers, with a **design
-  stage added** (modifier `design@v1`, his Q27: he approves the look before the demo UI is built rather
-  than first seeing it at accept). Now at `refine` writing the spec; the `spec_ready` gate is uncleared
-  — nobody has approved the spec yet — and **his approval of it is the next thing waiting on him**.
-  Q3 puts this demo *before* any GIMS contract change, and now that T-1's gate is cleared it is no
-  longer held behind that decision either — that is a consequence of the ruling, not a standing fact,
-  and Q18 sets the limit it releases under: *"Green light, but only the safe operations."* Its
-  SQL-generation layer is still what the T-1 ruling governs, so the ticket gets re-read against the
-  ruling as the spec is written.
-- **T-3** (spike) — Correctness run: does the restricted expression subset ever return a wrong numb… — sp-frame
-- **T-4** (spike) — Timing run: how long does a person actually wait, generated SQL vs today's Pyth… — sp-frame
+
+- **T-1** (spike) — *Can the GIMS dashboard expression AST compile to Postgres SQL?* **COMPLETE.**
+  Pipeline finished at `sp-spawn`; the `sp_decide` gate was cleared 2026-08-21 under **GA-3** with
+  Evan's words on the record. **The ruling: NO-GO on the standalone-compiler-plus-thin-adapter
+  architecture as scoped** — not "impossible", not "discard the work", but *"do not fund this on this
+  evidence; run the two follow-up experiments first"*. It turns on three facts: `resolve()` in GIMS
+  has no field through which a fallback to in-memory evaluation could ever be reported; the compiled
+  path is **3.79×–7.15× slower** with no crossover (and Q11 turns index use off permanently, removing
+  the only route by which that gap could have closed, so it is a floor); and **18 of 33** ways the two
+  engines can disagree cannot be detected at query time by any mechanism. **Next: nothing** — it
+  spawned T-3 and T-4, which are the two runs it asked for. Evidence: `spikes/T-1/FINDINGS.md`
+  (5,528 lines, sha256 `bcda73d6…`, **verified on disk today**, superseding `33c62975…` and
+  `67fbe421…`); `spikes/T-1/.parts/` **re-assembles it byte-identically — re-verified today**, so
+  regenerating from the fragments can no longer silently revert the amendment. Read
+  `kb/wiki/decision-expr-to-sql.md` for the ruling and `kb/wiki/expr-ast-to-postgres-sql.md` for the
+  research (~4,400 words, about ten printed pages, ~15 minutes — not the "two-page summary" older
+  handoffs called it). Handoff: `.autodev/handoffs/T-1.md` — **its "What is still open"
+  and "Downstream" sections were written before four of the things they describe changed** (the
+  amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
+  the current state.
+- **T-2** (feature) — *Demo the autoSQL UI end-to-end against a seeded fake-data database.* At stage
+  `queue` and **BLOCKED there deliberately, since 2026-08-22 05:41 UTC**, waiting on Evan's look
+  sign-off. The spec is **signed** (`spec_ready` cleared under GA-4): `.autodev/specs/T-2.md`, 2,546
+  lines, 45 acceptance criteria, 19 rulings on delegated authority, six adversarial reviews of which
+  **four refused it**; 16 non-blocking build questions carried to `.autodev/specs/T-2-punchlist.md`,
+  **four of which describe SQL that will not run as the spec implies**. The design is **finished**:
+  `design/t2-demo-mock.html` + `design/t2-demo.md`, seven states, GIMS's Watery house style, published
+  at `https://claude.ai/code/artifact/334be0e8-4bda-4893-909f-293fd6b74e47`. **Nothing has been built
+  — there is no `demo/` directory.** **Next:** Evan looks at the screen and says go or says what to
+  change; then the block lifts and the ticket moves to `locate`. Handoff:
+  `.autodev/handoffs/T-2.md`.
+- **T-3** (spike) — *Correctness run: does the restricted expression subset ever return a wrong
+  number?* At `sp-frame`, **framed and NOT blocked**, and it can start whenever. `spikes/T-3/FRAMING.md`
+  fixes the bar at **zero wrong answers of any kind, at each of `extra_float_digits` = 1, 0 and −3,
+  reported separately** (pooling the three is forbidden). **Next:** `sp-investigate` — the run itself,
+  which opens with a 24-character guard-literal fix at `proto/runtime.sql:33` and `:51`, then a
+  negative control on `differ.py` that must pass **before any real number is quoted anywhere**.
+  Ignore the ticket file's "BLOCKED ON EVAN" line: it was written 17 minutes before GA-4 answered it.
+  Handoff: `.autodev/handoffs/T-3.md`.
+- **T-4** (spike) — *Timing run: how long does a person actually wait, generated SQL vs today's
+  Python?* At `sp-frame`, **framed**, `depends_on: ["T-1","T-3"]` — it waits for T-3 to **report**, not
+  to pass. `spikes/T-4/FRAMING.md` sets the unit as **milliseconds a person waits, never a ratio**
+  (Evan's own words under GA-3). **Two things gate it:** it needs **this machine to itself for 2–3
+  hours**, and its three speed bars (350 ms at 20 000 rows, 1 000 ms at 100 000, 5 500 ms at
+  1 000 000) are a **proposal he has not accepted** — the number is his. Its corpus must be rebuilt
+  first, into its own throwaway container, from `spikes/T-1/proto/REGENERATE-CORPUS.md`. **Next:**
+  Evan names a window; then `sp-investigate`. Handoff: `.autodev/handoffs/T-4.md`.
 
 ## Waiting on
 
 <!-- Holds: "waiting at <gate> on <keyholder> since <date>, ping sent to
      <channel>" — no session should discover a hold by archaeology (ruling 24). -->
 
-- **RESOLVED 2026-08-21** (was: T-1 waiting at `sp_decide` on `human:evan` since 2026-08-19). He
-  ruled — GA-3, gate cleared. Four things it left genuinely open, none of them blocking `sp-spawn`
-  from planning the two runs:
-  - **CLOSED 2026-08-21 — the tick and the note point at different options.** He delegated the call
-    (GA-4: *"I feel like these questions can be answered with your best judgement"*), so it is recorded
-    as a **ruling on delegated authority**, not his decision: **the tick governs the GIMS integration**
-    (nothing built against GIMS until the two runs earn it), **the note describes the demo**, which he
-    already authorised himself under Q18/Q19/Q24. Derivation in `kb/wiki/decision-expr-to-sql.md` §6.
-    He overturns it in one line.
-  - **CLOSED 2026-08-21 — E2's absolute latency bar.** Also a **ruling on delegated authority**:
-    **three bars, one per collection size**, because what a person will wait for depends on how big a
-    question they asked — **350 ms at 20 000 rows, 1 000 ms at 100 000, 5 500 ms at 1 000 000** — plus a
-    kill condition that the compiled path must beat the in-memory path measured in the same session
-    (8 331 ms at 1M). Every number derived from a measurement, in `spikes/T-1/EXPERIMENTS.md` §2.2.
-  - **NEW, and it belongs to the correctness run** — a third **ruling on delegated authority**
-    (`EXPERIMENTS.md` §1.2): expressions that can exceed the largest representable double become a
-    **reported runtime refusal** — the SQL refuses loudly instead of returning a number — so the pass
-    bar stays at **zero wrong answers**. If that detection cannot be built, it is a named carve-out and
-    the correctness run **FAILS**.
-  - **Q31's corpus-regeneration notes are not written.** He said *"leave notes for how to generate a
-    corpus"* when the 1 000-to-1 000 000-row test tables were deleted. Not started, and E2 needs them.
-  - **DONE 2026-08-21 — the two material errors in `FINDINGS.md` are corrected.** He decided this one:
-    follow-up item 2, *"Fix them — re-fingerprint the document."* Both were applied under go-ahead
-    `GA-3` and are verified in the current file: recursion limits now **333 / 333 / 332**
-    (`FINDINGS.md:1151`, §2.6; cited as `:1124` against the pre-amendment file) and parse depth now
-    **63** (`FINDINGS.md:1184-1185`, §2.6; cited as `:1143-1144` before). **Re-fingerprinting is the
-    open half.** Amending changed the file's sha256 — the fingerprint `.autodev/events.jsonl` recorded
-    as the `sp-investigate` evidence — and it has since changed *again*: a parts-reconciliation pass
-    added two further `[amend-2026-08-21]` scope notes on 2026-08-21, so the digest quoted in the
-    amendment entry (`33c6297…`) no longer matches either. Whatever digest gets recorded has to be
-    taken after the last writer stops. **Until then, treat every absolute `FINDINGS.md:NNNN` in the KB
-    as provisional and confirm by section number.**
-- **T-2 is waiting on Evan's spec approval** (`spec_ready`, uncleared) once `refine` produces the spec.
-  Q20 is answered — *"That, plus time buckets and rolling windows"* — so the spec has what it needs.
-  Note a record gap now closed: T-2's intake receipt cites "scope decisions Q18–Q27 recorded in
-  `ANSWERS-FROM-EVAN.md`" and that file was, at the time, twenty minutes stale and still listed Q18 as
-  open. It has since been rewritten and now holds all 46 first-round answers and all 12 follow-ups,
-  each with what it caused, so the receipt resolves correctly today.
-- **RESOLVED 2026-08-19** (was: no local GIMS checkout). Both working trees are on this Linux machine and
-  the Windows MAX_PATH concern is moot. **Correction, verified with git on 2026-08-21: they are not two
-  repos. They are ONE repo on two branches of the same remote**
-  (`https://github.com/BMA-Corgea/GIMS-Project.git` — the standalone tree calls that remote
-  `gims-project-upstream`, the ledger tree calls it `origin`).
-  - `../GIMS-Project` sits on **`refactor/foundation` @ 995cc59** (committed 2026-07-03). That commit is
-    **already merged into `main` and 44 commits behind it** — `git rev-list --left-right --count
-    995cc59...main` returns `0  44`, run in the up-to-date tree, whose `main` is 7b7a049 (2026-08-10).
-  - The standalone checkout cannot see that itself: it **last fetched 2026-06-27 10:28**, its own `main` is
-    still ec1dd76 (2026-01-22), and from inside it `refactor/foundation` looks 311 commits *ahead* and
-    unmerged. That is a stale fetch, not a disagreement about history.
-  - The content difference that made the two trees look non-interchangeable is that staleness: the
-    Postgres layer (`migrations/pg/0001_instances.sql`, `0002_instances_data_gin.sql`, `list_records_where`,
-    the RAG pushdown profile) is on `main`, so it is present in `GUTS/spine/L1-memory/gims-ledger` @ 7b7a049
-    and absent from `../GIMS-Project`'s working tree at 995cc59. Every storage-layer file the T-1 spec names
-    resolves only in the ledger tree today. See `spikes/T-1/FRAMING.md` §2.
-  - **Evan ruled (Q12): work is authored against `main`, in the standalone `GIMS-Project` checkout, leaving
-    the GUTS spine untouched** — verbatim, *"the last thing the already fragile and ephemeral GUTS spine
-    needs right now is more changes"*. So that checkout needs a fetch and a branch change before anything is
-    written against it. **Not done — it is his working copy and no session has touched it.**
+- **T-2 is BLOCKED at `queue` on `human:evan` since 2026-08-22T05:41:03Z**, paged to him. **Reason:**
+  his Q27 asked for *"a design stage and a look sign-off"*. The `design` modifier gave T-2 a design
+  **stage**, and that stage ran — but `.autodev/data/gates-policy.json` defines seven gates and
+  **none of them is `design`**, so there was no checkpoint for the sign-off to happen at and the
+  ticket flowed straight to `queue` under GA-5 (his AFK note, *not* approval of the screen). **A block
+  was put where the missing gate should have been**, so the next session told to keep going does not
+  build a UI he has never seen. **What clears it**, from the ticket's own remedy field: *"Evan looks at
+  the artifact and says go, or says what to change. Then: `tracker.mjs unblock T-2 --by <actor>`."*
+  Do not clear it without him.
+- **The wrap-up form is the single biggest thing waiting on him.** `WRAPUP-FOR-EVAN.md` at the repo
+  root, and the same thing as a fillable form at
+  `https://claude.ai/code/artifact/c883d912-d130-4e44-b156-e63e5d539754`. **38 items; 5 marked
+  blocking.** Most are decisions taken on his behalf while he was away, each derived from something he
+  already said and each one line to overturn. **Item 1 is the one to answer first: go-ahead GA-4 was
+  logged against T-2 only, with `scope_confirmed: false`, and was then used as the authority for
+  rulings on T-1 and T-3 as well — about twenty-one decisions rest on how far he meant one sentence to
+  reach.** If he meant the T-2 spec only, three rulings revert to open: the tick-vs-note reading, the
+  loud-refusal rule in T-3, and T-4's speed targets. Nothing would need re-running.
+- **T-4 needs two things only he can give:** an exclusive quiet 2–3 hour window on this machine
+  (wrap-up item 29), and either a real dashboard widget of his own or acceptance of the invented one,
+  which is labelled invented everywhere it appears (item 30). Building T-2's demo is exactly the kind
+  of work that voids T-4's measurements, so the two cannot share an afternoon here and nobody has
+  decided the order (item 28).
+- **Last night's work is uncommitted and exists on this Linux machine only** (wrap-up item 6): the
+  spec folder move from `specs/` to `.autodev/specs/` — which changes the path other documents cite —
+  the T-2 advance and block, the design receipt and brief edits, the punch list, and three record
+  files. Nothing is lost, but it is invisible to the Windows machine and one reset from gone. **No
+  session has committed it; that decision is his.**
+- **Nothing else is a hold.** T-1's gate is cleared, T-3 is genuinely unblocked, and the two items
+  this page used to list as open — re-fingerprinting `FINDINGS.md`, and Q31's corpus-regeneration
+  notes — are both **done** (see below).
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
-- 2026-08-21 **T-1 COMPLETE** — Compile the GIMS dashboard expression AST to Postgres SQL
-- **2026-08-21 — T-1's ruling signed (GA-3).** NO-GO on the compiler-plus-adapter architecture; fund
-  E1 and E2 instead. The `sp_decide` gate is cleared and T-1's research phase is finished.
+- **2026-08-22 — T-2 blocked at `queue`, on purpose.** The pipeline had no design gate to stop at, so a
+  block was recorded in its place rather than inventing a gate or building past him.
+- **2026-08-21 — the 38-item wrap-up swept and put to Evan.** Written because roughly 47 decisions had
+  been taken on his behalf across seven documents, with no single place to review or reverse them from.
+- **2026-08-21 — T-2's design stage ran.** Mock plus brief, seven states, verified in headless Chromium
+  at 1440 and 390: no console errors, no horizontal page scroll, all thirteen picker controls reachable
+  by Tab.
+- **2026-08-21 — T-2's spec signed** against a defined bar (wrong number / won't run / unauthorised
+  scope / undetectable) with zero findings — after four of six adversarial reviews refused earlier
+  drafts over, among other things, a subset gate that would have refused every comparison in the demo.
+- **2026-08-21 — T-3 and T-4 framed**, each fixing its bar before any evidence exists and each
+  correcting its own ticket text where the machine disagreed with it.
+- **2026-08-21 — `spikes/T-1/proto/REGENERATE-CORPUS.md` written (814 lines)**, discharging Q31's
+  outstanding note; T-4 cannot run without it.
+- **2026-08-21 — `autosql_spike` dropped from the live container**, zero active connections, to execute
+  Q31 as written and get benchmark work off `glp-strong-db` for good. The `xpr` runtime went with it and
+  must be reinstalled (function count **21**); `glp_strong` was never touched.
+- **2026-08-21 — `FINDINGS.md` amended and re-fingerprinted** on Evan's *"Fix them — re-fingerprint the
+  document"*, after a closure seat died mid-pass leaving six corrections unapplied. The two material
+  ones are fixed (recursion limits **333 / 333 / 332**, parse depth **63**, both §2.6); the new digest
+  `bcda73d6…` is in the `sp-decide` receipt and matches the file today.
+- **2026-08-21 — T-3 and T-4 created from T-1's ruling.** No build tickets: the ruling was
+  do-not-build-yet, so a build has to be *earned* from these two results.
+- **2026-08-21 — T-1's ruling signed (GA-3).** It went backwards first — he ruled, then made it
+  conditional on two checks, so it was **stated, not signed** and the ticket returned to
+  `sp-investigate` for exactly those two items (`spikes/T-1/RECHECK-2026-08-21.md`).
+- **2026-08-21 — the test rig was proven able to report a failure.** Every failure branch in
+  `proto/conformance.py` had run **zero** times; fed six deliberately wrong compilations it reported all
+  six. **Dead, not broken** — so 130/130 is a real result, and the ruling lost the leg that rested on
+  the doubt.
+- **2026-08-21 — the evidence trail reconstructed, and two undisclosed holes found.** Everything
+  reconciles, but a `+463%` figure cited 11 times rests on an unreproducible measurement and prices at
+  **+2.2%** without it — the one thing arguing for CONDITIONAL-GO rather than NO-GO.
+- **2026-08-21 — the GIMS checkout question settled with git.** **One repo on two branches**, not two
+  repos: `../GIMS-Project` is on `refactor/foundation` @ 995cc59, already merged into `main` and 44
+  commits behind, last fetched 2026-06-27. Evan ruled (Q12) that work is authored against `main` in that
+  standalone checkout, leaving the GUTS spine alone. **It needs a fetch and a branch change first; it is
+  his working copy and no session has touched it.**
 
 ## Reference table (where the past lives)
 
@@ -141,3 +164,5 @@ extra stage bolted onto the standard pipeline (`design@v1` = add a design stage)
 | The event-by-event record | `events.jsonl` (append-only, forever) |
 | Durable lessons and decisions | `kb/wiki/` |
 | What the code looks like now | `kb/CODE-MAP.md` |
+| Every question Evan answered, and what each answer caused | `ANSWERS-FROM-EVAN.md` (its "Still outstanding" list is stale: one of the three is done, the other two were ruled on his behalf and are wrap-up items 2 and 8) |
+| The open items put to him at the wrap-up | `WRAPUP-FOR-EVAN.md` |

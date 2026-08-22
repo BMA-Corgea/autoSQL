@@ -9,12 +9,12 @@
 authority on *appearance*; this document is the authority on *intent and rule*. Where the two
 disagree about a rule, this document wins and the mock is the thing that gets fixed.
 
-**Read alongside:** `specs/T-2.md` — §5 (the control that must not be cut), §9.2 (the three regions),
+**Read alongside:** `.autodev/specs/T-2.md` — §5 (the control that must not be cut), §9.2 (the three regions),
 §9.3 (the SQL pane), §12 AC-11, AC-16, AC-20–AC-22, AC-25–AC-29. **This brief adds nothing to the
 spec's scope and removes nothing from it.** Every visual decision below serves a criterion that is
 already written down.
 
-**Citation convention:** a bare **§** always means a section of `specs/T-2.md`; sections of
+**Citation convention:** a bare **§** always means a section of `.autodev/specs/T-2.md`; sections of
 *this* document are cited as **part n**. **Part 3.1 is numbered as it is on purpose** — it was added
 on 2026-08-21 and renumbering parts 4–11 would have silently broken every citation of them, in this
 document and outside it. `D1…D12` are this document's rulings; `R1…R19` are the
@@ -406,7 +406,7 @@ this document made because he handed the decision over under **GA-4** (*"I feel 
 can be answered with your best judgement… I approve the spec for T-2"*) and **GA-5** (*"Be as
 autonomous as possible"*) — not a decision he made. Each shows its derivation and each is overturned
 by one line from him. This is the pattern `kb/wiki/decision-expr-to-sql.md` §6 established and
-`specs/T-2.md` §14.1 follows.
+`.autodev/specs/T-2.md` §14.1 follows.
 
 **Numbered `D1…D12`, deliberately separate from the spec's `R1…R19`, so a citation cannot collide.**
 
@@ -478,14 +478,14 @@ Five things a mock cannot settle. None blocks the build; each is one line from h
 | `Icon`, `StateBlock`, `GridTable`, `MultiSelect`; the `/static/icons.svg#i-<name>` contract | `.../frontend/lib/ui.jsx` |
 | The sibling screen this demo is built alongside | `.../frontend/lib/dashboard/builder.jsx` (406 lines) |
 | The six vendorable files are byte-identical in both GIMS checkouts | `sha256sum` over both trees, 2026-08-21 — hashes in part 1.1 |
-| The screen's obligations: three regions, the SQL pane's contents, the side-by-side control | `specs/T-2.md` §9.2, §9.3, §5 |
-| `max($.l)` → `1` where Python says `1e+300`; the eight in-subset divergences | `spikes/T-1/analysis/fuzz/A_f8_guard.txt` §A1–A3, via `specs/T-2.md` §5 |
-| AC-11, AC-16, AC-20, AC-21, AC-22, AC-25, AC-26, AC-29, AC-37, AC-38, AC-40(e), AC-43, AC-45 | `specs/T-2.md` §12 |
-| The alias allowlist, its pattern, its three collision groups and what a refusal must say | `specs/T-2.md` §4.10; walkthrough step 14 (§10) |
-| The two granularities, the fixed window shape, the fixed compared value | `specs/T-2.md` §7.1 — the time-bucket rule, R14, R13 |
-| Which collections carry `ts` and `sender_id` (X1's derivation) | `specs/T-2.md` §4.10's per-collection field lists; §7.1's window and time-bucket rules |
-| `AS "agg"` and `AS "rolling_avg"` cannot both be emitted (X2's derivation) | `specs/T-2.md` §7.3's division-of-labour table |
-| 7 buckets × 1,200, and the labels `2026-08-14T00:00:00Z` … `2026-08-20T00:00:00Z` | `specs/T-2.md` §7.1's time-bucket rule and R17; walkthrough step 7 |
+| The screen's obligations: three regions, the SQL pane's contents, the side-by-side control | `.autodev/specs/T-2.md` §9.2, §9.3, §5 |
+| `max($.l)` → `1` where Python says `1e+300`; the eight in-subset divergences | `spikes/T-1/analysis/fuzz/A_f8_guard.txt` §A1–A3, via `.autodev/specs/T-2.md` §5 |
+| AC-11, AC-16, AC-20, AC-21, AC-22, AC-25, AC-26, AC-29, AC-37, AC-38, AC-40(e), AC-43, AC-45 | `.autodev/specs/T-2.md` §12 |
+| The alias allowlist, its pattern, its three collision groups and what a refusal must say | `.autodev/specs/T-2.md` §4.10; walkthrough step 14 (§10) |
+| The two granularities, the fixed window shape, the fixed compared value | `.autodev/specs/T-2.md` §7.1 — the time-bucket rule, R14, R13 |
+| Which collections carry `ts` and `sender_id` (X1's derivation) | `.autodev/specs/T-2.md` §4.10's per-collection field lists; §7.1's window and time-bucket rules |
+| `AS "agg"` and `AS "rolling_avg"` cannot both be emitted (X2's derivation) | `.autodev/specs/T-2.md` §7.3's division-of-labour table |
+| 7 buckets × 1,200, and the labels `2026-08-14T00:00:00Z` … `2026-08-20T00:00:00Z` | `.autodev/specs/T-2.md` §7.1's time-bucket rule and R17; walkthrough step 7 |
 | The field primitives, the toggle and the button rules the mock copies verbatim | `.../static/styles/watery.css:147-166, 198-205` |
 | The mock re-rendered at 1440 and at 390: no console error, no horizontal page scroll, every state reachable by keyboard | measured 2026-08-21 with a headless Chromium; method and numbers in part 11 |
 

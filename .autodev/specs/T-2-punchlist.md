@@ -4,7 +4,7 @@ Sixteen items the sixth spec review found and deliberately did NOT refuse the sp
 None of them meets the signing bar (a wrong number shown silently, something that would not run,
 unauthorised scope, or a control nobody could tell was broken). They are carried into the build.
 
-**Whoever builds T-2 reads this alongside `specs/T-2.md`.** Several are real implementation
+**Whoever builds T-2 reads this alongside `.autodev/specs/T-2.md`.** Several are real implementation
 questions the spec leaves ambiguous; resolve each one before writing the code it touches, and
 record how you resolved it. Items 2, 3, 4 and 5 in particular describe SQL that will not run as
 the spec implies — they were judged non-blocking because the spec's own acceptance criteria would
