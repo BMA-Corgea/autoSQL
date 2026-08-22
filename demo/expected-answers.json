@@ -1,0 +1,532 @@
+{
+  "$comment": "GENERATED \u2014 do not edit by hand. Produced by demo/seed/expectations.py, the third independent path (T-2-plan.md B8). Every number here is derived from the seed generator's in-memory rows by arithmetic written out in that file, WITHOUT importing demo/pyrunner/, demo/builder.py or demo/probes.py \u2014 an AST test in demo/tests/test_walkthrough.py enforces that, and it is the only thing standing between AC-31 and a tautology. INVENTED DATA: none of these rows describe anything real. Regenerate with: python -m demo.seed.expectations",
+  "independence": {
+    "produced_by": "demo/seed/expectations.py",
+    "imports_allowed": [
+      "demo.seed.generate",
+      "the standard library"
+    ],
+    "imports_forbidden": [
+      "demo.pyrunner",
+      "demo.builder",
+      "demo.probes"
+    ],
+    "why": "Three producers answer every walkthrough number: the SQL, the Python pane, and this file. Two of them agreeing is only evidence if the third was written without reference to either."
+  },
+  "corpus": {
+    "heartbeat_rows": {
+      "value": 8400,
+      "derivation": "50 senders x 168 beats (R5, R17)."
+    },
+    "sample_rows": {
+      "value": 2000,
+      "derivation": "generate.SAMPLES \u2014 the literal 2,000 of plan \u00a75.3."
+    },
+    "edge_case_rows": {
+      "value": 10,
+      "derivation": "The ten rows B24 names individually."
+    }
+  },
+  "steps": [
+    {
+      "step": 1,
+      "title": "Run the one command from a clean checkout",
+      "pick": {
+        "operation": null,
+        "note": "./run-demo up"
+      },
+      "derivation": "Infrastructure, not data. The two ports are fixed constants of this demo (plan \u00a711.2) and the row counts are the seed's by construction.",
+      "expect": {
+        "db_port": {
+          "value": 55440,
+          "derivation": "The demo's own Postgres port, fixed at plan \u00a711.2. It is NOT 55433 \u2014 that is a live database this demo must never reach."
+        },
+        "app_port": {
+          "value": 8787,
+          "derivation": "The demo's own app port, fixed at plan \u00a711.2."
+        },
+        "rows_loaded": {
+          "value": 10410,
+          "derivation": "8400 heartbeats + 2000 samples + 10 edge cases = 10410 rows, counted from the generator's own streams."
+        }
+      }
+    },
+    {
+      "step": 2,
+      "title": "Choose source noun:Heartbeat, no other pick",
+      "pick": {
+        "operation": 1,
+        "source": "noun:Heartbeat"
+      },
+      "derivation": "A plain select over demo.records with the collection as a bind parameter, ending in ORDER BY key. No sort field is picked, so \u00a77.4's total order is the tiebreak alone \u2014 which is what makes 'the first row' a thing that exists.",
+      "expect": {
+        "row_count": {
+          "value": 8400,
+          "derivation": "50 senders x 168 hourly beats = 8400. R5 fixes the senders at 50 (hb-01 \u2026 hb-50); R17 fixes the span at 7 whole UTC days x 24 hours = 168 beats. Counted from generate.heartbeat_rows()."
+        },
+        "first_key": {
+          "value": "hb-01-0000",
+          "derivation": "The lowest key under ORDER BY key: sender hb-01's beat 0000. R19's fixed-width keys make text order record order."
+        },
+        "last_key": {
+          "value": "hb-50-0167",
+          "derivation": "The highest key under ORDER BY key: sender hb-50's beat 0167."
+        }
+      }
+    },
+    {
+      "step": 3,
+      "title": "Add a computed column alive = $.status == \"ok\"",
+      "pick": {
+        "operation": 2,
+        "source": "noun:Heartbeat",
+        "alias": "alive",
+        "expression": "$.status == \"ok\""
+      },
+      "derivation": "Accepted, not refused \u2014 \u00a74.6's ruling in action; under reading B a field reference beside == would have been refused here. The counts are a partition of the 8,400 rows by one closed-set field (R16: ok / warn / error).",
+      "expect": {
+        "true_count": {
+          "value": 7543,
+          "derivation": "Rows whose status is exactly 'ok': 7543 of 8400, counted one row at a time off the generator. R16 draws status about 90/8/2 across ok/warn/error, so ~90% of 8400 is ~7560 and 7543 sits where that predicts."
+        },
+        "false_count": {
+          "value": 857,
+          "derivation": "8400 - 7543 = 857. The two counts must sum to the step-2 total, and they do; status is never null on this collection so there is no third bucket."
+        }
+      }
+    },
+    {
+      "step": 4,
+      "title": "Filter $.status != \"ok\"",
+      "pick": {
+        "operation": 3,
+        "source": "noun:Heartbeat",
+        "filter": "$.status != \"ok\""
+      },
+      "derivation": "The complement of step 3's true_count, and the same 857 rows. 'The first row' is defined only because ORDER BY key is always emitted (\u00a77.4) \u2014 without it Postgres promises no order here and the two panes could disagree while both were correct.",
+      "expect": {
+        "row_count": {
+          "value": 857,
+          "derivation": "The complement of step 3: 8400 - 7543 = 857. Derived as its own count here, then checked against step 3's subtraction \u2014 two routes to one number."
+        },
+        "first_key": {
+          "value": "hb-01-0148",
+          "derivation": "The lowest key among the 857 non-ok rows under ORDER BY key. Its status is 'warn'."
+        },
+        "first_status": {
+          "value": "warn",
+          "derivation": "Read off row hb-01-0148 \u2014 the first non-ok row in key order. It is not 'ok', which is the filter's whole assertion."
+        }
+      }
+    },
+    {
+      "step": 5,
+      "title": "Sort by $.ts descending, cap at 10",
+      "pick": {
+        "operation": 4,
+        "source": "noun:Heartbeat",
+        "sort": "$.ts",
+        "direction": "desc",
+        "limit": 10
+      },
+      "derivation": "Every ts is shared by all 50 senders, so the whole result is ONE tie and the LIMIT boundary sits inside it. \u00a77.4(1a) breaks it by key ASCENDING even though the sort is descending \u2014 so these are the ten LOWEST keys at the latest timestamp. A Python pane written as sorted(..., reverse=True) over a tuple containing key would return the ten HIGHEST instead and disagree on all ten.",
+      "expect": {
+        "latest_ts": {
+          "value": "2026-08-20T23:00:00Z",
+          "derivation": "Beat 167 of the span R17 fixes: 2026-08-14T00:00:00Z + 167 hours = 2026-08-20T23:00:00Z. All 50 senders carry it, which is what makes the tie total."
+        },
+        "keys": {
+          "value": [
+            "hb-01-0167",
+            "hb-02-0167",
+            "hb-03-0167",
+            "hb-04-0167",
+            "hb-05-0167",
+            "hb-06-0167",
+            "hb-07-0167",
+            "hb-08-0167",
+            "hb-09-0167",
+            "hb-10-0167"
+          ],
+          "derivation": "The 10 lowest keys at 2026-08-20T23:00:00Z, i.e. senders hb-01 \u2026 hb-10 at beat 0167. Derived by sorting key ascending, then STABLE-sorting on ts descending \u2014 never reverse=True over a tuple holding key."
+        },
+        "row_count": {
+          "value": 10,
+          "derivation": "The row cap, applied after sorting (operation 5). 8,400 rows are available, so the cap binds."
+        }
+      }
+    },
+    {
+      "step": 6,
+      "title": "Aggregate: sum of $.payload.load",
+      "pick": {
+        "operation": 6,
+        "source": "noun:Heartbeat",
+        "aggregate": "sum",
+        "field": "$.payload.load"
+      },
+      "derivation": "B8's headline case. This is the ONE walkthrough number that had no per-pane absolute assertion, so AC-31 compared the pane against itself. This figure is the third path: 8,400 integers added up in decimal.Decimal, straight off the generator, with no database and no pick involved. B8.4 requires it be asserted on EACH pane separately against this value before the panes are compared.",
+      "expect": {
+        "sum": {
+          "value": "400207",
+          "derivation": "The sum of payload.load over all 8400 heartbeat rows = 400207. Accumulated in decimal.Decimal, one row at a time, in generator order. Every load is an integer 0\u2013100 (R16), so the total is an integer and floating point never enters: a float8 accumulation could return 400207.000000000001 and be uncheckable by eye, which \u00a77.2 exists to prevent. Bounds a reader can check without adding anything up: 0 <= 400207 <= 8400 x 100 = 840000, and the mean load is 400207/8400 = 47.643690, which sits where a uniform 0\u2013100 draw predicts (~50)."
+        },
+        "row_count": {
+          "value": 8400,
+          "derivation": "All 8400 rows contribute: payload.load is present and an integer on every heartbeat row, so \u00a77.2 item 5's numeric read returns a number for each and none drops out of the sum."
+        }
+      }
+    },
+    {
+      "step": 7,
+      "title": "Time bucket by day, count per bucket",
+      "pick": {
+        "operation": 7,
+        "source": "noun:Heartbeat",
+        "granularity": "day",
+        "aggregate": "count"
+      },
+      "derivation": "7 buckets and not 8 is the session time zone doing its job: the span is seven whole UTC days, and a session an hour off the meridian splits it across an eighth. The labels are compared AS STRINGS, so the two engines' default spellings of one instant would be two different keys.",
+      "expect": {
+        "bucket_count": {
+          "value": 7,
+          "derivation": "R17's span is 7 whole UTC days (2026-08-14 \u2026 2026-08-20) and every beat sits inside it, so a UTC day bucket gives exactly 7. Counted from the distinct ts[:10] values in the generator's rows."
+        },
+        "rows_per_bucket": {
+          "value": [
+            1200
+          ],
+          "derivation": "50 senders x 24 hourly beats per day = 1200 rows in every bucket. Every bucket holds the same count because the span is whole days and no sender misses a beat \u2014 which is also why 7 x 1200 = 8400 must equal step 2's 8400, and it does."
+        },
+        "buckets": {
+          "value": [
+            {
+              "bucket": "2026-08-14T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-15T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-16T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-17T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-18T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-19T00:00:00Z",
+              "count": 1200
+            },
+            {
+              "bucket": "2026-08-20T00:00:00Z",
+              "count": 1200
+            }
+          ],
+          "derivation": "Each label is the day's midnight in the same fixed-width UTC ISO-8601 form ts uses (YYYY-MM-DDTHH:MM:SSZ), which is what to_char(..., 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') emits. Counts are rows per day, tallied off the generator. Ordered by label, which is a total order because the labels are distinct and fixed-width."
+        }
+      }
+    },
+    {
+      "step": 8,
+      "title": "Rolling window: 3-point rolling average of $.payload.load per sender",
+      "pick": {
+        "operation": 8,
+        "source": "noun:Heartbeat",
+        "field": "$.payload.load",
+        "width": 3,
+        "shape": "trailing average"
+      },
+      "derivation": "\u00a77.1's window rule, whose entire purpose is that the SHORT windows agree. The divisor is the number of non-null values actually in the frame, recounted every row \u2014 never the constant 3. A pane that divides by 3 always, or that returns null until three rows exist, is wrong on rows 1 and 2 of all 50 senders (100 cells) and right everywhere else: a false disagreement, which \u00a75 calls the single most damaging thing this screen can produce.",
+      "expect": {
+        "worked_sender": {
+          "value": "hb-18",
+          "derivation": "W6-R1: \u00a710 step 8 does not name a sender, and hb-01 \u2014 the obvious pick \u2014 has five identical loads, so \u00f71, \u00f72 and \u00f73 all print the same number and the step demonstrates nothing. Selection rule: the lowest-numbered sender whose first three rolling values are pairwise distinct AND whose first three loads do not sum to a multiple of 3. Exactly one sender on this corpus qualifies, so the choice is forced."
+        },
+        "worked_loads": {
+          "value": [
+            27,
+            88,
+            88,
+            88,
+            88
+          ],
+          "derivation": "The payload.load of hb-18's first five beats, in (ts, key) order, read straight off the generator: [27, 88, 88, 88, 88]."
+        },
+        "worked_values": {
+          "value": [
+            {
+              "key": "hb-18-0000",
+              "window": [
+                27
+              ],
+              "value": "27.000000"
+            },
+            {
+              "key": "hb-18-0001",
+              "window": [
+                27,
+                88
+              ],
+              "value": "57.500000"
+            },
+            {
+              "key": "hb-18-0002",
+              "window": [
+                27,
+                88,
+                88
+              ],
+              "value": "67.666667"
+            },
+            {
+              "key": "hb-18-0003",
+              "window": [
+                88,
+                88,
+                88
+              ],
+              "value": "88.000000"
+            },
+            {
+              "key": "hb-18-0004",
+              "window": [
+                88,
+                88,
+                88
+              ],
+              "value": "88.000000"
+            }
+          ],
+          "derivation": "Worked by hand, and every one of these is checkable without running anything: hb-18-0000 = (27) / 1 = 27.000000; hb-18-0001 = (27 + 88) / 2 = 57.500000; hb-18-0002 = (27 + 88 + 88) / 3 = 67.666667; hb-18-0003 = (88 + 88 + 88) / 3 = 88.000000; hb-18-0004 = (88 + 88 + 88) / 3 = 88.000000. Row 1 divides by 1 (its own load, NOT blank and NOT \u00f73); row 2 by 2; rows 3\u20135 by 3. Row 3 is the non-terminating division \u00a77.2 says this step exists to exercise \u2014 it does not terminate in decimal, so the 6-place half-up round is what decides its last digit. Note honestly: a \u00f73 can never produce an exact half, so this cell does NOT discriminate half-up from banker's rounding; AC-24(b)'s own tie fixture is what tests that, and this file does not claim to."
+        },
+        "column_sha256": {
+          "value": "51198c3cf2903f0020ec3db926829bd9491e7993f0ce78d123cc464c28bef06b",
+          "derivation": "W6-R2: sha256 over all 8400 rolling cells in key order, each as '<key>\\x1f<value at 6dp>\\n' with a null cell written 'null'. Five worked cells from one sender cannot catch the 100-cell short-window failure unless that sender is affected; every sender is, but only in its first two rows. This digest makes the whole column one comparison. A pane that divides by 3 always changes it."
+        },
+        "row_count": {
+          "value": 8400,
+          "derivation": "One cell per heartbeat row \u2014 8400. The window drops no row and pads no row (\u00a77.1's window rule), so this must equal step 2's 8400."
+        }
+      }
+    },
+    {
+      "step": 9,
+      "title": "Show only rows that changed, per sender",
+      "pick": {
+        "operation": 9,
+        "source": "noun:Heartbeat"
+      },
+      "derivation": "The case the project was pitched on. What 'changed' compares is the record MINUS its ordering key \u2014 status and payload, jointly; ts is excluded by construction. That exclusion is the whole operation: put ts back and every row differs from its predecessor, all 8,400 are kept, and the step does nothing while appearing to work \u2014 with both panes agreeing perfectly, which is why this third path exists.",
+      "expect": {
+        "kept_count": {
+          "value": 861,
+          "derivation": "861 of 8400 rows kept. Derived by walking each sender's beats in (ts, key) order and keeping a row when {k: v for k, v in record.items() if k != 'ts'} differs from its predecessor's. Two independent checks a reader can do on this number: (a) each of the 50 senders' first beat has no predecessor and is always kept, so the count cannot be below 50; (b) B27 redraws on a 0.10 coin at each of the remaining 167 beats, so the expected total is about 50 + 50 x 167 x 0.10 = 885, and 861 sits there. AC-40's band is 700\u20131,100 and this is inside it."
+        },
+        "first_five_keys": {
+          "value": [
+            "hb-01-0000",
+            "hb-01-0006",
+            "hb-01-0007",
+            "hb-01-0041",
+            "hb-01-0056"
+          ],
+          "derivation": "The five lowest kept keys under \u00a77.4's total order (ORDER BY key over the kept rows), so 'the first five' is defined rather than whatever the plan happened to emit. All five are hb-01's, because key order groups a sender's beats together and hb-01 sorts first; the first of them is hb-01's beat 0000, kept because it has no predecessor."
+        },
+        "kept_if_ts_included": {
+          "value": 8400,
+          "derivation": "The NEGATIVE control, stated as a number so the failure is named and not merely counted: if the compared value wrongly included ts, every row would differ from its predecessor and all 8400 would be kept. That is not a near miss but a 10-fold one, visible in a single integer. AC-40 asserts both this and the 861 above."
+        },
+        "band": {
+          "value": [
+            700,
+            1100
+          ],
+          "derivation": "AC-40's band, quoted from the spec so a reader can see the kept_count sits inside it. The band comes from AC-8's independently-pinned 88\u201392% repeat rate, which is the same property read from the other side."
+        }
+      }
+    },
+    {
+      "step": 10,
+      "title": "Type round($.payload.load, 1) as a computed column",
+      "pick": {
+        "operation": 2,
+        "source": "noun:Heartbeat",
+        "alias": "rounded",
+        "expression": "round($.payload.load, 1)"
+      },
+      "derivation": "Refused by the STATIC gate \u2014 before any SQL exists. \u00a74.2 lists round among the three rounding functions outside the safe subset (round, floor, ceil), so the refusal is a property of the subset definition, not of the data.",
+      "expect": {
+        "verdict": {
+          "value": "refused",
+          "derivation": "\u00a74.2: round is one of the 16 refused constructs. Layer 1 catches it, so nothing is compiled and nothing runs."
+        },
+        "refused_by": {
+          "value": "static gate (layer 1)",
+          "derivation": "\u00a74.4. The gate walks the AST before compilation; no database round trip happens."
+        },
+        "names_construct": {
+          "value": "round",
+          "derivation": "\u00a74.4 requires every refusal to name the construct or the rule. The message must contain 'round'."
+        },
+        "sql_pane": {
+          "value": null,
+          "derivation": "No SQL is generated at all \u2014 this is what distinguishes a layer-1 refusal from a layer-2 one (steps 12 and 13)."
+        },
+        "python_pane": {
+          "value": null,
+          "derivation": "Both panes stay empty. The gate is upstream of both, so neither calculator is reached."
+        },
+        "why_it_proves_something": {
+          "value": "compile.py implements round at :394",
+          "derivation": "Without the gate this step would compile, run and print a number. That is what makes it a real test of the subset rather than a demonstration of something impossible."
+        }
+      }
+    },
+    {
+      "step": 11,
+      "title": "Source noun:EdgeCase, computed column biggest = max($.l)",
+      "pick": {
+        "operation": 2,
+        "source": "noun:EdgeCase",
+        "alias": "biggest",
+        "expression": "max($.l)"
+      },
+      "derivation": "\u00a75's control, demonstrated: the two panes disagree, visibly and deliberately, and the screen flags it. Note max IS in the safe subset (\u00a74.2 allows abs, coalesce, count, if, length, max, min) \u2014 it is sum and avg that are refused, which is why this step runs at all where step 10 does not.",
+      "expect": {
+        "row": {
+          "value": "edge-01",
+          "derivation": "The only seeded EdgeCase row carrying an `l` key; its value is the array [1e300, 1] (B24)."
+        },
+        "python_value": {
+          "value": "1e+300",
+          "derivation": "Python's max over the parsed array [1e300, 1]. 1e300 is a perfectly ordinary double (max double is ~1.798e308), so Python reads it as a number and returns the larger of the two."
+        },
+        "sql_value": {
+          "value": "1",
+          "derivation": "Derived from the shipped 297-digit guard, not from running anything: the guard makes SQL's numeric read of a value this large return NULL (edge-00 states the same property, and the edge-04/edge-05 boundary pair brackets it at ~1.7976931348623157e+296). SQL's max ignores NULLs, so with 1e300 read as NULL the only surviving element of [1e300, 1] is 1, and max returns 1."
+        },
+        "panes_agree": {
+          "value": false,
+          "derivation": "The asserted disagreement of AC-22. This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."
+        },
+        "flagged": {
+          "value": true,
+          "derivation": "\u00a75 requires the screen to flag the disagreement rather than silently show two numbers."
+        }
+      }
+    },
+    {
+      "step": 12,
+      "title": "Still on noun:EdgeCase, filter $.where == \"alpha\"",
+      "pick": {
+        "operation": 3,
+        "source": "noun:EdgeCase",
+        "filter": "$.where == \"alpha\""
+      },
+      "derivation": "Refused at RUNTIME \u2014 layer 2 member (b) \u2014 because one row's operand resolves to a container. \u00a74.6's reading puts this at runtime rather than in the static gate: the gate cannot know what $.where holds until it looks at a row.",
+      "expect": {
+        "verdict": {
+          "value": "refused",
+          "derivation": "Layer 2 fires on the row whose operand is an object."
+        },
+        "refused_by": {
+          "value": "runtime probe (layer 2, member (b))",
+          "derivation": "\u00a74.5. The SQL pane shows the probe that fired and no number."
+        },
+        "offending_row": {
+          "value": "edge-02",
+          "derivation": "The one seeded EdgeCase row with a `where` key; it holds the object {\"code\":\"alpha\",\"n\":7} (B24). \u00a74.5 requires the refusal to name the row."
+        },
+        "sql_pane": {
+          "value": null,
+          "derivation": "No number \u2014 the probe fired before the query returned one."
+        },
+        "python_pane_rows_kept": {
+          "value": 0,
+          "derivation": "The REPORTED FALLBACK (\u00a74.5): the Python pane still shows Python's answer, labelled as such. Derived from the seeded rows: exactly one EdgeCase row has a `where` key and it is an object, and an object is not equal to the string \"alpha\"; the other nine rows have no `where` at all. So Python keeps 0 of the 10 rows."
+        }
+      }
+    },
+    {
+      "step": 13,
+      "title": "Still on noun:EdgeCase, computed column scaled = $.huge * 1",
+      "pick": {
+        "operation": 2,
+        "source": "noun:EdgeCase",
+        "alias": "scaled",
+        "expression": "$.huge * 1"
+      },
+      "derivation": "Refused at RUNTIME \u2014 layer 2 member (a) \u2014 naming the out-of-range magnitude. This is the step that shows WHY refusing beats printing: the Python pane's answer is inf, which is not a number anyone can check.",
+      "expect": {
+        "verdict": {
+          "value": "refused",
+          "derivation": "Layer 2 member (a): the magnitude is out of range."
+        },
+        "refused_by": {
+          "value": "runtime probe (layer 2, member (a))",
+          "derivation": "\u00a74.5. Layer 2 fires while the query runs, on the row whose magnitude is out of range \u2014 unlike step 10, SQL WAS generated here, which is the visible difference between a static refusal and a runtime one."
+        },
+        "offending_row": {
+          "value": "edge-03",
+          "derivation": "The one seeded EdgeCase row with a `huge` key, whose stored JSON number is 1e400 (B24, written as raw JSON text precisely so it survives into the database exactly)."
+        },
+        "sql_pane": {
+          "value": null,
+          "derivation": "No number: the probe fired instead of returning a value. The pane shows the probe, not a blank \u2014 a blank would be indistinguishable from a query that returned nothing."
+        },
+        "python_pane": {
+          "value": "inf",
+          "derivation": "1e400 exceeds the largest double (~1.7976931348623157e+308), so Python's JSON parse yields float('inf') and inf * 1 is inf. Derived from the IEEE-754 double range and the stored literal, not by running the pane. AC-17 pins the pair: 1e400 refuses and 1e300 does NOT \u2014 the guard must not be a blanket ban on large numbers."
+        }
+      }
+    },
+    {
+      "step": 14,
+      "title": "Back on noun:Heartbeat, a computed column whose NAME is a SQL injection",
+      "pick": {
+        "operation": 2,
+        "source": "noun:Heartbeat",
+        "alias": "alive\"; DROP TABLE demo.records; --",
+        "expression": "$.status == \"ok\""
+      },
+      "derivation": "R10 demonstrated. The alias is the ONE piece of what you type that has to go into the SQL text \u2014 everything else is a bind parameter \u2014 so it is the one place \u00a74.10's allowlist has to hold.",
+      "expect": {
+        "hostile_alias": {
+          "value": "alive\"; DROP TABLE demo.records; --",
+          "derivation": "The name typed. The expression is irrelevant and valid; it is the NAME that is the attack."
+        },
+        "verdict": {
+          "value": "refused",
+          "derivation": "\u00a74.10's allowlist refuses it before any SQL exists."
+        },
+        "refused_before_sql": {
+          "value": true,
+          "derivation": "Nothing is sent to the database. This is stronger than escaping: the string never reaches SQL text at all."
+        },
+        "names_the_name_and_rule": {
+          "value": true,
+          "derivation": "\u00a74.10 requires the refusal to name both the offending name and the rule."
+        },
+        "table_survives": {
+          "value": 8400,
+          "derivation": "After the refusal, noun:Heartbeat still returns 8400 rows on the next pick \u2014 the same count as step 2. That is the assertion that the DROP TABLE never ran; a refusal message alone would not prove it."
+        },
+        "retyped_alias": {
+          "value": "alive",
+          "derivation": "Retyping the name as a plain identifier is accepted."
+        },
+        "retyped_emitted_as": {
+          "value": "AS \"alive\"",
+          "derivation": "The SQL pane shows the accepted alias emitted as a quoted identifier."
+        }
+      }
+    }
+  ]
+}

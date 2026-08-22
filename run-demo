@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# run-demo — the one-command launcher for the autoSQL UI demo (T-2).
+#
+# WHAT THIS IS
+#   The demo's whole entry point: everything a person needs to bring the demo
+#   up, watch it, tear it down again, or run its suite goes through here.
+#   "The demo tree" (T-2-locate.md §11.1) is defined as `demo/` plus this
+#   file — nothing else — so this script is the fence as well as the door.
+#
+# THE FOUR VERBS  (T-2-plan.md R8)
+#   up         bring the demo's own Postgres (autosql-demo-db, 127.0.0.1:55440)
+#              and the app (127.0.0.1:8787) up; seed the database if empty.
+#   down       tear the demo stack back down; does not touch anything else.
+#   build-ui   run esbuild over demo/frontend/*.jsx into the committed
+#              bundles under demo/static/js/. Only this verb needs Node —
+#              `up` must work with node removed from PATH.
+#   test       run the demo's own test suite (demo/tests/).
+#
+# STATUS
+#   W1 skeleton, W3's venv bootstrap, W4: `up` refuses to start if
+#   55440 or 8787 is already taken (AC-5), brings up the demo's own Postgres
+#   container from demo/compose.yaml, and waits for it with a Python poll
+#   through the driver (B21 — no psql, no pg_isready on this machine).
+#   `down` tears that container and its volume back out (AC-6).
+#   W5: once the database is ready, `up` installs the schema and runtime.sql
+#   and seeds the 10,410 INVENTED rows if the table is empty, verifying
+#   AC-10's digest against demo/manifest.json (demo/seed/load.py).
+#   The app itself is not yet wired in (lands with W13/W14) — `up` says so
+#   once the seed is verified. `build-ui` and `test` are still pure stubs
+#   (W14, W16).
+#
+# HARD FENCE — never remove this comment or the check below.
+#   This demo owns ports 55440 (its own Postgres) and 8787 (the app) and
+#   NOTHING else. Evan's LIVE database is on another port entirely (spec
+#   §11.2 names it; that name and port are exactly what AC-3's grep forbids
+#   anywhere in this tree, so neither is repeated here) — this script must
+#   never dial it, under any verb, ever.
+
+set -euo pipefail
+
+VERBS=(up down build-ui test)
+
+# ── W4: the container and the launcher (§11.2, B21, B23) ──────────────────
+COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo/compose.yaml"
+DB_CONTAINER="autosql-demo-db"
+DB_HOST="127.0.0.1"
+DB_PORT="55440"
+APP_PORT="8787"
+READY_TIMEOUT_SECONDS=60
+READY_POLL_SECONDS="0.25"
+
+# Read the three credential values straight out of compose.yaml rather than
+# repeating them here, so there is exactly one place they can drift from.
+compose_value() {
+  local key="$1"
+  grep -m1 -E "^\s*${key}:" "$COMPOSE_FILE" | sed -E "s/^[[:space:]]*${key}:[[:space:]]*//"
+}
+DB_NAME="$(compose_value POSTGRES_DB)"
+DB_USER="$(compose_value POSTGRES_USER)"
+DB_PASSWORD="$(compose_value POSTGRES_PASSWORD)"
+
+# Pure-stdlib TCP probe — deliberately not `ss`/`docker port` parsing, and
+# never a Postgres client binary (B21). Exit 0 means something is already
+# listening on 127.0.0.1:$1.
+port_in_use() {
+  python3 - "$1" <<'PYEOF'
+import socket, sys
+port = int(sys.argv[1])
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(0.5)
+try:
+    s.connect(("127.0.0.1", port))
+    s.close()
+    sys.exit(0)
+except OSError:
+    sys.exit(1)
+PYEOF
+}
+
+# AC-5: up refuses, naming the port, rather than connecting to whatever is
+# already there. Checked before anything is created — including on a second
+# `up` with no `down` in between, deliberately (§11.2: "If 55440 or 8787 is
+# occupied, ./run-demo up stops with a clear message rather than connecting
+# to whatever is there" draws no exception for a stack this script started
+# itself; run `./run-demo down` first).
+guard_ports() {
+  if port_in_use "$DB_PORT"; then
+    echo "run-demo up: refusing to start — port $DB_PORT (this demo's own Postgres, $DB_CONTAINER) is already in use." >&2
+    echo "run-demo up: if that's a demo stack from an earlier run, './run-demo down' first. This demo never connects to any other database on this machine, under any circumstance." >&2
+    exit 1
+  fi
+  if port_in_use "$APP_PORT"; then
+    echo "run-demo up: refusing to start — port $APP_PORT (this demo's app) is already in use." >&2
+    exit 1
+  fi
+}
+
+compose_up() {
+  echo "run-demo up: starting $DB_CONTAINER (docker compose, demo/compose.yaml)"
+  docker compose -f "$COMPOSE_FILE" up -d
+}
+
+compose_down() {
+  echo "run-demo down: stopping $DB_CONTAINER and removing its volume"
+  docker compose -f "$COMPOSE_FILE" down --volumes
+}
+
+# B21: readiness is a Python poll through the driver, not `pg_isready` (this
+# machine has neither it nor `psql`). On timeout, print the container's last
+# 40 log lines and fail loudly rather than hang silently — that is the
+# entire reason this ruling exists.
+wait_for_db_ready() {
+  echo "run-demo up: waiting for $DB_CONTAINER to accept connections (Python poll, B21, up to ${READY_TIMEOUT_SECONDS}s)"
+  local deadline=$(( $(date +%s) + READY_TIMEOUT_SECONDS ))
+  local attempt=0
+  while [[ "$(date +%s)" -lt "$deadline" ]]; do
+    attempt=$((attempt + 1))
+    if "$VENV_DIR/bin/python" - "$DB_HOST" "$DB_PORT" "$DB_NAME" "$DB_USER" "$DB_PASSWORD" <<'PYEOF'
+import sys
+import psycopg
+
+host, port, dbname, user, password = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4], sys.argv[5]
+try:
+    conn = psycopg.connect(
+        host=host, port=port, dbname=dbname, user=user, password=password,
+        connect_timeout=1, application_name="run-demo-readiness-poll",
+    )
+    conn.close()
+except Exception:
+    sys.exit(1)
+PYEOF
+    then
+      echo "run-demo up: $DB_CONTAINER is ready (attempt $attempt)"
+      return 0
+    fi
+    sleep "$READY_POLL_SECONDS"
+  done
+  echo "run-demo up: $DB_CONTAINER did not become ready within ${READY_TIMEOUT_SECONDS}s (B21) — last 40 log lines:" >&2
+  docker logs --tail 40 "$DB_CONTAINER" >&2 2>&1 || echo "run-demo up: (could not read container logs — $DB_CONTAINER may not exist)" >&2
+  return 1
+}
+
+# ── W3: the wheelhouse and the venv (B20) ──────────────────────────────────
+#   `demo/requirements.txt` pins every package (transitive included) to an
+#   exact version and a sha256 hash. `demo/vendor/wheels/` is the committed
+#   wheelhouse those hashes resolve against. `--no-index` is the
+#   load-bearing flag: with it, pip cannot reach the network even if it
+#   wanted to — a network fetch here is impossible, not merely unlikely.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEMO_DIR="$REPO_ROOT/demo"
+VENV_DIR="$DEMO_DIR/.venv"
+REQUIREMENTS_FILE="$DEMO_DIR/requirements.txt"
+WHEELS_DIR="$DEMO_DIR/vendor/wheels"
+
+bootstrap_venv() {
+  if [[ ! -d "$VENV_DIR" ]]; then
+    echo "run-demo: creating $VENV_DIR"
+    python3 -m venv "$VENV_DIR"
+  fi
+  echo "run-demo: installing pinned dependencies from the committed wheelhouse (--no-index, B20)"
+  "$VENV_DIR/bin/pip" install --no-index --find-links "$WHEELS_DIR" -r "$REQUIREMENTS_FILE"
+}
+
+# ── W5: schema + runtime.sql + the invented seed (plan §5, B21, B24–B27) ──
+#   demo/seed/load.py installs demo.records and the xpr schema, writes the
+#   10,410 INVENTED rows through the driver's COPY … FROM STDIN if the table
+#   is empty, and verifies AC-10's digest against demo/manifest.json —
+#   failing loudly (and rolling everything back) rather than leaving a
+#   database whose rows are not the rows the manifest promises. Its console
+#   output is the third of B31's three invented-data labels.
+seed_database() {
+  "$VENV_DIR/bin/python" "$DEMO_DIR/seed/load.py"
+}
+
+usage() {
+  cat <<'EOF'
+usage: ./run-demo <verb>
+
+verbs:
+  up         bring the demo database and app up (seeds on first run)
+  down       tear the demo stack down
+  build-ui   build the front-end bundles (requires Node; only this verb does)
+  test       run the demo's test suite
+EOF
+}
+
+case "${1:-}" in
+  "")
+    usage
+    exit 0
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  up)
+    guard_ports
+    bootstrap_venv
+    compose_up
+    wait_for_db_ready || exit 1
+    echo "run-demo up: demo/.venv ready, dependencies installed offline (W3)."
+    echo "run-demo up: $DB_CONTAINER is up on $DB_HOST:$DB_PORT, lc_collate=C (W4)."
+    seed_database || exit 1
+    echo "run-demo up: the app is not yet implemented (lands with W13/W14)."
+    exit 0
+    ;;
+  down)
+    compose_down
+    echo "run-demo down: $DB_CONTAINER container and volume removed."
+    exit 0
+    ;;
+  build-ui)
+    echo "run-demo build-ui: stub — not yet implemented (lands with W14)."
+    exit 0
+    ;;
+  test)
+    echo "run-demo test: stub — not yet implemented (lands with W16)."
+    exit 0
+    ;;
+  *)
+    echo "run-demo: unknown verb '${1}'" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

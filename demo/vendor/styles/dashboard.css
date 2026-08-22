@@ -1,0 +1,179 @@
+/* dashboard.css — custom-dashboard page + widget styling.
+   Chart series palette: a 6-hue CATEGORICAL set validated with the dataviz skill's
+   validate_palette.js (lightness band / chroma floor / adjacent-pair CVD ≥ 12 / contrast).
+   Dark values (this :root) sit on the deep-water Watery surface; the Classic override below
+   is the light-surface set. Both passed ALL checks for their mode. Assign in fixed order,
+   never cycle — a 7th series folds to "Other". Text always wears --text-* tokens, never a
+   series hue. */
+:root {
+  --chart-1: #0e9d8f;  /* teal   */
+  --chart-2: #4f8ff5;  /* blue   */
+  --chart-3: #bb7f26;  /* amber  */
+  --chart-4: #e0574f;  /* red    */
+  --chart-5: #8670e6;  /* violet */
+  --chart-6: #2f9e6e;  /* green  */
+  --chart-grid: rgba(140, 230, 200, 0.12);
+  --chart-axis: var(--text-mute, #436055);
+}
+html[data-theme="classic"] {
+  --chart-1: #0f9488;
+  --chart-2: #2f6fe0;
+  --chart-3: #b0741f;
+  --chart-4: #d14840;
+  --chart-5: #6c53d6;
+  --chart-6: #1f8a5c;
+  --chart-grid: rgba(0, 0, 0, 0.12);
+  --chart-axis: #555;
+}
+
+/* ---- chart primitives ---- */
+.chart-svg { display: block; width: 100%; height: auto; overflow: visible; font-variant-numeric: tabular-nums; }
+.chart-axis-line { stroke: var(--chart-axis); stroke-width: 1; opacity: 0.5; }
+.chart-grid-line { stroke: var(--chart-grid); stroke-width: 1; }
+.chart-tick-label { fill: var(--text-mute, #436055); font-size: 11px; }
+.chart-axis-title { fill: var(--text-mid, #a6cabd); font-size: 11px; font-weight: 600; }
+.chart-line { fill: none; stroke-width: 2; }
+.chart-dot { stroke: var(--card, #11362a); stroke-width: 2; }
+.chart-bar { rx: 3; }
+.chart-slice { stroke: var(--card, #11362a); stroke-width: 2; }
+.chart-hover-x { stroke: var(--text-mid, #a6cabd); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.6; }
+.chart-donut-total { fill: var(--text, #e8f4ee); font-size: 22px; font-weight: 700; text-anchor: middle; }
+.chart-donut-total-label { fill: var(--text-mute, #436055); font-size: 11px; text-anchor: middle; }
+
+/* legend (identity is never color-alone: a swatch + a text label) */
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; padding: 0; list-style: none; }
+.chart-legend li { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-mid, #a6cabd); }
+.chart-legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+
+/* tooltip */
+.chart-tip {
+  position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, calc(-100% - 10px));
+  background: var(--card, #11362a); color: var(--text, #e8f4ee);
+  border: 1px solid var(--card-border, var(--border)); border-radius: var(--radius-sm, 6px);
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,0.3)); padding: 6px 8px; font-size: 12px; white-space: nowrap;
+}
+.chart-tip .k { color: var(--text-mute, #436055); margin-right: 6px; }
+.chart-wrap { position: relative; }
+.chart-empty { color: var(--text-mute, #436055); font-size: 13px; padding: 20px; text-align: center; }
+
+/* ---- page layout ---- */
+.db-root { padding: 4px 2px 40px; }
+.db-bar { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.db-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-mid, #a6cabd); }
+/* Direct-child selectors only, so nested component inputs (MultiSelect checkboxes,
+   GridTable) keep their own styling instead of inheriting the field-input look. */
+.db-bar select, .db-field > input, .db-field > select, .db-name, .db-wtitle, .db-kv-row > input {
+  background: var(--surface, #0e2a23); color: var(--text, #e8f4ee);
+  border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 7px 9px; font: inherit;
+}
+.db-bar-sp { flex: 1; }
+.db-view-head, .db-editor-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.db-view-head h2 { margin: 0; flex: 1; }
+
+/* widget grid */
+.db-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.db-cell { min-width: 0; }
+@media (max-width: 900px) { .db-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .db-cell { grid-column: span 2 !important; } }
+
+/* widget card */
+.w-card { background: var(--card, #11362a); border: 1px solid var(--card-border, var(--border)); border-radius: var(--radius, 12px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.2)); display: flex; flex-direction: column; min-height: 120px; overflow: hidden; }
+.w-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.w-head h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-mid, #a6cabd); flex: 1; }
+.w-trunc { font-size: 10px; color: var(--amber, #f6c560); border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
+.w-body { padding: 12px; flex: 1; min-height: 0; position: relative; }
+
+/* value renderer */
+.w-value { text-align: center; padding: 8px 0; }
+.w-value-num { font-size: 40px; font-weight: 700; line-height: 1.1; color: var(--text, #e8f4ee); font-variant-numeric: tabular-nums; }
+.w-value-cap { font-size: 12px; color: var(--text-mute, #436055); margin-top: 4px; }
+.w-value.tone-bad .w-value-num { color: var(--red, #f0726a); }
+.w-value.tone-warn .w-value-num { color: var(--amber, #f6c560); }
+.w-value.tone-ok .w-value-num { color: var(--green, #34e0a1); }
+.w-value.tone-info .w-value-num { color: var(--blue, #4f9dff); }
+.w-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--surface2, #143a30); color: var(--text-mid, #a6cabd); }
+
+/* links renderer */
+.w-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.w-links li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.w-links .w-links-path { color: var(--text-mute, #436055); font-size: 11px; margin-left: auto; }
+
+/* view-time run picker + wide-table column toggle + provenance (CSV chart widgets) */
+.w-head-sp { flex: 1; }
+.w-run-select { max-width: 55%; font-size: 11px; padding: 2px 4px; color: var(--text-mid, #a6cabd);
+  background: var(--surface2, #143a30); border: 1px solid var(--border); border-radius: 6px; }
+.w-date { font-size: 11px; padding: 1px 4px; color: var(--text-mid, #a6cabd);
+  background: var(--surface2, #143a30); border: 1px solid var(--border); border-radius: 6px; max-width: 130px; }
+.w-cols { padding: 6px 12px 0; font-size: 11px; }
+.w-cols > summary { cursor: pointer; color: var(--text-mute, #436055); user-select: none; }
+.w-cols-list { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 6px; }
+.w-cols-item { display: inline-flex; align-items: center; gap: 4px; color: var(--text-mid, #a6cabd); }
+.w-chart { display: flex; flex-direction: column; gap: 6px; height: 100%; }
+.w-chart-note { font-size: 10px; color: var(--text-mute, #436055); align-self: flex-end; }
+.w-provenance { margin-top: 6px; font-size: 10px; color: var(--text-mute, #436055); text-align: right; font-variant-numeric: tabular-nums; }
+.w-reloading { position: absolute; top: 6px; right: 8px; font-size: 14px; color: var(--text-mute, #436055); opacity: 0.7; animation: w-pulse 1s ease-in-out infinite; }
+@keyframes w-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+
+/* editor */
+.db-editor-widgets { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr)); gap: 14px; align-items: start; }
+.db-wedit { background: var(--card, #11362a); border: 1px solid var(--card-border, var(--border)); border-radius: var(--radius, 12px); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.db-wedit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 620px) { .db-wedit-cols { grid-template-columns: 1fr; } }
+.db-wedit-cfg { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.db-preview { position: sticky; top: 8px; min-width: 0; }
+.db-preview-lab { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-mute, #436055); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+.db-preview-n { text-transform: none; letter-spacing: 0; color: var(--text-mid, #a6cabd); }
+.db-preview-hint { color: var(--text-mute, #436055); font-size: 12px; padding: 16px; text-align: center; }
+.db-hint { font-size: 11px; color: var(--amber, #f6c560); line-height: 1.3; }
+.db-advanced { border: 1px dashed var(--border); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 8px; }
+.db-advanced > summary { cursor: pointer; font-size: 12px; color: var(--text-mute, #436055); user-select: none; }
+.db-wedit-top { display: flex; gap: 8px; align-items: center; }
+.db-wtitle { flex: 1; font-weight: 600; }
+.db-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-mid, #a6cabd); }
+.db-field > input, .db-field > select { width: 100%; box-sizing: border-box; }
+.db-kv-lab { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-mid, #a6cabd); }
+.db-kv-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 4px; margin-top: 4px; }
+.db-name { font-size: 18px; font-weight: 700; min-width: 220px; }
+.db-addw { align-self: start; height: fit-content; margin-top: 22px; }
+.btn-xs { font-size: 11px; padding: 2px 6px; }
+
+/* table condition flags */
+.w-flag { display: inline-flex; align-items: center; gap: 5px; }
+.w-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: var(--text-mute, #436055); }
+.w-dot.tone-bad { background: var(--red, #f0726a); }
+.w-dot.tone-warn { background: var(--amber, #f6c560); }
+.w-dot.tone-ok { background: var(--green, #34e0a1); }
+.w-dot.tone-info { background: var(--blue, #4f9dff); }
+
+/* ---- widget-editor polish ---- */
+.db-wsec-h { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-mute, #436055); margin: 12px 0 2px; padding-top: 10px; border-top: 1px solid var(--border); }
+.db-wsec-h:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.db-wrow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.db-flabel { display: inline-flex; align-items: center; gap: 5px; }
+.db-help {
+  display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex: 0 0 auto;
+  border-radius: 50%; border: 1px solid var(--border2, var(--border)); color: var(--text-mute, #436055);
+  font-size: 9px; font-weight: 700; cursor: help; user-select: none; line-height: 1;
+}
+.db-help:hover, .db-help:focus { color: var(--text, #e8f4ee); border-color: var(--accent, #2dd4bf); outline: none; }
+.db-note { font-size: 12px; color: var(--text-mid, #a6cabd); padding: 4px 2px; }
+.db-note b { color: var(--text, #e8f4ee); }
+/* the MultiSelect inside a field keeps its own component styling (see components.css .ui-ms-*) */
+.db-field .ui-ms { margin-top: 2px; }
+
+/* ---- viewer: dashboards as tabs (options) ---- */
+.db-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.db-tab { background: transparent; color: var(--text-mid, #a6cabd); border: 1px solid var(--border); border-radius: 99px;
+  padding: 5px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+.db-tab:hover { color: var(--text, #e8f4ee); border-color: var(--accent, #2dd4bf); }
+.db-tab.active { color: var(--bg, #06140f); background: var(--accent, #2dd4bf); border-color: var(--accent, #2dd4bf); font-weight: 600; }
+html[data-theme="classic"] .db-tab.active { color: #fff; }
+
+/* ---- admin: manage list ---- */
+.db-mng-h { margin: 0; font-size: 18px; }
+.db-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.db-manage-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--card, #11362a);
+  border: 1px solid var(--card-border, var(--border)); border-radius: var(--radius, 12px); }
+.db-manage-name { font-weight: 600; color: var(--text, #e8f4ee); }
+.db-manage-meta { color: var(--text-mute, #436055); font-size: 12px; flex: 1; }

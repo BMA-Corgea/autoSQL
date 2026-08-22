@@ -23,6 +23,16 @@ dist/
 build/
 *.tsbuildinfo
 
+# T-2 (B19): the demo's committed front-end bundles live at demo/static/js/
+# and its committed wheelhouse at demo/vendor/wheels/ — NEITHER is named
+# dist/ or build/, on purpose. AC-36 requires those bundles to run from a
+# fresh clone with no Node present, so if a pattern above ever starts
+# matching demo/static/js/ or demo/vendor/wheels/, the bundle/wheels would
+# be silently untracked: present on the build machine, missing on a clone.
+# Do not add a "js/", "wheels/", or "static/" pattern to this file.
+# Verified clean today: `git check-ignore -v demo/static/js/app.js` and
+# `git check-ignore -v demo/vendor/wheels/*.whl` both report no match.
+
 # Secrets and local config — never commit
 .env
 .env.*
