@@ -47,18 +47,27 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-- **T-2** (feature) — *Demo the autoSQL UI end-to-end against a seeded fake-data database.* At stage
-  `queue` and **BLOCKED there deliberately, since 2026-08-22 05:41 UTC**, waiting on Evan's look
-  sign-off. The spec is **signed** (`spec_ready` cleared under GA-4): `.autodev/specs/T-2.md`, 2,546
-  lines, 45 acceptance criteria, 19 rulings on delegated authority, six adversarial reviews of which
-  **four refused it**; 16 non-blocking build questions carried to `.autodev/specs/T-2-punchlist.md`,
-  **four of which describe SQL that will not run as the spec implies**. The design is **finished**:
-  `design/t2-demo-mock.html` + `design/t2-demo.md`, seven states, GIMS's Watery house style, published
-  at `https://claude.ai/code/artifact/334be0e8-4bda-4893-909f-293fd6b74e47`. **Nothing has been built
-  — there is no `demo/` directory.** **Next:** Evan looks at the screen and says go or says what to
-  change; then the block lifts and the ticket moves to `locate`. Handoff:
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — build
+  **`locate`**, **not blocked**, and **ready for `build`**. Evan gave the look sign-off on 2026-08-22
+  under GA-6 (wrap-up item 3, *"Approve as drawn"*), which lifted the block the design stage had put
+  where the missing checkpoint should have been. It now runs the **full** process — `.autodev/shop.json
+  → settings.lean = false`, set the same day under item 5 (*"Run the rest full"*), so the build gets an
+  isolated worktree and a worker per stage. The `locate` and `plan` stages ran as one combo on
+  2026-08-22 and produced **`.autodev/specs/T-2-locate.md`** (457 lines — the exact file tree, this
+  machine's verified dependency versions, and **eleven gaps neither the spec nor the design settles**)
+  and **`.autodev/specs/T-2-plan.md`** (1,486 lines — **all sixteen punch-list items resolved**, the
+  query builder's ellipsis-free contract, all 45 acceptance criteria mapped, and **32 rulings on
+  delegated authority, B1–B32**). **The four punch-list items that described SQL which would not run
+  are fixed before any code exists:** the aggregate re-emits the compiled expression instead of an
+  alias (`42703`); operation 9's flag moves into a **CTE** so it can be filtered on (`42P20`);
+  operations 7/8/9 are restricted to `noun:Heartbeat`, which is the approved design's own rule X1 (the
+  one that ran, produced output and meant nothing); and a **three-shape legality matrix** replaces the
+  two rules the design named (`42803`). **Nothing has been built — there is no `demo/` directory.**
+  **Next:** the `build` stage, reading plan §1 then §4 then §6. Two places the build will exceed the
+  approved drawing (one extra greyed control on the bucketed view; one extra invented-data label per
+  answer pane) are named for Evan in the handoff, each one line to overturn. Handoff:
   `.autodev/handoffs/T-2.md`.
-- **T-3** (spike) — *Correctness run: does the restricted expression subset ever return a wrong
+- **T-3** (spike) — Correctness run: does the restricted expression subset ever return a wrong numb… — sp-investigate
   number?* At `sp-frame`, **framed and NOT blocked**, and it can start whenever. `spikes/T-3/FRAMING.md`
   fixes the bar at **zero wrong answers of any kind, at each of `extra_float_digits` = 1, 0 and −3,
   reported separately** (pooling the three is forbidden). **Next:** `sp-investigate` — the run itself,
@@ -80,7 +89,6 @@ always showing its derivation, always overturnable by one line from him.
 <!-- Holds: "waiting at <gate> on <keyholder> since <date>, ping sent to
      <channel>" — no session should discover a hold by archaeology (ruling 24). -->
 
-- **T-2 is BLOCKED at `queue` on `human:evan` since 2026-08-22T05:41:03Z**, paged to him. **Reason:**
   his Q27 asked for *"a design stage and a look sign-off"*. The `design` modifier gave T-2 a design
   **stage**, and that stage ran — but `.autodev/data/gates-policy.json` defines seven gates and
   **none of them is `design`**, so there was no checkpoint for the sign-off to happen at and the
@@ -105,7 +113,7 @@ always showing its derivation, always overturnable by one line from him.
   decided the order (item 28).
 - **Last night's work is uncommitted and exists on this Linux machine only** (wrap-up item 6): the
   spec folder move from `specs/` to `.autodev/specs/` — which changes the path other documents cite —
-  the T-2 advance and block, the design receipt and brief edits, the punch list, and three record
+  the T-2 advance and cleared, the design receipt and brief edits, the punch list, and three record — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
   files. Nothing is lost, but it is invisible to the Windows machine and one reset from gone. **No
   session has committed it; that decision is his.**
 - **Nothing else is a hold.** T-1's gate is cleared, T-3 is genuinely unblocked, and the two items
@@ -117,7 +125,7 @@ always showing its derivation, always overturnable by one line from him.
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
-- **2026-08-22 — T-2 blocked at `queue`, on purpose.** The pipeline had no design gate to stop at, so a
+- **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
   block was recorded in its place rather than inventing a gate or building past him.
 - **2026-08-21 — the 38-item wrap-up swept and put to Evan.** Written because roughly 47 decisions had
   been taken on his behalf across seven documents, with no single place to review or reverse them from.

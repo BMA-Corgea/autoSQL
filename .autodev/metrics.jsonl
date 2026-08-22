@@ -13,3 +13,5 @@
 {"ts":"2026-08-22T17:35:49.015Z","kind":"ticket.unblocked","ticket":"T-2","stage":"queue"}
 {"ts":"2026-08-22T17:39:51.250Z","kind":"stage.advanced","ticket":"T-2","from":"queue","to":"locate"}
 {"ts":"2026-08-22T17:52:03.627Z","kind":"stage.advanced","ticket":"T-3","from":"sp-frame","to":"sp-investigate"}
+{"ts":"2026-08-22T18:09:14.586Z","kind":"stage.advanced","ticket":"T-2","from":"locate","to":"plan"}
+{"ts":"2026-08-22T18:09:23.325Z","kind":"stage.advanced","ticket":"T-2","from":"plan","to":"build"}
