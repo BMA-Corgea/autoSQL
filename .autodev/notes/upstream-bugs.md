@@ -536,3 +536,69 @@ already injectable throughout.
 | No Windows support anywhere | `grep -rn "win32\|windows\|Windows"` over `scripts/`, `hooks/`, `docs/` — one hit, the test at `tests/contracts/monitoring/sidecar.test.mjs:67` |
 | No published report route | Read `plugin.json`, `package.json`, `marketplace.json`, `README.md`, `NOTICE`, `install.sh`, `docs/`, `ops/` in full |
 | The private route | `git remote -v` in the marketplace checkout; `gh repo view`; `gh auth status` |
+
+---
+
+## Defect 4 (found 2026-08-22) — a ticket waiting at a human gate never pages anyone
+
+**Not filed.** Defects 1–3 were filed as `RShuken/autodev-plugin#1` under Evan's explicit
+"File it" (wrap-up item 31). This fourth one was found *after* that, is a different class
+entirely (not the path-with-a-space root cause), and posting again under his GitHub name is his
+call, not a session's. It is written up here ready to file.
+
+### What happens
+
+`scripts/notify.mjs` pages on three event types (`PAGEABLE`, line 54): `gate_waiting`, `stalled`,
+`review.waiting`. The only producer of `gate_waiting` is `scripts/tracker.mjs:1563`, and it fires
+**inside the advance path, when an advance is refused because a gate is uncleared.**
+
+So the event is emitted when something *tries to push a ticket past* a gate — never when a ticket
+*arrives* at one. A session that behaves correctly — drives the ticket to the human's gate and
+stops, which is what the skill instructs — never triggers it.
+
+**Verified live on this machine, 2026-08-22:** `grep -c gate_waiting .autodev/events.jsonl` returns
+**0** across the repo's entire history, spanning four tickets, two cleared human gates
+(`spec_ready`, `sp_decide` on T-1) and one deliberate overnight block. Not one page was ever
+generated. `notify.mjs process` returns `{"paged":0,"alerts":0,"feed":0}` with a ticket sitting at
+an uncleared human gate.
+
+### The sharper half: for some stages it can NEVER fire
+
+Attempting `tracker.mjs advance T-3` with T-3 parked at `sp-decide` returns:
+
+```
+{ "advanced": false, "reason": "validator_pending", "stage": "sp-decide" }
+```
+
+`validator_pending`, **not** `gate_waiting` — the gate check sits *after* the validator check. For a
+stage whose work IS the human's decision (`sp-decide`, `ex-decide`, and any review lane of the same
+shape), the validator cannot pass until the human has decided. So the ordering is circular:
+
+- no page until the validator passes,
+- the validator cannot pass until the human acts,
+- the human does not know to act because there was no page.
+
+The pager is structurally unreachable for exactly the gates that most need it.
+
+### Why it matters
+
+The plugin's own documentation sells this: `notify.mjs` is described as "gate pings". A team that
+configures transports correctly, proves them end to end, and installs a trigger — all of which was
+done here — still gets nothing. The failure is silent: no error, no warning, just a phone that
+never rings while a ticket waits.
+
+### Suggested fix
+
+Emit `gate_waiting` on **arrival** at a stage carrying an uncleared gate — at the point the advance
+INTO that stage completes — rather than only on a refused advance out of it. The
+`shouldEmitOccurrence` de-duplication at `tracker.mjs:863` already keys on
+`(ticket, stage, gate)`, so emitting on arrival stays exactly-once and needs no new machinery.
+Alternatively, check the gate before the validator in the advance path, so `advance` on a parked
+ticket reports `gate_waiting` rather than `validator_pending`.
+
+### Workaround in use here
+
+The driving session writes the decision packet to `.autodev/outbox/<key>.md` by hand and runs
+`ops/notify-telegram.sh`. The file transport is a documented seam ("any channel bridge (or the
+human) can pick outbox files up"), so this is a supported path — it just is not automatic, which
+was the whole point of wiring the trigger.
