@@ -3,8 +3,8 @@
   "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
   "type": "feature",
   "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
-  "stage": "uat",
-  "status": "acceptance",
+  "stage": "build",
+  "status": "building",
   "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
   "pipeline_version": "feature@v1",
   "modifiers": [
@@ -26,17 +26,17 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-23 gate merge cleared by policy:unattended",
-    "2026-08-23 advanced gate → verify · gate on claude-fable-5",
     "2026-08-23 verify: worker started (claude-fable-5) 03:48",
     "2026-08-23 advanced verify → uat · verify on claude-fable-5",
-    "2026-08-23 checkpoint accept: human:strict → human by agent:claude(on-behalf:evan,GA-7): Evan's own instruction, form answer q6 under GA-7: 'Soften it back to human - my answers here are enough'. I hardened this gate to human:strict this morning under wrapup items 35/36 - questions he was NEVER ASKED - and the effect was that his answers in a form could not clear his own gate. That was friction I invented on a question he had no vote on. He was given the option to undo it and took it. Back to 'human', which still means it is his call and still refuses --by human:evan from an agent; it only permits honest on-behalf clearing against a recorded go-ahead. The design gate stays human:strict, because THAT one he did ask for (item 4)."
+    "2026-08-23 checkpoint accept: human:strict → human by agent:claude(on-behalf:evan,GA-7): Evan's own instruction, form answer q6 under GA-7: 'Soften it back to human - my answers here are enough'. I hardened this gate to human:strict this morning under wrapup items 35/36 - questions he was NEVER ASKED - and the effect was that his answers in a form could not clear his own gate. That was friction I invented on a question he had no vote on. He was given the option to undo it and took it. Back to 'human', which still means it is his call and still refuses --by human:evan from an agent; it only permits honest on-behalf clearing against a recorded go-ahead. The design gate stays human:strict, because THAT one he did ask for (item 4).",
+    "2026-08-23 moved uat → build by agent:claude(on-behalf:evan,GA-7), attempt 1 — reopened merge · why: Evan's form answers q3 and q4 under GA-7, both of which change code and spec. q3 = 'Re-scope AC-35 to the seven files the ticket vendors' - the criterion currently asserts two whole GIMS checkouts are pristine, which collides with his own uncommitted work in files this ticket never reads; re-scoping it to the seven files actually vendored is arguably what it should have said originally, and makes the two standing failures go away without touching his edits. q4 = 'Adopt it - update the four criteria' - the demo stops pinning the pre-fix 427-line runtime.sql and moves to T-3's corrected 472-line version, with B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness and AC-17's mechanism amended to match. NOTED FOR HIM: his q5 ruling means T-6 will change that runtime AGAIN (pinning the setting and converting the Unicode gap to a named refusal), so the demo will need a second update after the re-run - he was told this in the form's own wording and chose adopt. The accept gate is NOT cleared and is not being cleared: q1 and q2 contradict each other. · leaving: Acceptance: does this match the INTENT (links.intent — the Direction artifact)? · next: Implement the plan: code + tests on the ticket branch.",
+    "2026-08-23 build: worker started (claude-fable-5) · attempt 4 05:12"
   ],
   "assignees": {},
   "links": {},
   "gates": {
     "spec_ready": true,
-    "merge": true,
+    "merge": false,
     "accept": false,
     "deploy": false,
     "sp_decide": false,
@@ -50,7 +50,7 @@
   },
   "loop": {
     "validator_passed": false,
-    "attempts": 0
+    "attempts": 1
   },
   "history": [
     {
@@ -136,6 +136,12 @@
       "to": "uat",
       "by": "agent:claude(on-behalf:evan,GA-6)",
       "at": "2026-08-23T04:06:47.696Z"
+    },
+    {
+      "from": "uat",
+      "to": "build",
+      "by": "agent:claude(on-behalf:evan,GA-7):Evan's form answers q3 and q4 under GA-7, both of which change code and spec. q3 = 'Re-scope AC-35 to the seven files the ticket vendors' - the criterion currently asserts two whole GIMS checkouts are pristine, which collides with his own uncommitted work in files this ticket never reads; re-scoping it to the seven files actually vendored is arguably what it should have said originally, and makes the two standing failures go away without touching his edits. q4 = 'Adopt it - update the four criteria' - the demo stops pinning the pre-fix 427-line runtime.sql and moves to T-3's corrected 472-line version, with B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness and AC-17's mechanism amended to match. NOTED FOR HIM: his q5 ruling means T-6 will change that runtime AGAIN (pinning the setting and converting the Unicode gap to a named refusal), so the demo will need a second update after the re-run - he was told this in the form's own wording and chose adopt. The accept gate is NOT cleared and is not being cleared: q1 and q2 contradict each other.",
+      "at": "2026-08-23T05:12:56.291Z"
     }
   ],
   "pins": {
@@ -223,5 +229,12 @@
       "model": "claude-fable-5"
     }
   },
-  "bounces": {}
+  "bounces": {
+    "uat": {
+      "attempts": 1,
+      "no_progress_streak": 1,
+      "last_digest": null
+    }
+  },
+  "consent_epoch": "2026-08-23T05:12:56.291Z"
 }
