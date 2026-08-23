@@ -47,78 +47,116 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — build
-  **`locate`**, **not blocked**, and **ready for `build`**. Evan gave the look sign-off on 2026-08-22
-  under GA-6 (wrap-up item 3, *"Approve as drawn"*), which lifted the block the design stage had put
-  where the missing checkpoint should have been. It now runs the **full** process — `.autodev/shop.json
-  → settings.lean = false`, set the same day under item 5 (*"Run the rest full"*), so the build gets an
-  isolated worktree and a worker per stage. The `locate` and `plan` stages ran as one combo on
-  2026-08-22 and produced **`.autodev/specs/T-2-locate.md`** (457 lines — the exact file tree, this
-  machine's verified dependency versions, and **eleven gaps neither the spec nor the design settles**)
-  and **`.autodev/specs/T-2-plan.md`** (1,486 lines — **all sixteen punch-list items resolved**, the
-  query builder's ellipsis-free contract, all 45 acceptance criteria mapped, and **32 rulings on
-  delegated authority, B1–B32**). **The four punch-list items that described SQL which would not run
-  are fixed before any code exists:** the aggregate re-emits the compiled expression instead of an
-  alias (`42703`); operation 9's flag moves into a **CTE** so it can be filtered on (`42P20`);
-  operations 7/8/9 are restricted to `noun:Heartbeat`, which is the approved design's own rule X1 (the
-  one that ran, produced output and meant nothing); and a **three-shape legality matrix** replaces the
-  two rules the design named (`42803`). **Nothing has been built — there is no `demo/` directory.**
-  **Next:** the `build` stage, reading plan §1 then §4 then §6. Two places the build will exceed the
-  approved drawing (one extra greyed control on the bucketed view; one extra invented-data label per
-  answer pane) are named for Evan in the handoff, each one line to overturn. Handoff:
-  `.autodev/handoffs/T-2.md`.
-- **T-3** (spike) — Correctness run: does the restricted expression subset ever return a wrong numb… — sp-investigate
-  number?* At `sp-frame`, **framed and NOT blocked**, and it can start whenever. `spikes/T-3/FRAMING.md`
-  fixes the bar at **zero wrong answers of any kind, at each of `extra_float_digits` = 1, 0 and −3,
-  reported separately** (pooling the three is forbidden). **Next:** `sp-investigate` — the run itself,
-  which opens with a 24-character guard-literal fix at `proto/runtime.sql:33` and `:51`, then a
-  negative control on `differ.py` that must pass **before any real number is quoted anywhere**.
-  Ignore the ticket file's "BLOCKED ON EVAN" line: it was written 17 minutes before GA-4 answered it.
-  Handoff: `.autodev/handoffs/T-3.md`.
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — **at
+  `build`, BUILT AND GREEN, not yet passed.** Evan's look sign-off on 2026-08-22 (GA-6, wrap-up item 3,
+  *"Approve as drawn"*) lifted the block; item 5 (*"Run the rest full"*) put it on the full process, so
+  it builds in an **isolated worktree at `/home/corgea/autoSQL-T-2-build`, branch `feat/T-2-demo`**
+  (pushed). `locate`+`plan` produced `.autodev/specs/T-2-locate.md` (457 lines, **eleven gaps** neither
+  spec nor design settles) and `.autodev/specs/T-2-plan.md` (1,486 lines, all 16 punch-list items
+  resolved, 45 ACs mapped, **32 rulings B1–B32**). The build ran as **18 work items across 16 workers**;
+  five died on a session limit and were resumed after it reset.
+  **It runs:** `./run-demo up` brings up a container on 55440 (`lc_collate=C`), installs offline from a
+  committed wheelhouse with `--no-index`, seeds **10,410 invented rows** (10 EdgeCase / 8,400 Heartbeat
+  / 2,000 Sample) and serves the screen on 8787. Evan's live `glp-strong-db` untouched throughout.
+  **Suite: 565 passed, 9 skipped, 1 xfailed, 0 failed**, B10 checksum guard verified.
+  **Two findings worth carrying forward.** (1) **The spec was wrong about `inf`.** AC-17 asserts the
+  Python pane shows `inf` for edge-03's `huge`; jsonb renders that value as a bare 401-digit *integer*,
+  so Python's `parse_int` returns an exact int and the overflow surfaces later as `OverflowError`. W13
+  reached this in code (ruling W13-2) and **T-3 reached it independently the same day** — two
+  measurements, one conclusion — so the documents were corrected at their sources and AC-17 carries a
+  dated note with its signed text intact. A carve-out that had excluded that value from AC-31's
+  three-way sweep is also gone, which is *why* the wrong value survived. (2) **T-2 and T-3 collided on
+  `spikes/T-1/proto/runtime.sql`** — T-3 legitimately fixed its 297→309-digit guard, which T-2's 45
+  criteria were not written against. Resolved by vendoring: `demo/vendor/runtime.sql` is pinned at 427
+  lines and the spike tree keeps T-3's 472-line fix; a test asserts the two stay **different**.
+  **Still open on this ticket:** AC-19 (being implemented), **AC-35 needs Evan** (it asserts his GIMS
+  checkouts are clean; they carry his own uncommitted edits — wrap-up item 33), and whether the demo
+  should **adopt** T-3's corrected runtime, which would change four signed criteria.
+  **Next:** finish AC-19, run AC-4's neighbour-ports check, pass `build`, then `auto-review` → `gate`
+  (unattended) → `verify` → **`uat`, which is Evan's and is `human:strict` on this ticket** — it
+  physically cannot ship without him. Handoff: `.autodev/handoffs/T-2.md`.
+- **T-3** (spike) — *Correctness run: does the restricted expression subset ever return a wrong
+  number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON EVAN. The answer is NO: it does
+  return wrong numbers.** The bar (zero wrong answers at each of `extra_float_digits` 1, 0 and −3,
+  reported separately) is **FAILED at all three**, and not by the guard defect — step zero fixed that
+  first (297→309 digits, plus a named `XPR01` refusal) and confirmed it was not the cause.
+  **Two mechanisms.** (1) **The Unicode-digit gap**, which survives even the setting production would
+  pin: `float("１２３")` is 123.0 in Python and `NULL` in SQL, so `coalesce(min($.b), 0.1)` returns
+  **0.1** where Python says **123.0**. It **falsifies the framing's own prediction** that restricting
+  constructs would drive the batteries to zero — the gap is not in any construct, it is in the shared
+  string-to-number routine. (2) **Value-channel truncation** above ≈4.16e9, which at efd −3 makes
+  `$.ts + 0` on GIMS's largest stored value return **1,787,169,706,040** instead of **…037**.
+  Counts: 39+16 wrong at efd 1, 101+15 at efd 0, 105+16 at efd −3. Class 3 zero, unexplained raises
+  zero, NULLNESS zero. Raw mode adds a **class-4**: a ninth, uncatalogued Python raise site.
+  **The biggest qualifier, and it is not buried:** the headline mechanism only fires if non-ASCII digit
+  strings occur in real data, and **the run did not measure whether they do**. "This can happen" is
+  proven; "this will happen to you" is not.
+  Evidence: `spikes/T-3/FINDINGS.md` (599 lines) + 29 raw outputs in `spikes/T-3/out/`; the decision
+  document is **`spikes/T-3/SYNTHESIS.md`** (406 lines, four options A–D, a labelled recommendation
+  with its own weakest point stated), published for him at
+  `https://claude.ai/code/artifact/75bc45a2-7601-4334-aa2a-5dd6f7ef3351`.
+  **`sp_decide` is UNCLEARED and stays that way** — GA-6 would permit clearing it on-behalf; a failing
+  result with four live options is not what a go-ahead is for. Ping delivered to his phone.
+  **Evidence integrity:** `spikes/T-1/FINDINGS.md` is untouched (sha256 `bcda73d6…`, matching its
+  recorded digest), but T-1's numbers can no longer be reproduced byte-identically from the current
+  instruments — that needs a checkout of `01e75b0`. Handoff: `.autodev/handoffs/T-3.md`.
 - **T-4** (spike) — *Timing run: how long does a person actually wait, generated SQL vs today's
-  Python?* At `sp-frame`, **framed**, `depends_on: ["T-1","T-3"]` — it waits for T-3 to **report**, not
-  to pass. `spikes/T-4/FRAMING.md` sets the unit as **milliseconds a person waits, never a ratio**
-  (Evan's own words under GA-3). **Two things gate it:** it needs **this machine to itself for 2–3
-  hours**, and its three speed bars (350 ms at 20 000 rows, 1 000 ms at 100 000, 5 500 ms at
-  1 000 000) are a **proposal he has not accepted** — the number is his. Its corpus must be rebuilt
-  first, into its own throwaway container, from `spikes/T-1/proto/REGENERATE-CORPUS.md`. **Next:**
-  Evan names a window; then `sp-investigate`. Handoff: `.autodev/handoffs/T-4.md`.
+  Python?* — **at `sp-frame`, framed, and deliberately NOT started today.** `depends_on:
+  ["T-1","T-3"]`. Evan's wrap-up item 28 put the correctness run and the demo build on today and left
+  the timing run for a booked window, because building the demo is exactly the heavy work that voids
+  its numbers. **Two things still gate it, both his:** it needs **this machine to itself for 2–3 hours**
+  (item 29, unanswered), and a **real widget name** or the invented one (item 30, unanswered). Its
+  three speed bars (350 ms / 1,000 ms / 5,500 ms) remain a proposal he has not accepted. Its corpus
+  must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
+  correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
+  `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 
 ## Waiting on
 
 <!-- Holds: "waiting at <gate> on <keyholder> since <date>, ping sent to
      <channel>" — no session should discover a hold by archaeology (ruling 24). -->
 
-  his Q27 asked for *"a design stage and a look sign-off"*. The `design` modifier gave T-2 a design
-  **stage**, and that stage ran — but `.autodev/data/gates-policy.json` defines seven gates and
-  **none of them is `design`**, so there was no checkpoint for the sign-off to happen at and the
-  ticket flowed straight to `queue` under GA-5 (his AFK note, *not* approval of the screen). **A block
-  was put where the missing gate should have been**, so the next session told to keep going does not
-  build a UI he has never seen. **What clears it**, from the ticket's own remedy field: *"Evan looks at
-  the artifact and says go, or says what to change. Then: `tracker.mjs unblock T-2 --by <actor>`."*
-  Do not clear it without him.
-- **The wrap-up form is the single biggest thing waiting on him.** `WRAPUP-FOR-EVAN.md` at the repo
-  root, and the same thing as a fillable form at
-  `https://claude.ai/code/artifact/c883d912-d130-4e44-b156-e63e5d539754`. **38 items; 5 marked
-  blocking.** Most are decisions taken on his behalf while he was away, each derived from something he
-  already said and each one line to overturn. **Item 1 is the one to answer first: go-ahead GA-4 was
-  logged against T-2 only, with `scope_confirmed: false`, and was then used as the authority for
-  rulings on T-1 and T-3 as well — about twenty-one decisions rest on how far he meant one sentence to
-  reach.** If he meant the T-2 spec only, three rulings revert to open: the tick-vs-note reading, the
-  loud-refusal rule in T-3, and T-4's speed targets. Nothing would need re-running.
+**Rewritten 2026-08-22 evening.** Everything the previous version listed here has been answered or
+lifted: T-2's design block was cleared by Evan's own look sign-off, and the 38-item wrap-up form is
+fully answered — nine by him in session, the other 29 ruled under GA-6 and recorded where each lives.
+
+- **T-3's `sp_decide` gate — the big one.** Waiting on `human:evan` since 2026-08-22, ping delivered
+  to Telegram (via the outbox file seam; see the note below on why the automatic path did not fire).
+  The correctness run **failed** and he has four options in `spikes/T-3/SYNTHESIS.md`, published at
+  `https://claude.ai/code/artifact/75bc45a2-7601-4334-aa2a-5dd6f7ef3351`. **Do not clear this
+  on-behalf.** GA-6 would technically permit it; a failing result that decides whether the SQL path is
+  funded is his. He clears it with:
+  `tracker.mjs approve T-3 sp_decide --by human:evan --i-am-human`
+- **T-2's `accept` gate, when it gets there.** Hardened to **`human:strict`** on this ticket on
+  2026-08-22 (wrap-up items 35/36, ruled under GA-6), so on-behalf clearing is **refused** — the demo
+  physically cannot ship without him. Per-ticket, not shop-wide, because he was never asked 35 or 36.
+  The recommendation to make it shop-wide is written in the form for whenever he agrees.
+- **AC-35 needs a decision from him.** It asserts `git status --porcelain` is empty in two live GIMS
+  checkouts; both carry **his own uncommitted edits from 2026-08-13**, in files T-2 never reads. Both
+  trees are read-only to this ticket, so it cannot be resolved from here. Two ways out, both his:
+  commit/stash those eight files (wrap-up item 33), or re-scope AC-35 to ignore modifications outside
+  the seven files the ticket actually vendors. **A build worker refused to weaken the check to make it
+  green, which was right.**
+- **Should the demo adopt T-3's corrected runtime?** Open, and genuinely his. The demo currently pins
+  `demo/vendor/runtime.sql` at the 427-line version its 45 criteria describe, while the spike tree
+  carries T-3's 472-line fix. Adopting the fix would change B15's guard digits, B24's edge-04/edge-05
+  pair, AC-13's fifth witness and AC-17's mechanism — four signed criteria — so it was not taken
+  unilaterally. One line either way.
 - **T-4 needs two things only he can give:** an exclusive quiet 2–3 hour window on this machine
-  (wrap-up item 29), and either a real dashboard widget of his own or acceptance of the invented one,
-  which is labelled invented everywhere it appears (item 30). Building T-2's demo is exactly the kind
-  of work that voids T-4's measurements, so the two cannot share an afternoon here and nobody has
-  decided the order (item 28).
-- **Last night's work is uncommitted and exists on this Linux machine only** (wrap-up item 6): the
-  spec folder move from `specs/` to `.autodev/specs/` — which changes the path other documents cite —
-  the T-2 advance and cleared, the design receipt and brief edits, the punch list, and three record — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
-  files. Nothing is lost, but it is invisible to the Windows machine and one reset from gone. **No
-  session has committed it; that decision is his.**
-- **Nothing else is a hold.** T-1's gate is cleared, T-3 is genuinely unblocked, and the two items
-  this page used to list as open — re-fingerprinting `FINDINGS.md`, and Q31's corpus-regeneration
-  notes — are both **done** (see below).
+  (item 29), and either a real dashboard widget of his own or acceptance of the invented one, which is
+  labelled invented everywhere it appears (item 30). After T-3's failure, whether T-4 runs at all is
+  part of the `sp-decide` decision rather than an automatic next step.
+- **Two ten-minute jobs at the Windows machine** (item 32), and his stale GIMS checkout (item 33,
+  which AC-35 above now depends on).
+
+**A caution for any session that expects to be paged.** The automatic gate ping **does not work**, and
+it is not a configuration mistake — see Defect 4 in `.autodev/notes/upstream-bugs.md`. `notify.mjs`
+pages on `gate_waiting`; the only producer of that event fires when an advance is *refused* at a gate,
+never when a ticket *arrives* at one. `grep -c gate_waiting .autodev/events.jsonl` over this repo's
+entire history returns **0**. Worse, for a stage whose work IS the human's decision (`sp-decide`), the
+gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
+session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
+`ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
 
 ## Recent past (~15 items / ~30 days)
 
