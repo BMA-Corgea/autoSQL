@@ -719,11 +719,15 @@ def normalised_pick(pick: dict) -> dict:
     """
     if not isinstance(pick, dict):
         raise TypeError("a pick is a JSON object")
-    # A malformed computed slot (42, "notalist") is legality's to refuse by
-    # name (shape_violations); this pass must merely not crash before the
-    # refusal can happen.
+    # A malformed computed slot (42, "notalist", a name that is not text)
+    # is legality's to refuse by name (shape_violations); this pass must
+    # merely not crash before the refusal can happen.  Only TEXT names go
+    # in the set: a name of any other type cannot be a legal alias — and a
+    # list or dict there took this comprehension down with `unhashable
+    # type` before the refusal could be built (round-2, finding 1).
     computed = pick.get("computed")
-    aliases = ({cc.get("name") for cc in computed if isinstance(cc, dict)}
+    aliases = ({cc.get("name") for cc in computed
+                if isinstance(cc, dict) and isinstance(cc.get("name"), str)}
                if isinstance(computed, list) else set())
     out = dict(pick)
     for slot, key in _FIELD_SLOTS:
@@ -1248,13 +1252,6 @@ _STRIP_NOTE = (
 #: checked fact rather than a comment.
 STRIPPED_FROM_VENDORED_CSS: dict[str, list[str]] = {}
 
-#: The vendored stylesheets, by name, read once.  The route below resolves
-#: against THIS mapping and never against the path it was handed, so no
-#: request can name a file outside `demo/vendor/styles/`.
-_VENDORED_STYLESHEETS = {
-    p.stem: p for p in sorted((_VENDOR / "styles").glob("*.css"))
-}
-
 
 def _points_at_another_host(target: str) -> bool:
     return bool(_URL_WITH_A_HOST.match(target.strip()))
@@ -1303,13 +1300,48 @@ def offline_css(text: str) -> tuple[str, list[str]]:
     return out, removed
 
 
-def vendored_css_as_served(name: str) -> tuple[str, list[str]]:
-    """One vendored sheet, exactly as the route below sends it."""
-    served, removed = offline_css(
-        _VENDORED_STYLESHEETS[name].read_text(encoding="utf-8")
-    )
-    STRIPPED_FROM_VENDORED_CSS[name + ".css"] = removed
-    return served, removed
+class _OfflineVendorFiles(StaticFiles):
+    """The ``/vendor`` mount, with NO path through it to a raw stylesheet.
+
+    The round-1 fix was an explicit ``/vendor/styles/{name}.css`` route
+    registered before a raw mount — and a route matches one literal
+    spelling.  Round 2 measured five OTHER spellings that resolve to the
+    same file (``/vendor//styles/…``, ``/vendor/./styles/…``, a ``..``
+    detour, its percent-encoded twin, a trailing slash), each falling
+    through to the raw mount and going out verbatim, live ``@import`` and
+    all.  Enumerating those spellings here would repeat finding 1's
+    mistake one door down.
+
+    So the decision is made where every spelling has already collapsed:
+    Starlette resolves each request to a REAL filesystem path
+    (``get_path`` normalises the dot-segments, ``lookup_path`` realpaths
+    the rest and fences it inside the directory) and hands it to
+    ``file_response`` — the one funnel every file served by this mount
+    passes through.  A resolved file that is a stylesheet is composed
+    through :func:`offline_css`, whatever the request looked like;
+    everything else in the vendored tree is served as-is.  There is no
+    second, raw path to a ``.css`` left to fall through to.
+
+    The files on disk stay byte-identical to GIMS's own (D1;
+    ``demo/manifest.json`` pins the digests) — this class rewrites only
+    what goes over the wire, like the route it replaces.
+    """
+
+    def file_response(self, full_path, stat_result, scope,
+                      status_code: int = 200) -> Response:
+        path = Path(full_path)
+        if path.suffix.lower() != ".css":
+            return super().file_response(full_path, stat_result, scope,
+                                         status_code)
+        served, removed = offline_css(path.read_text(encoding="utf-8"))
+        STRIPPED_FROM_VENDORED_CSS[path.name] = removed
+        response = Response(served, status_code=status_code,
+                            media_type="text/css; charset=utf-8")
+        if scope["method"].upper() == "HEAD":
+            # What FileResponse does for HEAD: the entity headers
+            # (content-length included) describe the GET answer; no body.
+            response.body = b""
+        return response
 
 
 if (_STATIC / "js").is_dir():
@@ -1319,19 +1351,8 @@ if (_STATIC / "js").is_dir():
         """GIMS's sprite, at the URL its own Icon component asks for."""
         return FileResponse(_VENDOR / "icons.svg", media_type="image/svg+xml")
 
-    # Declared BEFORE the ``/vendor`` mount, for the same reason the sprite
-    # route is declared before ``/static``: Starlette matches routes in the
-    # order they were added, and the Mount would otherwise answer first —
-    # with the file verbatim, which is the defect.
-    @app.get("/vendor/styles/{name}.css", include_in_schema=False)
-    def vendored_stylesheet(name: str) -> Response:
-        """A vendored Watery sheet, carrying nothing that leaves this host."""
-        if name not in _VENDORED_STYLESHEETS:
-            return Response(status_code=404)
-        served, _removed = vendored_css_as_served(name)
-        return Response(served, media_type="text/css; charset=utf-8")
-
-    app.mount("/vendor", StaticFiles(directory=str(_VENDOR)), name="vendor")
+    app.mount("/vendor", _OfflineVendorFiles(directory=str(_VENDOR)),
+              name="vendor")
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 _NO_SCREEN_YET = (

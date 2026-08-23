@@ -1571,6 +1571,147 @@ def test_ac32_the_vendored_sheet_is_still_the_reason_this_exists(served_page):
     )
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Round-2 review, finding 2 — the strip must hold at EVERY request spelling
+# ─────────────────────────────────────────────────────────────────────────
+#
+# The round-1 fix registered `/vendor/styles/{name}.css` before the raw
+# `/vendor` mount, so the CANONICAL path was stripped — and every other
+# spelling that resolves to the same file (`/vendor//styles/…`,
+# `/vendor/./styles/…`, a `%2e%2e` detour, a trailing slash) fell through
+# to the raw mount and went out verbatim, live `@import` and all.  The walk
+# above cannot see this: it follows the links the page actually emits,
+# which are canonical.  And a test listing the five measured spellings
+# would repeat the same mistake one door down — so the spellings below are
+# GENERATED from the path's own structure, and the property asserted is
+# the fix's stated guarantee itself: no request path serves a vendored
+# stylesheet raw.
+#
+# The client matters as much as the spellings: httpx (and so TestClient)
+# collapses dot-segments before sending, exactly the normalisation a
+# fronting proxy or a non-browser client is not obliged to do.  So these
+# requests are driven as raw ASGI scopes — the same shape uvicorn hands
+# the app for such a request: `path` percent-decoded, dot-segments NOT
+# collapsed.
+
+def _spellings_of(canonical: str) -> list[str]:
+    """Every spelling of `canonical` this generator can derive that a path
+    resolver maps to the same file: a doubled slash, a `.` segment, an
+    `up-and-back` detour and its percent-encoded twin at EVERY boundary,
+    and the trailing-slash forms — derived, not enumerated."""
+    parts = canonical.strip("/").split("/")
+    out = {canonical}
+    for i in range(1, len(parts)):
+        head = "/" + "/".join(parts[:i])
+        tail = "/".join(parts[i:])
+        out.add(f"{head}//{tail}")
+        out.add(f"{head}/./{tail}")
+        out.add(f"{head}/%2e/{tail}")
+        out.add(f"{head}/{parts[i]}/../{tail}")
+        out.add(f"{head}/{parts[i]}/%2e%2e/{tail}")
+    out.add(canonical + "/")
+    out.add(canonical + "//")
+    out.add(canonical + "/.")
+    return sorted(out)
+
+
+def _asgi_get_raw(asgi_app, spelling: str) -> tuple[int, bytes]:
+    """GET one URL with the path EXACTLY as spelled — no client-side
+    normalisation between this test and the app's router."""
+    import asyncio
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": urllib.parse.unquote(spelling),
+        "raw_path": spelling.encode("latin-1"),
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"host", b"127.0.0.1:8787")],
+        "client": ("127.0.0.1", 50000),
+        "server": ("127.0.0.1", 8787),
+    }
+    sent: list[dict] = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    asyncio.run(asgi_app(scope, receive, send))
+    status = next(m["status"] for m in sent if m["type"] == "http.response.start")
+    body = b"".join(m.get("body", b"") for m in sent
+                    if m["type"] == "http.response.body")
+    return status, body
+
+
+#: The five spellings round 2 measured serving the raw sheet, kept as
+#: witnesses that the GENERATOR covers the known-live bypasses — a subset
+#: check on the generator's output, never the guard itself.
+_ROUND_2_MEASURED_BYPASSES = (
+    "/vendor/./styles/watery.css",
+    "/vendor//styles/watery.css",
+    "/vendor/styles/watery.css/",
+    "/vendor/styles/../styles/watery.css",
+    "/vendor/styles/%2e%2e/styles/watery.css",
+)
+
+
+def test_ac32_no_request_spelling_serves_a_vendored_sheet_raw():
+    """Finding 2's guarantee, asserted as stated: for every vendored
+    stylesheet and every derived spelling, whatever the app serves carries
+    no off-host reference — and anything served 200 is byte-identical to
+    the canonical offline sheet, so there is exactly ONE version of each
+    sheet on the wire, whatever the request looked like."""
+    from demo.server import app as server_app
+
+    host = _GOOGLE_FONTS_HOST.encode()
+    reached_noncanonical = 0
+    for sheet in ("watery", "dashboard", "shell", "components"):
+        canonical = f"/vendor/styles/{sheet}.css"
+        status, canon_body = _asgi_get_raw(server_app.app, canonical)
+        assert status == 200, f"{canonical} answers {status}"
+        assert host not in canon_body
+
+        for spelling in _spellings_of(canonical):
+            status, body = _asgi_get_raw(server_app.app, spelling)
+            assert host not in body, (
+                f"{spelling} served the vendored sheet RAW — the off-host "
+                "@import is on the wire at a non-canonical spelling, and a "
+                "trailing-slash link, a fronting proxy, or GIMS referencing "
+                "the sheet differently would leak on every page load"
+            )
+            if status == 200:
+                assert body == canon_body, (
+                    f"{spelling} answers 200 with bytes that differ from the "
+                    "canonical offline sheet — two versions of one sheet are "
+                    "on the wire, and only one of them was checked"
+                )
+                if spelling != canonical:
+                    reached_noncanonical += 1
+
+    # The sweep must actually have exercised the serving path at
+    # non-canonical spellings — a wall of 404s would make it vacuous.
+    assert reached_noncanonical > 0, (
+        "no non-canonical spelling reached a stylesheet at all, so this "
+        "test proved nothing about how one is served — if routing changed, "
+        "re-derive the spellings before trusting this green"
+    )
+
+    # And the generator covers the five bypasses round 2 measured live —
+    # the regression this test exists to hold shut.
+    generated = set(_spellings_of("/vendor/styles/watery.css"))
+    missing = [s for s in _ROUND_2_MEASURED_BYPASSES if s not in generated]
+    assert missing == [], (
+        f"the spelling generator no longer derives {missing} — the measured "
+        "bypasses are outside the sweep, which is the round-1 blindness again"
+    )
+
+
 def test_ac32_the_sweep_would_actually_catch_a_reintroduced_remote_url():
     """The detector, watched catching something (plan §8.2).
 

@@ -281,6 +281,21 @@ def shape_violations(pick: dict) -> list[dict]:
     bare HTTP 500 with an empty body — neither layer's refusal, naming
     nothing.
 
+    THE INNER VALUES ARE CHECKED TOO, against the same pinned shape — the
+    round-2 review's finding 1.  Checking only the holders left
+    ``aggregate.field: {…}``, ``window.field: […]`` and
+    ``computed[i].name: […]`` to pass here, pass the matrix, and crash the
+    first reader that used one as a dict key (``builder.py``'s
+    computed-column lookup; the pick handler's alias set) — the same bare
+    500, one level deeper.  A falsy malformed value (``fn: false``,
+    ``field: []``) is the sharper half of the same case: the tolerant
+    readers above default it with ``or`` and the pick would otherwise be
+    ANSWERED as though the slot were empty — a silent repair, which DR-2
+    forbids as surely as a crash.  So: inside a well-typed holder, every
+    PRESENT inner key must hold its pinned type (``aggregate.field`` may
+    also be ``null`` — the pinned shape says so); an absent inner key
+    still reads as not-set, exactly like an absent slot.
+
     Returned in the same ``{"operation": n, "why": str}`` form the matrix's
     own violations use, so one refusal payload carries both kinds.
     """
@@ -288,6 +303,10 @@ def shape_violations(pick: dict) -> list[dict]:
 
     def bad(n: int, why: str) -> None:
         found.append({"operation": n, "why": why})
+
+    def bad_inner(n: int, holder: str, key: str, value, pinned: str) -> None:
+        bad(n, f"the {holder}'s {key} must be {pinned} — and this pick "
+               f"carries {_slot_kind(value)} in its place")
 
     source = pick.get("source")
     if source is not None and not isinstance(source, str):
@@ -305,6 +324,13 @@ def shape_violations(pick: dict) -> list[dict]:
                 bad(2, f"computed column {i + 1} must be a "
                        f"{{name, expression}} object, and this pick carries "
                        f"{_slot_kind(cc)} in its place")
+                continue
+            if "name" in cc and not isinstance(cc["name"], str):
+                bad_inner(2, f"computed column {i + 1}", "name",
+                          cc["name"], "a column name — text")
+            if "expr" in cc and not isinstance(cc["expr"], str):
+                bad_inner(2, f"computed column {i + 1}", "expression",
+                          cc["expr"], "one expression — text")
 
     flt = pick.get("filter")
     if flt is not None and not isinstance(flt, str):
@@ -315,11 +341,27 @@ def shape_violations(pick: dict) -> list[dict]:
     if sort is not None and not isinstance(sort, dict):
         bad(4, f"the sort must be a {{field, dir}} object, and this pick "
                f"carries {_slot_kind(sort)}")
+    elif isinstance(sort, dict):
+        if "field" in sort and not isinstance(sort["field"], str):
+            bad_inner(4, "sort", "field", sort["field"],
+                      "the name of a field — text")
+        if "dir" in sort and not isinstance(sort["dir"], str):
+            bad_inner(4, "sort", "direction", sort["dir"],
+                      "the word asc or desc — text")
 
     aggregate = pick.get("aggregate")
     if aggregate is not None and not isinstance(aggregate, dict):
         bad(6, f"the aggregate must be a {{fn, field}} object, and this "
                f"pick carries {_slot_kind(aggregate)}")
+    elif isinstance(aggregate, dict):
+        if "fn" in aggregate and not isinstance(aggregate["fn"], str):
+            bad_inner(6, "aggregate", "function", aggregate["fn"],
+                      "one of the closed set's six words — text")
+        if "field" in aggregate and aggregate["field"] is not None \
+                and not isinstance(aggregate["field"], str):
+            bad_inner(6, "aggregate", "field", aggregate["field"],
+                      "the name of a numeric field — text, or null for "
+                      "count")
 
     bucket = pick.get("bucket")
     if bucket is not None and not isinstance(bucket, str):
@@ -330,6 +372,15 @@ def shape_violations(pick: dict) -> list[dict]:
     if window is not None and not isinstance(window, dict):
         bad(8, f"the rolling window must be a {{field}} object, and this "
                f"pick carries {_slot_kind(window)}")
+    elif isinstance(window, dict):
+        if "field" in window and not isinstance(window["field"], str):
+            bad_inner(8, "rolling window", "field", window["field"],
+                      "the name of a numeric field — text")
+
+    cap = pick.get("cap")
+    if cap is not None and (isinstance(cap, bool) or not isinstance(cap, int)):
+        bad(5, f"the row cap must be a whole number, and this pick carries "
+               f"{_slot_kind(cap)}")
 
     changed = pick.get("changed")
     if changed is not None and not isinstance(changed, bool):
@@ -447,9 +498,12 @@ def evaluate(pick: dict) -> dict:
         )
 
     # Operation 5's range — a positive integer no greater than MAX_SCAN.
+    # The TYPE half of the rule is shape_violations' (so /api/operations
+    # refuses a malformed cap too); judged here is the range of a cap the
+    # shape already accepts as a whole number.
     cap = pick.get("cap")
     if cap is not None and ops[5]["enabled"]:
-        if not isinstance(cap, int) or isinstance(cap, bool) or not (
+        if isinstance(cap, int) and not isinstance(cap, bool) and not (
             CAP_MIN <= cap <= CAP_MAX
         ):
             violate(

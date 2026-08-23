@@ -611,6 +611,210 @@ def test_api_operations_refuses_a_malformed_shape_by_name(
     assert "invalid" not in detail.lower()
 
 
+# ---------------------------------------------------------------------------
+# Round-2 review, finding 1 — the list above is the defect, not the guard.
+#
+# `_MALFORMED_PICKS` holds exactly the six holder-type shapes round 1 had
+# already named, so the test over it passed green while six INNER-value
+# shapes (`aggregate.field` a dict, `window.field` a list, `computed[i].name`
+# a dict, …) still took `/api/pick` down as a bare 500 — the same structural
+# blindness round 1 flagged for the AC-32 font guard, reproduced inside the
+# very test written to close that finding.  A hand-maintained list of
+# known-bad inputs is a guess about where the next malformed pick will be,
+# and the next one was one level deeper.
+#
+# So the guard below is GENERATIVE, not enumerated.  The pick's schema is
+# pinned beside `legality.default_pick` (every slot, every inner key, every
+# legal JSON type); the table below writes that schema down as substitution
+# points, and the tests substitute a wrong-typed value — one of every JSON
+# type, in a truthy AND a falsy spelling, because several readers default a
+# falsy slot with `or` and a falsy malformed value would otherwise sail
+# through as "not set" — into EVERY point, nested ones included.  Nothing
+# may 500, and everything type-illegal must be refused BY NAME.  The next
+# unlisted shape is then caught by this test rather than by a reviewer.
+# ---------------------------------------------------------------------------
+
+_H = "noun:Heartbeat"
+
+#: One value of every JSON type, truthy and falsy where the type has both.
+#: `0`/`7` also cover the bool-is-int trap from the other side: the legality
+#: decision below compares `type(probe)`, never `isinstance`, so `True` is
+#: bool (never a legal int) and `0` is int (never a legal bool).
+_TYPE_PROBES = (None, True, False, 0, 7, 2.5, [], ["x"], {}, {"x": 1})
+
+#: The extra probe for slots that must not hold TEXT either (a holder, the
+#: cap, the toggle).  Not applied where `str` is legal — a wrong VALUE in a
+#: right-typed slot is the legality matrix's job, not this guard's.
+_STR_PROBE = "zzz"
+
+#: The pick's pinned schema as substitution points:
+#: (path into the pick, the legal Python types there, a base pick that
+#: engages the point).  `type(None)` marks the slots where the pinned shape
+#: itself says `| None` / "absent means not set".  The base picks carry the
+#: MINIMUM around each point so a malformed value cannot hide behind a
+#: sibling: `aggregate.fn`'s base deliberately carries no field, because
+#: `{"fn": False}` with no field used to read as "no aggregate at all" and
+#: answer 200 — a silent repair, which DR-2 forbids as surely as a crash.
+_CC = {"source": _H, "computed": [{"name": "c1", "expr": "$.priority"}]}
+_SORTED = {"source": _H, "sort": {"field": "ts", "dir": "asc"}}
+_AGG = {"source": _H, "aggregate": {"fn": "sum", "field": "$.payload.load"}}
+_PICK_SCHEMA: list[tuple[tuple, tuple, dict]] = [
+    (("source",), (str, type(None)), {"source": _H}),
+    (("computed",), (list, type(None)), {"source": _H}),
+    (("computed", 0), (dict,), _CC),
+    (("computed", 0, "name"), (str,), _CC),
+    (("computed", 0, "expr"), (str,), _CC),
+    (("filter",), (str, type(None)), {"source": _H}),
+    (("sort",), (dict, type(None)), {"source": _H}),
+    (("sort", "field"), (str,), _SORTED),
+    (("sort", "dir"), (str,), _SORTED),
+    (("cap",), (int, type(None)), {"source": _H}),
+    (("aggregate",), (dict, type(None)), {"source": _H}),
+    (("aggregate", "fn"), (str,), {"source": _H, "aggregate": {"fn": "sum"}}),
+    (("aggregate", "field"), (str, type(None)), _AGG),
+    (("bucket",), (str, type(None)),
+     {"source": _H, "bucket": "day", "aggregate": {"fn": "count", "field": None}}),
+    (("window",), (dict, type(None)), {"source": _H}),
+    (("window", "field"), (str,), {"source": _H, "window": {"field": "$.payload.load"}}),
+    (("changed",), (bool, type(None)), {"source": _H}),
+]
+
+#: Which operation each top-level slot belongs to — what a refusal must name.
+_SLOT_OPERATION = {"source": 1, "computed": 2, "filter": 3, "sort": 4,
+                   "cap": 5, "aggregate": 6, "bucket": 7, "window": 8,
+                   "changed": 9}
+
+
+def _with(base: dict, where: tuple, value):
+    """A deep copy of `base` with `value` substituted at `where`."""
+    out = json.loads(json.dumps(base))  # base picks are plain JSON
+    node = out
+    for step in where[:-1]:
+        node = node[step]
+    node[where[-1]] = value
+    return out
+
+
+def _generated_malformed_picks():
+    """(id, where, probe, pick, type_illegal) over the WHOLE schema."""
+    for where, legal, base in _PICK_SCHEMA:
+        probes_here = _TYPE_PROBES if str in legal else _TYPE_PROBES + (_STR_PROBE,)
+        for probe in probes_here:
+            slot = ".".join(str(s) for s in where)
+            yield (f"{slot}<-{probe!r}", where, probe,
+                   _with(base, where, probe), type(probe) not in legal)
+
+
+_GENERATED = list(_generated_malformed_picks())
+
+
+def test_the_malformed_pick_schema_covers_every_slot_of_the_pick() -> None:
+    """The generator's scope, proved rather than assumed (the round-1 AC-32
+    lesson, once more): if a slot is added to the pick, this fails until the
+    schema table above learns it — the sweep cannot quietly fall behind the
+    thing it sweeps.  The nested points are pinned too: every object-valued
+    slot must have at least one inner substitution point, because the inner
+    values are exactly what the round-2 review found unswept."""
+    import legality
+
+    covered = {where[0] for where, _, _ in _PICK_SCHEMA}
+    assert covered == set(legality.default_pick()), (
+        "the substitution schema no longer matches the pick's pinned slots — "
+        f"schema has {sorted(covered)}, the pick has "
+        f"{sorted(legality.default_pick())}"
+    )
+    nested = {where for where, _, _ in _PICK_SCHEMA if len(where) > 1}
+    for holder, inner in (("sort", ("field", "dir")),
+                          ("aggregate", ("fn", "field")),
+                          ("window", ("field",))):
+        for key in inner:
+            assert (holder, key) in nested, f"({holder}, {key}) is unswept"
+    assert ("computed", 0) in nested and ("computed", 0, "name") in nested \
+        and ("computed", 0, "expr") in nested
+
+
+@pytest.mark.parametrize(
+    "where,probe,pick,type_illegal",
+    [g[1:] for g in _GENERATED], ids=[g[0] for g in _GENERATED],
+)
+def test_no_wrong_typed_value_in_any_slot_can_500_the_pick_route(
+    where: tuple, probe, pick: dict, type_illegal: bool
+) -> None:
+    """The whole sweep, against the crash: WHATEVER sits in WHATEVER slot,
+    `/api/pick` answers — 200 for a pick that is genuinely legal, 422 with a
+    refusal for one that is not, never an unhandled exception (which the
+    HTTP layer would render as the bare 500 both review rounds measured)."""
+    status, body = _api_pick({"pick": pick})  # a crash raises out of here
+    assert status < 500, f"{where} holding {probe!r}: HTTP {status}"
+    assert status in (200, 422)
+    if status == 422:
+        assert body["refusal"] is not None, "refused with no refusal payload"
+
+
+@pytest.mark.parametrize(
+    "where,probe,pick",
+    [g[1:4] for g in _GENERATED if g[4]],
+    ids=[g[0] for g in _GENERATED if g[4]],
+)
+def test_every_wrong_typed_value_in_any_slot_is_a_named_refusal(
+    where: tuple, probe, pick: dict
+) -> None:
+    """The type-illegal half, against the silent repair: a slot holding a
+    JSON type the pinned shape forbids is REFUSED — never answered as if
+    the slot were empty — and the refusal names what it found, in words a
+    reader can act on (DR-2; spec §4.3's doctrine)."""
+    status, body = _api_pick({"pick": pick})
+    assert status == 422, (
+        f"{where} holding {probe!r} was not refused (HTTP {status}) — a "
+        "malformed slot answered as though it were not set is a silent repair"
+    )
+    refusal = body["refusal"]
+    assert refusal is not None
+    if refusal["kind"] == "illegal":
+        named = [v["operation"] for v in refusal["violations"]]
+        assert _SLOT_OPERATION[where[0]] in named, (
+            f"the refusal names operations {named}, not operation "
+            f"{_SLOT_OPERATION[where[0]]} where the malformed value sits"
+        )
+        words = " ".join(v["why"] for v in refusal["violations"])
+    else:
+        # A named layer-1 refusal is also an honest answer — but it must
+        # actually name the construct it refused.
+        assert refusal["layer"] == 1
+        assert str(refusal["construct"]).strip()
+        words = refusal["why"]
+    assert words.strip(), "the refusal carries no words at all"
+    assert "invalid" not in words.lower(), (
+        f"a bare 'invalid' is the defect, not the fix: {words!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "where,probe,pick,type_illegal",
+    [g[1:] for g in _GENERATED], ids=[g[0] for g in _GENERATED],
+)
+def test_api_operations_never_500s_on_any_wrong_typed_slot(
+    where: tuple, probe, pick: dict, type_illegal: bool
+) -> None:
+    """The contract route, same sweep: the screen re-derives its controls
+    from `/api/operations` on every change, so a malformed slot must read
+    as a named 422 there too — and a type-illegal slot must never come back
+    as a 200 contract quietly computed from garbage."""
+    from demo.server import app as server_app
+
+    response = server_app.api_operations(json.dumps(pick))
+    assert response.status_code < 500
+    if type_illegal:
+        assert response.status_code == 422, (
+            f"{where} holding {probe!r}: /api/operations answered "
+            f"{response.status_code}, a contract derived from a slot whose "
+            "type the pick's shape forbids"
+        )
+        detail = json.loads(response.body)["detail"]
+        assert f"operation {_SLOT_OPERATION[where[0]]}" in detail
+        assert "invalid" not in detail.lower()
+
+
 def test_a_pick_that_is_not_an_object_is_answered_not_crashed() -> None:
     """{'pick': 'hello'} used to reach normalised_pick's TypeError and die
     as a 500; a client defect must read as a client defect."""
