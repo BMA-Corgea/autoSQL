@@ -19,7 +19,7 @@
 
 - AC-19 (reported observation, no threshold): 68 accepted / 62 refused of 130 fixture cases.
 - AC-19's expected reading is 68 accepted / 62 refused — this run MATCHES it.
-- AC-19 per-case report written to /home/corgea/autoSQL-T-2-build/demo/ac19-expr-vectors.md
+- AC-19 per-case report written to /home/corgea/Desktop/Coding Projects/autoSQL/demo/ac19-expr-vectors.md
 
 Read it as §0 defines it: a **contract-surface** count — how much of *this test file* falls inside the safe subset — and never as how much of real use is covered. No corpus of real use exists in either checkout, and `FINDINGS.md` §5.7(i) rules that this figure may not be quoted at a gate.
 
