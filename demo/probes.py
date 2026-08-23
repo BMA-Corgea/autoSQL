@@ -8,9 +8,15 @@ properties of the ROWS, not of the AST — and they are this file's:
               coerced through the guarded numeric read, have magnitude
               >= 1.7976931348623157e+308 (the real float8 limit, whose exact
               decimal expansion is 309 digits)?  Postgres's float8 genuinely
-              cannot represent such a value, and the shipped runtime answers
-              NULL rather than raising — the silent form FRAMING.md §5
-              forbids.  So the demo asks FIRST, and refuses loudly.
+              cannot represent such a value.  The demo asks FIRST and
+              refuses loudly, one question ahead of the statement — with a
+              structured refusal that names the first offending ROW, which
+              the runtime's own error cannot.  (Until 2026-08-23 there was a
+              second reason: the pre-fix runtime answered NULL past its
+              guard — the silent form FRAMING.md §5 forbids.  The adopted
+              runtime — q4/GA-7 — instead RAISES a named XPR01 refusal at
+              the same limit, so the probe is now the row-naming front door
+              to a runtime that fails loudly behind it either way.)
 
   member (b)  does any row make an == / != operand resolve to an object or an
               array?  Container equality is outside the pinned subset at the
@@ -25,12 +31,14 @@ a reported refusal is not a wrong answer; a number would have been.
 
 THE ONE WAY TO GET MEMBER (a) WRONG (spec §4.5, plan §4.3) — the probe reads
 the RAW jsonb and casts through `numeric`, which holds 1e400 exactly.  It must
-NEVER be routed through xpr.f8 or xpr.num: those carry the shipped 297-digit
-guard — threshold 1.7976931348623157e+296, NOT the real limit — and that
-guard returns NULL rather than raising (runtime.sql:33-34), so a probe built
-on them would be handed a null for exactly the values that are too big, and
-`NULL >= anything` is null, never true.  A guess here produces a quiet null
-instead of a refusal.
+NEVER be routed through xpr.f8 or xpr.num.  Under the adopted runtime
+(2026-08-23, q4/GA-7) those RAISE the named XPR01 refusal for exactly the
+values the probe exists to pre-empt — so a probe built on them would die
+mid-question instead of answering true, and the person would see the raw
+runtime error instead of the probe's row-naming refusal.  (Under the pre-fix
+runtime the failure was quieter still: a 297-digit guard answered NULL, and
+`NULL >= anything` is null, never true — a quiet null instead of a refusal.)
+Either way: raw jsonb, cast through numeric, never the runtime's readers.
 
 THE SECOND WAY (plan §4.3) — the probe asks `jsonb_typeof(<op>) = 'number'`,
 and an array is not a number.  `max($.l)` over `{"l": [1e300, 1]}` is NOT
@@ -74,13 +82,15 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _COMPILE_PY = _REPO_ROOT / "spikes" / "T-1" / "proto" / "compile.py"
 
-#: The real float8 limit, rendered at 17 significant digits (B15).  Never to
-#: be confused with the shipped guard's 1.7976931348623157e+296.
+#: The real float8 limit, rendered at 17 significant digits (B15).  Since
+#: the 2026-08-23 adoption (q4/GA-7) the vendored runtime's own guard sits
+#: at this same value — its 309-digit positional expansion — where the
+#: pre-fix guard sat twelve decades low at 1.7976931348623157e+296.
 DBL_MAX_LITERAL = "1.7976931348623157e+308"
 
 #: The comparison operators whose operands reach the guarded numeric read
-#: when they hold numbers: xpr.ord routes number/number pairs through xpr.f8
-#: (runtime.sql:160-186).
+#: when they hold numbers: xpr.ord routes number/number pairs through
+#: xpr.f8.
 _ORD_OPS = ("<", "<=", ">", ">=")
 _EQ_OPS = ("==", "!=")
 

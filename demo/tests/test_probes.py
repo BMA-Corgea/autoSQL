@@ -7,12 +7,18 @@ boundary, because a probe that refuses both sides is broken:
   * `$.huge * 1` over noun:EdgeCase is refused — edge-03 carries 1e400 (401
     digits of raw JSON), above the largest double — and the refusal names
     the cause and the row.
-  * `$.a * 1` is NOT refused — edge-00 carries 1e300, representable, and
-    §5's twelve-decade defect has to stay visible (walkthrough step 11).
-  * `$.g * 1` is NOT refused — edge-04 and edge-05 straddle the SHIPPED
-    297-digit guard (1.7976931348623157e+296): xpr.f8 already nulls edge-05's
-    value, yet the probe stays quiet, which proves its threshold is the
-    309-digit DBL_MAX and not the guard it must never be routed through.
+  * `$.a * 1` is NOT refused — edge-00 carries 1e300, representable.  (Under
+    the pre-adoption runtime this also kept §5's twelve-decade defect
+    visible; since 2026-08-23, q4/GA-7, the corrected runtime reads 1e300
+    correctly and the below-the-limit side is simply the probe's negative
+    control.)
+  * `$.g * 1` IS refused, naming edge-05 — the pair edge-04/edge-05 now
+    straddles the CORRECTED 309-digit guard, i.e. DBL_MAX itself, so the
+    probe's threshold and the adopted runtime's guard agree at the same
+    literal.  That the refusal names edge-05 and not edge-04 (which sorts
+    first) is what shows the below side does not fire.  (Until the adoption
+    the pair straddled the shipped 297-digit guard and this bullet asserted
+    the probe stayed quiet on both — see B15/B24's dated notes.)
   * The generated condition, run over literal values, flips exactly at
     1.7976931348623157e+308 — `>=`, so the boundary value itself refuses
     (B15's deliberate conservatism; never "fixed" into a `>`).
@@ -27,10 +33,13 @@ AC-18, member (b) — an ==/!= operand that really is a container:
     over-approximation would refuse every field reference beside `==`).
 
 Plus the mechanics the plan pins: the probe never routes through xpr.f8 or
-xpr.num (the named wrong way — the guard answers NULL, not true), the probe
-never looks inside containers (max($.l) with [1e300, 1] inside is step 11's
-shown disagreement, not a refusal), and every compiled operand carries its
-own B11 prefix so merged bind parameters cannot silently overwrite.
+xpr.num (the named wrong way — under the adopted runtime those RAISE for
+exactly the values the probe exists to pre-empt, so a probe built on them
+dies instead of answering; under the pre-fix runtime they answered NULL,
+never true), the probe never looks inside containers (max($.m) with
+["１２３", 1] inside is step 11's shown disagreement, not a refusal), and
+every compiled operand carries its own B11 prefix so merged bind parameters
+cannot silently overwrite.
 
 These tests need the seeded database on 127.0.0.1:55440 (`./run-demo up`);
 the structural ones at the end do not touch it.
@@ -63,7 +72,7 @@ HEARTBEAT = "noun:Heartbeat"
 # The walkthrough's own expressions, exactly as §10 types them.
 STEP_3 = '$.status == "ok"'      # computed column `alive` — accepted
 STEP_4 = '$.status != "ok"'      # filter — accepted
-STEP_11 = "max($.l)"             # the shown disagreement — NOT refused
+STEP_11 = "max($.m)"             # the shown disagreement — NOT refused
 STEP_12 = '$.where == "alpha"'   # member (b) fires, names edge-02
 STEP_13 = "$.huge * 1"           # member (a) fires, names edge-03
 
@@ -92,26 +101,35 @@ class TestAC17:
 
     def test_1e300_does_NOT_refuse(self, db):
         """The other side of the boundary: edge-00's a = 1e300 is
-        representable.  A probe that refuses both sides is broken — §5's
-        defect (the 297-digit guard nulling 1e300) must stay visible."""
+        representable.  A probe that refuses both sides is broken.  (The
+        adopted runtime — q4/GA-7, 2026-08-23 — reads 1e300 correctly too,
+        so both engines now agree on this row; the probe staying quiet is
+        what lets that agreement be SHOWN rather than refused.)"""
         outcomes = check(db, EDGE, [_gated("$.a * 1")])
         fired_a = [o for o in outcomes if o.probe.member == "a"]
         assert len(fired_a) == 1, "the member (a) probe must actually run"
         assert fired_a[0].fired is False
 
-    def test_threshold_is_dbl_max_not_the_shipped_guard(self, db):
-        """edge-04 and edge-05 straddle the shipped 297-digit guard.  The
-        guard itself nulls edge-05's value (measured here), yet the probe
-        does not fire on either — its threshold is the 309-digit DBL_MAX."""
-        # The shipped guard genuinely bites between edge-04 and edge-05 …
-        cur = db.execute(
-            "SELECT key, xpr.f8(data->'g') IS NULL FROM demo.records"
-            " WHERE collection = %(c)s AND key IN ('edge-04','edge-05')"
-            " ORDER BY key", {"c": EDGE})
-        assert cur.fetchall() == [("edge-04", False), ("edge-05", True)]
-        # … and the probe, asked over the same rows, stays quiet on both.
-        outcomes = check(db, EDGE, [_gated("$.g * 1")])
-        assert [(o.probe.member, o.fired) for o in outcomes] == [("a", False)]
+    def test_threshold_is_dbl_max_and_the_guard_now_agrees(self, db):
+        """CHANGED 2026-08-23 (q4/GA-7; B15/B24's dated notes): edge-04 and
+        edge-05 now straddle the CORRECTED 309-digit guard — DBL_MAX itself
+        — so the probe's threshold and the adopted runtime's guard bite at
+        the same literal.  As signed, this test proved the threshold was
+        NOT the shipped 297-digit guard by showing the probe quiet where
+        that guard nulled; with the guard corrected, the discrimination is
+        the NAMED ROW: `$.g * 1` refuses naming edge-05 (just above), and
+        NOT edge-04 (just below — which sorts first, so it would be the row
+        named if the below side fired).  The literal boundary is pinned
+        from both sides by test_boundary_exact_from_both_sides."""
+        with pytest.raises(RuntimeRefusal) as exc:
+            check(db, EDGE, [_gated("$.g * 1")])
+        refusal = exc.value
+        assert refusal.member == "a"
+        assert refusal.row_key == "edge-05", (
+            "the below side fired: edge-04 sits just under DBL_MAX and must "
+            "pass the probe"
+        )
+        assert DBL_MAX_LITERAL in refusal.cause
 
     def test_boundary_exact_from_both_sides(self, db):
         """The generated condition itself, at the boundary: one step below
@@ -143,18 +161,21 @@ class TestAC17:
         assert "::numeric" in probe.sql
         assert DBL_MAX_LITERAL + "::numeric" in probe.sql
         assert ">=" in probe.sql
-        # And never the shipped guard's rendering, in either spelling:
+        # And never a digit-expansion rendering (the pre-fix guard's e+296
+        # spelling, or any full positional expansion of the limit):
         assert "e+296" not in probe.sql
-        assert "179769313486231570000" not in probe.sql  # 297-digit expansion
+        assert "179769313486231570000" not in probe.sql  # positional expansion
 
     def test_step_11_array_operand_is_not_refused(self, db):
-        """§4.3's second way to get it wrong: `max($.l)` over
-        {"l": [1e300, 1]} must NOT be refused — the operand is an array, not
-        a number, and step 11 exists to SHOW the disagreement (Python 1e+300
-        beside SQL 1).  A probe 'improved' to look inside containers would
-        turn the asserted disagreement of AC-22 into a refusal."""
-        outcomes = check(db, EDGE, [_gated(STEP_11)])
-        assert [(o.probe.member, o.fired) for o in outcomes] == [("a", False)]
+        """§4.3's second way to get it wrong: an aggregate over an ARRAY
+        operand must NOT be refused — the operand is an array, not a
+        number, and the probe never looks inside containers.  Step 11's
+        `max($.m)` (["１２３", 1] — the shown Unicode-digit disagreement,
+        AC-22 as amended 2026-08-23) and the former vehicle `max($.l)`
+        ([1e300, 1] — both panes now agree on it) both have to run."""
+        for src in (STEP_11, "max($.l)"):
+            outcomes = check(db, EDGE, [_gated(src)])
+            assert [(o.probe.member, o.fired) for o in outcomes] == [("a", False)], src
 
 
 # =================================================================================

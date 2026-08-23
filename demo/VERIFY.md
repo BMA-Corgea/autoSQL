@@ -23,6 +23,31 @@ any port, at any point. (That machine's port number is deliberately not
 written here — AC-3 forbids it appearing anywhere in the demo tree, this file
 included.)
 
+> **SUPERSEDED IN PARTICULARS — 2026-08-23 (GA-7, Evan's form answers q3 and q4).** This record
+> was produced against the build as it stood on 2026-08-22 and is kept intact as evidence of that
+> run — nothing below has been rewritten. After it was produced, two of Evan's own decisions
+> changed the build, so the following particulars no longer describe the current tree:
+>
+> 1. **AC-35 was re-scoped** (q3) to the seven files the ticket vendors plus the `__pycache__`
+>    window — the two suite failures below (§1.1 of the verify record / the standing red the
+>    evidence record discloses) are gone, not by his checkouts becoming clean but by the criterion
+>    no longer ranging over his own unrelated edits.
+> 2. **T-3's corrected `runtime.sql` was adopted** (q4). The vendored copy is now sha256
+>    `1c58d548a6045aa6698b07c167ceb3391a60c2f43b9bd4ff15cf914e6cf7e93d` (472 lines, 309-digit
+>    guard, named `XPR01` refusal past DBL_MAX — no longer a silent NULL). Consequences, all
+>    measured on the reseeded stack: `max($.l)` over `[1e300, 1]` now **agrees** at `1e+300`;
+>    **step 11's shown disagreement moved** to `max($.m)` over `["１２３", 1]` — SQL `1` beside
+>    Python `123`, the Unicode-digit gap T-3 measured as surviving the fix; `edge-04`/`edge-05`
+>    straddle DBL_MAX itself (`xpr.f8` answers `1.7976931348623155e+308` just below, raises
+>    `XPR01` just above); `$.g` picks are probe-refused naming `edge-05` before any statement, so
+>    the reachable float8-overflow (22003) vehicle is now `$.a * $.a`; and the seed digest is
+>    `65d83e813f47aebd100723723138ba40`.
+>
+> The current behaviour is asserted by the suite (`./run-demo test`) and recorded in the dated
+> notes beside AC-13/AC-17/AC-22/AC-35 in `.autodev/specs/T-2.md` and B15/B24 in
+> `.autodev/specs/T-2-plan.md`. T-6 will change the runtime again (the q5 ruling), after which a
+> second such update is due.
+
 ---
 
 ## 1. Regression — the whole suite, against the running stack

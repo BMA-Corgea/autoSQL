@@ -21,7 +21,8 @@ reason: so a test can resolve it. This file does three things with that:
    resolve `path` against the real JSON and assert the two are equal —
    commas in the document are cosmetic and stripped before comparing, but
    nothing else is: a decimal string like ``"27.000000"`` must match to the
-   digit, and ``"1e+300"`` must match to the character.
+   digit, and an exponent-spelled value would have to match to the
+   character.
 2. **Completeness.** Every *numeric* leaf value that actually lives under
    `expected-answers.json`'s `corpus` and `steps` sections is computed
    independently (by walking the JSON itself, not by hand-copying a list —
@@ -37,7 +38,7 @@ reason: so a test can resolve it. This file does three things with that:
 
 "A number" here means anything the JSON itself represents as numeric: a
 Python `int`, or a `str` that parses cleanly as a float (`"400207"`,
-`"27.000000"`, `"1e+300"`) — which is how this project's own
+`"27.000000"`, `"123"`) — which is how this project's own
 `expected-answers.json` represents every exact-decimal value (B7's
 `Decimal(str)` route). A non-finite spelling such as `"inf"` would count
 here too, by the same rule; the file does not currently hold one. (It held
@@ -359,12 +360,21 @@ def test_decimal_precision_is_checked_to_the_digit_not_by_value(answers):
     )
     assert _tokens_equal("27.000000", exact)
 
-    # The two special-float strings (step 11) are exact-text, not float(),
-    # comparisons too — float("1e+300") == float("1e300"), but the document
-    # must spell it exactly as expected-answers.json does.
+    # Step 11's value strings are exact-text, not float(), comparisons too
+    # — the document must spell each value exactly as expected-answers.json
+    # does.  (Until 2026-08-23 the value here was "1e+300"; q4/GA-7 moved
+    # step 11's vehicle to the Unicode-digit gap when the corrected runtime
+    # was adopted, so it is now "123" — see AC-22's dated note.)
     py_value = _resolve(answers, "steps[10].expect.python_value")
-    assert py_value == "1e+300"
-    assert _tokens_equal("1e+300", py_value)
-    assert not _tokens_equal("1e300", py_value), (
+    assert py_value == "123"
+    assert _tokens_equal("123", py_value)
+    assert not _tokens_equal("123.0", py_value), (
+        "a differently-spelled but numerically-equal value wrongly compared equal"
+    )
+    # The exponent-spelling rule keeps its teeth even with no exponent-
+    # spelled value currently in the file: float("1e+300") == float("1e300"),
+    # but the tokens must NOT compare equal.
+    assert _tokens_equal("1e+300", "1e+300")
+    assert not _tokens_equal("1e300", "1e+300"), (
         "a differently-spelled but numerically-equal exponent wrongly compared equal"
     )

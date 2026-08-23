@@ -373,7 +373,7 @@ STEP_PICKS = {
     8: _pick(window={"field": "$.payload.load"}),
     9: _pick(changed=True),
     10: _pick(computed=[{"name": "rounded", "expr": "round($.payload.load, 1)"}]),
-    11: _pick(source=EDGECASE, computed=[{"name": "biggest", "expr": "max($.l)"}]),
+    11: _pick(source=EDGECASE, computed=[{"name": "biggest", "expr": "max($.m)"}]),
     12: _pick(source=EDGECASE, filter='$.where == "alpha"'),
     13: _pick(source=EDGECASE, computed=[{"name": "scaled", "expr": "$.huge * 1"}]),
     14: _pick(computed=[{"name": HOSTILE_ALIAS, "expr": '$.status == "ok"'}]),
@@ -742,14 +742,24 @@ def test_step_10_the_static_gate_refuses_round_before_any_sql(ran, answers):
 #
 # Note what shape it is.  It does not assert that the panes agree and it
 # does not tolerate them agreeing.  It asserts a SPECIFIC disagreement:
-# Python `1e+300`, SQL `1`, on row `edge-01`, in column `biggest`, with the
+# Python `123`, SQL `1`, on row `edge-01`, in column `biggest`, with the
 # response's verdict reading `disagree`.  Spec AC-22, in its own words:
 # "If the two panes ever agree here, either the compiler has been edited
 # (which Q19 forbids and AC-33 catches) or the control has stopped working
 # — and in both cases the build is not accepted."
+#
+# CHANGED 2026-08-23 (q4/GA-7; the dated note beside AC-22 in T-2.md): the
+# demo adopted T-3's corrected runtime.sql, whose 309-digit guard reads
+# 1e300 correctly — measured: max($.l) over [1e300, 1] now answers 1e+300
+# on BOTH panes.  The old vehicle agreeing is the FIX working, not the
+# control failing, so the step moved to the divergence T-3 measured as
+# surviving the corrected runtime: the Unicode-digit gap.  edge-01's `m`
+# holds ["１２３", 1]; Python's float() reads any Unicode digit (123.0),
+# the runtime's ASCII-only regex reads NULL, so Python says 123 and SQL
+# says 1.  The disagreement is still asserted, not tolerated.
 # ─────────────────────────────────────────────────────────────────────────
 
-def test_ac22_step_11_python_says_1e300_where_sql_says_1_and_it_is_flagged(
+def test_ac22_step_11_python_says_123_where_sql_says_1_and_it_is_flagged(
     ran, answers
 ):
     """§10 step 11 — the deliberate divergence, asserted from both sides."""
@@ -761,7 +771,7 @@ def test_ac22_step_11_python_says_1e300_where_sql_says_1_and_it_is_flagged(
     expected_row = _value(answers, 11, "row")
     expected_py = _value(answers, 11, "python_value")
     expected_sql = _value(answers, 11, "sql_value")
-    assert (expected_row, expected_py, expected_sql) == ("edge-01", "1e+300", "1")
+    assert (expected_row, expected_py, expected_sql) == ("edge-01", "123", "1")
     assert _value(answers, 11, "panes_agree") is False
     assert _value(answers, 11, "flagged") is True
 
@@ -774,24 +784,26 @@ def test_ac22_step_11_python_says_1e300_where_sql_says_1_and_it_is_flagged(
     sql_row = next(r for r in sql_pane["rows"] if r["c"][ki] == expected_row)
     py_row = next(r for r in py_pane["rows"] if r["c"][ki] == expected_row)
 
-    assert py_row["c"][bi] == expected_py == "1e+300", (
-        "the Python pane must report 1e+300: it reads [1e300, 1] straight "
-        "off the JSON and 1e300 is an ordinary double"
+    assert py_row["c"][bi] == expected_py == "123", (
+        "the Python pane must report 123: float() reads the FULLWIDTH "
+        'digits of "１２３" as 123.0 — any Unicode decimal digit converts'
     )
     assert sql_row["c"][bi] == expected_sql == "1", (
-        "the SQL pane must report 1: the shipped 297-digit guard turns its "
-        "read of 1e300 into NULL, max ignores NULLs, and 1 is what is left"
+        "the SQL pane must report 1: the corrected runtime's ASCII-only "
+        'string-to-number regex reads "１２３" as NULL, max ignores NULLs, '
+        "and 1 is what is left (the Unicode-digit gap, T-3 finding 1)"
     )
     assert sql_row["c"][bi] != py_row["c"][bi], (
         "AC-22 ASSERTS A DISAGREEMENT. The two panes agreeing here means "
-        "the guard, the compiler or the comparison has changed — see AC-22."
+        "the runtime, the compiler or the comparison has changed — see "
+        "AC-22 and its 2026-08-23 note."
     )
 
     # ── and the flag: three independent signals, not one ──────────────
     assert body["verdict"] == "disagree"
     assert body["comparison"]["verdict"] == "disagree"
     assert body["comparison"]["differing_rows"] == 1, (
-        "exactly one row differs — edge-01, the only EdgeCase row with an `l` key"
+        "exactly one row differs — edge-01, the only EdgeCase row with an `m` key"
     )
     assert body["comparison"]["first_differing_index"] == sql_row["i"]
     assert body["comparison"]["columns_match"] is True, (
@@ -836,7 +848,7 @@ def test_ac22_the_disagreement_is_reproducible(client):
         py_row = next(r for r in body["panes"]["python"]["rows"] if r["c"][ki] == "edge-01")
         seen.add((body["verdict"], sql_row["c"][bi], py_row["c"][bi],
                   body["comparison"]["differing_rows"]))
-    assert seen == {("disagree", "1", "1e+300", 1)}, f"step 11 was not stable: {seen}"
+    assert seen == {("disagree", "1", "123", 1)}, f"step 11 was not stable: {seen}"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -899,8 +911,10 @@ def test_step_13_an_out_of_range_magnitude_is_refused_at_runtime(ran, answers):
     assert body["panes"]["sql"]["state"] == "abandoned"
     assert _value(answers, 13, "sql_pane") is None
     assert body["verdict"] == "no-compare"
-    # AC-17's companion half, which DOES hold: 1e300 is not refused.  The
-    # guard is not a blanket ban on large numbers — step 11 ran.
+    # AC-17's companion half: the refusal is not a blanket ban on large
+    # numbers — step 11 (also on noun:EdgeCase, also reading real rows) ran
+    # to an answer, and TestAC17 in test_probes.py pins 1e300-not-refused
+    # directly.
     assert ran[11][0] == 200
 
 

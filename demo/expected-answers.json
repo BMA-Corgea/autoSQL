@@ -391,30 +391,30 @@
     },
     {
       "step": 11,
-      "title": "Source noun:EdgeCase, computed column biggest = max($.l)",
+      "title": "Source noun:EdgeCase, computed column biggest = max($.m)",
       "pick": {
         "operation": 2,
         "source": "noun:EdgeCase",
         "alias": "biggest",
-        "expression": "max($.l)"
+        "expression": "max($.m)"
       },
       "derivation": "\u00a75's control, demonstrated: the two panes disagree, visibly and deliberately, and the screen flags it. Note max IS in the safe subset (\u00a74.2 allows abs, coalesce, count, if, length, max, min) \u2014 it is sum and avg that are refused, which is why this step runs at all where step 10 does not.",
       "expect": {
         "row": {
           "value": "edge-01",
-          "derivation": "The only seeded EdgeCase row carrying an `l` key; its value is the array [1e300, 1] (B24)."
+          "derivation": "The only seeded EdgeCase row carrying an `m` key; its value is the array [\"\uff11\uff12\uff13\", 1] (B24 as amended 2026-08-23) \u2014 a string of FULLWIDTH digits (U+FF11 U+FF12 U+FF13) beside a plain number."
         },
         "python_value": {
-          "value": "1e+300",
-          "derivation": "Python's max over the parsed array [1e300, 1]. 1e300 is a perfectly ordinary double (max double is ~1.798e308), so Python reads it as a number and returns the larger of the two."
+          "value": "123",
+          "derivation": "Python's max over the parsed array [\"\uff11\uff12\uff13\", 1]. Python's string-to-number coercion is float(), and float() accepts any Unicode decimal digit \u2014 float(\"\uff11\uff12\uff13\") is 123.0 \u2014 so the string converts, 123.0 > 1, and the ECMA shortest rendering of 123.0 is 123. (T-3's finding 1: the Unicode-digit gap, the divergence that SURVIVES the corrected runtime.)"
         },
         "sql_value": {
           "value": "1",
-          "derivation": "Derived from the shipped 297-digit guard, not from running anything: the guard makes SQL's numeric read of a value this large return NULL (edge-00 states the same property, and the edge-04/edge-05 boundary pair brackets it at ~1.7976931348623157e+296). SQL's max ignores NULLs, so with 1e300 read as NULL the only surviving element of [1e300, 1] is 1, and max returns 1."
+          "derivation": "Derived from the corrected runtime's string gate, not from running anything: its string-to-number regex admits ASCII digits [0-9] only, so \"\uff11\uff12\uff13\" reads as missing on the SQL side. max ignores anything missing, and the only element left of [\"\uff11\uff12\uff13\", 1] is 1."
         },
         "panes_agree": {
           "value": false,
-          "derivation": "The asserted disagreement of AC-22. This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."
+          "derivation": "The asserted disagreement of AC-22 (as amended 2026-08-23, q4/GA-7). This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."
         },
         "flagged": {
           "value": true,

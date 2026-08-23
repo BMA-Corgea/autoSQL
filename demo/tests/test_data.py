@@ -33,6 +33,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -228,18 +230,35 @@ def test_ac13_witness_4_huge_is_a_json_number(db):
 
 
 def test_ac13_witness_5_guard_boundary_pair(db):
-    # B12's fifth witness: just below the shipped 297-digit guard xpr.f8
-    # returns a number; just above it, NULL. This is what proves the guard's
-    # edge is where the file says it is (B15: 1.7976931348623157e+296).
-    rows = db.execute(
-        "SELECT key, xpr.f8(data -> 'g') IS NULL "
-        "FROM demo.records WHERE collection = 'noun:EdgeCase' "
-        "AND key IN ('edge-04', 'edge-05') ORDER BY key"
-    ).fetchall()
-    assert rows == [("edge-04", False), ("edge-05", True)], (
-        "the guard-boundary pair is wrong: expected xpr.f8 to return a number "
-        f"for edge-04 and NULL for edge-05; got {rows}"
+    # B12's fifth witness, AS AMENDED 2026-08-23 (q4/GA-7; the dated notes
+    # beside B24/B15 in T-2-plan.md and AC-13 in T-2.md): the demo adopted
+    # T-3's corrected runtime, so the pair now straddles the CORRECTED
+    # 309-digit guard — DBL_MAX itself — and the out-of-range side RAISES
+    # the named XPR01 refusal instead of returning NULL (a NULL is an
+    # answer, and a wrong one). Until then the pair straddled the shipped
+    # 297-digit guard and the far side was asserted NULL.
+    below = db.execute(
+        "SELECT xpr.f8(data -> 'g')::text "
+        "FROM demo.records WHERE collection = 'noun:EdgeCase' AND key = 'edge-04'"
+    ).fetchone()[0]
+    # Measured on the adopted runtime (2026-08-23): 1.7976931348623156e+308
+    # is below the 309-digit literal, and float8 rounds it to the double
+    # just under DBL_MAX.
+    assert below == "1.7976931348623155e+308", (
+        "edge-04's g sits just below the corrected guard and must still "
+        f"read as a number; xpr.f8 said {below!r}"
     )
+    with pytest.raises(Exception) as excinfo:
+        db.execute(
+            "SELECT xpr.f8(data -> 'g') "
+            "FROM demo.records WHERE collection = 'noun:EdgeCase' AND key = 'edge-05'"
+        ).fetchone()
+    assert getattr(excinfo.value, "sqlstate", None) == "XPR01", (
+        "edge-05's g sits just above the corrected guard and must raise the "
+        f"NAMED XPR01 refusal, not {type(excinfo.value).__name__}: {excinfo.value}"
+    )
+    assert "DBL_MAX" in str(excinfo.value), "the refusal names what was exceeded"
+    db.rollback()  # the raise aborted the transaction; leave the session clean
 
 
 # ---------------------------------------------------------------------------

@@ -21,39 +21,84 @@
 CREATE SCHEMA IF NOT EXISTS xpr;
 
 -- ----------------------------------------------------------------------------
--- f8 : jsonb number -> float8, guarded so an out-of-float8-range JSON numeric
---      yields NULL instead of raising. DIVERGENCE (documented, not in fixture):
---      expr/Python would yield +-inf here; we yield NULL.
+-- f8 : jsonb number -> float8.
+-- T-3 STEP ZERO (2026-08-22, EXPERIMENTS.md 1.2): the guard literal was 297 digits
+-- (= 1.797693134862316e+296) where DBL_MAX needs 309; every finite double of
+-- magnitude ~1.8e296+ was silently nulled.  Fixed to the full 309 digits.
+-- THE GA-4 RULING (EXPERIMENTS.md 1.2, "reported runtime refusal"): above DBL_MAX
+-- this no longer returns NULL -- a null is an ANSWER, and a wrong one.  It RAISES
+-- a NAMED, catchable refusal, SQLSTATE 'XPR01', distinct from every native error
+-- class, so the caller can report a fallback to the Python path.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.f8(j jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE
-    WHEN j IS NULL THEN NULL::float8
-    WHEN jsonb_typeof(j) <> 'number' THEN NULL::float8
-    WHEN abs((j #>> '{}')::numeric) > 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000::numeric
-      THEN NULL::float8
-    ELSE (j #>> '{}')::float8
-  END
-$$;
+LANGUAGE plpgsql IMMUTABLE AS $fn$
+DECLARE n numeric;
+BEGIN
+  IF j IS NULL OR jsonb_typeof(j) <> 'number' THEN
+    RETURN NULL;
+  END IF;
+  n := (j #>> '{}')::numeric;
+  IF abs(n) > 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000::numeric THEN
+    RAISE EXCEPTION 'xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)'
+      USING ERRCODE = 'XPR01',
+            DETAIL  = 'value (truncated): ' || left(n::text, 40),
+            HINT    = 'named refusal -- fall back to the Python evaluator and report which path ran';
+  END IF;
+  RETURN (j #>> '{}')::float8;
+END
+$fn$;
 
 -- ----------------------------------------------------------------------------
 -- num : implements _to_num (expr.py:305-319)
 --   bool -> 1.0/0.0 ; number -> itself ; string -> only if the WHOLE trimmed
 --   string matches _NUM_RE (expr.py:302) ; everything else -> NULL.
 -- ----------------------------------------------------------------------------
+-- T-3 STEP ZERO + THE GA-4 RULING apply here too (the second of the two sites --
+-- the string-coercion path, the one FINDINGS.md D.6 measured as actually reached
+-- in real GIMS data).  Same 309-digit literal, same named XPR01 refusal.
+-- A numeric string whose EXPONENT overflows numeric itself (e.g. '1e200000') is
+-- refused the same way; a tiny one (e.g. '1e-20000') falls through to float8's own
+-- native 22003, the pre-existing unguarded-underflow behaviour T-3 measures but,
+-- per the framing's scope, does not redesign.
 CREATE OR REPLACE FUNCTION xpr.num(j jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE jsonb_typeof(j)
-    WHEN 'boolean' THEN CASE WHEN j = 'true'::jsonb THEN 1.0::float8 ELSE 0.0::float8 END
-    WHEN 'number'  THEN xpr.f8(j)
-    WHEN 'string'  THEN (
-      CASE WHEN btrim(j #>> '{}', E' \t\n\r\f\v') ~ '^[+-]?([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)([eE][+-]?[0-9]+)?$'
-                AND abs(btrim(j #>> '{}', E' \t\n\r\f\v')::numeric) <= 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000::numeric
-           THEN btrim(j #>> '{}', E' \t\n\r\f\v')::float8
-           ELSE NULL::float8 END)
-    ELSE NULL::float8
-  END
-$$;
+LANGUAGE plpgsql IMMUTABLE AS $fn$
+DECLARE t text; n numeric;
+BEGIN
+  IF j IS NULL THEN
+    RETURN NULL;
+  END IF;
+  IF jsonb_typeof(j) = 'boolean' THEN
+    RETURN CASE WHEN j = 'true'::jsonb THEN 1.0::float8 ELSE 0.0::float8 END;
+  ELSIF jsonb_typeof(j) = 'number' THEN
+    RETURN xpr.f8(j);
+  ELSIF jsonb_typeof(j) = 'string' THEN
+    t := btrim(j #>> '{}', E' \t\n\r\f\v');
+    IF t !~ '^[+-]?([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)([eE][+-]?[0-9]+)?$' THEN
+      RETURN NULL;
+    END IF;
+    BEGIN
+      n := t::numeric;
+    EXCEPTION WHEN numeric_value_out_of_range THEN
+      IF t ~ '[eE]-' THEN
+        RETURN t::float8;   -- tiny beyond numeric: float8's own native raise surfaces
+      END IF;
+      RAISE EXCEPTION 'xpr.num refusal: numeric string magnitude exceeds float8 range (DBL_MAX)'
+        USING ERRCODE = 'XPR01',
+              DETAIL  = 'value (truncated): ' || left(t, 40),
+              HINT    = 'named refusal -- fall back to the Python evaluator and report which path ran';
+    END;
+    IF abs(n) > 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000::numeric THEN
+      RAISE EXCEPTION 'xpr.num refusal: numeric string magnitude exceeds float8 range (DBL_MAX)'
+        USING ERRCODE = 'XPR01',
+              DETAIL  = 'value (truncated): ' || left(t, 40),
+              HINT    = 'named refusal -- fall back to the Python evaluator and report which path ran';
+    END IF;
+    RETURN t::float8;
+  ELSE
+    RETURN NULL;
+  END IF;
+END
+$fn$;
 
 -- ----------------------------------------------------------------------------
 -- truthy : implements _truthy (expr.py:282-293). Never NULL.

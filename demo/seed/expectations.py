@@ -754,10 +754,17 @@ def build_answers() -> Dict[str, Any]:
     })
 
     # -- step 11 -------------------------------------------------------------
+    # 2026-08-23, q4/GA-7 (the dated note beside AC-22 in T-2.md): the demo
+    # adopted T-3's corrected runtime.sql, whose 309-digit guard reads 1e300
+    # correctly — so max($.l) over [1e300, 1] now AGREES (both panes 1e+300)
+    # and can no longer carry §5's shown disagreement. The step moved to the
+    # divergence T-3 measured as SURVIVING the fix: the Unicode-digit gap.
+    # T-6 will convert that gap to a named refusal, at which point this step
+    # moves again (Evan was told this in the q4 form and chose adopt).
     steps.append({
         "step": 11,
-        "title": "Source noun:EdgeCase, computed column biggest = max($.l)",
-        "pick": {"operation": 2, "source": "noun:EdgeCase", "alias": "biggest", "expression": "max($.l)"},
+        "title": "Source noun:EdgeCase, computed column biggest = max($.m)",
+        "pick": {"operation": 2, "source": "noun:EdgeCase", "alias": "biggest", "expression": "max($.m)"},
         "derivation": (
             "§5's control, demonstrated: the two panes disagree, visibly and deliberately, and "
             "the screen flags it. Note max IS in the safe subset (§4.2 allows abs, coalesce, "
@@ -765,22 +772,23 @@ def build_answers() -> Dict[str, Any]:
             "this step runs at all where step 10 does not."
         ),
         "expect": {
-            "row": entry("edge-01", "The only seeded EdgeCase row carrying an `l` key; its value is the array [1e300, 1] (B24)."),
+            "row": entry("edge-01", 'The only seeded EdgeCase row carrying an `m` key; its value is the array ["１２３", 1] (B24 as amended 2026-08-23) — a string of FULLWIDTH digits (U+FF11 U+FF12 U+FF13) beside a plain number.'),
             "python_value": entry(
-                "1e+300",
-                "Python's max over the parsed array [1e300, 1]. 1e300 is a perfectly ordinary "
-                "double (max double is ~1.798e308), so Python reads it as a number and returns "
-                "the larger of the two.",
+                "123",
+                "Python's max over the parsed array [\"１２３\", 1]. Python's string-to-number "
+                "coercion is float(), and float() accepts any Unicode decimal digit — "
+                "float(\"１２３\") is 123.0 — so the string converts, 123.0 > 1, and the ECMA "
+                "shortest rendering of 123.0 is 123. (T-3's finding 1: the Unicode-digit gap, "
+                "the divergence that SURVIVES the corrected runtime.)",
             ),
             "sql_value": entry(
                 "1",
-                "Derived from the shipped 297-digit guard, not from running anything: the guard "
-                "makes SQL's numeric read of a value this large return NULL (edge-00 states the "
-                "same property, and the edge-04/edge-05 boundary pair brackets it at "
-                "~1.7976931348623157e+296). SQL's max ignores NULLs, so with 1e300 read as NULL "
-                "the only surviving element of [1e300, 1] is 1, and max returns 1.",
+                "Derived from the corrected runtime's string gate, not from running anything: "
+                "its string-to-number regex admits ASCII digits [0-9] only, so \"１２３\" reads "
+                "as missing on the SQL side. max ignores anything missing, and the only element "
+                "left of [\"１２３\", 1] is 1.",
             ),
-            "panes_agree": entry(False, "The asserted disagreement of AC-22. This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."),
+            "panes_agree": entry(False, "The asserted disagreement of AC-22 (as amended 2026-08-23, q4/GA-7). This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."),
             "flagged": entry(True, "§5 requires the screen to flag the disagreement rather than silently show two numbers."),
         },
     })

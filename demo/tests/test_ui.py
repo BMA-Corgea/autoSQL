@@ -78,8 +78,11 @@ ACCEPTED_PICKS = {
     "scalar, sum": pick(aggregate={"fn": "sum", "field": "$.payload.load"}),
     "bucket, count per day": pick(
         bucket="day", aggregate={"fn": "count", "field": None}),
+    # 2026-08-23, q4/GA-7: max($.l) agrees under the adopted runtime (the
+    # corrected guard reads 1e300); the shown disagreement rides the
+    # Unicode-digit gap in edge-01's `m` — see AC-22's dated note.
     "the disagreement": pick(
-        source=EDGECASE, computed=[{"name": "biggest", "expr": "max($.l)"}]),
+        source=EDGECASE, computed=[{"name": "biggest", "expr": "max($.m)"}]),
 }
 
 
@@ -177,7 +180,7 @@ class TestBothPanesAlways:
         assert py_row["diff"] == [column]
         # §5's control, firing: the same row, read two ways.
         assert sql_row["c"][column] == "1"
-        assert py_row["c"][column] == "1e+300"
+        assert py_row["c"][column] == "123"
 
     def test_a_disagreement_past_the_page_is_still_on_the_page(self, conn):
         """B25's D8: *a disagreement is never below the fold of a

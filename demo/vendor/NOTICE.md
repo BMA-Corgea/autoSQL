@@ -33,13 +33,18 @@ copied here** — `spikes/T-1/proto/compile.py` is reused **in place** (Q19: *as
 so AC-33 checksums it where it already lives.
 
 `runtime.sql` used to be the second such file. It is now vendored here, at
-`demo/vendor/runtime.sql`, pinned to the 427-line version this ticket's 45 acceptance criteria were
-written against. T-3's correctness run legitimately changed the shared copy on 2026-08-22 — it found
-the range guard was 297 digits where DBL_MAX needs 309, so every finite double above roughly 1.8e296
-was being silently turned into a null. That fix is correct and stays in the spike tree; the demo
-pins the older version rather than reverting it, because adopting the new one would change what four
-acceptance criteria assert. `test_vendor.py` asserts the two copies stay *different*, so nobody can
-quietly revert either side.
+`demo/vendor/runtime.sql`. T-3's correctness run legitimately changed the shared copy on 2026-08-22
+— it found the range guard was 297 digits where DBL_MAX needs 309, so every finite double above
+roughly 1.8e296 was being silently turned into a null; the fix also makes the out-of-range branch
+RAISE a named `XPR01` refusal instead of returning NULL. For one day the demo pinned the older
+427-line version, because adopting the fix changes what four acceptance criteria assert; on
+2026-08-23 Evan's own form answer q4 (GA-7) ruled *"Adopt it — update the four criteria"*, so the
+vendored copy is now T-3's corrected 472-line version
+(sha256 `1c58d548a6045aa6698b07c167ceb3391a60c2f43b9bd4ff15cf914e6cf7e93d`), B15/B24/AC-13/AC-17
+carry dated amendment notes (plus AC-22, a recorded consequence), and `test_vendor.py` asserts the
+two copies are now *identical*, so nobody can quietly edit either side. T-6 will change the shared
+runtime again (the q5 ruling: pin the float-digit setting, convert the Unicode-digit gap to a named
+refusal), at which point this copy needs a second update.
 
 ## Why whole files, never fragments (D2)
 

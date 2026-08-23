@@ -66,13 +66,15 @@ way.
 
 One step in it (step 11) is worth calling out here too, because it looks
 like a bug and isn't one: the two answers are supposed to come out
-different. One collection carries a deliberately huge number, past the
-point either engine can be trusted to hold it exactly — the guard this demo
-sets is `1.7976931348623157e+296`, well short of the true limit of
-`1.7976931348623157e+308`, on purpose, so a value that large is dropped
-rather than shown as something neither side can promise is right. When that
-happens, the screen says so out loud — a marked, visible disagreement,
-never two quiet numbers sitting side by side as if they matched.
+different. One collection carries a piece of text whose digits are the
+wide, full-width kind rather than the ordinary `0`–`9`. Python's
+number-reading recognises digits from any writing system and reads it as
+`123`; the SQL side's rule only recognises the ordinary characters, so to
+it the text is not a number at all and drops out of the calculation. Two
+plausible answers, silently different — a real, measured gap between the
+two engines, not something staged. When that happens, the screen says so
+out loud — a marked, visible disagreement, never two quiet numbers sitting
+side by side as if they matched.
 
 ## What this is not
 

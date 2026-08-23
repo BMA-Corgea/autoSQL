@@ -136,49 +136,59 @@ AC33_FILES = (
 # was silently nulled — a wrong answer wearing a null's clothes. T-3 fixed it
 # and made the out-of-range branch RAISE a named XPR01 refusal.
 #
-# That fix is right, and T-2 must not revert it. But T-2's 45 acceptance
-# criteria were written against the pre-fix behaviour: adopting the new file
-# changes B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness
-# and AC-17's whole mechanism. So the demo pins the version its spec describes,
-# by the same R4 pattern the plan already uses for expr.py.
+# For one day the demo PINNED the pre-fix version and this file asserted the
+# two copies stayed DIFFERENT — a ruling under delegated authority (Evan's
+# wrap-up item 28), because T-2's signed criteria described the pre-fix
+# behaviour.  That divergence ruling was SUPERSEDED on 2026-08-23 by Evan's
+# own form answer q4 under GA-7 — "Adopt it — update the four criteria" — so
+# the demo now vendors T-3's corrected version, B15/B24/AC-13/AC-17 carry
+# dated amendment notes (plus AC-22, a consequence recorded the same way),
+# and the test below asserts the two copies are IDENTICAL: a drift apart now
+# means someone edited one side without a decision.
 #
-# The divergence below is EXPECTED and is asserted, not tolerated — if the two
-# files ever become identical again, this test fails and tells you to re-read
-# the ruling, because that would mean someone reverted one side or the other.
+# Worth knowing (he was told, and chose adopt): the q5 ruling means T-6 will
+# change the shared runtime AGAIN — pinning extra_float_digits and converting
+# the Unicode-digit gap to a named refusal — so this vendored copy will need
+# a second update, and a second decision trail, after that re-run.
 RUNTIME_PINNED = "demo/vendor/runtime.sql"
 RUNTIME_UPSTREAM = "spikes/T-1/proto/runtime.sql"
 
 
-def test_runtime_sql_is_pinned_and_upstream_has_moved() -> None:
-    """The demo's runtime.sql is pinned; the spike's has moved on. Both are true.
+def test_runtime_sql_is_adopted_and_matches_the_spike() -> None:
+    """The demo's runtime.sql IS T-3's corrected version, byte for byte.
 
-    This is the recorded consequence of running T-2 and T-3 in parallel on
-    2026-08-22 (Evan's wrap-up item 28). It is a ruling under delegated
-    authority, and it is one line to overturn — see the note above.
+    Until 2026-08-23 this test asserted the OPPOSITE — the pinned copy and
+    the spike's copy deliberately different.  It was correct for the old
+    ruling and wrong for Evan's q4 (GA-7), which superseded it; see the
+    note above.  Identity is asserted, not just digest-validity, so neither
+    side can be edited without the other — the same one-file-one-truth
+    property the divergence assertion used to protect, pointed the other
+    way.
     """
     manifest = _manifest()
     assert RUNTIME_PINNED in manifest, (
         f"{RUNTIME_PINNED} has no recorded digest — the demo must not install "
         "an unverifiable runtime.sql"
     )
-    pinned = _sha256(REPO_ROOT / RUNTIME_PINNED)
-    assert pinned == manifest[RUNTIME_PINNED], (
+    vendored = _sha256(REPO_ROOT / RUNTIME_PINNED)
+    assert vendored == manifest[RUNTIME_PINNED], (
         f"{RUNTIME_PINNED} does not match its recorded digest — expected "
-        f"{manifest[RUNTIME_PINNED]}, got {pinned}"
+        f"{manifest[RUNTIME_PINNED]}, got {vendored}"
     )
 
     upstream_path = REPO_ROOT / RUNTIME_UPSTREAM
     if not upstream_path.exists():
         pytest.skip(
-            f"SKIPPED — {RUNTIME_UPSTREAM} is absent, so the divergence cannot "
-            "be checked. The pinned copy above is still verified."
+            f"SKIPPED — {RUNTIME_UPSTREAM} is absent, so the adoption cannot "
+            "be checked against it. The vendored copy above is still verified."
         )
     upstream = _sha256(upstream_path)
-    assert upstream != pinned, (
-        f"{RUNTIME_UPSTREAM} is now byte-identical to the pinned "
-        f"{RUNTIME_PINNED}. That should not happen without a decision: either "
-        "T-3's guard fix (297 -> 309 digits, XPR01 refusal) was reverted, or the "
-        "demo silently adopted it. Re-read the ruling above before changing this."
+    assert upstream == vendored, (
+        f"{RUNTIME_PINNED} no longer matches {RUNTIME_UPSTREAM}. Evan's q4 "
+        "(GA-7, 2026-08-23) adopted T-3's corrected runtime, so the two "
+        "copies must be byte-identical — one of them was edited without a "
+        "decision. (If T-6's re-run has just changed the spike's copy, the "
+        "demo needs its SECOND update — he was told to expect this.)"
     )
 
 
@@ -248,7 +258,24 @@ def test_ac34_tree_half(vendored_relpath: str, tree_relpath: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# AC-35 — neither GIMS checkout is modified
+# AC-35 — no file this ticket vendors is modified in either GIMS checkout
+#
+# RE-SCOPED 2026-08-23 — Evan's own decision (form answer q3, GA-7; the dated
+# note beside AC-35 in .autodev/specs/T-2.md). As signed, AC-35 asserted the
+# ENTIRE `git status --porcelain` of both checkouts empty, which failed on his
+# own uncommitted 2026-08-13 edits (api/app.py, account_roles/logins_db.py,
+# RunlogTest data dumps) — files this ticket never reads. What the criterion
+# always meant, and now says: THIS TICKET wrote nothing into his trees —
+# none of the seven vendored files is modified, and no __pycache__ was
+# written into a checkout during the build window.
+#
+# The seven vendored files are read from demo/manifest.json at test time,
+# never from a hardcoded list that can drift; `_vendored_tree_paths()` fails
+# loudly if the manifest and the vendored-path mapping ever disagree. The
+# check is a pure function of the porcelain text (`_ac35_violations`), so a
+# standing self-test can prove it still FAILS on a modified vendored file —
+# by feeding it the status line such a modification produces, never by
+# writing into the read-only checkouts.
 # ---------------------------------------------------------------------------
 
 
@@ -260,6 +287,50 @@ def _git_status_porcelain(tree: Path) -> str:
         check=True,
     )
     return result.stdout
+
+
+def _vendored_tree_paths() -> dict[str, str]:
+    """checkout-relative path -> vendored path, for the seven files this
+    ticket vendors FROM THE CHECKOUTS, derived from demo/manifest.json.
+
+    demo/vendor/runtime.sql is excluded on purpose: it is vendored from
+    spikes/T-1/proto/, not from a GIMS checkout, so no checkout path exists
+    for it and AC-35 has nothing to say about it.
+    """
+    manifest = _manifest()
+    vendored = {
+        key for key in manifest
+        if key.startswith("demo/vendor/") and key != RUNTIME_PINNED
+    }
+    # Both directions asserted, so neither the manifest nor the mapping can
+    # drift without this whole check failing loudly (never silently
+    # narrowing AC-35's scope).
+    assert vendored == set(VENDORED_FROM_GIMS), (
+        "AC-35: demo/manifest.json's vendored files and VENDORED_FROM_GIMS "
+        f"disagree — manifest-only: {sorted(vendored - set(VENDORED_FROM_GIMS))}, "
+        f"mapping-only: {sorted(set(VENDORED_FROM_GIMS) - vendored)}"
+    )
+    return {VENDORED_FROM_GIMS[key]: key for key in sorted(vendored)}
+
+
+def _ac35_violations(status_text: str, tree_paths: set[str]) -> list[str]:
+    """The porcelain lines AC-35 (as re-scoped) fails on: a status entry for
+    one of the seven vendored files, or any __pycache__ entry. Everything
+    else in the checkout — including its owner's own uncommitted work — is
+    none of this ticket's business."""
+    hits: list[str] = []
+    for line in status_text.splitlines():
+        if len(line) < 4:
+            continue
+        code, rest = line[:2], line[3:]
+        # A rename line reads `R  old -> new`; both sides count.
+        for raw in rest.split(" -> "):
+            path = raw.strip().strip('"')
+            if path in tree_paths:
+                hits.append(f"{code} {path} (a file this ticket vendors)")
+            elif "__pycache__" in path:
+                hits.append(f"{code} {path} (__pycache__ written into the checkout)")
+    return hits
 
 
 def _newest_pycache_mtime(tree: Path) -> float | None:
@@ -287,9 +358,12 @@ def test_ac35_gims_tree_not_modified(which: str, resolver) -> None:
     if not present:
         pytest.skip(_skip_reason("AC-35", which, env_var, path))
 
-    status = _git_status_porcelain(path)
-    assert status == "", (
-        f"AC-35: {which} at {path} is not clean — this ticket must never write to it:\n{status}"
+    tree_paths = set(_vendored_tree_paths())
+    hits = _ac35_violations(_git_status_porcelain(path), tree_paths)
+    assert hits == [], (
+        f"AC-35 (re-scoped, q3/GA-7): {which} at {path} shows changes to what "
+        f"this ticket vendors — this ticket must never write to it:\n"
+        + "\n".join(hits)
     )
 
     newest = _newest_pycache_mtime(path)
@@ -299,6 +373,71 @@ def test_ac35_gims_tree_not_modified(which: str, resolver) -> None:
             f"{newest} inside this test run's build window (started {_SESSION_START}) "
             f"— something executed Python inside the read-only tree during the build."
         )
+
+
+def test_ac35_rescoped_check_still_fails_on_a_vendored_modification() -> None:
+    """AC-35's re-scope must NOT be a tautology. Each of the seven vendored
+    files, reported modified/deleted/renamed, still fails the check — and a
+    __pycache__ entry does too — proven against the pure check function,
+    without a byte written into the read-only checkouts."""
+    tree_paths = set(_vendored_tree_paths())
+    assert len(tree_paths) == 7, (
+        f"the ticket vendors seven files from the checkouts; got {sorted(tree_paths)}"
+    )
+    for tree_path in sorted(tree_paths):
+        assert _ac35_violations(f" M {tree_path}\n", tree_paths), (
+            f"AC-35 would silently tolerate a modified {tree_path}"
+        )
+    assert _ac35_violations(" D core/dashboard/expr.py\n", tree_paths)
+    assert _ac35_violations(
+        "R  static/icons.svg -> static/icons-old.svg\n", tree_paths
+    ), "a rename OF a vendored file must count as a modification"
+    assert _ac35_violations(
+        "?? core/dashboard/__pycache__/expr.cpython-312.pyc\n", tree_paths
+    ), "a __pycache__ written into the checkout must fail, tracked or not"
+
+
+def test_ac35_rescoped_check_ignores_the_owners_own_work() -> None:
+    """The other half of the q3 ruling: the exact status lines that were
+    failing the suite — Evan's own 2026-08-13 edits, in files this ticket
+    never reads — are NOT violations."""
+    tree_paths = set(_vendored_tree_paths())
+    his_edits = (
+        " M api/app.py\n"
+        " M api/manifest/resolver.py\n"
+        " M api/routers/account_roles/logins_db.py\n"
+        " M backups/_config/schedules.json\n"
+        " M nodes/login_fastapi_users_node.py\n"
+        " M projects/RunlogTest/autogen_counters.json\n"
+        " M projects/RunlogTest/verbs/Chemistry/data_dumps/R1/grid_save_debug.log\n"
+        "?? tests/test_rds_fallback_is_announced.py\n"
+    )
+    assert _ac35_violations(his_edits, tree_paths) == []
+
+
+def test_ac35_wired_test_fires_end_to_end(monkeypatch) -> None:
+    """The proof one level up: the WIRED test (not just the helper) fails
+    when the status reader reports a modified vendored file. The reader is
+    monkeypatched to simulate the signal, so nothing touches the read-only
+    checkout; skips loudly when no checkout is present, exactly like the
+    test it is proving."""
+    import sys
+
+    this_module = sys.modules[__name__]
+
+    gims_path, gims_present = _gims_tree()
+    guts_path, guts_present = _guts_tree()
+    if not gims_present and not guts_present:
+        pytest.skip(_skip_reason("AC-35", "self-check", "AUTOSQL_GIMS_TREE", gims_path))
+    which, resolver = (
+        ("GIMS-Project", _gims_tree) if gims_present else ("GUTS spine copy", _guts_tree)
+    )
+    monkeypatch.setattr(
+        this_module, "_git_status_porcelain",
+        lambda tree: " M core/dashboard/expr.py\n",
+    )
+    with pytest.raises(AssertionError, match=r"expr\.py"):
+        test_ac35_gims_tree_not_modified(which, resolver)
 
 
 # ---------------------------------------------------------------------------
@@ -525,13 +664,21 @@ def test_an_overflow_literal_is_a_named_layer_1_refusal_not_a_500(expr: str) -> 
 def test_float8_overflow_at_runtime_is_a_named_refusal_not_a_500() -> None:
     """The pinned compiler's recorded divergence
     (KNOWN_DIVERGENCES.float8_overflow_raises), reachable from the screen:
-    seeded edge-04's g sits just below the range guard, so $.g * $.g
-    passes every gate and overflows float8 INSIDE the statement.  Round-1
-    measured a bare 500; now it is a named runtime refusal, the Python
-    pane still answers, and the next pick is unharmed."""
+    seeded edge-00's a = 1e300 is well inside the range guard, so $.a * $.a
+    passes every gate and overflows float8 INSIDE the statement (1e600 is
+    not a double).  Round-1 measured a bare 500; now it is a named runtime
+    refusal, the Python pane still answers (Python's float multiply yields
+    inf where Postgres raises), and the next pick is unharmed.
+
+    CHANGED 2026-08-23 (q4/GA-7): this test drove $.g * $.g while edge-04's
+    g sat just below the pre-fix 297-digit guard.  With the corrected
+    runtime adopted, edge-04/edge-05 straddle DBL_MAX itself, so $.g now
+    fires the layer-2 magnitude probe (naming edge-05) BEFORE any statement
+    runs — the wrong refusal for this test's purpose.  edge-00's $.a is the
+    row that still reaches the statement and overflows inside it."""
     status, body = _api_pick(
         {"pick": {"source": "noun:EdgeCase",
-                  "computed": [{"name": "sq", "expr": "$.g * $.g"}]}}
+                  "computed": [{"name": "sq", "expr": "$.a * $.a"}]}}
     )
     assert status == 422, f"expected a refusal, got HTTP {status}"
     refusal = body["refusal"]

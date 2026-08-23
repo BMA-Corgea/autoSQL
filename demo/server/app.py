@@ -916,10 +916,13 @@ def _contract_safe_pick(pick: dict) -> dict:
 #: double.  The pinned compiler RECORDS this divergence
 #: (``KNOWN_DIVERGENCES.float8_overflow_raises``: Postgres raises where
 #: Python returns ``inf``) and the demo left it unhandled — reachable from
-#: the screen, since seeded ``edge-04`` holds ``g`` just below the range
-#: guard, so ``$.g * $.g`` overflows.  It is caught by SQLSTATE, not by
-#: exception class, because nothing in this file may import the driver
-#: (plan §4.5: only ``db.py`` does).
+#: the screen, since seeded ``edge-00`` holds ``a`` = 1e300, whose square
+#: is not a double, so ``$.a * $.a`` overflows.  (Until the 2026-08-23
+#: adoption of the corrected runtime the reachable vehicle was ``$.g *
+#: $.g`` on edge-04; edge-04/edge-05 now straddle DBL_MAX itself, so the
+#: magnitude probe refuses ``$.g`` picks before any statement runs.)  It
+#: is caught by SQLSTATE, not by exception class, because nothing in this
+#: file may import the driver (plan §4.5: only ``db.py`` does).
 _FLOAT8_OVERFLOW_SQLSTATE = "22003"
 
 

@@ -160,9 +160,10 @@ def numeric_read(j_sql: str) -> str:
     ``sum``/``avg``/``min``/``max`` ignore and ``count`` does not count —
     instead of raising 22P02 and killing the pick over one bad row.
 
-    Never routed through ``xpr.f8``/``xpr.num``: those carry the shipped
-    297-digit guard and a ``float8`` result, and operations 6, 7 and 8 stay
-    in ``numeric`` end to end (AC-24(c)).
+    Never routed through ``xpr.f8``/``xpr.num``: those coerce to ``float8``
+    (and, since the 2026-08-23 adoption of the corrected runtime, RAISE the
+    named XPR01 refusal past DBL_MAX), while operations 6, 7 and 8 stay in
+    ``numeric`` end to end (AC-24(c)).
     """
     return (
         f"CASE WHEN jsonb_typeof( {j_sql} ) = 'number'\n"

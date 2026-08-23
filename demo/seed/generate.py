@@ -186,19 +186,36 @@ def sample_rows() -> Iterator[Row]:
 # purpose in plain words (R11 renders it on screen).
 # ---------------------------------------------------------------------------
 
+# 2026-08-23, q4/GA-7 (the dated notes beside B24 in T-2-plan.md and AC-13/
+# AC-17/AC-22 in T-2.md): the demo adopted T-3's corrected runtime.sql. Its
+# range guard moved from 297 digits (~1.8e296) to the full 309-digit DBL_MAX,
+# and past it the runtime now RAISES the named XPR01 refusal instead of
+# returning NULL. Three rows moved with it:
+#   edge-00  1e300 is now read identically by both engines (the old guard
+#            silently nulled it); it stays as the below-the-limit control,
+#            and its SQUARE is the float8-overflow (22003) witness.
+#   edge-01  keeps l=[1e300,1] (AC-13 witness 2, unchanged) and gains
+#            m=["１２３",1] — the Unicode-digit string T-3 measured as the
+#            surviving silent divergence: Python's float() reads any Unicode
+#            digit (123.0) where the SQL runtime's ASCII-only regex reads
+#            NULL. Walkthrough step 11's shown disagreement now rides m.
+#            T-6 will convert this gap to a named refusal, at which point
+#            this row moves again (Evan was told; he chose adopt).
+#   edge-04/edge-05 straddle the CORRECTED guard: just below DBL_MAX is a
+#            number; just above is the raised XPR01, no longer a NULL.
 EDGE_CASES = [
     ("edge-00",
-     '{"label":"edge case: 1e300 is a real double, yet seven SQL operations return NULL on it while Python returns a number","a":1e300}'),
+     '{"label":"edge case: 1e300 is a real double and both engines now read it identically (the pre-fix guard silently nulled it); its square overflows the fast number type, which SQL refuses by name","a":1e300}'),
     ("edge-01",
-     '{"label":"edge case: max of [1e300, 1] — SQL answers 1, Python answers 1e+300; the demo\'s asserted wrong number","l":[1e300,1]}'),
+     '{"label":"edge case: max of [\\"１２３\\", 1] — SQL answers 1, Python answers 123; the demo\'s asserted wrong number (the Unicode-digit gap)","l":[1e300,1],"m":["１２３",1]}'),
     ("edge-02",
      '{"label":"edge case: one key holds an object and one holds an array — an == on either is refused before the query runs","where":{"code":"alpha","n":7},"tags":["a","b"]}'),
     ("edge-03",
      '{"label":"edge case: 1e400 is larger than any double — stored as a JSON number, and refused before its query runs","huge":1e400}'),
     ("edge-04",
-     '{"label":"edge case: just below the shipped 297-digit guard — SQL still returns a number for this value","g":1.7976931348623156e+296}'),
+     '{"label":"edge case: just below the corrected 309-digit guard (DBL_MAX) — SQL still returns a number for this value","g":1.7976931348623156e+308}'),
     ("edge-05",
-     '{"label":"edge case: just above the shipped 297-digit guard — SQL returns NULL for this value","g":1.7976931348623158e+296}'),
+     '{"label":"edge case: just above the corrected 309-digit guard — SQL raises the named XPR01 refusal for this value (never a NULL)","g":1.7976931348623158e+308}'),
     ("edge-06",
      '{"label":"edge case: division by zero — both panes must agree on NULL; a control that must not fire","z":0,"d":7}'),
     ("edge-07",

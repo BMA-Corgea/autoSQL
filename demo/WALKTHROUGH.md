@@ -301,7 +301,7 @@ The refusal names the construct: `round`.
 
 ---
 
-## Step 11 — On `noun:EdgeCase`, computed column `biggest = max($.l)`
+## Step 11 — On `noun:EdgeCase`, computed column `biggest = max($.m)`
 
 This is the one step on this walkthrough where the two panes are *supposed*
 to disagree — the deliberate demonstration this whole screen exists to make
@@ -309,30 +309,40 @@ visible rather than hide.
 
 **What you do.** Switch source to `noun:EdgeCase`. On control
 **`2`<!--#steps[10].pick.operation--> — Computed columns**, add one named
-`biggest` with the expression `max($.l)`. (`max` itself is allowed —
+`biggest` with the expression `max($.m)`. (`max` itself is allowed —
 it's `sum` and `avg` that this screen refuses; that's why this step runs at
 all where step 10 didn't.)
 
-**What to expect.** The one row with an `l` field holds the array
-`[1e300, 1]`. The Python pane reads that straight off the JSON and reports
-`1e+300`<!--#steps[10].expect.python_value-->, the larger of the two — an
-entirely ordinary number as far as Python's floating-point is concerned.
+**What to expect.** The one row with an `m` field holds the array
+`["１２３", 1]` — its first element is a piece of *text*, and the digits in
+it are the wide, full-width kind sometimes typed on a Japanese keyboard,
+not the ordinary `123`. Both calculators try to read that text as a number
+before taking the biggest value, and this is exactly where they part ways.
 
-The SQL pane reports `1`<!--#steps[10].expect.sql_value-->. The reason is a
-guard this screen puts on every number it reads out of the database, set at
-`1.7976931348623157e+296` — deliberately smaller than the true upper limit
-of the number type both engines use, which is
-`1.7976931348623157e+308`. Anything at or past that guard comes back as
-*missing* rather than as a number, on purpose: printing a value neither
-engine can be trusted to reproduce exactly would be worse than refusing it.
-So SQL's read of 1e300 turns into "missing," `max` ignores anything missing,
-and the only element left standing is `1`.
+Python recognises digits from any writing system, so it reads the text as
+the number one-hundred-twenty-three, and the Python pane reports
+`123`<!--#steps[10].expect.python_value-->, the larger of the two elements.
 
-Both of those readings are correct, for what each engine was asked to do —
+The SQL side's number-reading rule only recognises the ordinary characters
+`0` through `9`, so to it that text is not a number at all — it comes back
+as *missing*, `max` ignores anything missing, and the SQL pane reports the
+only element left standing: `1`<!--#steps[10].expect.sql_value-->.
+
+Neither side warns you. Each answer looks perfectly plausible on its own —
 which is exactly why the screen has to say so loudly rather than picking one
 side. The verdict here reads *disagree*, and a run where the panes ever
 happened to agree on this particular step would be the one that's actually
 wrong.
+
+(This particular gap is a real, measured finding from this project's
+correctness run, not something staged for the demo: the two engines'
+shared string-to-number routine genuinely differs on non-ASCII digits, and
+until that gap is turned into a loud refusal — already ruled, in a later
+ticket — it is the honest live example of a silent disagreement. An
+earlier version of this step demonstrated a different gap, a number-range
+guard set twelve decades too low; that defect has since been fixed, and
+with the fix adopted both panes now read `[1e300, 1]` identically — so
+this step moved to the divergence that survived.)
 
 ---
 
@@ -389,9 +399,11 @@ entire purpose is to show you when two calculators differ must never invent
 a number to fill a gap; a gap honestly reported is worth more than a
 plausible-looking answer nobody can check.
 
-(`1e300`, one step back, is well inside the guard and is never refused;
-`1e400` is comfortably past it. The guard is not a blanket ban on large
-numbers — only on the ones neither engine can represent safely.)
+(The refusal has an edge, and it sits exactly at the largest number the
+fast number type can hold: another seeded row carries `1e300` — huge, but
+representable — and it is never refused; `1e400` is comfortably past the
+limit. The refusal is not a blanket ban on large numbers — only on the
+ones neither engine can represent safely.)
 
 ---
 
