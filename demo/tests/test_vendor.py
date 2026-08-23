@@ -110,13 +110,64 @@ VENDORED_FROM_GIMS: dict[str, str] = {
     "demo/vendor/ui.jsx": "frontend/lib/ui.jsx",
 }
 
-# The two spike files AC-33 covers. These are reused *in place* (Q19: "as
-# is"), not vendored — there is no live-tree half for them, only "has the
-# committed file changed since the ticket started".
+# The spike file AC-33 still covers in place. Reused *as is* (Q19), not
+# vendored — there is no live-tree half for it, only "has the committed file
+# changed since the ticket started".
 AC33_FILES = (
     "spikes/T-1/proto/compile.py",
-    "spikes/T-1/proto/runtime.sql",
 )
+
+# runtime.sql USED to be in AC33_FILES, reused in place. It was moved to
+# demo/vendor/runtime.sql on 2026-08-22 because T-3 legitimately changed the
+# shared file underneath this ticket: its correctness run found the range guard
+# was 297 digits where DBL_MAX needs 309, so every finite double above ~1.8e296
+# was silently nulled — a wrong answer wearing a null's clothes. T-3 fixed it
+# and made the out-of-range branch RAISE a named XPR01 refusal.
+#
+# That fix is right, and T-2 must not revert it. But T-2's 45 acceptance
+# criteria were written against the pre-fix behaviour: adopting the new file
+# changes B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness
+# and AC-17's whole mechanism. So the demo pins the version its spec describes,
+# by the same R4 pattern the plan already uses for expr.py.
+#
+# The divergence below is EXPECTED and is asserted, not tolerated — if the two
+# files ever become identical again, this test fails and tells you to re-read
+# the ruling, because that would mean someone reverted one side or the other.
+RUNTIME_PINNED = "demo/vendor/runtime.sql"
+RUNTIME_UPSTREAM = "spikes/T-1/proto/runtime.sql"
+
+
+def test_runtime_sql_is_pinned_and_upstream_has_moved() -> None:
+    """The demo's runtime.sql is pinned; the spike's has moved on. Both are true.
+
+    This is the recorded consequence of running T-2 and T-3 in parallel on
+    2026-08-22 (Evan's wrap-up item 28). It is a ruling under delegated
+    authority, and it is one line to overturn — see the note above.
+    """
+    manifest = _manifest()
+    assert RUNTIME_PINNED in manifest, (
+        f"{RUNTIME_PINNED} has no recorded digest — the demo must not install "
+        "an unverifiable runtime.sql"
+    )
+    pinned = _sha256(REPO_ROOT / RUNTIME_PINNED)
+    assert pinned == manifest[RUNTIME_PINNED], (
+        f"{RUNTIME_PINNED} does not match its recorded digest — expected "
+        f"{manifest[RUNTIME_PINNED]}, got {pinned}"
+    )
+
+    upstream_path = REPO_ROOT / RUNTIME_UPSTREAM
+    if not upstream_path.exists():
+        pytest.skip(
+            f"SKIPPED — {RUNTIME_UPSTREAM} is absent, so the divergence cannot "
+            "be checked. The pinned copy above is still verified."
+        )
+    upstream = _sha256(upstream_path)
+    assert upstream != pinned, (
+        f"{RUNTIME_UPSTREAM} is now byte-identical to the pinned "
+        f"{RUNTIME_PINNED}. That should not happen without a decision: either "
+        "T-3's guard fix (297 -> 309 digits, XPR01 refusal) was reverted, or the "
+        "demo silently adopted it. Re-read the ruling above before changing this."
+    )
 
 
 # ---------------------------------------------------------------------------

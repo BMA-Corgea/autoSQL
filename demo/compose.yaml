@@ -30,7 +30,7 @@
 # ── What this file is not ───────────────────────────────────────────────
 #   It declares no readiness wait of its own beyond the container's internal
 #   HEALTHCHECK below. `./run-demo up` does the real wait: a Python poll
-#   through the driver every 250ms up to 60s (B21) — because this machine has
+#   through the driver every 250 milliseconds up to 60 seconds (B21) — because this machine has
 #   no `psql` / `pg_isready` on the HOST, and because a failed compose
 #   HEALTHCHECK (which runs *inside* the image) tells the host nothing about
 #   why. Nothing in `./run-demo` shells out to a Postgres client binary; the

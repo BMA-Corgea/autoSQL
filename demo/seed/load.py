@@ -3,7 +3,7 @@
 This module owns the write path into the demo database (T-2-plan.md §5, W5):
 
   1. `demo/seed/schema.sql` — the one table, if it is not already there.
-  2. `spikes/T-1/proto/runtime.sql` — installed UNMODIFIED into the `xpr`
+  2. `demo/vendor/runtime.sql` — installed UNMODIFIED into the `xpr`
      schema (spec §9.6, AC-33): the file's sha256 is checked against
      `demo/manifest.json` before a byte of it is executed, and it is issued
      as one statement batch through the driver (B21 — this machine has no
@@ -37,8 +37,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEMO_DIR = _REPO_ROOT / "demo"
 _MANIFEST_PATH = _DEMO_DIR / "manifest.json"
 _SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
-_RUNTIME_SQL_PATH = _REPO_ROOT / "spikes" / "T-1" / "proto" / "runtime.sql"
-_RUNTIME_SQL_MANIFEST_KEY = "spikes/T-1/proto/runtime.sql"
+_RUNTIME_SQL_PATH = _REPO_ROOT / "demo" / "vendor" / "runtime.sql"
+_RUNTIME_SQL_MANIFEST_KEY = "demo/vendor/runtime.sql"
 
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -139,7 +139,7 @@ def install_schema(conn) -> None:
 
 
 def install_runtime_sql(conn) -> None:
-    """Install spikes/T-1/proto/runtime.sql UNMODIFIED (spec §9.6).
+    """Install demo/vendor/runtime.sql UNMODIFIED (spec §9.6).
 
     The file's sha256 is verified against demo/manifest.json first, so a
     locally edited runtime can never be installed silently; then the whole

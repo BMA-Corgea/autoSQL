@@ -28,9 +28,18 @@ checkout is present at test time).
 Both are **read-only** to this ticket, always. Overridable at test time by the environment variables
 `AUTOSQL_GIMS_TREE` and `AUTOSQL_GUTS_TREE`.
 
-**Two files elsewhere in the repo carry digests in `demo/manifest.json` too, though they are not
-copied here** — `spikes/T-1/proto/compile.py` and `spikes/T-1/proto/runtime.sql` are reused
-**in place** (Q19: *as-is*), not vendored, so AC-33 checksums them where they already live.
+**One file elsewhere in the repo carries a digest in `demo/manifest.json` too, though it is not
+copied here** — `spikes/T-1/proto/compile.py` is reused **in place** (Q19: *as-is*), not vendored,
+so AC-33 checksums it where it already lives.
+
+`runtime.sql` used to be the second such file. It is now vendored here, at
+`demo/vendor/runtime.sql`, pinned to the 427-line version this ticket's 45 acceptance criteria were
+written against. T-3's correctness run legitimately changed the shared copy on 2026-08-22 — it found
+the range guard was 297 digits where DBL_MAX needs 309, so every finite double above roughly 1.8e296
+was being silently turned into a null. That fix is correct and stays in the spike tree; the demo
+pins the older version rather than reverting it, because adopting the new one would change what four
+acceptance criteria assert. `test_vendor.py` asserts the two copies stay *different*, so nobody can
+quietly revert either side.
 
 ## Why whole files, never fragments (D2)
 
