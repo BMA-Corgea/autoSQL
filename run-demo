@@ -1,0 +1,990 @@
+#!/usr/bin/env bash
+# run-demo — the one-command launcher for the autoSQL UI demo (T-2).
+#
+# WHAT THIS IS
+#   The demo's whole entry point: everything a person needs to bring the demo
+#   up, watch it, tear it down again, or run its suite goes through here.
+#   "The demo tree" (T-2-locate.md §11.1) is defined as `demo/` plus this
+#   file — nothing else — so this script is the fence as well as the door.
+#
+# THE FOUR VERBS  (T-2-plan.md R8)
+#   up         bring the demo's own Postgres (autosql-demo-db, 127.0.0.1:55440)
+#              and the app (127.0.0.1:8787) up; seed the database if empty.
+#   down       tear the demo stack back down; does not touch anything else.
+#   build-ui   run esbuild over demo/frontend/*.jsx into the committed
+#              bundles under demo/static/js/. Only this verb needs Node —
+#              `up` must work with node removed from PATH.
+#   test       run the demo's own test suite (demo/tests/).
+#
+# STATUS
+#   W1 skeleton, W3's venv bootstrap, W4: `up` refuses to start if
+#   55440 or 8787 is already taken (AC-5), brings up the demo's own Postgres
+#   container from demo/compose.yaml, and waits for it with a Python poll
+#   through the driver (B21 — no psql, no pg_isready on this machine).
+#   `down` tears that container and its volume back out (AC-6).
+#   W5: once the database is ready, `up` installs the schema and runtime.sql
+#   and seeds the 10,410 INVENTED rows if the table is empty, verifying
+#   AC-10's digest against demo/manifest.json (demo/seed/load.py).
+#   The app itself is not yet wired in (lands with W13/W14) — `up` says so
+#   once the seed is verified. `build-ui` is still a pure stub (W14).
+#   W16: `test` is real. It says in its first line whether it is using a
+#   stack that was already up or brought up its own (B23, and B34 for the
+#   half-up state `up` can leave behind), refuses a FOREIGN holder of 55440
+#   or 8787 with AC-5's message rather than adopting it, takes down only a
+#   stack it started itself, and ends with one summary line that counts
+#   skips separately from passes and reports B10's checksum guard.
+#
+#   AUTO-REVIEW ROUND 1 — four findings, all in this file, all answered here:
+#   * the readiness poll was a SECOND connection factory outside B13's
+#     fence (PGHOSTADDR redirected it; PGSERVICE bricked `up` and `test`).
+#     It now goes through `demo/server/db.py`, so nothing in this file
+#     imports the driver any more and the tree has genuinely one factory
+#     rather than one factory and one lookalike.
+#   * `down` sent TERM and then KILL to whatever number was in the
+#     pidfile. It now requires the process's own command line to name this
+#     worktree's interpreter, uvicorn, this app and this port first, and
+#     signals nothing at all when it does not.
+#   * `up` called the screen up as soon as ANYTHING was listening on 8787,
+#     recording a possibly-dead pid over a live app. It now confirms the
+#     process it started is the one holding the socket, and writes the
+#     pidfile only then.
+#   * plan §8.2's sixteen-mutant pass has never run and was disclosed
+#     nowhere. It is still not implemented — that is a work item, not a
+#     launcher fix — but the flag now says so plainly and EVERY
+#     `./run-demo test` prints the disclosure immediately above its
+#     summary line, so the numbers and the caveat travel together.
+#
+# HARD FENCE — never remove this comment or the check below.
+#   This demo owns ports 55440 (its own Postgres) and 8787 (the app) and
+#   NOTHING else. Evan's LIVE database is on another port entirely (spec
+#   §11.2 names it; that name and port are exactly what AC-3's grep forbids
+#   anywhere in this tree, so neither is repeated here) — this script must
+#   never dial it, under any verb, ever.
+
+set -euo pipefail
+
+VERBS=(up down build-ui test)
+
+# ── W4: the container and the launcher (§11.2, B21, B23) ──────────────────
+COMPOSE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo/compose.yaml"
+DB_CONTAINER="autosql-demo-db"
+DB_HOST="127.0.0.1"
+DB_PORT="55440"
+APP_PORT="8787"
+READY_TIMEOUT_SECONDS=60
+READY_POLL_SECONDS="0.25"
+
+# THE LAUNCHER NO LONGER READS THE DATABASE'S CREDENTIALS AT ALL.
+#   It used to lift the database name, the role and the password out of
+#   compose.yaml, because its readiness poll dialled the database itself.
+#   That poll is gone (see wait_for_db_ready below): the one connection
+#   factory is `demo/server/db.py`, it reads compose.yaml itself, and it
+#   is the only thing in this tree that needs the password. A launcher
+#   that does not connect has no business holding credentials, so it
+#   holds none — which is one fewer place they can drift from, and one
+#   fewer place they can leak from.
+
+# Pure-stdlib TCP probe — deliberately not `ss`/`docker port` parsing, and
+# never a Postgres client binary (B21). Exit 0 means something is already
+# listening on 127.0.0.1:$1.
+port_in_use() {
+  python3 - "$1" <<'PYEOF'
+import socket, sys
+port = int(sys.argv[1])
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(0.5)
+try:
+    s.connect(("127.0.0.1", port))
+    s.close()
+    sys.exit(0)
+except OSError:
+    sys.exit(1)
+PYEOF
+}
+
+# AC-5: up refuses, naming the port, rather than connecting to whatever is
+# already there. Checked before anything is created — including on a second
+# `up` with no `down` in between, deliberately (§11.2: "If 55440 or 8787 is
+# occupied, ./run-demo up stops with a clear message rather than connecting
+# to whatever is there" draws no exception for a stack this script started
+# itself; run `./run-demo down` first).
+guard_ports() {
+  if port_in_use "$DB_PORT"; then
+    echo "run-demo up: refusing to start — port $DB_PORT (this demo's own Postgres, $DB_CONTAINER) is already in use." >&2
+    echo "run-demo up: if that's a demo stack from an earlier run, './run-demo down' first. This demo never connects to any other database on this machine, under any circumstance." >&2
+    exit 1
+  fi
+  if port_in_use "$APP_PORT"; then
+    echo "run-demo up: refusing to start — port $APP_PORT (this demo's app) is already in use." >&2
+    exit 1
+  fi
+}
+
+compose_up() {
+  echo "run-demo up: starting $DB_CONTAINER (docker compose, demo/compose.yaml)"
+  docker compose -f "$COMPOSE_FILE" up -d
+}
+
+compose_down() {
+  echo "run-demo down: stopping $DB_CONTAINER and removing its volume"
+  docker compose -f "$COMPOSE_FILE" down --volumes
+}
+
+# B21: readiness is a Python poll through the driver, not a Postgres client
+# binary (this machine has none of the three). On timeout, print the
+# container's last 40 log lines and fail loudly rather than hang silently —
+# that is the entire reason this ruling exists.
+#
+# ── B13 / B13-EXT-1..3 — WHY THIS POLL GOES THROUGH demo/server/db.py ─────
+#
+# AUTO-REVIEW ROUND 1, HIGH. This poll used to carry its own `import` of the
+# driver and its own short parameter list — host, port, dbname, user,
+# password, a connect timeout and an application name. That made it a
+# SECOND connection factory, standing outside the one fence this tree has,
+# and it was measurably redirectable:
+#
+#   * with PGHOSTADDR exported, libpq dialled THAT address on 55440 while
+#     carrying this demo's credentials — the exact redirect B13-EXT-1
+#     exists to close, reintroduced outside the file that closes it.
+#     Measured here: "connection to server at 127.0.0.9, port 55440".
+#   * with PGSERVICE naming a service that does not exist, every attempt
+#     failed unconditionally, so `up` and `test` both spun for the full
+#     sixty seconds and then printed the container's logs — blaming a
+#     healthy container for an environment variable. Measured here:
+#     "definition of service ... not found".
+#
+# It also could not be policed. `demo/tests/test_isolation.py` walks
+# `demo/**/*.py` to prove one file imports the driver; this is a shell
+# script at the repo root, so the walk never saw it.
+#
+# THE FIX IS NOT A SECOND FENCE — it is not being a second factory. The
+# poll now calls `demo.server.db.connect()`, which passes `hostaddr`,
+# `sslmode` and `options` explicitly, removes PGSERVICE/PGSERVICEFILE for
+# the duration of the dial, guards the endpoint BEFORE dialling, and reads
+# back the database, the role, the time zone and `extra_float_digits`
+# after. There is now exactly one place in this tree that opens a
+# connection, and it is not this file. Nothing here imports the driver.
+#
+# Three outcomes, deliberately distinct — the old poll had two and treated
+# "wrong" as "not yet":
+#   0  connected and verified — ready.
+#   1  the container is not accepting connections yet — keep polling.
+#   2  REFUSED, or reached and found wrong — stop NOW. A wrong endpoint, a
+#      compose file that describes another database, or a venv that cannot
+#      import the demo does not become right by waiting sixty seconds.
+db_ready_probe() {
+  ( cd "$REPO_ROOT" && "$VENV_DIR/bin/python" - <<'PYEOF'
+import sys
+
+try:
+    from demo.server import db
+except Exception as exc:
+    # Not "the container is slow" — the poll cannot even reach the tree's
+    # one connection factory. Say that, rather than spend the whole
+    # timeout and then print a healthy container's logs.
+    print(
+        "run-demo: the readiness poll could not load demo/server/db.py, this "
+        f"tree's one connection factory — {type(exc).__name__}: {exc}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
+try:
+    conn = db.connect(application_name="run-demo-readiness-poll")
+except db.WrongDatabase as exc:
+    print(f"run-demo: REFUSED by demo/server/db.py — {exc}", file=sys.stderr)
+    sys.exit(2)
+except Exception as exc:
+    # The driver's own exceptions mean "not up yet"; anything else means
+    # the question could not be asked at all. The driver's name appears
+    # here as a STRING and nowhere as an import — `test_isolation.py`'s
+    # check is an AST walk for exactly this reason, and the connection
+    # itself still comes from db.py.
+    if type(exc).__module__.split(".")[0] == "psycopg":
+        sys.exit(1)
+    print(
+        "run-demo: the readiness poll could not even ask — "
+        f"{type(exc).__name__}: {exc}",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+conn.close()
+sys.exit(0)
+PYEOF
+  )
+}
+
+wait_for_db_ready() {
+  echo "run-demo: waiting for $DB_CONTAINER to accept connections (Python poll through demo/server/db.py — B21 for the poll, B13 for the fence, up to ${READY_TIMEOUT_SECONDS}s)"
+  local deadline=$(( $(date +%s) + READY_TIMEOUT_SECONDS ))
+  local attempt=0
+  local status
+  while [[ "$(date +%s)" -lt "$deadline" ]]; do
+    attempt=$((attempt + 1))
+    status=0
+    db_ready_probe || status=$?
+    if [[ "$status" -eq 0 ]]; then
+      echo "run-demo: $DB_CONTAINER is ready (attempt $attempt)"
+      return 0
+    fi
+    if [[ "$status" -ne 1 ]]; then
+      echo "run-demo: the readiness poll stopped rather than waited — the line above is the reason, and it is not a reason that becomes right by waiting. The container is not being blamed for it." >&2
+      return 1
+    fi
+    sleep "$READY_POLL_SECONDS"
+  done
+  echo "run-demo: $DB_CONTAINER did not become ready within ${READY_TIMEOUT_SECONDS}s (B21) — last 40 log lines:" >&2
+  docker logs --tail 40 "$DB_CONTAINER" >&2 2>&1 || echo "run-demo: (could not read container logs — $DB_CONTAINER may not exist)" >&2
+  return 1
+}
+
+# ── THE HALF OF THE HIGH FINDING THAT IS ABOUT THE GUARD ─────────────────
+#
+# Removing this file's own connection factory fixes today. It does not stop
+# tomorrow: `demo/tests/test_isolation.py` proves "nothing else imports the
+# driver" by walking `demo/**/*.py`, and this file is a shell script at the
+# repo root, so the walk has never included it. That is precisely how the
+# second factory lived here unnoticed while a test named for the property
+# reported green.
+#
+# The right home for this check is that walk, and this launcher does not
+# own that file — so the check is made HERE, over this file, and `test`
+# runs it before pytest. It is deliberately the same shape as the suite's:
+# an AST walk, not a grep, so the paragraphs above are allowed to name the
+# driver while an actual import is caught. And it is watched catching a
+# planted one on every run, because a check that has only ever returned
+# "clean" is a check nobody has seen work (plan §8.2's rule).
+#
+# One line to overturn: *"the isolation walk covers `./run-demo` now"* —
+# then this function goes and the suite carries it, which is better.
+assert_the_launcher_has_no_driver_of_its_own() {
+  python3 - "$REPO_ROOT/run-demo" <<'CHECKEOF'
+import ast
+import re
+import sys
+
+#: Built by concatenation so that THIS file, which the walk below reads,
+#: does not contain the thing it searches for.  Same device, and same
+#: reason, as `_B21_CLIENT_BINARIES` in `demo/tests/test_isolation.py`.
+_DRIVER = "psy" "copg"
+_GUILTY = ("import " + _DRIVER + "\n", "from " + _DRIVER + ".rows import dict_row\n")
+_INNOCENT = '"""A docstring naming ' + _DRIVER + ', importing it not."""\n'
+
+_OPENER = re.compile(r"<<'([A-Za-z_][A-Za-z0-9_]*)'")
+
+
+def imports_the_driver(source):
+    """Which line of *source* imports the driver, or 0.
+
+    The suite's own question, asked the suite's own way: an AST walk, so
+    the paragraphs above may name the driver and only a real import
+    counts.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        # Not Python at all (the usage text).  Fall back to the blunt
+        # form rather than skipping it, so a block that stops parsing
+        # cannot become a place to hide an import.
+        m = re.search(r"^[^\S\n]*(?:import|from)[^\S\n]+" + _DRIVER + r"\b",
+                      source, re.MULTILINE)
+        return source[:m.start()].count("\n") + 1 if m else 0
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name.split(".")[0] == _DRIVER for a in node.names):
+                return node.lineno
+        elif isinstance(node, ast.ImportFrom):
+            if (node.module or "").split(".")[0] == _DRIVER:
+                return node.lineno
+    return 0
+
+
+def embedded_blocks(lines):
+    """Every here-document body in the launcher, with its first line no."""
+    blocks, delimiter, body, start = [], None, [], 0
+    for n, line in enumerate(lines, start=1):
+        if delimiter is None:
+            m = _OPENER.search(line)
+            if m:
+                delimiter, body, start = m.group(1), [], n + 1
+            continue
+        if line.strip() == delimiter:
+            blocks.append((start, "\n".join(body) + "\n"))
+            delimiter = None
+            continue
+        body.append(line)
+    if delimiter is not None:
+        # An unterminated here-document is not a place to hide in.
+        blocks.append((start, "\n".join(body) + "\n"))
+    return blocks
+
+
+for sample in _GUILTY:
+    if not imports_the_driver(sample):
+        print("run-demo test: THE CHECK ITSELF IS BROKEN — it does not "
+              "recognise a planted driver import, so its 'clean' means "
+              "nothing. Fix the check before trusting this run.",
+              file=sys.stderr)
+        sys.exit(2)
+if imports_the_driver(_INNOCENT):
+    print("run-demo test: THE CHECK ITSELF IS BROKEN — it calls a docstring "
+          "that merely names the driver an import, so it would have to be "
+          "loosened until it caught nothing.", file=sys.stderr)
+    sys.exit(2)
+
+launcher = sys.argv[1]
+with open(launcher) as handle:
+    lines = handle.read().splitlines()
+
+guilty = []
+for start, body in embedded_blocks(lines):
+    offset = imports_the_driver(body)
+    if offset:
+        guilty.append(start + offset - 1)
+if guilty:
+    print(
+        "run-demo test: THE LAUNCHER HAS ITS OWN DATABASE DRIVER AGAIN — "
+        f"run-demo:{guilty[0]} imports it (embedded Python).\n"
+        "run-demo test: demo/server/db.py is the ONE connection factory in "
+        "this tree (B13). A second one here is outside its fence: it was "
+        "measured being redirected by PGHOSTADDR and broken by PGSERVICE, "
+        "and the suite's own walk cannot see this file. Route it through "
+        "db.connect() instead.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+sys.exit(0)
+CHECKEOF
+}
+
+# ── W3: the wheelhouse and the venv (B20) ──────────────────────────────────
+#   `demo/requirements.txt` pins every package (transitive included) to an
+#   exact version and a sha256 hash. `demo/vendor/wheels/` is the committed
+#   wheelhouse those hashes resolve against. `--no-index` is the
+#   load-bearing flag: with it, pip cannot reach the network even if it
+#   wanted to — a network fetch here is impossible, not merely unlikely.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEMO_DIR="$REPO_ROOT/demo"
+VENV_DIR="$DEMO_DIR/.venv"
+REQUIREMENTS_FILE="$DEMO_DIR/requirements.txt"
+WHEELS_DIR="$DEMO_DIR/vendor/wheels"
+
+bootstrap_venv() {
+  if [[ ! -d "$VENV_DIR" ]]; then
+    echo "run-demo: creating $VENV_DIR"
+    python3 -m venv "$VENV_DIR"
+  fi
+  echo "run-demo: installing pinned dependencies from the committed wheelhouse (--no-index, B20)"
+  "$VENV_DIR/bin/pip" install --no-index --find-links "$WHEELS_DIR" -r "$REQUIREMENTS_FILE"
+}
+
+# ── W5: schema + runtime.sql + the invented seed (plan §5, B21, B24–B27) ──
+#   demo/seed/load.py installs demo.records and the xpr schema, writes the
+#   10,410 INVENTED rows through the driver's COPY … FROM STDIN if the table
+#   is empty, and verifies AC-10's digest against demo/manifest.json —
+#   failing loudly (and rolling everything back) rather than leaving a
+#   database whose rows are not the rows the manifest promises. Its console
+#   output is the third of B31's three invented-data labels.
+seed_database() {
+  "$VENV_DIR/bin/python" "$DEMO_DIR/seed/load.py"
+}
+
+# ── W16: the suite (B23, spec §9.7, plan §6.4 item 6) ─────────────────────
+#
+# B23 — THE RULING, and every branch of it is below:
+#   "test uses a running stack if there is one and brings up its own if
+#    there is not, and says which in its first line."
+#   * both halves of the stack up  -> "using the stack already up",
+#     and NOTHING is taken down afterwards: a person mid-walkthrough does
+#     not lose their demo to somebody else running the suite.
+#   * nothing up                   -> run `up` ourselves, then `down`
+#     afterwards, saying both.
+#   * a FOREIGN process on 55440 or 8787 -> stop with AC-5's message
+#     rather than connecting to whatever is there.
+#
+# B34 (NEW RULING, W16) — B23 has three states, not two: the stack can be
+# HALF up.
+#   `./run-demo up` brings up the database and (once the app is wired into
+#   it) serves the screen on 8787.  Between those two, and on any machine
+#   where a person ran `up` before the app existed, the database is this
+#   demo's own and 8787 is free.  B23's own words send `test` to run `up`
+#   in that state — and `up` refuses, because its AC-5 port guard draws no
+#   exception for a container this script started itself.  Following B23
+#   literally there would make `test` unrunnable after `up`.
+#   THE RULING: the third state is named and used, not worked around.
+#   `test` says the database is the one it adopted and that the app is not
+#   running, starts nothing, and takes nothing down.  The suite drives the
+#   app in-process (B22's contract tests use the ASGI app directly), so a
+#   half-up stack is a complete stack as far as the suite is concerned —
+#   and saying so out loud is the whole point of B23's first line.
+#   One line to overturn: "make `up` idempotent" — then the half-up state
+#   disappears into `up` and this branch goes with it.
+
+#: Set to 1 only if THIS invocation started the stack.  The teardown trap
+#: reads it and nothing else does.
+STACK_STARTED_HERE=0
+SUITE_REPORT=""
+
+# Is it OUR app on 8787 — not merely "is something listening"?  B23 says
+# the suite must not adopt whatever is there, so this asks the app for the
+# one route that identifies it: B22's control contract.
+app_answers() {
+  python3 - "$APP_PORT" <<'APPEOF'
+import json
+import sys
+import urllib.request
+
+port = int(sys.argv[1])
+try:
+    with urllib.request.urlopen(
+        f"http://127.0.0.1:{port}/api/operations", timeout=2
+    ) as response:
+        if response.status != 200:
+            sys.exit(1)
+        body = json.loads(response.read().decode())
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(body, dict) and "operations" in body else 1)
+APPEOF
+}
+
+db_container_running() {
+  local found
+  found="$(docker ps --filter "name=^/${DB_CONTAINER}$" --filter status=running --format '{{.Names}}')"
+  [[ "$found" == "$DB_CONTAINER" ]]
+}
+
+# The venv is what runs the suite.  A stack that is already up implies an
+# `up` that already built it — but a deleted .venv must not turn into a
+# confusing pytest-not-found, and rebuilding costs one offline pip install
+# (--no-index, B20: no network, AC-32).
+ensure_venv() {
+  if [[ ! -x "$VENV_DIR/bin/python" ]] || ! "$VENV_DIR/bin/python" -c "import pytest" >/dev/null 2>&1; then
+    bootstrap_venv
+  fi
+}
+
+teardown_if_we_started_it() {
+  if [[ "$STACK_STARTED_HERE" == "1" ]]; then
+    STACK_STARTED_HERE=0
+    # The `down` VERB, not compose_down: `up` starts the app as well as the
+    # container (W14), and a teardown that undid only half of what it
+    # started would leave uvicorn holding 8787 — which the next run would
+    # then correctly refuse as a foreign holder.  Whatever `up` does,
+    # `down` undoes; `test` calls both and neither by halves.
+    "$REPO_ROOT/run-demo" down
+    echo "run-demo test: took it down again"
+  fi
+}
+
+# B23's first line, and the three states it can report.
+prepare_stack_for_test() {
+  local db_up=0 app_up=0
+  db_container_running && db_up=1
+  app_answers && app_up=1
+
+  # The two foreign-holder refusals (AC-5's message, B23's last bullet).
+  if [[ "$db_up" == "0" ]] && port_in_use "$DB_PORT"; then
+    echo "run-demo test: refusing to run — port $DB_PORT is in use and it is NOT this demo's own container ($DB_CONTAINER)." >&2
+    echo "run-demo test: this demo never connects to any other database on this machine, under any circumstance. Free the port, or stop whatever is holding it." >&2
+    exit 1
+  fi
+  if [[ "$app_up" == "0" ]] && port_in_use "$APP_PORT"; then
+    echo "run-demo test: refusing to run — port $APP_PORT is in use and what is there is not this demo's app (it does not answer /api/operations)." >&2
+    echo "run-demo test: rather than adopt it, this stops. Free the port and run again." >&2
+    exit 1
+  fi
+
+  if [[ "$db_up" == "1" && "$app_up" == "1" ]]; then
+    echo "run-demo test: using the stack already up"
+    return 0
+  fi
+
+  if [[ "$db_up" == "1" ]]; then
+    # B34, the third state.
+    echo "run-demo test: using the database already up; the app is not running on $APP_PORT and the suite does not need it (B34) — nothing started, nothing will be taken down"
+    return 0
+  fi
+
+  "$REPO_ROOT/run-demo" up
+  STACK_STARTED_HERE=1
+  echo "run-demo test: brought the stack up for this run"
+}
+
+# The final summary line (spec §9.7 part 3, plan §6.4 item 6): the skip
+# count is SEPARATE from the pass count, every skip says what it was
+# looking for, and B10's checksum guard reports in the same line.  The
+# numbers come from demo/tests/conftest.py's report — pytest's own report
+# objects — never from parsing pytest's console output.
+print_suite_summary() {
+  python3 - "$1" <<'SUMEOF'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as handle:
+        data = json.load(handle)
+except Exception as exc:
+    print(
+        f"run-demo test: NO REPORT — the suite wrote no run report to {path} "
+        f"({type(exc).__name__}: {exc}). Nothing here can be counted, so this "
+        "run is a failure rather than an unknown.",
+        file=sys.stderr,
+    )
+    sys.exit(3)
+
+counts = data["counts"]
+reasons = data["skip_reasons"]
+guard = data["guard"]
+
+if reasons:
+    grouped = {}
+    for reason in reasons:
+        grouped[reason] = grouped.get(reason, 0) + 1
+    print(f"run-demo test: {len(reasons)} skipped, and what each was looking for:")
+    for reason, n in sorted(grouped.items(), key=lambda kv: (-kv[1], kv[0])):
+        print(f"    {n} x {reason}")
+
+guard_line = f"B10 checksum guard: {guard['state']}"
+if guard["state"] != "verified":
+    guard_line += f" — {guard['detail']}"
+
+print(
+    "run-demo test: "
+    f"{counts['passed']} passed, "
+    f"{counts['skipped']} skipped, "
+    f"{counts['xfailed']} xfailed, "
+    f"{counts['xpassed']} xpassed, "
+    f"{counts['failed']} failed, "
+    f"{counts['errors']} errors"
+    f" — {guard_line}"
+)
+
+# `./run-demo test` guarantees the stack, so the guard not having run is a
+# failure here even though a bare `pytest demo/tests` is allowed to skip it.
+sys.exit(
+    0
+    if counts["failed"] == 0 and counts["errors"] == 0 and guard["state"] == "verified"
+    else 1
+)
+SUMEOF
+}
+
+# ── plan §8.2's mutation pass: NOT IMPLEMENTED, AND SAID OUT LOUD ────────
+#
+# AUTO-REVIEW ROUND 1, MEDIUM. Plan §8.2 promises, in those words, that
+# "the build runs a mutation pass before it hands over": sixteen one-line
+# defects, M1 to M16, each applied in turn, each naming the criterion that
+# must fail, each reverted. Risk rows 1 and 15 lean on that pass as THE
+# proof the catchers are alive rather than decorative — row 15 citing T-1's
+# own re-check, which found that every branch of its harness that reports a
+# failure had zero executions across a full run.
+#
+# `./run-demo test --mutants` is the command that promise names. IT HAS
+# NEVER RUN. It is not implemented here and nothing under demo/ implements
+# it either. The build handed over anyway, and no evidence surface recorded
+# the gap — which is the actual defect. A refusal that only this file can
+# see is a gap disclosed to nobody.
+#
+# WHAT WAS DONE INSTEAD, AND WHY. Implementing the pass honestly means
+# sixteen anchored source edits across roughly ten files this launcher does
+# not own, each with a mapping from a plan criterion to a test node id, and
+# a mutant that cannot be anchored has to fail the run rather than be
+# skipped — otherwise the mutation pass becomes the very thing §8.2 was
+# written against. That is a work item, not a launcher fix. So the gap is
+# made LOUD instead, in the two places a reader actually looks:
+#
+#   1. the flag itself says plainly that it is not implemented, names what
+#      IS known about each mutant, and still refuses (exit 2) so it can
+#      never pass vacuously; and
+#   2. EVERY `./run-demo test` prints the same disclosure immediately
+#      above its summary line — so the run that produces "N passed" is the
+#      same run that says the sixteen catchers were never watched as a set.
+#      The evidence and the disclaimer cannot be separated by a copy-paste.
+#
+# What is known, and it is not nothing: M1, M4, M8 and M16 were each
+# hand-run once during the auto-review and each was killed; M6, M12 and
+# M13 have standing detector tests in this suite (test_gate.py, test_alias.py
+# and the bucket-cast grep) that are watched catching their own mutant.
+# The other nine have never been watched failing.
+#
+# One line to overturn: *"implement §8.2 properly"* — then this whole
+# section, both printed disclosures and the exit-2 refusal go, and the flag
+# does what the plan says.
+MUTATION_PASS_STATE="not implemented — plan §8.2 has never run"
+
+mutation_pass_disclosure() {
+  echo "run-demo test: DISCLOSURE — plan §8.2's mutation pass HAS NOT RUN. './run-demo test --mutants' is $MUTATION_PASS_STATE, here or anywhere under demo/."
+  echo "run-demo test:   M1, M4, M8, M16 were hand-run once and killed. M6, M12, M13 have standing detector tests in this suite."
+  echo "run-demo test:   The other nine of the sixteen have never been watched failing. The counts below are the ordinary suite and are not evidence for §8.2."
+}
+
+run_suite() {
+  if [[ "${1:-}" == "--mutants" ]]; then
+    echo "run-demo test: --mutants is plan §8.2's mutation pass and it is NOT IMPLEMENTED — not in this verb, not anywhere under demo/. It has never run." >&2
+    echo "run-demo test: sixteen mutants are named in plan §8.2. Four (M1, M4, M8, M16) were hand-run once and killed; three (M6, M12, M13) have standing detector tests in this suite; the other nine have never been watched failing." >&2
+    echo "run-demo test: refusing rather than running the ordinary suite and letting it look like a mutation run. './run-demo test' prints this same disclosure above its summary line, every run." >&2
+    exit 2
+  fi
+
+  # Before anything is brought up or connected to: this file has no
+  # connection factory of its own (B13, and the HIGH finding above).
+  if ! assert_the_launcher_has_no_driver_of_its_own; then
+    exit 1
+  fi
+  echo "run-demo test: the launcher opens no connection of its own — demo/server/db.py is the one factory (B13, checked here, and the check was watched catching a planted import)"
+
+  trap teardown_if_we_started_it EXIT INT TERM
+
+  prepare_stack_for_test
+  ensure_venv
+  wait_for_db_ready || exit 1
+
+  SUITE_REPORT="$(mktemp -t autosql-demo-test-report.XXXXXX.json)"
+
+  local pytest_status=0
+  set +e
+  AUTOSQL_DEMO_TEST_REPORT="$SUITE_REPORT" \
+    "$VENV_DIR/bin/python" -m pytest "$DEMO_DIR/tests" "$@"
+  pytest_status=$?
+  set -e
+
+  teardown_if_we_started_it
+  trap - EXIT INT TERM
+
+  # §8.2's gap, printed against the numbers rather than away from them.
+  mutation_pass_disclosure
+
+  local summary_status=0
+  set +e
+  print_suite_summary "$SUITE_REPORT"
+  summary_status=$?
+  set -e
+  rm -f "$SUITE_REPORT"
+
+  if [[ "$pytest_status" != "0" ]]; then
+    exit "$pytest_status"
+  fi
+  exit "$summary_status"
+}
+
+# ── W14: the app (§9.1, AC-36) ────────────────────────────────────────────
+#   The screen is served by uvicorn from demo/static/index.html and the two
+#   COMMITTED bundles under demo/static/js/. Nothing here runs Node, and
+#   nothing here builds anything: `build-ui` is the only verb that needs
+#   Node, and AC-36 is the criterion that `up` works with `node` removed
+#   from PATH entirely. If the bundles are missing, `up` says so by name
+#   rather than serving a blank page.
+#   The pidfile and the log live INSIDE demo/.venv/ on purpose: .venv/ is
+#   already in .gitignore, so two runtime artefacts cannot end up in a
+#   commit and no shared ignore file has to grow a line for them.
+APP_PIDFILE="$VENV_DIR/autosql-app.pid"
+APP_LOG="$VENV_DIR/autosql-app.log"
+APP_READY_TIMEOUT_SECONDS=30
+
+# ── AUTO-REVIEW ROUND 1 — A PID IS NOT AN IDENTITY ───────────────────────
+#
+# $APP_PIDFILE is a plain file on disk. It survives everything the app does
+# not: a reboot, a Ctrl-C, an out-of-memory kill. It is removed only on a
+# clean `down`, so it goes stale whenever the app dies any other way — and
+# after a reboot Linux hands process ids back out from low numbers,
+# densely, so the number left in a stale pidfile is very likely alive and
+# belonging to something else of the owner's.
+#
+# `kill -0 "$pid"` proves only that SOMEBODY owns that number. `down` used
+# to escalate from TERM to KILL on exactly that much, which is this demo
+# reaching outside its own two ports and terminating a neighbour — the one
+# thing ops/checks/neighbour-ports.sh promises it never does, and the one
+# thing that check cannot catch, because it runs up->down inside a single
+# process where the pidfile is never stale.
+#
+# So identity is asked of the PROCESS, not of the file: its own command
+# line has to name this worktree's interpreter, uvicorn, this app and this
+# port before any signal is sent to it. Four things, all four, or nothing
+# is signalled and the stale file is removed with the reason said aloud.
+pid_command_line() {
+  local pid="$1"
+  if [[ -r "/proc/$pid/cmdline" ]]; then
+    tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true
+  else
+    ps -ww -o args= -p "$pid" 2>/dev/null || true
+  fi
+}
+
+pid_is_our_app() {
+  local pid="${1:-}" cmd
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  cmd="$(pid_command_line "$pid")"
+  [[ -n "$cmd" ]] || return 1
+  [[ "$cmd" == *"$VENV_DIR/bin/python"* ]] || return 1
+  [[ "$cmd" == *"uvicorn"* ]] || return 1
+  [[ "$cmd" == *"demo.server.app:app"* ]] || return 1
+  [[ "$cmd" == *"--port $APP_PORT"* ]] || return 1
+  return 0
+}
+
+# Does pid $1 hold the LISTENING socket on port $2 — not "is something
+# listening", which is a different and much weaker question.
+#
+# AUTO-REVIEW ROUND 1, LOW. `start_app` used to declare "the screen is up"
+# as soon as `port_in_use` answered, and recorded `$!` in the pidfile
+# before that. Two `up` runs racing both clear guard_ports; the second
+# uvicorn dies at once with "address already in use", but the pidfile
+# already holds its now-dead pid and `port_in_use` sees the FIRST app's
+# socket. `up` says the screen is up, the pidfile points at nothing, and
+# the next `down` silently drops the pidfile and tears down the database —
+# leaving a live app orphaned on this port with no database behind it and
+# nothing left that knows how to stop it.
+#
+# Socket ownership is read from the kernel: the inodes of the sockets
+# LISTENing on that port, against the socket inodes in the process's own
+# file-descriptor table. Exit 0 = this pid holds it, 1 = it does not,
+# 2 = this system does not let the question be asked.
+pid_holds_port() {
+  python3 - "$1" "$2" <<'HOLDEOF'
+import os
+import sys
+
+pid, port = int(sys.argv[1]), int(sys.argv[2])
+LISTEN = "0A"
+
+
+def listening_inodes(path):
+    found = set()
+    try:
+        with open(path) as handle:
+            next(handle, None)
+            for line in handle:
+                parts = line.split()
+                if len(parts) < 10 or parts[3] != LISTEN:
+                    continue
+                try:
+                    if int(parts[1].rsplit(":", 1)[1], 16) != port:
+                        continue
+                except ValueError:
+                    continue
+                found.add(parts[9])
+    except OSError:
+        return None
+    return found
+
+
+inodes, readable = set(), False
+for source in ("/proc/net/tcp", "/proc/net/tcp6"):
+    got = listening_inodes(source)
+    if got is None:
+        continue
+    readable = True
+    inodes |= got
+if not readable:
+    sys.exit(2)
+
+fd_dir = f"/proc/{pid}/fd"
+try:
+    names = os.listdir(fd_dir)
+except OSError:
+    sys.exit(1)
+for name in names:
+    try:
+        target = os.readlink(os.path.join(fd_dir, name))
+    except OSError:
+        continue
+    if target.startswith("socket:[") and target[8:-1] in inodes:
+        sys.exit(0)
+sys.exit(1)
+HOLDEOF
+}
+
+# Something is answering as this demo's app and no pidfile points at it.
+# Say so rather than guess at a process id — guessing at process ids is
+# the defect this section exists to remove.
+warn_about_orphan_app() {
+  if app_answers; then
+    echo "run-demo down: something on $APP_PORT still answers /api/operations as this demo's app, and no pidfile points at it." >&2
+    echo "run-demo down: it was not started by a run this script can account for, so nothing here guesses at a process id. Find it with 'ss -ltnp' or 'lsof -i :$APP_PORT' and stop it by hand." >&2
+  fi
+}
+
+start_app() {
+  local missing=0
+  for f in static/js/vendor.js static/js/app.js static/index.html; do
+    if [[ ! -f "$DEMO_DIR/$f" ]]; then
+      echo "run-demo up: demo/$f is missing — the committed front-end bundle is not in this checkout." >&2
+      missing=1
+    fi
+  done
+  if [[ "$missing" -ne 0 ]]; then
+    echo "run-demo up: run './run-demo build-ui' (the one verb that needs Node) and commit demo/static/js/." >&2
+    return 1
+  fi
+
+  echo "run-demo up: starting the app on http://$DB_HOST:$APP_PORT (uvicorn, no Node)"
+  # Measured, and both halves were wrong the first time:
+  #   * the redirects go on the SUBSHELL, not on the python command inside
+  #     it — otherwise the forked shell keeps `up`'s stdout open and the
+  #     verb never returns to the terminal it was run from; and
+  #   * `exec` replaces that shell with uvicorn, so `$!` is the server's
+  #     own pid and `down` kills the server rather than a wrapper that
+  #     leaves it orphaned on 8787.
+  ( cd "$REPO_ROOT" && exec "$VENV_DIR/bin/python" -m uvicorn demo.server.app:app \
+      --host "$DB_HOST" --port "$APP_PORT" --log-level warning \
+  ) >"$APP_LOG" 2>&1 </dev/null &
+  local app_pid=$!
+
+  # The pidfile is written ONLY once THIS process is confirmed to be the
+  # one holding the port — never at launch. A pid recorded at launch can
+  # be dead by the next poll, and a pidfile that names a dead pid over a
+  # live app is worse than no pidfile at all.
+  local deadline=$(( $(date +%s) + APP_READY_TIMEOUT_SECONDS ))
+  local holds
+  while [[ "$(date +%s)" -lt "$deadline" ]]; do
+    if ! kill -0 "$app_pid" 2>/dev/null; then
+      echo "run-demo up: the app this run started (pid $app_pid) exited before it served anything — last 40 log lines:" >&2
+      tail -40 "$APP_LOG" >&2 || true
+      echo "run-demo up: nothing was written to $APP_PIDFILE, and whatever else may be holding $APP_PORT was left exactly as it was." >&2
+      return 1
+    fi
+    holds=0
+    pid_holds_port "$app_pid" "$APP_PORT" || holds=$?
+    # holds 0 — this pid owns the listening socket.
+    # holds 2 — socket ownership cannot be read here; fall back to "the
+    #           process we started is still alive AND an autoSQL app is
+    #           answering", which is still strictly more than "a socket
+    #           is bound".
+    if [[ "$holds" -ne 1 ]] && app_answers; then
+      echo "$app_pid" >"$APP_PIDFILE"
+      # Two different claims, and neither is allowed to borrow the
+      # other's strength. This demo exists to stop a number being more
+      # confident than what was measured; the same rule applies to a
+      # sentence.
+      if [[ "$holds" -eq 0 ]]; then
+        echo "run-demo up: the screen is up — http://$DB_HOST:$APP_PORT/ (pid $app_pid holds the socket on $APP_PORT and answers /api/operations)"
+      else
+        echo "run-demo up: the screen is up — http://$DB_HOST:$APP_PORT/ (pid $app_pid is alive and an autoSQL app answers on $APP_PORT; socket ownership could not be read on this system, so those two are what was confirmed and not that the two are the same process)"
+      fi
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "run-demo up: the app did not start within ${APP_READY_TIMEOUT_SECONDS}s — last 40 log lines:" >&2
+  tail -40 "$APP_LOG" >&2 || true
+  if kill -0 "$app_pid" 2>/dev/null; then
+    echo "run-demo up: stopping the app this run started (pid $app_pid) rather than leaving it behind unrecorded." >&2
+    kill "$app_pid" 2>/dev/null || true
+  fi
+  return 1
+}
+
+stop_app() {
+  [[ -f "$APP_PIDFILE" ]] || return 0
+
+  local pid
+  pid="$(cat "$APP_PIDFILE" 2>/dev/null || true)"
+  pid="${pid//[[:space:]]/}"
+
+  if ! pid_is_our_app "$pid"; then
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      echo "run-demo down: $APP_PIDFILE names pid $pid — and pid $pid is NOT this demo's app. It is:" >&2
+      echo "run-demo down:     $(pid_command_line "$pid")" >&2
+      echo "run-demo down: that is a stale pidfile whose number has since been handed to somebody else. NOTHING WAS SIGNALLED. Removing the stale file." >&2
+    else
+      echo "run-demo down: $APP_PIDFILE named pid ${pid:-<empty>}, which is not running — removing the stale file."
+    fi
+    rm -f "$APP_PIDFILE"
+    warn_about_orphan_app
+    return 0
+  fi
+
+  echo "run-demo down: stopping the app (pid $pid)"
+  kill "$pid" 2>/dev/null || true
+  # `wait` only works on this shell's own children, and after an `up` in
+  # another terminal it is not one — so poll instead. The poll re-asks
+  # WHO the pid is, not merely whether it exists: between the TERM and the
+  # KILL below the number can be released and handed to somebody else, and
+  # a KILL is not a signal to send on a stale assumption.
+  local waited=0
+  while [[ "$waited" -lt 40 ]] && pid_is_our_app "$pid"; do
+    sleep 0.25
+    waited=$((waited + 1))
+  done
+  if pid_is_our_app "$pid"; then
+    echo "run-demo down: the app did not stop on TERM; sending KILL" >&2
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+  rm -f "$APP_PIDFILE"
+}
+
+# ── W14: build-ui — the ONE verb allowed to need Node ─────────────────────
+build_ui() {
+  if ! command -v node >/dev/null 2>&1; then
+    echo "run-demo build-ui: node is not on PATH." >&2
+    echo "run-demo build-ui: this is the only verb that needs it. './run-demo up' and './run-demo test' run from the committed bundles under demo/static/js/ and never invoke Node (AC-36)." >&2
+    return 1
+  fi
+  if [[ ! -d "$DEMO_DIR/frontend/node_modules" ]]; then
+    echo "run-demo build-ui: installing the build toolchain (esbuild + React) — this step, and only this step, uses the network"
+    ( cd "$DEMO_DIR/frontend" && npm install --no-audit --no-fund )
+  fi
+  ( cd "$DEMO_DIR/frontend" && node build.mjs "${@}" )
+}
+
+usage() {
+  cat <<'EOF'
+usage: ./run-demo <verb>
+
+verbs:
+  up         bring the demo database and app up (seeds on first run)
+  down       tear the demo stack down
+  build-ui   build the front-end bundles (requires Node; only this verb does)
+  test       run the demo's test suite
+
+note:
+  ./run-demo test --mutants  plan §8.2's sixteen-mutant pass. NOT IMPLEMENTED
+                             and it has never run; the flag refuses, and every
+                             ./run-demo test says so above its summary line.
+EOF
+}
+
+case "${1:-}" in
+  "")
+    usage
+    exit 0
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  up)
+    guard_ports
+    bootstrap_venv
+    compose_up
+    wait_for_db_ready || exit 1
+    echo "run-demo up: demo/.venv ready, dependencies installed offline (W3)."
+    echo "run-demo up: $DB_CONTAINER is up on $DB_HOST:$DB_PORT, lc_collate=C (W4)."
+    seed_database || exit 1
+    start_app || exit 1
+    exit 0
+    ;;
+  down)
+    stop_app
+    compose_down
+    echo "run-demo down: $DB_CONTAINER container and volume removed."
+    exit 0
+    ;;
+  build-ui)
+    shift
+    build_ui "$@" || exit 1
+    exit 0
+    ;;
+  test)
+    shift
+    run_suite "$@"
+    ;;
+  *)
+    echo "run-demo: unknown verb '${1}'" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

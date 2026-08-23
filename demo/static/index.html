@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+<title>autoSQL — the picking screen</title>
+
+<!--
+  demo/static/index.html — the demo's one page.
+
+  STYLESHEET ORDER, AND WHY IT IS THIS WAY ROUND
+    The four vendored Watery sheets first, byte-identical, then this
+    demo's own. Locate §3.1 fixes that order and the cascade needs it:
+    shell.css:48 has a `.rail` of its own (GIMS's sticky 100vh workspace
+    navigator) and the mock uses `.rail` for the four-stop enforcement
+    strip, so demo.css has to come last to win.
+
+    D11 says demo.css is loaded "before watery.css" so its self-hosted
+    Inter beats watery.css:8's Google-Fonts @import. That still happens
+    here: @font-face rules are collected regardless of order, and an
+    @import is hoisted to the top of its own sheet — so this file's local
+    Inter wins either way. D11's purpose is kept; its ordering sentence is
+    not the mechanism that delivers it.
+
+  NOTHING IS FETCHED FROM ANOTHER HOST — AND THAT IS NOW ENFORCED TWICE.
+  AC-32 requires the suite to pass with no network beyond pulling the
+  Postgres image, and a screen that only looks right online is a screen
+  that is wrong.
+
+    1. watery.css:8's `@import url(<Google Fonts>)` never reaches the
+       browser. The round-1 review found that it did: a browser fetches an
+       applied stylesheet's @import unconditionally, so the build's belief
+       that it was "a silent no-op offline" was only ever true offline,
+       and this page is shown on networks. The vendored file may not be
+       edited (D1 pins it byte-identical to GIMS's, digest-checked), so
+       the import is removed in the layer that SERVES it —
+       demo/server/app.py :: offline_css. Inter still arrives: D11's
+       self-hosted woff2 pair below is now the only Inter the screen
+       asks for.
+
+    2. The Content-Security-Policy below is the second fence. It names no
+       host but this one, so a stylesheet, script, font, image or fetch
+       that pointed anywhere else would be refused by the browser rather
+       than quietly issued. 'unsafe-inline' appears once, for style only,
+       and grants no ORIGIN — React writes element.style directly and the
+       policy has to allow that; what it must never allow is another host,
+       and it does not.
+
+    3. demo/tests/test_isolation.py's AC-32 sweep walks out from this page
+       and follows everything it loads — the four vendored sheets, their
+       @imports and url()s, both bundles, the sprite the bundles resolve,
+       the two fonts — reading what the server actually sends rather than
+       a hand-listed pair of files. That hand-listed pair is what let (1)
+       through for the whole build.
+
+  THE TWO BUNDLES ARE COMMITTED (B19, AC-36). No build step runs here; a
+  clone with `node` removed from PATH serves this page exactly as built.
+-->
+
+<link rel="stylesheet" href="/vendor/styles/watery.css">
+<link rel="stylesheet" href="/vendor/styles/dashboard.css">
+<link rel="stylesheet" href="/vendor/styles/shell.css">
+<link rel="stylesheet" href="/vendor/styles/components.css">
+<link rel="stylesheet" href="/static/demo.css">
+
+<link rel="preload" href="/static/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+
+<body class="watery-bg">
+  <div id="root"></div>
+
+  <noscript>
+    <div class="wrap">
+      <div class="banner">
+        <strong>This screen needs JavaScript.</strong>
+        The picking screen is a React front end over the demo's own API. With
+        scripting off, the API still answers directly:
+        <code>GET /api/operations</code>, <code>GET /api/fields</code> and
+        <code>POST /api/pick</code>.
+      </div>
+    </div>
+  </noscript>
+
+  <script src="/static/js/vendor.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>

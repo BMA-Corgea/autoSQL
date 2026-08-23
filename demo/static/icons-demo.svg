@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  demo/static/icons-demo.svg — the SECOND sprite (T-2-plan.md ruling B17).
+
+  WHAT THIS IS
+    Exactly the 18 symbols the approved mock (design/t2-demo-mock.html)
+    draws that GIMS's own sprite does not have. Lifted verbatim from the
+    mock; nothing here is redrawn and nothing here is a variant of a GIMS
+    icon.
+
+  WHY IT IS SEPARATE, AND NOT ONE MERGED SPRITE
+    demo/vendor/icons.svg is GIMS's static/icons.svg, byte-identical and
+    never edited (rulings D1, D2). Its 54 symbols are the source of truth
+    for every name it holds. The mock draws 30 symbols; 12 of those names
+    also exist upstream, and THREE of the 12 — i-play, i-plus, i-search —
+    have different path data in the mock. Merging would silently fork the
+    vendored file for those three.
+
+  HOW A NAME IS RESOLVED
+    demo/frontend/icons.jsx checks the VENDORED sprite first and falls
+    back to this one, so i-play, i-plus and i-search render GIMS's shapes,
+    not the mock's. The three differences are sub-pixel and D1 outranks a
+    drawing detail nobody chose deliberately.
+
+  THE INVARIANT THAT KEEPS IT HONEST
+    The two sprites share NO id. demo/tests/test_ui.py asserts it. The day
+    GIMS adds an `i-sort` of its own, that test fails rather than this file
+    silently shadowing it.
+
+  THE 18:
+    i-ban i-cap i-caret i-code i-columns i-dash i-drop i-neq i-pin
+    i-pulse i-python i-quote i-shield i-shield-stop i-sigma i-sort
+    i-wave i-x
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <!-- Watery line-icon idiom: geometry only, 24x24, stroke=currentColor -->
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
+  <symbol id="i-cap" viewBox="0 0 24 24"><path d="M4 6h16M4 11h16"/><path d="M4 16.5h5M11.5 16.5h2.5M16.5 16.5h3.5"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M6 9.5 12 15.5 18 9.5"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5 3.5 12l5 4.5M15.5 7.5 20.5 12l-5 4.5"/><path d="M13.5 4.5 10.5 19.5"/></symbol>
+  <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3.2" y="4.2" width="17.6" height="15.6" rx="2"/><path d="M12 4.2v15.6"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.2c3.6 4.3 6 7.3 6 10a6 6 0 0 1-12 0c0-2.7 2.4-5.7 6-10z"/><path d="M9.2 14.4a2.9 2.9 0 0 0 2.6 2.6"/></symbol>
+  <symbol id="i-neq" viewBox="0 0 24 24"><path d="M5 9.5h14M5 15h14"/><path d="M15.5 3.5 8.5 20.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M2.5 12.5h4l2.8-6.6 4 14.2 2.8-7.6h5.4"/></symbol>
+  <symbol id="i-python" viewBox="0 0 24 24"><path d="M4 8.5h6.5a2 2 0 0 0 2-2V4.6a2 2 0 0 0-2-2H7.4a2 2 0 0 0-2 2v3.9"/><path d="M20 15.5h-6.5a2 2 0 0 0-2 2v1.9a2 2 0 0 0 2 2h3.1a2 2 0 0 0 2-2v-3.9"/><path d="M4 8.5v5.4a2 2 0 0 0 2 2h6"/><path d="M20 15.5V10a2 2 0 0 0-2-2h-6"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M9 5.5v5a3 3 0 0 1-3 3"/><path d="M18 5.5v5a3 3 0 0 1-3 3"/><path d="M3.5 20.5h17"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.8 20 6v6.2c0 4.6-3.4 7.6-8 9.1-4.6-1.5-8-4.5-8-9.1V6z"/><path d="M8.6 12.6 11 15l4.4-4.6"/></symbol>
+  <symbol id="i-shield-stop" viewBox="0 0 24 24"><path d="M12 2.8 20 6v6.2c0 4.6-3.4 7.6-8 9.1-4.6-1.5-8-4.5-8-9.1V6z"/><path d="M9.2 9.2 14.8 14.8M14.8 9.2 9.2 14.8"/></symbol>
+  <symbol id="i-sigma" viewBox="0 0 24 24"><path d="M17.5 5.5H6.5l6 6.5-6 6.5h11"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7 4.5v15"/><path d="M3.8 16.2 7 19.5l3.2-3.3"/><path d="M17 19.5v-15"/><path d="M13.8 7.8 17 4.5l3.2 3.3"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2.8 15.2c2.6-6.4 5.9-6.4 8.5 0s5.9 6.4 8.5 0"/><path d="M2.8 9.4c2.6-4.4 5.9-4.4 8.5 0"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+</svg>
