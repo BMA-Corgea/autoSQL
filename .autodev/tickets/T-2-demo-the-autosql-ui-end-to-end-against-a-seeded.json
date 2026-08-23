@@ -3,8 +3,8 @@
   "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
   "type": "feature",
   "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
-  "stage": "verify",
-  "status": "testing",
+  "stage": "uat",
+  "status": "acceptance",
   "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
   "pipeline_version": "feature@v1",
   "modifiers": [
@@ -26,11 +26,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-23 auto-review: worker started (claude-fable-5) · attempt 3 02:59",
     "2026-08-23 advanced auto-review → gate · auto-review on claude-fable-5",
     "2026-08-23 gate merge cleared by policy:unattended",
     "2026-08-23 advanced gate → verify · gate on claude-fable-5",
-    "2026-08-23 verify: worker started (claude-fable-5) 03:48"
+    "2026-08-23 verify: worker started (claude-fable-5) 03:48",
+    "2026-08-23 advanced verify → uat · verify on claude-fable-5"
   ],
   "assignees": {},
   "links": {},
@@ -130,6 +130,12 @@
       "to": "verify",
       "by": "policy:unattended",
       "at": "2026-08-23T03:47:51.598Z"
+    },
+    {
+      "from": "verify",
+      "to": "uat",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-23T04:06:47.696Z"
     }
   ],
   "pins": {
@@ -206,6 +212,14 @@
       "fingerprint": "Merged feat/T-2-demo into main (merge commit on origin/main) and verified ON MAIN, where ../GIMS-Project actually resolves: ./run-demo up seeds 10,410 invented rows and serves 8787; ./run-demo test = 1141 passed, 0 skipped, 2 FAILED. The 2 failures are both test_ac35_gims_tree_not_modified (GIMS-Project and the GUTS spine copy) - Evan's own uncommitted edits dated 2026-08-13 in files this ticket never reads. That is wrap-up item 33 and is HIS decision, surfaced repeatedly and never papered over; a build worker refused to weaken the check to make it green. Note the skip count went 10 -> 0: every tree-half test that skipped loudly in the isolated worktree now genuinely runs on main, including AC-19's 130-case sweep. The merge gate was cleared as policy:unattended per Evan's Q34 decision (human eyes at spec approval and acceptance; merge and deploy unattended), re-affirmed by him 2026-08-21.",
       "by": "policy:unattended",
       "at": "2026-08-23T03:47:51.597Z",
+      "model": "claude-fable-5"
+    },
+    "verify": {
+      "evidence": ".autodev/evidence/T-2/ — 8 screenshots of the RUNNING app (all seven approved-mock states plus the disagreement at 1920), live-feedback.md, and tests/ carrying the full suite output and VERIFY.md. Regression: 1141 passed, 0 skipped, 2 failed - both AC-35, Evan's own uncommitted GIMS edits, his call. All 14 walkthrough steps were driven as raw HTTP against the live app with every number matching expected-answers.json; step 11 disagrees exactly as asserted (SQL 1 vs Python 1e+300 on edge-01, 1 differing row of 10, flagged), reproduced after a cold start that reseeded 10,410 rows from nothing with the AC-10 digest verified. THE SCREEN HAS NOW ACTUALLY BEEN RENDERED: a Chromium already present in the Playwright cache was used (AC-32 forbids FETCHING browser automation, not using what is already on the machine; nothing was downloaded), so the page's JavaScript genuinely executed for the first time. FINDING FROM LOOKING, recorded in live-feedback.md: at 1440 - the design brief's own target width - the  column, the column the disagreement is IN, is clipped at the pane boundary in the SQL pane and off-screen in the Python pane; at 1920 the SQL side becomes visible but the Python side is still clipped. The banner promises the disagreement is 'located, not merely announced' and at the target width it is announced but not located. No number is wrong and the correct row is marked, so this is a layout judgement for Evan's acceptance rather than a defect - and it is exactly the class of thing his Q27 look sign-off existed to catch.",
+      "kind": "other",
+      "fingerprint": ".autodev/evidence/T-2/ — 8 screenshots of the RUNNING app (all seven approved-mock states plus the disagreement at 1920), live-feedback.md, and tests/ carrying the full suite output and VERIFY.md. Regression: 1141 passed, 0 skipped, 2 failed - both AC-35, Evan's own uncommitted GIMS edits, his call. All 14 walkthrough steps were driven as raw HTTP against the live app with every number matching expected-answers.json; step 11 disagrees exactly as asserted (SQL 1 vs Python 1e+300 on edge-01, 1 differing row of 10, flagged), reproduced after a cold start that reseeded 10,410 rows from nothing with the AC-10 digest verified. THE SCREEN HAS NOW ACTUALLY BEEN RENDERED: a Chromium already present in the Playwright cache was used (AC-32 forbids FETCHING browser automation, not using what is already on the machine; nothing was downloaded), so the page's JavaScript genuinely executed for the first time. FINDING FROM LOOKING, recorded in live-feedback.md: at 1440 - the design brief's own target width - the  column, the column the disagreement is IN, is clipped at the pane boundary in the SQL pane and off-screen in the Python pane; at 1920 the SQL side becomes visible but the Python side is still clipped. The banner promises the disagreement is 'located, not merely announced' and at the target width it is announced but not located. No number is wrong and the correct row is marked, so this is a layout judgement for Evan's acceptance rather than a defect - and it is exactly the class of thing his Q27 look sign-off existed to catch.",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-23T04:06:47.694Z",
       "model": "claude-fable-5"
     }
   },

@@ -385,7 +385,7 @@ The served page was also smoke-checked on the fresh stack: `GET /` answers
 **And the whole suite was run a second time against the reseeded stack** —
 with this very file in place under `demo/`, so the record itself is proven
 not to trip any of the tree-wide sweeps (AC-3's forbidden-string grep,
-AC-37's timing-vocabulary sweep). The final line, verbatim:
+AC-37's no-speed-claim sweep). The final line, verbatim:
 
 ```
 ================== 2 failed, 1141 passed, 1 warning in 59.96s ==================

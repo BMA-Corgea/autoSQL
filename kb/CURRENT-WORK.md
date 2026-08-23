@@ -47,7 +47,7 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — **at
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — uat
   `build`, BUILT AND GREEN, not yet passed.** Evan's look sign-off on 2026-08-22 (GA-6, wrap-up item 3,
   *"Approve as drawn"*) lifted the block; item 5 (*"Run the rest full"*) put it on the full process, so
   it builds in an **isolated worktree at `/home/corgea/autoSQL-T-2-build`, branch `feat/T-2-demo`**
