@@ -62,6 +62,20 @@ _LAYER_1_BODY = {
         "instead — and the statement it would have gone into was never "
         "built, never prepared and never sent."
     ),
+    # W13-2.  A third check at the same layer, and a third view on the
+    # screen: same amber, same shape as the gate's, a DIFFERENT check —
+    # which is what `kind` is for.  It fires when a field slot holds
+    # something the two calculators would read as two different fields;
+    # see demo/server/app.py :: _as_dollar_path for the two measurements.
+    "field": (
+        "The field check refused this field slot before any SQL existed. A "
+        "field slot is read by both calculators — the SQL side splits it on "
+        "the dot and binds the pieces as the path, the Python side parses it "
+        "with the vendored expr.py — and they agree on a plain dotted name "
+        "and only on a plain dotted name. A slot they would read two "
+        "different ways is refused here rather than answered twice, "
+        "differently, by two panes that would then have to be compared."
+    ),
 }
 
 _LAYER_2_BODY = (
@@ -75,10 +89,11 @@ _LAYER_2_BODY = (
 def layer_1(exc, *, kind: str) -> dict:
     """The JSON for a :class:`demo.gate.Refused`.
 
-    ``kind`` is ``"expression"`` or ``"alias"`` — which of §4.4's gate and
-    §4.10's allowlist did the refusing.  It is supplied by the caller
-    because the two are raised by one exception class on purpose: the rule
-    lives in one file, and only the call site knows which check it was in.
+    ``kind`` is ``"expression"``, ``"alias"`` or ``"field"`` — §4.4's gate,
+    §4.10's allowlist, or W13-2's field-slot check.  It is supplied by the
+    caller because all three are raised by one exception class on purpose:
+    the rule lives in one file, and only the call site knows which check it
+    was in.
     """
     if kind not in _LAYER_1_BODY:
         raise ValueError(f"unknown layer-1 refusal kind {kind!r}")

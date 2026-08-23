@@ -66,13 +66,14 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # demo/ is not a package; the flat imports below are what make the
@@ -610,6 +611,93 @@ def numeric_fields(conn, collection: str) -> list:
 #: from the other one and still answer.
 _FIELD_SLOTS = (("sort", "field"), ("aggregate", "field"), ("window", "field"))
 
+#: One step of a field path: an ordinary JSON identifier.
+_PLAIN_STEP = r"[A-Za-z_][A-Za-z0-9_]*"
+#: The whole of what a field slot may hold, once its ``$.`` is off: a
+#: dotted run of those and nothing else.  See :func:`_as_dollar_path`.
+_PLAIN_PATH = re.compile(rf"{_PLAIN_STEP}(?:\.{_PLAIN_STEP})*\Z")
+
+#: The refusal a field slot gets when it holds something the two panes
+#: would read differently.  Written once so the sort, aggregate and window
+#: slots all say the same thing.
+_FIELD_PATH_WHY = (
+    "a field slot holds a plain field name, or a dotted run of them "
+    "(`ts`, `payload.load`) — not an expression. The two calculators read a "
+    "field slot with two different readers: the SQL side splits it on the "
+    "dot and binds the pieces as the `#>` path, and the Python side parses "
+    "it with the vendored expr.py. They agree on a plain dotted name and "
+    "only on a plain dotted name, so anything else is refused here rather "
+    "than sent to both of them to be read two different ways"
+)
+
+
+def _as_dollar_path(field: str) -> str:
+    r"""A field slot in the one spelling both panes read — or a refusal.
+
+    NEW RULING (W13-2) — **a field slot that is not a plain dotted run of
+    identifiers is refused, by name, before any SQL exists.**
+
+    W13-1 above normalises the field slots so both panes read one string,
+    with ``"$." + field``.  That is only sound while the name is spellable
+    after a dot, and a field slot's value does not have to be: it comes
+    from ``/api/fields``, which serves **key names read out of the rows**
+    (§4.4 item 3), and a JSON key is an arbitrary string.  Two measurements
+    on this machine, both on the seam between the two panes:
+
+    1. **A name the dot form cannot hold raises rather than answers.**  The
+       sort slot carrying ``a";b`` — AC-28's own hostile name — became
+       ``$.a";b`` and came back as
+       ``ExprError: Unexpected character '"' at position 3`` out of
+       ``demo/pyrunner/evaluate.py :: dollar_path``.  Loud, but a 500.
+
+    2. **The bracket spelling that fixes (1) makes the two panes read two
+       different fields.**  ``$["a\";b"]`` is what §4.4 item 3 names as
+       the third form of a field path, and ``dollar_path`` reads it
+       correctly as the single key ``a";b``.  ``demo/builder.py ::
+       _field_path`` does not: it strips a leading ``$.``, splits the rest
+       on ``.``, and binds the pieces — so it bound the **whole source
+       text** as one key name, ``["$[\"a\\\";b\"]"]``, and the SQL
+       pane ordered by a key no row has.  Both panes then agreed — on
+       nothing, by accident, because a missing key sorts as NULL on one
+       side and MISSING on the other and the tiebreak carried the result.
+
+    (2) is plan §8.1's failure mode 1 in miniature: two calculators reading
+    one pick two ways and agreeing anyway — here on a key no row has, so
+    both sides sorted on nothing and the tiebreak made it look right.
+
+    What this rule does **not** claim to fix: the dotted spelling means
+    *nesting*, on both sides, so a key whose own name contains a dot is not
+    addressable through a field slot at all.  Both panes read ``user.name``
+    as ``['user','name']``, which is at least the **same** reading — it is a
+    limit of the path grammar, not a divergence between the panes, and it
+    is left exactly where §4.4 left it.
+
+    So the slot is fenced instead: a plain dotted run of identifiers is
+    normalised to the ``$.`` spelling exactly as before, and everything
+    else is a named layer-1 refusal.  **Nothing the demo can show changes.**
+    Every top-level key of all three seeded collections is a plain
+    identifier — checked, 4 + 19 + 16 of them — and operation 4's field
+    control is a ``select`` over that closed set (``operations.py``), so
+    the screen cannot produce a refused slot.  What this closes is the API
+    path and any future collection.
+
+    **The narrower fix is in someone else's file.**  Teaching
+    ``builder._field_path`` the bracket form would let the demo *sort by*
+    such a key rather than refuse it.  That is W10's file and this item
+    does not edit it; the refusal is the honest thing this item can do on
+    its own, and it fails closed rather than open.
+    """
+    if field.startswith("$."):
+        bare = field[2:]
+    elif field.startswith("$"):
+        bare = None          # bare `$`, or `$[...]` — never a plain path
+    else:
+        bare = field
+    if bare is None or not _PLAIN_PATH.match(bare):
+        raise gate.Refused(field, f"`{field}` is not a usable field path: "
+                                  + _FIELD_PATH_WHY)
+    return "$." + bare
+
 
 def normalised_pick(pick: dict) -> dict:
     """One pick, with every field slot in the one spelling both panes read.
@@ -617,6 +705,10 @@ def normalised_pick(pick: dict) -> dict:
     A slot naming a **computed column** is left alone: that is an alias,
     not a path, and both panes look it up by name before treating it as
     one.
+
+    Raises :class:`gate.Refused` — a layer-1 refusal, before any SQL —
+    for a field slot no single spelling can carry to both panes.  See
+    :func:`_as_dollar_path` (W13-2) for the two measurements behind that.
     """
     if not isinstance(pick, dict):
         raise TypeError("a pick is a JSON object")
@@ -630,9 +722,10 @@ def normalised_pick(pick: dict) -> dict:
         field = holder.get(key)
         if not isinstance(field, str) or not field or field in aliases:
             continue
-        if not field.startswith("$"):
+        spelled = _as_dollar_path(field)
+        if spelled != field:
             holder = dict(holder)
-            holder[key] = "$." + field
+            holder[key] = spelled
             out[slot] = holder
     return out
 
@@ -742,7 +835,20 @@ def run_pick(conn, pick: dict) -> dict:
     """One pick → the whole response body.  Separated from the route so the
     suite drives the same code the screen does, with no HTTP in the way."""
     # ── 0 · one spelling for the field slots, handed to both panes ──────
-    pick = normalised_pick(pick)
+    #        A slot no single spelling reaches both panes with is refused
+    #        here, at layer 1, before anything is built (W13-2).
+    try:
+        pick = normalised_pick(pick)
+    except gate.Refused as exc:
+        return _refused(
+            errors.layer_1(exc, kind="field"),
+            pick=pick,
+            panes={"sql": _empty_pane("not-asked", _EMPTY_PANE_NOT_ASKED),
+                   "python": _empty_pane("not-asked", _EMPTY_PANE_NOT_ASKED)},
+            sql_block=_sql_block(parameterised=None, display=None,
+                                 params={}, outcomes=[], sent=False,
+                                 collection=pick.get("source") or ""),
+        )
 
     # ── 1 · legality, from the one function the screen greys from ───────
     verdict = legality.evaluate(pick)
@@ -895,7 +1001,32 @@ app = FastAPI(
 )
 
 _STATIC = _DEMO_DIR / "static"
+_VENDOR = _DEMO_DIR / "vendor"
+
+
+# W14 — the screen's two asset roots, and the ONE line of this file W14
+# added.  The picking screen links the four vendored Watery stylesheets,
+# and ``demo/vendor/ui.jsx``'s ``Icon`` resolves ``/static/icons.svg#i-…``
+# with that URL hardcoded.  D1/D2 forbid copying ``demo/vendor/icons.svg``
+# into ``demo/static/``, so the vendored tree is SERVED rather than
+# duplicated:
+#
+#   /vendor/…            the vendored assets, read-only, byte-identical
+#   /static/icons.svg    GIMS's 54-symbol sprite, from demo/vendor/
+#   /static/…            the demo's own — demo.css, icons-demo.svg (the
+#                        18 of B17), fonts/, and the committed bundles
+#
+# The sprite route is declared BEFORE the ``/static`` mount because
+# Starlette matches routes in the order they were added, and a Mount at
+# ``/static`` would otherwise answer 404 for it first.
 if (_STATIC / "js").is_dir():
+
+    @app.get("/static/icons.svg", include_in_schema=False)
+    def vendored_sprite():
+        """GIMS's sprite, at the URL its own Icon component asks for."""
+        return FileResponse(_VENDOR / "icons.svg", media_type="image/svg+xml")
+
+    app.mount("/vendor", StaticFiles(directory=str(_VENDOR)), name="vendor")
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 _NO_SCREEN_YET = (
@@ -918,10 +1049,32 @@ def index() -> HTMLResponse:
     return HTMLResponse(_NO_SCREEN_YET, status_code=200)
 
 
+class _BadQueryPick(ValueError):
+    """The ``pick`` query parameter is not a JSON object."""
+
+
 def _pick_from_query(raw: str | None) -> dict:
+    """The ``?pick=`` parameter, or the initial state.
+
+    Measured: ``json.loads`` on a malformed value came back through the
+    route as an unhandled ``JSONDecodeError`` — HTTP 500, with nothing a
+    screen or a reader could act on.  A refusal here says which parameter
+    and why, in the same 422 shape ``/api/fields`` already uses for its
+    closed set, so a client defect reads as a client defect (DR-2's rule
+    for the pick body, applied to the one other route that takes a pick).
+    """
     if not raw:
         return operations.default_pick()
-    return json.loads(raw)
+    try:
+        parsed = json.loads(raw)
+    except ValueError as exc:
+        raise _BadQueryPick(f"the `pick` parameter is not JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise _BadQueryPick(
+            "the `pick` parameter must be a JSON object describing a pick, "
+            f"not a {type(parsed).__name__}"
+        )
+    return parsed
 
 
 @app.get("/api/operations")
@@ -932,7 +1085,11 @@ def api_operations(pick: str | None = None) -> JSONResponse:
     re-derived for it, which is how the screen greys a control the instant
     a pick makes it illegal rather than after a round trip through a run.
     """
-    return JSONResponse(operations.contract(_pick_from_query(pick)))
+    try:
+        current = _pick_from_query(pick)
+    except _BadQueryPick as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=422)
+    return JSONResponse(operations.contract(current))
 
 
 @app.get("/api/fields")

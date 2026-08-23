@@ -63,11 +63,33 @@ def source_row(collection: str, key: str, raw: str) -> SourceRow:
     the runner a Python dict would be exercising a path production never
     takes.
 
-    Note on huge numbers: jsonb renders its numerics in full digits, so
-    edge-03's ``1e400`` arrives here as a 401-digit literal.  ``record_f``
-    parses that to ``float('inf')`` (CPython's json returns inf rather than
-    raising) — which is exactly what AC-17 requires the Python pane to end
-    up showing as literal text — while ``record_d`` holds it exactly.
+    Note on huge numbers, and the thing that is easy to get wrong here:
+    jsonb renders its numerics in FULL POSITIONAL DIGITS, so edge-03's
+    ``1e400`` arrives as a bare 401-digit literal — no ``.``, no ``e``.
+    JSON's grammar calls that an INTEGER, so ``json.loads`` routes it
+    through ``parse_int`` and hands back an exact arbitrary-precision
+    ``int`` — in BOTH parses, because ``parse_float`` never sees an integer
+    literal and ``record_d``'s ``Decimal`` hook is a ``parse_float`` hook.
+    So ``record_f`` does NOT hold ``float('inf')`` for this row, and no inf
+    is ever created: the float conversion that would have produced one is
+    never performed at the parse.
+
+    It is performed later, by the arithmetic.  ``expr.py`` calls ``float()``
+    on that int to do ``$.huge * 1`` and raises ``OverflowError: int too
+    large to convert to float``, which the pane reports by name (W13-2,
+    above ``_fallback_python_pane`` in ``demo/server/app.py``).  That raise
+    is the CORRECT outcome and is documented as one: *neither* side can read
+    this value, which is a stronger and truer thing for the demo to say than
+    an ``inf`` on one side would be.  Manufacturing an inf here — by parsing
+    an integer literal above ``DBL_MAX`` into one — would make this module
+    lie about what Python really does with the row, which is the exact
+    failure this project exists to prevent.
+
+    (CORRECTION, 2026-08-22: this docstring claimed the ``float('inf')``
+    parse, and AC-17 was signed on that claim.  See the correction note
+    beside AC-17 in ``.autodev/specs/T-2.md``.  A float LITERAL above
+    ``DBL_MAX`` — ``1e400`` written with its exponent — really would parse
+    to inf; the assumption's only error was that this row's text is one.)
     """
     return SourceRow(
         collection=collection,

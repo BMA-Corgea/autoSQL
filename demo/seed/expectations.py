@@ -426,7 +426,10 @@ def build_answers() -> Dict[str, Any]:
             "(plan §11.2) and the row counts are the seed's by construction."
         ),
         "expect": {
-            "db_port": entry(55440, "The demo's own Postgres port, fixed at plan §11.2. It is NOT 55433 — that is a live database this demo must never reach."),
+            # AC-3 forbids the live database's port number ANYWHERE in the
+            # demo tree, and a derivation is part of the tree. Say what the
+            # rule is; do not repeat the number the rule is about.
+            "db_port": entry(55440, "The demo's own Postgres port, fixed at plan §11.2. It is deliberately not the port of the live database on this machine, which this demo must never reach — and AC-3 forbids that number appearing anywhere in the demo tree, including in this sentence."),
             "app_port": entry(8787, "The demo's own app port, fixed at plan §11.2."),
             "rows_loaded": entry(
                 total_rows + generate.SAMPLES + len(generate.EDGE_CASES),
@@ -814,8 +817,10 @@ def build_answers() -> Dict[str, Any]:
         "pick": {"operation": 2, "source": "noun:EdgeCase", "alias": "scaled", "expression": "$.huge * 1"},
         "derivation": (
             "Refused at RUNTIME — layer 2 member (a) — naming the out-of-range magnitude. This "
-            "is the step that shows WHY refusing beats printing: the Python pane's answer is "
-            "inf, which is not a number anyone can check."
+            "is the step that shows WHY refusing beats printing: the second calculator cannot "
+            "read this value either — it raises rather than answering — so NEITHER side "
+            "produces a number here, and saying that plainly is a truer statement than either "
+            "side inventing one."
         ),
         "expect": {
             "verdict": entry("refused", "Layer 2 member (a): the magnitude is out of range."),
@@ -823,11 +828,22 @@ def build_answers() -> Dict[str, Any]:
             "offending_row": entry("edge-03", "The one seeded EdgeCase row with a `huge` key, whose stored JSON number is 1e400 (B24, written as raw JSON text precisely so it survives into the database exactly)."),
             "sql_pane": entry(None, "No number: the probe fired instead of returning a value. The pane shows the probe, not a blank — a blank would be indistinguishable from a query that returned nothing."),
             "python_pane": entry(
-                "inf",
-                "1e400 exceeds the largest double (~1.7976931348623157e+308), so Python's JSON parse "
-                "yields float('inf') and inf * 1 is inf. Derived from the IEEE-754 double range and "
-                "the stored literal, not by running the pane. AC-17 pins the pair: 1e400 refuses and "
-                "1e300 does NOT — the guard must not be a blanket ban on large numbers.",
+                "raised",
+                "No number on this side either — the pane's state is `raised`. Postgres holds a "
+                "jsonb number as an exact `numeric` and renders it in FULL POSITIONAL DIGITS, so "
+                "`data::text` carries edge-03's `huge` as a bare 401-digit INTEGER literal: no "
+                "decimal point, no exponent. JSON's grammar calls a literal with neither of those "
+                "an integer, so Python's parser routes it through its integer hook and never its "
+                "float hook, and hands back an EXACT arbitrary-precision int. The float conversion "
+                "that would have produced inf is therefore never performed — inf never comes into "
+                "existence. Multiplying that int by 1 in the float world then has to make a double "
+                "of it, and a 401-digit integer has no double: the conversion raises OverflowError, "
+                "which the pane reports by name. Derived from jsonb's numeric rendering and JSON's "
+                "integer-vs-float grammar, not by running the pane. AC-17 pins the pair: 1e400 "
+                "refuses and 1e300 does NOT — the guard must not be a blanket ban on large numbers. "
+                "(CORRECTION, 2026-08-22: this entry read `inf` and derived it from the IEEE-754 "
+                "double range. That derivation assumed the value reaches Python as a FLOAT literal; "
+                "it does not. See the note beside AC-17 in .autodev/specs/T-2.md.)",
             ),
         },
     })

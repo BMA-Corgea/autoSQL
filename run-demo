@@ -26,8 +26,13 @@
 #   and seeds the 10,410 INVENTED rows if the table is empty, verifying
 #   AC-10's digest against demo/manifest.json (demo/seed/load.py).
 #   The app itself is not yet wired in (lands with W13/W14) — `up` says so
-#   once the seed is verified. `build-ui` and `test` are still pure stubs
-#   (W14, W16).
+#   once the seed is verified. `build-ui` is still a pure stub (W14).
+#   W16: `test` is real. It says in its first line whether it is using a
+#   stack that was already up or brought up its own (B23, and B34 for the
+#   half-up state `up` can leave behind), refuses a FOREIGN holder of 55440
+#   or 8787 with AC-5's message rather than adopting it, takes down only a
+#   stack it started itself, and ends with one summary line that counts
+#   skips separately from passes and reports B10's checksum guard.
 #
 # HARD FENCE — never remove this comment or the check below.
 #   This demo owns ports 55440 (its own Postgres) and 8787 (the app) and
@@ -110,7 +115,7 @@ compose_down() {
 # 40 log lines and fail loudly rather than hang silently — that is the
 # entire reason this ruling exists.
 wait_for_db_ready() {
-  echo "run-demo up: waiting for $DB_CONTAINER to accept connections (Python poll, B21, up to ${READY_TIMEOUT_SECONDS}s)"
+  echo "run-demo: waiting for $DB_CONTAINER to accept connections (Python poll, B21, up to ${READY_TIMEOUT_SECONDS}s)"
   local deadline=$(( $(date +%s) + READY_TIMEOUT_SECONDS ))
   local attempt=0
   while [[ "$(date +%s)" -lt "$deadline" ]]; do
@@ -130,13 +135,13 @@ except Exception:
     sys.exit(1)
 PYEOF
     then
-      echo "run-demo up: $DB_CONTAINER is ready (attempt $attempt)"
+      echo "run-demo: $DB_CONTAINER is ready (attempt $attempt)"
       return 0
     fi
     sleep "$READY_POLL_SECONDS"
   done
-  echo "run-demo up: $DB_CONTAINER did not become ready within ${READY_TIMEOUT_SECONDS}s (B21) — last 40 log lines:" >&2
-  docker logs --tail 40 "$DB_CONTAINER" >&2 2>&1 || echo "run-demo up: (could not read container logs — $DB_CONTAINER may not exist)" >&2
+  echo "run-demo: $DB_CONTAINER did not become ready within ${READY_TIMEOUT_SECONDS}s (B21) — last 40 log lines:" >&2
+  docker logs --tail 40 "$DB_CONTAINER" >&2 2>&1 || echo "run-demo: (could not read container logs — $DB_CONTAINER may not exist)" >&2
   return 1
 }
 
@@ -172,6 +177,316 @@ seed_database() {
   "$VENV_DIR/bin/python" "$DEMO_DIR/seed/load.py"
 }
 
+# ── W16: the suite (B23, spec §9.7, plan §6.4 item 6) ─────────────────────
+#
+# B23 — THE RULING, and every branch of it is below:
+#   "test uses a running stack if there is one and brings up its own if
+#    there is not, and says which in its first line."
+#   * both halves of the stack up  -> "using the stack already up",
+#     and NOTHING is taken down afterwards: a person mid-walkthrough does
+#     not lose their demo to somebody else running the suite.
+#   * nothing up                   -> run `up` ourselves, then `down`
+#     afterwards, saying both.
+#   * a FOREIGN process on 55440 or 8787 -> stop with AC-5's message
+#     rather than connecting to whatever is there.
+#
+# B34 (NEW RULING, W16) — B23 has three states, not two: the stack can be
+# HALF up.
+#   `./run-demo up` brings up the database and (once the app is wired into
+#   it) serves the screen on 8787.  Between those two, and on any machine
+#   where a person ran `up` before the app existed, the database is this
+#   demo's own and 8787 is free.  B23's own words send `test` to run `up`
+#   in that state — and `up` refuses, because its AC-5 port guard draws no
+#   exception for a container this script started itself.  Following B23
+#   literally there would make `test` unrunnable after `up`.
+#   THE RULING: the third state is named and used, not worked around.
+#   `test` says the database is the one it adopted and that the app is not
+#   running, starts nothing, and takes nothing down.  The suite drives the
+#   app in-process (B22's contract tests use the ASGI app directly), so a
+#   half-up stack is a complete stack as far as the suite is concerned —
+#   and saying so out loud is the whole point of B23's first line.
+#   One line to overturn: "make `up` idempotent" — then the half-up state
+#   disappears into `up` and this branch goes with it.
+
+#: Set to 1 only if THIS invocation started the stack.  The teardown trap
+#: reads it and nothing else does.
+STACK_STARTED_HERE=0
+SUITE_REPORT=""
+
+# Is it OUR app on 8787 — not merely "is something listening"?  B23 says
+# the suite must not adopt whatever is there, so this asks the app for the
+# one route that identifies it: B22's control contract.
+app_answers() {
+  python3 - "$APP_PORT" <<'APPEOF'
+import json
+import sys
+import urllib.request
+
+port = int(sys.argv[1])
+try:
+    with urllib.request.urlopen(
+        f"http://127.0.0.1:{port}/api/operations", timeout=2
+    ) as response:
+        if response.status != 200:
+            sys.exit(1)
+        body = json.loads(response.read().decode())
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(body, dict) and "operations" in body else 1)
+APPEOF
+}
+
+db_container_running() {
+  local found
+  found="$(docker ps --filter "name=^/${DB_CONTAINER}$" --filter status=running --format '{{.Names}}')"
+  [[ "$found" == "$DB_CONTAINER" ]]
+}
+
+# The venv is what runs the suite.  A stack that is already up implies an
+# `up` that already built it — but a deleted .venv must not turn into a
+# confusing pytest-not-found, and rebuilding costs one offline pip install
+# (--no-index, B20: no network, AC-32).
+ensure_venv() {
+  if [[ ! -x "$VENV_DIR/bin/python" ]] || ! "$VENV_DIR/bin/python" -c "import pytest" >/dev/null 2>&1; then
+    bootstrap_venv
+  fi
+}
+
+teardown_if_we_started_it() {
+  if [[ "$STACK_STARTED_HERE" == "1" ]]; then
+    STACK_STARTED_HERE=0
+    # The `down` VERB, not compose_down: `up` starts the app as well as the
+    # container (W14), and a teardown that undid only half of what it
+    # started would leave uvicorn holding 8787 — which the next run would
+    # then correctly refuse as a foreign holder.  Whatever `up` does,
+    # `down` undoes; `test` calls both and neither by halves.
+    "$REPO_ROOT/run-demo" down
+    echo "run-demo test: took it down again"
+  fi
+}
+
+# B23's first line, and the three states it can report.
+prepare_stack_for_test() {
+  local db_up=0 app_up=0
+  db_container_running && db_up=1
+  app_answers && app_up=1
+
+  # The two foreign-holder refusals (AC-5's message, B23's last bullet).
+  if [[ "$db_up" == "0" ]] && port_in_use "$DB_PORT"; then
+    echo "run-demo test: refusing to run — port $DB_PORT is in use and it is NOT this demo's own container ($DB_CONTAINER)." >&2
+    echo "run-demo test: this demo never connects to any other database on this machine, under any circumstance. Free the port, or stop whatever is holding it." >&2
+    exit 1
+  fi
+  if [[ "$app_up" == "0" ]] && port_in_use "$APP_PORT"; then
+    echo "run-demo test: refusing to run — port $APP_PORT is in use and what is there is not this demo's app (it does not answer /api/operations)." >&2
+    echo "run-demo test: rather than adopt it, this stops. Free the port and run again." >&2
+    exit 1
+  fi
+
+  if [[ "$db_up" == "1" && "$app_up" == "1" ]]; then
+    echo "run-demo test: using the stack already up"
+    return 0
+  fi
+
+  if [[ "$db_up" == "1" ]]; then
+    # B34, the third state.
+    echo "run-demo test: using the database already up; the app is not running on $APP_PORT and the suite does not need it (B34) — nothing started, nothing will be taken down"
+    return 0
+  fi
+
+  "$REPO_ROOT/run-demo" up
+  STACK_STARTED_HERE=1
+  echo "run-demo test: brought the stack up for this run"
+}
+
+# The final summary line (spec §9.7 part 3, plan §6.4 item 6): the skip
+# count is SEPARATE from the pass count, every skip says what it was
+# looking for, and B10's checksum guard reports in the same line.  The
+# numbers come from demo/tests/conftest.py's report — pytest's own report
+# objects — never from parsing pytest's console output.
+print_suite_summary() {
+  python3 - "$1" <<'SUMEOF'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as handle:
+        data = json.load(handle)
+except Exception as exc:
+    print(
+        f"run-demo test: NO REPORT — the suite wrote no run report to {path} "
+        f"({type(exc).__name__}: {exc}). Nothing here can be counted, so this "
+        "run is a failure rather than an unknown.",
+        file=sys.stderr,
+    )
+    sys.exit(3)
+
+counts = data["counts"]
+reasons = data["skip_reasons"]
+guard = data["guard"]
+
+if reasons:
+    grouped = {}
+    for reason in reasons:
+        grouped[reason] = grouped.get(reason, 0) + 1
+    print(f"run-demo test: {len(reasons)} skipped, and what each was looking for:")
+    for reason, n in sorted(grouped.items(), key=lambda kv: (-kv[1], kv[0])):
+        print(f"    {n} x {reason}")
+
+guard_line = f"B10 checksum guard: {guard['state']}"
+if guard["state"] != "verified":
+    guard_line += f" — {guard['detail']}"
+
+print(
+    "run-demo test: "
+    f"{counts['passed']} passed, "
+    f"{counts['skipped']} skipped, "
+    f"{counts['xfailed']} xfailed, "
+    f"{counts['xpassed']} xpassed, "
+    f"{counts['failed']} failed, "
+    f"{counts['errors']} errors"
+    f" — {guard_line}"
+)
+
+# `./run-demo test` guarantees the stack, so the guard not having run is a
+# failure here even though a bare `pytest demo/tests` is allowed to skip it.
+sys.exit(
+    0
+    if counts["failed"] == 0 and counts["errors"] == 0 and guard["state"] == "verified"
+    else 1
+)
+SUMEOF
+}
+
+run_suite() {
+  if [[ "${1:-}" == "--mutants" ]]; then
+    echo "run-demo test: --mutants is plan §8.2's mutation pass and is not wired into this verb yet." >&2
+    echo "run-demo test: refusing rather than running the ordinary suite and letting it look like a mutation run." >&2
+    exit 2
+  fi
+
+  trap teardown_if_we_started_it EXIT INT TERM
+
+  prepare_stack_for_test
+  ensure_venv
+  wait_for_db_ready || exit 1
+
+  SUITE_REPORT="$(mktemp -t autosql-demo-test-report.XXXXXX.json)"
+
+  local pytest_status=0
+  set +e
+  AUTOSQL_DEMO_TEST_REPORT="$SUITE_REPORT" \
+    "$VENV_DIR/bin/python" -m pytest "$DEMO_DIR/tests" "$@"
+  pytest_status=$?
+  set -e
+
+  teardown_if_we_started_it
+  trap - EXIT INT TERM
+
+  local summary_status=0
+  set +e
+  print_suite_summary "$SUITE_REPORT"
+  summary_status=$?
+  set -e
+  rm -f "$SUITE_REPORT"
+
+  if [[ "$pytest_status" != "0" ]]; then
+    exit "$pytest_status"
+  fi
+  exit "$summary_status"
+}
+
+# ── W14: the app (§9.1, AC-36) ────────────────────────────────────────────
+#   The screen is served by uvicorn from demo/static/index.html and the two
+#   COMMITTED bundles under demo/static/js/. Nothing here runs Node, and
+#   nothing here builds anything: `build-ui` is the only verb that needs
+#   Node, and AC-36 is the criterion that `up` works with `node` removed
+#   from PATH entirely. If the bundles are missing, `up` says so by name
+#   rather than serving a blank page.
+#   The pidfile and the log live INSIDE demo/.venv/ on purpose: .venv/ is
+#   already in .gitignore, so two runtime artefacts cannot end up in a
+#   commit and no shared ignore file has to grow a line for them.
+APP_PIDFILE="$VENV_DIR/autosql-app.pid"
+APP_LOG="$VENV_DIR/autosql-app.log"
+APP_READY_TIMEOUT_SECONDS=30
+
+start_app() {
+  local missing=0
+  for f in static/js/vendor.js static/js/app.js static/index.html; do
+    if [[ ! -f "$DEMO_DIR/$f" ]]; then
+      echo "run-demo up: demo/$f is missing — the committed front-end bundle is not in this checkout." >&2
+      missing=1
+    fi
+  done
+  if [[ "$missing" -ne 0 ]]; then
+    echo "run-demo up: run './run-demo build-ui' (the one verb that needs Node) and commit demo/static/js/." >&2
+    return 1
+  fi
+
+  echo "run-demo up: starting the app on http://$DB_HOST:$APP_PORT (uvicorn, no Node)"
+  # Measured, and both halves were wrong the first time:
+  #   * the redirects go on the SUBSHELL, not on the python command inside
+  #     it — otherwise the forked shell keeps `up`'s stdout open and the
+  #     verb never returns to the terminal it was run from; and
+  #   * `exec` replaces that shell with uvicorn, so `$!` is the server's
+  #     own pid and `down` kills the server rather than a wrapper that
+  #     leaves it orphaned on 8787.
+  ( cd "$REPO_ROOT" && exec "$VENV_DIR/bin/python" -m uvicorn demo.server.app:app \
+      --host "$DB_HOST" --port "$APP_PORT" --log-level warning \
+  ) >"$APP_LOG" 2>&1 </dev/null &
+  echo $! >"$APP_PIDFILE"
+
+  local deadline=$(( $(date +%s) + APP_READY_TIMEOUT_SECONDS ))
+  while [[ "$(date +%s)" -lt "$deadline" ]]; do
+    if port_in_use "$APP_PORT"; then
+      echo "run-demo up: the screen is up — http://$DB_HOST:$APP_PORT/"
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "run-demo up: the app did not start within ${APP_READY_TIMEOUT_SECONDS}s — last 40 log lines:" >&2
+  tail -40 "$APP_LOG" >&2 || true
+  return 1
+}
+
+stop_app() {
+  if [[ -f "$APP_PIDFILE" ]]; then
+    local pid
+    pid="$(cat "$APP_PIDFILE")"
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "run-demo down: stopping the app (pid $pid)"
+      kill "$pid" 2>/dev/null || true
+      # `wait` only works on this shell's own children, and after an `up`
+      # in another terminal it is not one — so poll the port instead.
+      local waited=0
+      while [[ "$waited" -lt 40 ]] && kill -0 "$pid" 2>/dev/null; do
+        sleep 0.25
+        waited=$((waited + 1))
+      done
+      if kill -0 "$pid" 2>/dev/null; then
+        echo "run-demo down: the app did not stop on TERM; sending KILL" >&2
+        kill -9 "$pid" 2>/dev/null || true
+      fi
+    fi
+    rm -f "$APP_PIDFILE"
+  fi
+}
+
+# ── W14: build-ui — the ONE verb allowed to need Node ─────────────────────
+build_ui() {
+  if ! command -v node >/dev/null 2>&1; then
+    echo "run-demo build-ui: node is not on PATH." >&2
+    echo "run-demo build-ui: this is the only verb that needs it. './run-demo up' and './run-demo test' run from the committed bundles under demo/static/js/ and never invoke Node (AC-36)." >&2
+    return 1
+  fi
+  if [[ ! -d "$DEMO_DIR/frontend/node_modules" ]]; then
+    echo "run-demo build-ui: installing the build toolchain (esbuild + React) — this step, and only this step, uses the network"
+    ( cd "$DEMO_DIR/frontend" && npm install --no-audit --no-fund )
+  fi
+  ( cd "$DEMO_DIR/frontend" && node build.mjs "${@}" )
+}
+
 usage() {
   cat <<'EOF'
 usage: ./run-demo <verb>
@@ -201,21 +516,23 @@ case "${1:-}" in
     echo "run-demo up: demo/.venv ready, dependencies installed offline (W3)."
     echo "run-demo up: $DB_CONTAINER is up on $DB_HOST:$DB_PORT, lc_collate=C (W4)."
     seed_database || exit 1
-    echo "run-demo up: the app is not yet implemented (lands with W13/W14)."
+    start_app || exit 1
     exit 0
     ;;
   down)
+    stop_app
     compose_down
     echo "run-demo down: $DB_CONTAINER container and volume removed."
     exit 0
     ;;
   build-ui)
-    echo "run-demo build-ui: stub — not yet implemented (lands with W14)."
+    shift
+    build_ui "$@" || exit 1
     exit 0
     ;;
   test)
-    echo "run-demo test: stub — not yet implemented (lands with W16)."
-    exit 0
+    shift
+    run_suite "$@"
     ;;
   *)
     echo "run-demo: unknown verb '${1}'" >&2

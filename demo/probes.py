@@ -185,7 +185,13 @@ def _namespace(frag, prefix: str) -> Tuple[str, Dict[str, Any]]:
 #       number(x); abs(x); floor(x); ceil(x); round(x, nd); date_add(_, n)
 #   xpr.ord (< <= > >=):           number operands go through xpr.f8
 #   xpr.str (string/lower/upper/concat):  number operands go through
-#       ecma_num(xpr.f8(j)) — Python renders "inf", SQL would null
+#       ecma_num(xpr.f8(j)) — SQL nulls where Python does something else
+#       with an out-of-double value.  (That "something else" is a RAISE,
+#       not an "inf", wherever the value reaches Python as a full-digit
+#       INTEGER literal, which is how jsonb renders its numerics — see the
+#       correction beside AC-17 in .autodev/specs/T-2.md.  Either way the
+#       position is a numeric context and still needs the probe, which is
+#       the only thing this enumeration decides.)
 #   xpr.reduce_one/reduce_arr (sum/avg/min/max):  a SCALAR argument is
 #       wrapped and xpr.num-ed.  A LIST argument is an array — the probe's
 #       jsonb_typeof(<op>) = 'number' test keeps it out, which is exactly

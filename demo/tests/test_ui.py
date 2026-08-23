@@ -17,6 +17,7 @@ not take.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -289,9 +290,43 @@ class TestTheSqlPane:
         assert body["refusal"]["statement_sent"] is False
         assert body["sql"]["statement_sent"] is False
         assert body["panes"]["sql"]["state"] == "abandoned"
-        # The Python pane still answers — the reported fallback.
+        # The Python pane still answers — the reported fallback (§4.5).
         assert body["panes"]["python"]["state"] == "answered"
-        assert body["panes"]["python"]["rows"]
+        # And its answer on THIS pick is zero rows, which is the right
+        # answer rather than a missing one.  The filter is
+        # `$.where == "alpha"`; on `noun:EdgeCase` exactly one row has a
+        # `where` key and it holds an object, so expr.py's `==` is false
+        # there and false (missing operand) on the other nine.  Asserted as
+        # a number, not as truthiness: "the pane answered 0" and "the pane
+        # did not answer" are different states and the difference is the
+        # whole point of a reported fallback.
+        assert body["panes"]["python"]["row_count"] == 0
+        assert body["panes"]["python"]["rows"] == []
+        assert body["page"]["total"] == 0
+
+    def test_the_reported_fallback_really_does_render_pythons_rows(self, conn):
+        """The same refusal with rows behind it, so §4.5's *"the Python pane
+        shows Python's answer"* is watched producing some.
+
+        Same probe, same member, same row — the container reaches `==`
+        through a computed column instead of through the filter, so nothing
+        is filtered away and all ten rows survive to the pane.
+        """
+        body = run(conn, pick(
+            source=EDGECASE,
+            computed=[{"name": "peek", "expr": '$.where == "alpha"'}]))
+        assert body["refusal"]["layer"] == 2
+        assert body["refusal"]["member"] == "b"
+        assert body["refusal"]["row_key"] == "edge-02"
+        assert body["panes"]["sql"]["state"] == "abandoned"
+        assert body["panes"]["sql"]["rows"] == []
+        py = body["panes"]["python"]
+        assert py["state"] == "answered"
+        assert py["row_count"] == 10
+        assert len(py["rows"]) == 10
+        assert "peek" in py["columns"]
+        # No verdict is claimed: one pane has no answer to compare.
+        assert body["verdict"] == "no-compare"
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -323,21 +358,40 @@ class _Recorder:
         return getattr(self._real, name)
 
 
+class _RecordingCursor:
+    """The same spy, one level down, on the cursor the SQL pane executes on.
+
+    Measured, and the reason this is a wrapper rather than a patched
+    method: psycopg 3.3.4's ``Cursor`` refuses attribute assignment —
+    ``AttributeError: 'Cursor' object attribute 'execute' is read-only`` —
+    so ``cur.execute = spy`` cannot be done at all.  Wrapping is also the
+    truer shape: the real cursor is untouched, and every call still reaches
+    it, so what the spy records is what the driver was actually handed.
+    """
+
+    def __init__(self, real, log):
+        self._real = real
+        self._log = log
+
+    def execute(self, statement, params=None, **kw):
+        self._log.append(str(statement))
+        self._real.execute(statement, params, **kw)
+        return self
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def __iter__(self):
+        return iter(self._real)
+
+
 @pytest.fixture
 def recorded(conn, monkeypatch):
     log: list = []
     real_cursor_factory = db.exact_json_cursor
 
     def spying_cursor(c):
-        cur = real_cursor_factory(getattr(c, "_real", c))
-        real_execute = cur.execute
-
-        def execute(statement, params=None, **kw):
-            log.append(str(statement))
-            return real_execute(statement, params, **kw)
-
-        cur.execute = execute
-        return cur
+        return _RecordingCursor(real_cursor_factory(getattr(c, "_real", c)), log)
 
     monkeypatch.setattr(server_app.db, "exact_json_cursor", spying_cursor)
     return _Recorder(conn, log), log
@@ -407,14 +461,78 @@ class TestFieldNamesAreBound:
         values = [p["value"] for p in body["sql"]["params"]]
         assert HOSTILE_FIELD in values
 
-    def test_a_hostile_field_name_in_the_sort_slot_is_bound(self, conn):
+    def test_the_sort_slots_field_name_is_bound_and_not_written(self, conn):
+        """The sort slot's half of AC-28, on a name the slot may hold.
+
+        Operation 4 does not go through ``compile.py`` — the builder emits
+        ``r.data #> %(sort_path)s`` directly — so the criterion has to be
+        asserted here separately from the computed-column case above.
+        """
         body = run(conn, pick(
-            sort={"field": HOSTILE_FIELD, "dir": "asc"}, cap=5))
+            sort={"field": "payload.load", "dir": "desc"}, cap=5))
         assert body["accepted"] is True
         parameterised = body["sql"]["parameterised"]
-        assert HOSTILE_FIELD not in parameterised
+        assert "%(sort_path)s" in parameterised
+        assert "payload" not in parameterised and "load" not in parameterised
         values = [p["value"] for p in body["sql"]["params"]]
-        assert any(HOSTILE_FIELD in v for v in values)
+        assert '["payload", "load"]' in values
+
+    def test_a_hostile_field_name_in_the_sort_slot_is_refused_by_name(
+        self, conn
+    ):
+        """W13-2, and the reason the test above uses an ordinary name.
+
+        A field slot is not an expression: operation 4's control is a
+        ``select`` over the collection's own key names.  ``a";b`` is not a
+        name any single spelling carries to both calculators — measured,
+        twice, in ``demo/server/app.py :: _as_dollar_path`` — so the server
+        refuses it at layer 1 instead of handing each pane its own reading.
+
+        AC-28's requirement still holds, and holds more strongly: the name
+        reaches neither the SQL text nor the parameter list, because no
+        statement was built.
+        """
+        body = run(conn, pick(
+            sort={"field": HOSTILE_FIELD, "dir": "asc"}, cap=5))
+        assert body["accepted"] is False
+        assert body["refusal"]["layer"] == 1
+        assert body["refusal"]["kind"] == "field"
+        assert body["refusal"]["construct"] == HOSTILE_FIELD
+        assert body["refusal"]["why"]
+        assert body["refusal"]["sql_existed"] is False
+        assert body["refusal"]["statement_sent"] is False
+        assert body["sql"]["parameterised"] is None
+        assert body["sql"]["params"] == []
+        for side in ("sql", "python"):
+            assert body["panes"][side]["state"] == "not-asked"
+        # And the rows are all still there.
+        assert conn.execute(
+            "SELECT count(*) FROM demo.records"
+        ).fetchone()[0] == 10410
+
+    @pytest.mark.parametrize("field", [
+        '$["a\";b"]',   # the bracket spelling builder._field_path misreads
+        "$.l[0]",        # an index step, same misreading
+        "$",             # the whole record
+    ])
+    def test_every_slot_spelling_the_two_panes_would_split_on_is_refused(
+        self, conn, field
+    ):
+        """The fence, over each slot that holds a field, not just the sort.
+
+        Each of these parses cleanly on the Python side and is misread by
+        the SQL side's ``_field_path``, which is exactly the shape plan
+        §8.1's failure mode 1 takes: two readings, one comparison, and an
+        agreement that means nothing.
+        """
+        for slot, extra in (
+            ("sort", {"dir": "asc"}),
+            ("window", {}),
+        ):
+            body = run(conn, pick(**{slot: {"field": field, **extra}}))
+            assert body["accepted"] is False, (slot, field)
+            assert body["refusal"]["kind"] == "field", (slot, field)
+            assert field in body["refusal"]["why"], (slot, field)
 
     def test_the_row_count_is_unaffected(self, conn):
         """AC-28's second half.  The field does not exist on any row, so
@@ -525,3 +643,563 @@ class TestNoOneIsAskedWhoTheyAre:
         second = client.get("/api/operations").json()
         assert first == second
         assert len(first["operations"]) == 9
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# The routes' own edges — a bad request is answered, not crashed
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestABadRequestIsAnswered:
+    """DR-2's rule for the pick body, applied to the two routes that take
+    a pick in the query string.
+
+    Measured before it was fixed: ``?pick={not json`` came back as HTTP
+    500 out of an unhandled ``JSONDecodeError``, which tells a screen and
+    a reader nothing.  A refusal names the parameter and the reason.
+    """
+
+    @pytest.mark.parametrize("raw,expected", [
+        ("{not json", "not JSON"),
+        ("[1,2,3]", "must be a JSON object"),
+        ('"a string"', "must be a JSON object"),
+    ])
+    def test_a_malformed_pick_parameter_is_a_422_that_says_why(
+        self, client, raw, expected
+    ):
+        response = client.get("/api/operations", params={"pick": raw})
+        assert response.status_code == 422
+        assert expected in response.json()["detail"]
+
+    def test_a_well_formed_pick_parameter_still_re_derives_the_contract(
+        self, client
+    ):
+        response = client.get(
+            "/api/operations",
+            params={"pick": json.dumps(pick(bucket="day",
+                                            aggregate={"fn": "count",
+                                                       "field": None}))},
+        )
+        assert response.status_code == 200
+        contract = response.json()
+        assert contract["shape"] == legality.BUCKET
+        disabled = {o["n"] for o in contract["operations"] if not o["enabled"]}
+        assert disabled == {4, 8, 9}
+        for o in contract["operations"]:
+            if not o["enabled"]:
+                assert o["why"], o["n"]
+
+    def test_an_unknown_source_on_the_fields_route_is_a_422(self, client):
+        response = client.get("/api/fields", params={"source": "noun:Nope"})
+        assert response.status_code == 422
+        assert "closed set" in response.json()["detail"]
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# W14 — the screen.  AC-25, AC-40(e), AC-43(d), plus B17, B18, B19, B25,
+# B28–B31 and the anti-stale-bundle guard of the plan's risk 7.
+#
+# Locate §3.1 puts AC-25, AC-40(e) and AC-43(d) in this file; W13 owns the
+# five above and said so in the module docstring.  These are W14's.
+#
+# WHY THESE ARE CONTRACT AND ARTEFACT TESTS AND NOT BROWSER TESTS — B22.
+# Playwright is not installed (locate §6.2) and AC-32 forbids fetching it.
+# So the shape of a control is asserted where the shape is DECIDED — in
+# `GET /api/operations`, which `pick.jsx` renders and invents nothing on
+# top of — and the things that live only in the built page are asserted
+# against the committed bundle and the committed stylesheet, which are the
+# exact bytes a reviewer's browser will run.  A browser test would assert
+# what one rendered page happened to contain; these assert what the screen
+# CAN contain, on every run, offline.
+# ═════════════════════════════════════════════════════════════════════════
+
+import hashlib          # noqa: E402
+import subprocess       # noqa: E402
+
+_STATIC = _DEMO_DIR / "static"
+_FRONTEND = _DEMO_DIR / "frontend"
+_BUNDLE = _STATIC / "js" / "app.js"
+_VENDOR_BUNDLE = _STATIC / "js" / "vendor.js"
+_DEMO_CSS = _STATIC / "demo.css"
+_DEMO_SPRITE = _STATIC / "icons-demo.svg"
+_GIMS_SPRITE = _DEMO_DIR / "vendor" / "icons.svg"
+
+#: The order build.mjs hashes in.  Kept here rather than parsed out of
+#: build.mjs so that a build script quietly dropping a file from the list
+#: fails this test instead of hiding inside it.
+_UI_SOURCES = [
+    "demo/vendor/ui.jsx",
+    "demo/frontend/icons.jsx",
+    "demo/frontend/pick.jsx",
+    "demo/frontend/verdict.jsx",
+    "demo/frontend/rail.jsx",
+    "demo/frontend/panes.jsx",
+    "demo/frontend/sqlpane.jsx",
+    "demo/frontend/app.jsx",
+]
+
+
+def _sprite_ids(path: Path) -> set:
+    return set(re.findall(r'<symbol id="([^"]+)"', path.read_text()))
+
+
+def _bundle_text() -> str:
+    return _BUNDLE.read_text()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-25 — every operation reachable, and the shape of the three that are
+#         ruled rather than left open
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestAllNineOperationsAreReachable:
+    """AC-25, in the one place the nine controls are decided (B22).
+
+    ``operations.py`` is the single source of truth and ``pick.jsx``
+    renders it; a control the contract does not carry cannot appear on
+    the screen, and a control it does carry cannot be missing from it.
+    """
+
+    def test_all_nine_operations_are_present_and_named(self, client):
+        contract = client.get("/api/operations").json()
+        ops = contract["operations"]
+        assert [o["n"] for o in ops] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        for o in ops:
+            assert o["label"], o["n"]
+            assert o["controls"], f"operation {o['n']} has no control at all"
+
+    def test_every_operation_is_reachable_from_the_initial_pick(self, client):
+        """Reachable means: enabled on the screen's own opening state, or
+        enabled by a pick a person can make from it.  Nothing is reachable
+        only by editing JSON."""
+        contract = client.get("/api/operations").json()
+        assert all(o["enabled"] for o in contract["operations"]), (
+            "the opening state greys an operation; a reader would have to "
+            "guess what un-greys it"
+        )
+
+    def test_operation_7_offers_exactly_two_granularities(self, client):
+        """Q20's own option text, and no week, month or free-text unit."""
+        op7 = next(o for o in client.get("/api/operations").json()["operations"]
+                   if o["n"] == 7)
+        assert len(op7["controls"]) == 1
+        values = [o["value"] for o in op7["controls"][0]["options"]]
+        assert values == ["off", "hour", "day"]
+        assert op7["ctl_fixed"], "the absence has to be stated on the screen"
+
+    def test_operation_8_offers_a_field_and_nothing_else(self, client):
+        """R14: width 3, trailing, arithmetic mean are all FIXED — so there
+        is deliberately no width box, no direction switch and no second
+        aggregate.  AC-25 tests exactly this absence."""
+        op8 = next(o for o in client.get("/api/operations").json()["operations"]
+                   if o["n"] == 8)
+        assert len(op8["controls"]) == 1
+        assert op8["controls"][0]["name"] == "field"
+        assert op8["controls"][0]["kind"] == "select"
+        names = {c["name"] for c in op8["controls"]}
+        assert not (names & {"width", "direction", "aggregate", "fn", "size"})
+        assert op8["ctl_fixed"]
+
+    def test_operation_9_offers_a_toggle_and_no_picker(self, client):
+        """R13 and AC-40(e): an on/off toggle is the only control, and
+        there must be no picker for what it compares."""
+        op9 = next(o for o in client.get("/api/operations").json()["operations"]
+                   if o["n"] == 9)
+        assert len(op9["controls"]) == 1
+        assert op9["controls"][0]["kind"] == "toggle"
+        assert op9["kind"] == "toggle"
+        assert op9["ctl_fixed"]
+
+    def test_the_screen_renders_no_control_the_contract_did_not_serve(self):
+        """B22 point 2, asserted structurally against ``pick.jsx``.
+
+        Operations 8 and 9 are the two whose SHAPE IS AN ABSENCE, so the
+        assertion is a count of the form controls each one renders: one
+        select for operation 8 (R14 — no width box, no direction switch,
+        no second aggregate) and one checkbox for operation 9 (R13 — no
+        picker for what it compares).
+        """
+        source = (_FRONTEND / "pick.jsx").read_text()
+
+        def case_block(n):
+            start = source.index("      case %d:" % n)
+            nxt = source.find("      case %d:" % (n + 1), start)
+            end = nxt if nxt >= 0 else source.index("      default:", start)
+            return source[start:end]
+
+        eight = case_block(8)
+        assert eight.count("<Select") == 1, "operation 8 renders more than one select"
+        assert "<input" not in eight, "operation 8 renders a text or number input"
+        assert '"width"' not in eight and '"aggregate"' not in eight
+
+        nine = case_block(9)
+        assert nine.count('type="checkbox"') == 1
+        assert "<Select" not in nine, "operation 9 renders a picker"
+        assert nine.count("<input") == 1
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-40(e) — no picker for what operation 9 compares, anywhere
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestOperationNineHasNoPicker:
+    def test_the_contract_carries_one_control_for_operation_9(self, client):
+        for source in ("noun:Heartbeat",):
+            contract = client.get(
+                "/api/operations",
+                params={"pick": json.dumps(pick(source=source, changed=True))},
+            ).json()
+            op9 = next(o for o in contract["operations"] if o["n"] == 9)
+            assert [c["kind"] for c in op9["controls"]] == ["toggle"]
+
+    def test_the_ctl_fixed_note_states_the_absence_in_words(self, client):
+        op9 = next(o for o in client.get("/api/operations").json()["operations"]
+                   if o["n"] == 9)
+        note = op9["ctl_fixed"].lower()
+        assert "toggle" in note
+        assert "no picker" in note
+
+    def test_the_built_bundle_renders_that_note(self):
+        """The absence leaves no trace unless it is drawn, so the note has
+        to survive into the page a person actually loads."""
+        assert "ctl-fixed" in _bundle_text()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-43(d) — the session time zone is on the screen, beside the other one
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestTheSessionValuesAreOnTheScreen:
+    def test_the_pick_response_carries_both_pinned_values(self, conn):
+        answer = run(conn, pick(bucket="day",
+                                aggregate={"fn": "count", "field": None}))
+        assert answer["pinned"]["time_zone"] == settings.TIME_ZONE
+        assert answer["pinned"]["extra_float_digits"] == settings.EXTRA_FLOAT_DIGITS
+
+    def test_the_built_bundle_prints_both_of_them_side_by_side(self):
+        """They live NOWHERE else on the screen (§9.3), which is the whole
+        reason AC-43(d) is a separate part: the time zone is what makes a
+        day's bucket seven and not eight, and nothing else on the page
+        would tell a reader what it was."""
+        text = _bundle_text()
+        assert "extra_float_digits = " in text
+        assert "TimeZone = " in text
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# B17 — two sprites, one resolver, and no id in common
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestTheTwoSprites:
+    """The day GIMS adds an ``i-sort`` of its own, this fails — rather
+    than the demo silently shadowing it."""
+
+    def test_the_two_sprites_share_no_id(self):
+        shared = _sprite_ids(_GIMS_SPRITE) & _sprite_ids(_DEMO_SPRITE)
+        assert shared == set(), (
+            f"{sorted(shared)} exist in BOTH sprites: the resolver would "
+            "silently shadow GIMS's shapes"
+        )
+
+    def test_the_demo_sprite_carries_exactly_the_eighteen(self):
+        assert len(_sprite_ids(_DEMO_SPRITE)) == 18
+
+    def test_the_vendored_sprite_is_still_fifty_four_symbols(self):
+        assert len(_sprite_ids(_GIMS_SPRITE)) == 54
+
+    def test_the_resolvers_two_lists_match_the_two_sprite_files(self):
+        """The resolver decides from a literal list, so the list has to be
+        the file.  Parsed rather than imported: there is no JavaScript
+        runtime in this suite, and there must not need to be (AC-36)."""
+        source = (_FRONTEND / "icons.jsx").read_text()
+
+        def listed(name):
+            body = re.search(name + r" = \[(.*?)\];", source, re.S).group(1)
+            return {m for m in re.findall(r'"([^"]+)"', body)}
+
+        assert listed("VENDORED") == {i[2:] for i in _sprite_ids(_GIMS_SPRITE)}
+        assert listed("DEMO_ONLY") == {i[2:] for i in _sprite_ids(_DEMO_SPRITE)}
+
+    def test_the_vendored_sprite_is_checked_first(self):
+        """B17: i-play, i-plus and i-search exist in both drawings with
+        different path data, and GIMS's shapes are the ones that render."""
+        source = (_FRONTEND / "icons.jsx").read_text()
+        assert "VENDORED_SET.has(name)" in source
+        assert source.index("VENDORED_SET.has(name)") < source.index("DEMO_SPRITE +")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# B18 — demo.css declares no token, so it cannot fork watery.css
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestDemoCssIsNotAForkOfWatery:
+    """The one assertion that keeps a silent copy of GIMS's stylesheet out
+    of the demo.  The approved mock inlines a near-copy of watery's
+    ``:root`` because a mock has to be a single file; copying that block
+    into demo.css would defeat D1's drift check completely, because a
+    fragment cannot be checksummed against its source."""
+
+    def test_demo_css_declares_no_custom_property_on_root(self):
+        css = _DEMO_CSS.read_text()
+        blocks = re.findall(r":root\s*\{([^}]*)\}", css)
+        declared = [line for b in blocks
+                    for line in re.findall(r"^\s*--", b, re.M)]
+        assert declared == [], f"demo.css declares {len(declared)} :root tokens"
+
+    def test_demo_css_declares_no_custom_property_at_all(self):
+        """Stronger than B18's own grep, and for the same reason: moving
+        the fork off ``:root`` would still be a fork."""
+        assert re.findall(r"^\s*--[A-Za-z]", _DEMO_CSS.read_text(), re.M) == []
+
+    def test_demo_css_does_not_redefine_waterys_own_primitives(self):
+        """Part 5.1's reused-unchanged list.  A rule for any of these here
+        would be a restyle of GIMS's components under another name."""
+        css = _DEMO_CSS.read_text()
+        for primitive in (".panel", ".panel-head", ".panel-body", ".panel-title",
+                          ".icon-chip", ".count-pill", ".btn-primary", ".field",
+                          ".field-label", ".toggle"):
+            assert not re.search(r"^\s*\%s\s*\{" % re.escape(primitive), css, re.M), (
+                f"demo.css restyles {primitive}, which is watery.css's"
+            )
+
+    def test_the_page_links_the_vendored_sheets_before_its_own(self):
+        html = (_STATIC / "index.html").read_text()
+        order = [html.index(f'/vendor/styles/{n}.css')
+                 for n in ("watery", "dashboard", "shell", "components")]
+        assert order == sorted(order)
+        assert max(order) < html.index("/static/demo.css")
+
+    def test_nothing_on_the_page_is_fetched_from_another_host(self):
+        """AC-32: a screen that only looks right online is a screen that is
+        wrong.  Inter is self-hosted (D11) precisely because watery.css:8
+        imports it from Google and that import is a silent no-op offline."""
+        html = (_STATIC / "index.html").read_text()
+        css = _DEMO_CSS.read_text()
+        for text, name in ((html, "index.html"), (css, "demo.css")):
+            assert "//fonts.googleapis.com" not in text, name
+            assert "//fonts.gstatic.com" not in text, name
+            assert "http://" not in text.replace("http://127.0.0.1", ""), name
+            assert "https://" not in text, name
+
+    def test_inter_is_committed_and_declared(self):
+        fonts = sorted(p.name for p in (_STATIC / "fonts").glob("*.woff2"))
+        assert fonts, "D11 requires the woff2 files to be committed"
+        css = _DEMO_CSS.read_text()
+        assert "@font-face" in css
+        for f in fonts:
+            assert f in css, f"{f} is committed but nothing declares it"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# B19 — the committed bundles survive a clone
+#
+# B19 names ``demo/tests/test_isolation.py`` for this.  It is here because
+# that file belongs to another work item and was being edited alongside
+# this one; the assertion is identical wherever it lives, and moving it is
+# a cut and paste.
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestTheBundlesAreCommitted:
+    """A bundle that exists on the build machine and not in a fresh clone
+    is the worst shape a criterion can have: AC-36 would pass here and
+    fail for everyone else.  ``.gitignore`` ignores ``dist/`` and
+    ``build/`` at any depth, which is exactly why the bundles are written
+    to ``demo/static/js/``."""
+
+    @pytest.mark.parametrize("name", ["app.js", "vendor.js"])
+    def test_the_bundle_is_not_git_ignored(self, name):
+        path = _STATIC / "js" / name
+        assert path.is_file(), f"{path} is missing"
+        result = subprocess.run(
+            ["git", "-C", str(_REPO_ROOT), "check-ignore", "-q", str(path)],
+            capture_output=True, text=True,
+        )
+        # exit 0 = ignored, 1 = NOT ignored, >1 = the command itself failed
+        assert result.returncode != 0, f"demo/static/js/{name} is git-ignored"
+        assert result.returncode == 1, (
+            f"git check-ignore errored on {name}: {result.stderr}"
+        )
+
+    def test_no_bundle_lives_under_a_dist_or_build_directory(self):
+        strays = [p for p in _DEMO_DIR.rglob("*.js")
+                  if "dist" in p.parts or "build" in p.parts]
+        assert strays == [], f"bundles under an ignored directory: {strays}"
+
+    def test_index_html_and_the_static_assets_are_present(self):
+        for rel in ("index.html", "demo.css", "icons-demo.svg",
+                    "js/app.js", "js/vendor.js"):
+            assert (_STATIC / rel).is_file(), rel
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# The plan's risk 7 — a stale bundle is worse than a missing one
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestTheBundleIsNotStale:
+    """Someone edits a .jsx and forgets ``./run-demo build-ui``, so the
+    screen a reviewer sees is not the screen the source describes.
+    ``build-ui`` records a sha256 over the concatenated sources in
+    ``demo/manifest.json``; this recomputes it."""
+
+    def test_the_manifest_records_the_source_digest(self):
+        manifest = json.loads((_DEMO_DIR / "manifest.json").read_text())
+        assert "ui:frontend-sources:sha256" in manifest, (
+            "run ./run-demo build-ui — it writes this key"
+        )
+
+    def test_the_bundle_was_built_from_these_exact_sources(self):
+        digest = hashlib.sha256()
+        for rel in _UI_SOURCES:
+            path = _REPO_ROOT / rel
+            assert path.is_file(), rel
+            digest.update(rel.encode())
+            digest.update(b"\0")
+            digest.update(path.read_bytes())
+            digest.update(b"\0")
+        manifest = json.loads((_DEMO_DIR / "manifest.json").read_text())
+        assert digest.hexdigest() == manifest["ui:frontend-sources:sha256"], (
+            "demo/static/js/ is stale — a front-end source changed since the "
+            "last ./run-demo build-ui, so the committed bundle is not this code"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# B25 / D5 / B28–B31 — what the built screen is not allowed to let a
+# person do, and the three places it says the data is invented
+# ─────────────────────────────────────────────────────────────────────────
+
+class TestTheScreenCannotHideEitherPane:
+    """AC-20 read as a property of the built page rather than of the API:
+    ``.pane-pair`` carries no collapse affordance, and there is nothing on
+    the screen that could suppress one side."""
+
+    def test_the_bundle_contains_no_collapse_affordance(self):
+        text = _bundle_text()
+        for token in ("<details", "aria-expanded", "collapsed", "toggleP" "ane"):
+            assert token not in text, f"the built screen carries {token!r}"
+
+    def test_the_pane_pair_is_one_grid_and_not_two_frames(self):
+        css = _DEMO_CSS.read_text()
+        assert ".pane-pair" in css
+        assert ".cmp-grid" in css
+        # D5: side by side above the one breakpoint B29 allows
+        assert "grid-template-columns: minmax(0,1fr) 48px minmax(0,1fr)" in css
+
+    def test_the_frame_goes_coral_only_when_they_differ(self):
+        """DR-1's second of three independent signals, and D3's one named
+        exception to Watery's role table."""
+        css = _DEMO_CSS.read_text()
+        assert ".cmp.is-diff" in css
+        assert "is-diff" in _bundle_text()
+
+    def test_the_verdict_carries_words_and_an_icon_and_not_only_colour(self):
+        """DR-1.3: AGREE and DISAGREE differ in WORDS and ICONS, so the
+        banner is legible in greyscale and to a red/green-confused reader."""
+        source = (_FRONTEND / "verdict.jsx").read_text()
+        assert "Both panes agree" in source
+        assert "panes disagree" in source
+        assert '"check"' in source and '"neq"' in source
+
+
+class TestTheDataSaysItIsInventedInThreePlaces:
+    """B31.  (1) the masthead chip and the standing banner, as drawn;
+    (2) one ``.chip.warn`` reading ``invented`` in EACH answer pane's head
+    — the one addition this build makes to the approved drawing, because a
+    screenshot of the panes alone carries neither of the other two;
+    (3) the seed script's own header and console line, which
+    ``test_data.py`` asserts."""
+
+    def test_the_masthead_chip_and_the_standing_banner(self):
+        text = _bundle_text()
+        assert "invented data" in text
+        assert "Every record on this screen is invented" in text
+
+    def test_each_answer_pane_head_carries_its_own_chip(self):
+        assert "pane-invented" in (_FRONTEND / "panes.jsx").read_text()
+        assert "pane-invented" in _bundle_text()
+        assert ".pane-invented" in _DEMO_CSS.read_text()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# The seven states of the approved mock are REACHABLE — driven, not drawn
+# ─────────────────────────────────────────────────────────────────────────
+
+#: The mock's seven views, as the picks the built screen loads for them.
+#: Kept in step with ``demo/frontend/app.jsx``'s STATES by the test below.
+SEVEN_STATES = {
+    "agree": (pick(computed=[{"name": "alive", "expr": '$.status == "ok"'}],
+                   cap=8, window={"field": "$.payload.load"}), "agree", None),
+    "buckets": (pick(bucket="day", aggregate={"fn": "count", "field": None}),
+                "agree", None),
+    "changed": (pick(changed=True), "agree", None),
+    "disagree": (pick(source=EDGECASE,
+                      computed=[{"name": "biggest", "expr": "max($.l)"}]),
+                 "disagree", None),
+    "gate": (pick(computed=[{"name": "hot",
+                             "expr": "round($.payload.load, 1)"}]),
+             "no-compare", ("expression", 1)),
+    "alias": (pick(computed=[{"name": 'alive"; DROP TABLE demo.records; --',
+                              "expr": '$.status == "ok"'}]),
+              "no-compare", ("alias", 1)),
+    "probe": (pick(source=EDGECASE,
+                   computed=[{"name": "scaled", "expr": "$.huge * 1"}]),
+              "no-compare", ("probe", 2)),
+}
+
+
+class TestTheSevenStatesAreReachable:
+    """The approved mock draws seven artboards.  The built screen keeps
+    the mock's own tab strip and makes it real: a tab loads that state's
+    pick INTO the nine controls and runs it against the database.  So
+    "reachable" is not a claim about a drawing — every one of the seven is
+    a pick this suite runs, and what comes back is what the mock's view
+    says comes back.
+    """
+
+    def test_the_bundle_offers_all_seven_by_id(self):
+        text = _bundle_text()
+        for state in SEVEN_STATES:
+            assert '"' + state + '"' in text, state
+
+    def test_the_seven_ids_in_the_source_are_exactly_these_seven(self):
+        source = (_FRONTEND / "app.jsx").read_text()
+        ids = re.findall(r'id: "([a-z]+)", n: \d', source)
+        assert ids == ["agree", "buckets", "changed", "disagree", "gate",
+                       "alias", "probe"]
+
+    @pytest.mark.parametrize("state", sorted(SEVEN_STATES))
+    def test_each_state_reaches_the_outcome_its_view_describes(self, conn, state):
+        p, verdict, refusal = SEVEN_STATES[state]
+        answer = run(conn, p)
+        assert answer["verdict"] == verdict, state
+        if refusal is None:
+            assert answer["accepted"] is True
+            assert answer["refusal"] is None
+            assert answer["panes"]["sql"]["state"] == "answered"
+            assert answer["panes"]["python"]["state"] == "answered"
+        else:
+            kind, layer = refusal
+            assert answer["accepted"] is False
+            assert answer["refusal"]["kind"] == kind
+            assert answer["refusal"]["layer"] == layer
+
+    def test_the_disagreement_state_is_located_and_not_merely_announced(self, conn):
+        """D8, and the one view the whole design is arranged around."""
+        p, _, _ = SEVEN_STATES["disagree"]
+        answer = run(conn, p)
+        c = answer["comparison"]
+        assert c["differing_rows"] >= 1
+        assert c["first_differing_index"] is not None
+        row = next(r for r in answer["panes"]["sql"]["rows"]
+                   if r["i"] == c["first_differing_index"])
+        assert row["diff"], "the differing COLUMN is not marked, only the row"
+
+    def test_the_bucketed_state_disables_more_than_the_mock_drew(self, client):
+        """B5a greys one more control on the bucketed view than the drawing
+        does — operation 9 as well as 4 and 8.  It is one of exactly two
+        places this build exceeds the approved drawing, it comes from the
+        legality matrix rather than from the screen, and it is named here
+        so it cannot become a surprise."""
+        p, _, _ = SEVEN_STATES["buckets"]
+        contract = client.get("/api/operations",
+                              params={"pick": json.dumps(p)}).json()
+        assert {o["n"] for o in contract["operations"] if not o["enabled"]} == {4, 8, 9}

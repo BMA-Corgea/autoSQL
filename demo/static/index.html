@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>autoSQL — the picking screen</title>
+
+<!--
+  demo/static/index.html — the demo's one page.
+
+  STYLESHEET ORDER, AND WHY IT IS THIS WAY ROUND
+    The four vendored Watery sheets first, byte-identical, then this
+    demo's own. Locate §3.1 fixes that order and the cascade needs it:
+    shell.css:48 has a `.rail` of its own (GIMS's sticky 100vh workspace
+    navigator) and the mock uses `.rail` for the four-stop enforcement
+    strip, so demo.css has to come last to win.
+
+    D11 says demo.css is loaded "before watery.css" so its self-hosted
+    Inter beats watery.css:8's Google-Fonts @import, which offline is a
+    silent no-op. That still happens here: @font-face rules are collected
+    regardless of order, and an @import is hoisted to the top of its own
+    sheet — so watery's remote Inter is registered FIRST and this file's
+    local one wins either way. D11's purpose is kept; its ordering
+    sentence is not the mechanism that delivers it.
+
+  NOTHING IS FETCHED FROM ANOTHER HOST. AC-32 requires the suite to pass
+  with no network beyond pulling the Postgres image, and a screen that
+  only looks right online is a screen that is wrong.
+
+  THE TWO BUNDLES ARE COMMITTED (B19, AC-36). No build step runs here; a
+  clone with `node` removed from PATH serves this page exactly as built.
+-->
+
+<link rel="stylesheet" href="/vendor/styles/watery.css">
+<link rel="stylesheet" href="/vendor/styles/dashboard.css">
+<link rel="stylesheet" href="/vendor/styles/shell.css">
+<link rel="stylesheet" href="/vendor/styles/components.css">
+<link rel="stylesheet" href="/static/demo.css">
+
+<link rel="preload" href="/static/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+
+<body class="watery-bg">
+  <div id="root"></div>
+
+  <noscript>
+    <div class="wrap">
+      <div class="banner">
+        <strong>This screen needs JavaScript.</strong>
+        The picking screen is a React front end over the demo's own API. With
+        scripting off, the API still answers directly:
+        <code>GET /api/operations</code>, <code>GET /api/fields</code> and
+        <code>POST /api/pick</code>.
+      </div>
+    </div>
+  </noscript>
+
+  <script src="/static/js/vendor.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>

@@ -39,7 +39,7 @@
       "expect": {
         "db_port": {
           "value": 55440,
-          "derivation": "The demo's own Postgres port, fixed at plan \u00a711.2. It is NOT 55433 \u2014 that is a live database this demo must never reach."
+          "derivation": "The demo's own Postgres port, fixed at plan \u00a711.2. It is deliberately not the port of the live database on this machine, which this demo must never reach \u2014 and AC-3 forbids that number appearing anywhere in the demo tree, including in this sentence."
         },
         "app_port": {
           "value": 8787,
@@ -463,7 +463,7 @@
         "alias": "scaled",
         "expression": "$.huge * 1"
       },
-      "derivation": "Refused at RUNTIME \u2014 layer 2 member (a) \u2014 naming the out-of-range magnitude. This is the step that shows WHY refusing beats printing: the Python pane's answer is inf, which is not a number anyone can check.",
+      "derivation": "Refused at RUNTIME \u2014 layer 2 member (a) \u2014 naming the out-of-range magnitude. This is the step that shows WHY refusing beats printing: the second calculator cannot read this value either \u2014 it raises rather than answering \u2014 so NEITHER side produces a number here, and saying that plainly is a truer statement than either side inventing one.",
       "expect": {
         "verdict": {
           "value": "refused",
@@ -482,8 +482,8 @@
           "derivation": "No number: the probe fired instead of returning a value. The pane shows the probe, not a blank \u2014 a blank would be indistinguishable from a query that returned nothing."
         },
         "python_pane": {
-          "value": "inf",
-          "derivation": "1e400 exceeds the largest double (~1.7976931348623157e+308), so Python's JSON parse yields float('inf') and inf * 1 is inf. Derived from the IEEE-754 double range and the stored literal, not by running the pane. AC-17 pins the pair: 1e400 refuses and 1e300 does NOT \u2014 the guard must not be a blanket ban on large numbers."
+          "value": "raised",
+          "derivation": "No number on this side either \u2014 the pane's state is `raised`. Postgres holds a jsonb number as an exact `numeric` and renders it in FULL POSITIONAL DIGITS, so `data::text` carries edge-03's `huge` as a bare 401-digit INTEGER literal: no decimal point, no exponent. JSON's grammar calls a literal with neither of those an integer, so Python's parser routes it through its integer hook and never its float hook, and hands back an EXACT arbitrary-precision int. The float conversion that would have produced inf is therefore never performed \u2014 inf never comes into existence. Multiplying that int by 1 in the float world then has to make a double of it, and a 401-digit integer has no double: the conversion raises OverflowError, which the pane reports by name. Derived from jsonb's numeric rendering and JSON's integer-vs-float grammar, not by running the pane. AC-17 pins the pair: 1e400 refuses and 1e300 does NOT \u2014 the guard must not be a blanket ban on large numbers. (CORRECTION, 2026-08-22: this entry read `inf` and derived it from the IEEE-754 double range. That derivation assumed the value reaches Python as a FLOAT literal; it does not. See the note beside AC-17 in .autodev/specs/T-2.md.)"
         }
       }
     },

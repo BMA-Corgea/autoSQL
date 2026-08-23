@@ -1,0 +1,14 @@
+{
+  "name": "autosql-demo-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Build-time only. ./run-demo build-ui is the ONLY verb that needs Node; `up` and `test` run from the committed bundles under demo/static/js/ (AC-36, B19).",
+  "type": "module",
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
+  }
+}

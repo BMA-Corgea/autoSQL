@@ -35,13 +35,22 @@ number that runs clean:
     addition is exact), and §7.2 item 4 forbids relying on anything ambient.
     1000 digits covers every magnitude the runtime probes admit (< DBL_MAX)
     with room to round to 6 places exactly.
-  * A non-finite float can still reach an aggregate: a computed column over
-    edge-03's 1e400 evaluates (in expr.py's float world) to ``inf``, and
-    AC-17 wants the Python pane to SHOW ``inf`` while the SQL side refuses.
-    ``Decimal`` has no honest home for it and ``q6`` refuses it, so any
-    aggregate whose inputs include a non-finite float falls back to float
-    arithmetic for that one answer and returns the non-finite float,
-    unrounded, for the display layer to print literally.
+  * A non-finite float can still reach an aggregate: arithmetic inside
+    expr.py's float world can overflow the double range and yield ``inf``
+    even when every input row was finite.  ``Decimal`` has no honest home
+    for it and ``q6`` refuses it, so any aggregate whose inputs include a
+    non-finite float falls back to float arithmetic for that one answer and
+    returns the non-finite float, unrounded, for the display layer to print
+    literally.
+    NOT edge-03, though (CORRECTION, 2026-08-22): this note used to cite
+    edge-03's 1e400 as the example and say AC-17 wants the Python pane to
+    SHOW ``inf``.  It does not arrive as a float at all — jsonb renders it
+    as a bare 401-digit INTEGER literal, ``json.loads`` returns an exact
+    ``int`` for that, and expr.py's ``float()`` of it RAISES
+    ``OverflowError`` rather than producing an inf.  Step 13 therefore ends
+    in a reported raise, not a printed inf; see W13-2 above
+    ``_fallback_python_pane`` in ``demo/server/app.py`` and the correction
+    note beside AC-17 in ``.autodev/specs/T-2.md``.
 """
 
 from __future__ import annotations

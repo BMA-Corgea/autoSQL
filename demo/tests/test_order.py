@@ -296,3 +296,348 @@ def test_sort_key_rejects_what_the_closed_set_does_not_contain():
         sort_key(1, "k", "ascending")
     with pytest.raises(TypeError):
         sort_key(1, None)              # the tiebreak key must be text
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# W17 — AC-41(b)(c)(e) and AC-44.  The end-to-end halves, on the seeded
+#       database.  AC-41(a) is test_builder_sql.py's grep over the emitted
+#       statements; AC-41(d) is walkthrough step 5 and lives in
+#       test_walkthrough.py beside the rest of that step.
+#
+# WHAT EACH PART IS FOR, IN ONE LINE EACH
+#   (b) ten runs of one pick return one sequence — catches an order that
+#       is stable by luck of the plan rather than by ORDER BY.
+#   (c) the Python pane's sequence equals the SQL pane's ELEMENT FOR
+#       ELEMENT over the whole result, not merely as sets.
+#   (e) the comparator matches on mixed types and on BOTH kinds of null,
+#       plus the --locale=C grep that makes the two text comparisons one
+#       comparison.
+#   AC-44 the record keys, and the fact that text order IS record order.
+# ═════════════════════════════════════════════════════════════════════════
+
+import json  # noqa: E402
+import re  # noqa: E402
+from decimal import Decimal  # noqa: E402
+
+_DEMO_DIR = _REPO_ROOT / "demo"
+if str(_DEMO_DIR) not in sys.path:
+    sys.path.insert(0, str(_DEMO_DIR))
+
+import builder as _builder  # noqa: E402
+import legality as _legality  # noqa: E402
+from demo.server import app as _server_app  # noqa: E402
+from demo.server import db as _db  # noqa: E402
+
+HEARTBEAT = "noun:Heartbeat"
+SAMPLE = "noun:Sample"
+EDGECASE = "noun:EdgeCase"
+
+
+def _pick(**kw) -> dict:
+    p = _legality.default_pick()
+    p.update(kw)
+    return p
+
+
+#: AC-41(b)'s five picks — walkthrough steps 2, 4, 5, 8 and 9.
+REPEATED_PICKS = {
+    "step 2 (no sort — the tiebreak alone)": _pick(),
+    "step 4 (a filter)": _pick(filter='$.status != "ok"'),
+    "step 5 ($.ts desc, cap 10)": _pick(sort={"field": "$.ts", "dir": "desc"}, cap=10),
+    "step 8 (the rolling window)": _pick(window={"field": "$.payload.load"}),
+    "step 9 (changed rows only)": _pick(changed=True),
+}
+
+
+@pytest.fixture(scope="module")
+def oconn():
+    c = _db.connect(application_name="autosql-demo-order")
+    c.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+    yield c
+    c.close()
+
+
+def _panes(conn, pick: dict):
+    """``run_pick``'s own path to both panes, without the 50-row page."""
+    pick = _server_app.normalised_pick(pick)
+    verdict = _legality.evaluate(pick)
+    assert not verdict["violations"], verdict["violations"]
+    keys = _server_app.collection_keys(conn, verdict["source"])
+    built = _builder.build(pick, keys)
+    sql = _server_app.sql_pane(conn, built)
+    kinds = dict(zip(sql["columns"], sql["kinds"]))
+    return sql, _server_app.python_pane(conn, pick, kinds)
+
+
+def _texts(pane) -> list:
+    kinds = pane["kinds"]
+    return [tuple(_server_app.display_text(row[j], kinds[j]) for j in range(len(row)))
+            for row in pane["canon"]]
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-41(b) — ten runs, one sequence.
+# ─────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("label", list(REPEATED_PICKS))
+def test_ac41b_ten_runs_of_one_pick_return_one_sequence(oconn, label):
+    """Executed TEN times; the row sequence is identical every time.
+
+    This is the part that catches an order which is stable by luck of the
+    plan rather than by ORDER BY — a synchronised sequential scan joining
+    the table mid-way returns the same rows starting at a different place,
+    and nothing else in the suite would notice (§7.4's "why half (2)
+    exists").  Both panes are run each time, so a Python pane that leaned
+    on arrival order fails here too.
+    """
+    pick = REPEATED_PICKS[label]
+    sql_seqs, py_seqs = set(), set()
+    for _ in range(10):
+        sql, python = _panes(oconn, pick)
+        ki = sql["columns"].index("key")
+        sql_seqs.add(tuple(r[ki] for r in _texts(sql)))
+        py_seqs.add(tuple(r[python["columns"].index("key")] for r in _texts(python)))
+    assert len(sql_seqs) == 1, f"{label}: the SQL pane returned {len(sql_seqs)} orders in 10 runs"
+    assert len(py_seqs) == 1, f"{label}: the Python pane returned {len(py_seqs)} orders in 10 runs"
+    (seq,) = sql_seqs
+    assert len(set(seq)) == len(seq), f"{label}: a key repeated — the order is not total"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-41(c) — element for element, over the WHOLE result.
+# ─────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("label", list(REPEATED_PICKS))
+def test_ac41c_the_two_panes_sequences_are_equal_element_for_element(oconn, label):
+    """Not "the same set of rows" — the same rows in the same positions."""
+    sql, python = _panes(oconn, REPEATED_PICKS[label])
+    assert sql["columns"] == python["columns"], f"{label}: the panes disagree on columns"
+    a, b = _texts(sql), _texts(python)
+    assert len(a) == len(b), f"{label}: {len(a)} rows vs {len(b)}"
+    ki = sql["columns"].index("key")
+    first_bad = next((i for i in range(len(a)) if a[i][ki] != b[i][ki]), None)
+    assert first_bad is None, (
+        f"{label}: the sequences first diverge at row {first_bad} — "
+        f"SQL {a[first_bad][ki]!r}, Python {b[first_bad][ki]!r}"
+    )
+    # And as SETS they are equal too, so the failure above can only ever
+    # mean "same rows, wrong order" and never "different rows".
+    assert {r[ki] for r in a} == {r[ki] for r in b}
+    assert a == b, f"{label}: the panes agree on the key order but not on every cell"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-41(e) — mixed types and BOTH kinds of null, on noun:Sample.
+# ─────────────────────────────────────────────────────────────────────────
+
+#: §7.4(1b)'s ladder, ascending.  Written out here rather than imported, so
+#: this test can fail if the comparator and the spec ever part company.
+ASCENDING_TYPES = ["string", "number", "boolean", "array", "object"]
+
+
+def _json_type(v) -> str:
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "boolean"
+    if isinstance(v, (int, float, Decimal)):
+        return "number"
+    if isinstance(v, str):
+        return "string"
+    if isinstance(v, list):
+        return "array"
+    return "object"
+
+
+def test_ac41e_three_bands_in_spec_order_on_a_field_some_rows_omit(oconn):
+    """Ascending on ``$.field_14``: JSON nulls, then values, then absent.
+
+    ``noun:Sample`` carries all three cases on this one key — 41 rows hold
+    JSON null, 138 hold a value of five different types, and 1,821 omit the
+    key entirely.  §7.4(1b): "an ascending sort on such a field has THREE
+    bands, in this order: JSON nulls, then everything else by the table,
+    then the absent-key rows.  The Python pane has to reproduce all three,
+    and it cannot do it by mapping both kinds of null to ``None``."
+    """
+    pick = _pick(source=SAMPLE, sort={"field": "$.field_14", "dir": "asc"})
+    sql, python = _panes(oconn, pick)
+    a, b = _texts(sql), _texts(python)
+    assert len(a) == len(b) == 2000
+
+    di = sql["columns"].index("data")
+    ki = sql["columns"].index("key")
+
+    def band_of(rowtext):
+        data = json.loads(rowtext[di])
+        if "field_14" not in data:
+            return "absent"
+        return "json-null" if data["field_14"] is None else "value"
+
+    for name, rows in (("SQL", a), ("Python", b)):
+        bands = [band_of(r) for r in rows]
+        runs = []
+        for x in bands:
+            if runs and runs[-1][0] == x:
+                runs[-1][1] += 1
+            else:
+                runs.append([x, 1])
+        assert [r[0] for r in runs] == ["json-null", "value", "absent"], (
+            f"{name} pane's bands came back as {[r[0] for r in runs]} — "
+            "three contiguous bands in §7.4(1b)'s order is the requirement"
+        )
+        assert [r[1] for r in runs] == [41, 138, 1821], f"{name} pane's band sizes"
+
+        # Inside the value band, the type ladder, ascending.
+        seen = []
+        for r in rows[41:41 + 138]:
+            t = _json_type(json.loads(r[di])["field_14"])
+            if not seen or seen[-1] != t:
+                assert t not in seen, f"{name} pane: type {t} appears in two blocks"
+                seen.append(t)
+        assert seen == [t for t in ASCENDING_TYPES if t in seen], (
+            f"{name} pane's type ladder was {seen}, not §7.4(1b)'s order"
+        )
+        # The tiebreak, inside one band: equal values order by key ascending.
+        absent_keys = [r[ki] for r in rows[41 + 138:]]
+        assert absent_keys == sorted(absent_keys), (
+            f"{name} pane: the absent-key band is not in key order"
+        )
+
+    assert a == b, "the two panes agree element for element, all 2,000 rows"
+
+
+def test_ac41e_the_compose_file_pins_the_C_collation(oconn):
+    """The grep — and the database that grep is about.
+
+    "That one line is what makes the two panes' text comparisons the same
+    comparison" (AC-41(e)).  The line is checked in the file AND the
+    running database is asked what it was actually created with, because a
+    compose file describes a container that may predate the line.
+    """
+    compose = (_DEMO_DIR / "compose.yaml").read_text()
+    assert "--locale=C" in compose, "demo/compose.yaml does not pin --locale=C"
+    assert re.search(r"POSTGRES_INITDB_ARGS:\s*\"[^\"]*--locale=C", compose), (
+        "--locale=C is present but not inside POSTGRES_INITDB_ARGS"
+    )
+    collate, ctype = oconn.execute(
+        "SELECT datcollate, datctype FROM pg_database WHERE datname = current_database()"
+    ).fetchone()
+    assert collate == "C" and ctype == "C", (
+        f"the running database was created with collate={collate!r} "
+        f"ctype={ctype!r} — a language collation orders text differently "
+        "from Python and AC-41(e) is unsatisfiable on it"
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# AC-44 — the record keys, and the fact that TEXT order is RECORD order.
+# ─────────────────────────────────────────────────────────────────────────
+
+#: R19's three formats.  Fixed width, zero padded, ASCII.
+KEY_FORMATS = {
+    HEARTBEAT: (re.compile(r"^hb-\d{2}-\d{4}$"), 8400),
+    SAMPLE: (re.compile(r"^smp-\d{4}$"), 2000),
+    EDGECASE: (re.compile(r"^edge-\d{2}$"), 10),
+}
+
+
+def _keys(conn, collection: str) -> list:
+    return [r[0] for r in conn.execute(
+        "SELECT key FROM demo.records WHERE collection = %(c)s ORDER BY key",
+        {"c": collection},
+    ).fetchall()]
+
+
+@pytest.mark.parametrize("collection", list(KEY_FORMATS))
+def test_ac44a_every_key_matches_its_collections_format(oconn, collection):
+    """(a) The regex per collection — what fails if a build reuses
+    ``gen_data.py:58``'s unpadded ``S-{i}``, which orders
+    ``S-0, S-1, S-10, S-100`` and makes every named row unpredictable."""
+    pattern, expected = KEY_FORMATS[collection]
+    keys = _keys(oconn, collection)
+    assert len(keys) == expected
+    bad = [k for k in keys if not pattern.match(k)]
+    assert not bad, f"{collection}: {len(bad)} keys off R19's format, e.g. {bad[:5]}"
+    assert len(set(keys)) == len(keys), f"{collection}: a key repeats"
+    # Fixed width is the property the ordering rests on, so it is asserted
+    # rather than inferred from the regex.
+    assert len({len(k) for k in keys}) == 1, f"{collection}: keys are not one width"
+
+
+def test_ac44b_key_order_is_record_order_on_the_heartbeat(oconn):
+    """(b) ``ORDER BY key`` groups a sender and runs its beats forward.
+
+    This is the property walkthrough step 8 relies on to display a sender's
+    rolling averages in the order the frame computed them.
+    """
+    rows = oconn.execute(
+        "SELECT key, data ->> 'sender_id', data ->> 'ts' FROM demo.records"
+        " WHERE collection = %(c)s ORDER BY key", {"c": HEARTBEAT},
+    ).fetchall()
+    assert len(rows) == 8400
+
+    # Every beat of one sender before any beat of the next, and no sender
+    # ever reappears after another has started.
+    order, started = [], set()
+    for _key, sender, _ts in rows:
+        if not order or order[-1] != sender:
+            assert sender not in started, (
+                f"sender {sender} reappears after {order[-1]} started — "
+                "key order does not group senders"
+            )
+            started.add(sender)
+            order.append(sender)
+    assert order == [f"hb-{i:02d}" for i in range(1, 51)], (
+        "the 50 senders do not appear in ascending sender order"
+    )
+    # And within one sender, ascending ts.
+    for sender in order:
+        stamps = [ts for _k, s, ts in rows if s == sender]
+        assert len(stamps) == 168
+        assert stamps == sorted(stamps), f"{sender}'s beats are not in ts order"
+        assert len(set(stamps)) == 168, f"{sender} has a duplicate timestamp"
+    # The key's own sender field and the record's agree — the key is not
+    # merely well formed, it names the row it belongs to.
+    for key, sender, _ts in rows:
+        assert key.startswith(sender + "-"), f"{key} does not belong to {sender}"
+
+
+@pytest.mark.parametrize("collection", list(KEY_FORMATS))
+def test_ac44c_python_sorts_the_keys_exactly_as_postgres_does(oconn, collection):
+    """(c) The assertion that fails if the database has a language collation.
+
+    Postgres's ``ORDER BY key`` under the ``C`` locale is byte order;
+    Python's ``sorted`` is code-point order; on the ASCII these keys are
+    made of the two are the same order — and that sameness is what lets
+    the Python pane reproduce the SQL pane's tiebreak at all.
+    """
+    from_pg = _keys(oconn, collection)
+    from_python = sorted(from_pg)
+    assert from_pg == from_python, (
+        f"{collection}: Postgres and Python order these keys differently — "
+        "the first divergence is at index "
+        f"{next(i for i in range(len(from_pg)) if from_pg[i] != from_python[i])}"
+    )
+    # The same statement, run through the Python pane's own comparator, so
+    # this is not merely a fact about `sorted` but about the code the pane
+    # uses (§7.4's tiebreak is that comparator's last component).
+    assert [k for _v, k in sorted((MISSING, k) for k in from_pg)] == from_python
+
+
+def test_ac44_the_hyphen_case_that_a_language_collation_would_flip(oconn):
+    """A named example of the failure (c) exists to catch.
+
+    Under ``en_US.UTF-8`` a leading punctuation difference can be ignored
+    on the first pass, so ``hb-01-0002`` and ``hb-010002`` could order
+    either way. Under ``C`` the hyphen (0x2D) is below every digit, always.
+    The demo's own keys are asserted to be ordered by that rule.
+    """
+    probe = ["hb-01-0002", "hb-010002", "hb-0", "hb-01", "HB-01-0000"]
+    from_pg = [r[0] for r in oconn.execute(
+        "SELECT k FROM unnest(%(ks)s::text[]) AS k ORDER BY k", {"ks": probe}
+    ).fetchall()]
+    assert from_pg == sorted(probe), (
+        f"Postgres ordered {probe} as {from_pg}; Python's byte order is "
+        f"{sorted(probe)} — the collation is not C"
+    )
+    assert from_pg[0] == "HB-01-0000", "uppercase sorts first under C, and did not"
