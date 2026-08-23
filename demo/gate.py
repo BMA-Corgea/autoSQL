@@ -146,6 +146,38 @@ def gate(ast: object) -> None:
         if tag == "num":
             if len(node) != 2 or isinstance(node[1], bool) or not isinstance(node[1], (int, float)):
                 raise _refuse_malformed(node)
+            # Finiteness is part of the allowlist.  The parser reads "1e400"
+            # as float('inf') (expr.py:193), which passes the type row above
+            # but which the pinned compiler cannot compile (_t_num raises
+            # Uncompilable: jsonb has no representation for inf/nan) — and a
+            # refusal that happens at compile time instead of here escapes
+            # as a bare 500 with no construct named, which plan §10.1 calls
+            # worse than a bare "invalid".  The field row already pre-empts
+            # its compile-time failure (|index| < 2**31); this row does the
+            # same for its own.  An int is checked through float() because
+            # that is literally what _t_num will do to it, and an int above
+            # the largest double raises OverflowError there rather than
+            # Uncompilable — same escape, same fence.
+            # (No ``math`` here — the gate imports nothing but ``re``, and
+            # test_gate.py pins that.  ``nan != nan`` and the two infinities
+            # are the only non-finite doubles there are.)
+            value = node[1]
+            try:
+                as_double = float(value)
+                finite = (as_double == as_double
+                          and as_double != float("inf")
+                          and as_double != float("-inf"))
+            except OverflowError:
+                finite = False
+            if not finite:
+                raise Refused(
+                    repr(value),
+                    f"the numeric literal reads as {value!r}, which is not a "
+                    f"finite number this demo can compile: a JSON number "
+                    f"becomes a double, the largest double is about "
+                    f"1.7976931348623157e+308, and anything past that has no "
+                    f"honest value to compute with",
+                )
 
         elif tag == "str":
             if len(node) != 2 or not isinstance(node[1], str):

@@ -1077,7 +1077,27 @@ def observed(ran, wconn, client):
     # rule's six places.  _agrees() below parses both sides as exact
     # Decimals; the file records the same number as `400207`.
     o["steps[5].expect.sum"] = b6["panes"]["sql"]["rows"][0]["c"][0]
-    o["steps[5].expect.row_count"] = ran[2][1]["panes"]["sql"]["row_count"]
+    # Step 6's OWN contributing-row count.  The file's claim is "all 8400
+    # rows contribute … none drops out of the sum", which the sum alone
+    # cannot police (74 seeded loads are 0, so a read that silently dropped
+    # zero-valued rows would leave 400207 untouched).  So: count the rows
+    # whose §7.2 item 5 numeric read is non-null, through the IDENTICAL
+    # read fragment step 6's emitted statement sums — asserted to appear in
+    # that statement so the two cannot drift apart.  (This entry used to be
+    # filled from ran[2], step 2's plain-select row count: an observation
+    # of a different pick, unable to fail against this claim.)
+    built6, _sql6, _py6 = _full_panes(wconn, STEP_PICKS[6])
+    read6 = builder.numeric_read("r.data #> %(agg_path)s")
+    assert read6 in built6.sql, (
+        "step 6's emitted SQL no longer contains the numeric read this "
+        "count observes — rebind them before trusting either"
+    )
+    (contributing,) = wconn.execute(
+        "SELECT count( " + read6 + " ) FROM demo.records AS r"
+        " WHERE r.collection = %(collection)s",
+        built6.params,
+    ).fetchone()
+    o["steps[5].expect.row_count"] = contributing
 
     b7 = ran[7][1]
     buckets = [{"bucket": r["c"][0], "count": int(Decimal(r["c"][1]))}

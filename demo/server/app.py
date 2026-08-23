@@ -72,7 +72,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -94,7 +94,7 @@ from pyrunner import shape as pyshape  # noqa: E402
 from . import db, errors, operations, settings  # noqa: E402
 
 __all__ = ["app", "run_pick", "compare_panes", "canonical",
-           "display_text", "normalised_pick"]
+           "display_text", "normalised_pick", "refuse_writes"]
 
 
 def _pinned(name: str, path: Path):
@@ -402,6 +402,13 @@ _EMPTY_PANE_NOT_ASKED = (
 _EMPTY_PANE_ABANDONED = (
     "No number from this side. A probe found the condition below before the "
     "pick's own statement ran, so the statement was never sent."
+)
+_EMPTY_PANE_OVERFLOW = (
+    "No number from this side. The statement was sent, and the database "
+    "refused it mid-computation: float8 arithmetic overflowed (SQLSTATE "
+    "22003, the pinned compiler's recorded divergence "
+    "float8_overflow_raises). Nothing was written and nothing was committed "
+    "— the session is read-only and the failed transaction was rolled back."
 )
 _SQL_NOTE = (
     "The parameterised statement above, run once against the demo's own "
@@ -712,8 +719,12 @@ def normalised_pick(pick: dict) -> dict:
     """
     if not isinstance(pick, dict):
         raise TypeError("a pick is a JSON object")
-    aliases = {cc.get("name") for cc in (pick.get("computed") or [])
-               if isinstance(cc, dict)}
+    # A malformed computed slot (42, "notalist") is legality's to refuse by
+    # name (shape_violations); this pass must merely not crash before the
+    # refusal can happen.
+    computed = pick.get("computed")
+    aliases = ({cc.get("name") for cc in computed if isinstance(cc, dict)}
+               if isinstance(computed, list) else set())
     out = dict(pick)
     for slot, key in _FIELD_SLOTS:
         holder = out.get(slot)
@@ -770,7 +781,11 @@ def _refused(payload: dict, *, pick: dict, panes: dict, sql_block: dict) -> dict
         "sql": sql_block,
         "pinned": {"extra_float_digits": settings.EXTRA_FLOAT_DIGITS,
                    "time_zone": settings.TIME_ZONE},
-        "operations": operations.contract(pick),
+        # The contract beside a refusal is rendered from the nearest
+        # well-formed pick: ``contract`` reads raw slots, and a slot whose
+        # TYPE is malformed (the thing being refused) must not crash the
+        # refusal naming it.  ``pick`` itself is echoed back untouched.
+        "operations": operations.contract(_contract_safe_pick(pick)),
         "pick": pick,
         "refusal": payload,
     }
@@ -829,6 +844,139 @@ def _fallback_python_pane(conn, pick: dict):
             "represent it.",
         ), 0
     return _rendered_pane(py, {}, 0, "answered", _PY_NOTE), py["row_count"]
+
+
+def refuse_writes(conn) -> None:
+    """The read-only guard, on the transaction the pick ACTUALLY runs in.
+
+    ``db.connect()`` verifies the session (``db.py :: _verify``) before the
+    caller ever sees the connection, and with autocommit off those reads
+    have already opened the transaction everything after them runs in.
+    ``SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY`` alone sets
+    ``default_transaction_read_only`` — the default for *later*
+    transactions — and leaves the one already in progress read-write.
+    Measured on this database before the fix: after that statement alone,
+    ``SHOW transaction_read_only`` read ``off`` and an UPDATE was accepted.
+
+    So both statements are issued: ``SET TRANSACTION READ ONLY`` pins the
+    transaction already open, and the session characteristic pins any later
+    one on the same connection (a rollback after a failed statement starts
+    one).  The setting is then read back, in the same transaction, so the
+    guard is a checked fact rather than a wish — the same
+    set-then-read-back discipline ``db.py`` applies to the two pinned
+    session values.
+    """
+    conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+    conn.execute("SET TRANSACTION READ ONLY")
+    got = conn.execute("SHOW transaction_read_only").fetchone()[0]
+    if got != "on":
+        raise RuntimeError(
+            f"transaction_read_only reads {got!r} after the read-only guard "
+            "— refusing to run on a transaction that can write to the "
+            "seeded rows AC-10's digest is taken over"
+        )
+
+
+def _contract_safe_pick(pick: dict) -> dict:
+    """The nearest well-formed pick, for rendering the control contract
+    BESIDE a refusal — never for judging the pick.
+
+    ``_refused`` puts ``operations.contract(pick)`` in every refusal body
+    so the screen keeps rendering its controls, and ``contract`` reads the
+    raw pick's slots.  A slot of the wrong JSON type has already been
+    refused by name (``legality.shape_violations``) by the time this runs;
+    dropping it HERE affects only the contract shown beside that refusal,
+    so the display cannot crash the refusal that is trying to name the
+    defect.  The pick itself is never repaired: what was judged, and what
+    the refusal echoes back, is the pick as it arrived.
+    """
+    out = dict(pick)
+    for slot in ("aggregate", "sort", "window"):
+        if out.get(slot) is not None and not isinstance(out[slot], dict):
+            del out[slot]
+    computed = out.get("computed")
+    if computed is not None and not isinstance(computed, list):
+        del out["computed"]
+    elif isinstance(computed, list):
+        out["computed"] = [cc for cc in computed if isinstance(cc, dict)]
+    for slot in ("source", "filter", "bucket"):
+        if out.get(slot) is not None and not isinstance(out[slot], str):
+            del out[slot]
+    if out.get("changed") is not None and not isinstance(out["changed"], bool):
+        del out["changed"]
+    return out
+
+
+#: Postgres's class-22 code for "value out of range: overflow" — what
+#: float8 ``+ - * /`` raises when a finite double's square (say) is not a
+#: double.  The pinned compiler RECORDS this divergence
+#: (``KNOWN_DIVERGENCES.float8_overflow_raises``: Postgres raises where
+#: Python returns ``inf``) and the demo left it unhandled — reachable from
+#: the screen, since seeded ``edge-04`` holds ``g`` just below the range
+#: guard, so ``$.g * $.g`` overflows.  It is caught by SQLSTATE, not by
+#: exception class, because nothing in this file may import the driver
+#: (plan §4.5: only ``db.py`` does).
+_FLOAT8_OVERFLOW_SQLSTATE = "22003"
+
+
+def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
+                             outcomes, source, shape) -> dict:
+    """The float8-overflow refusal, named (spec §4.3's doctrine: whichever
+    layer refuses, the person sees it, and it names what caused it).
+
+    Shaped like a layer-2 refusal because that is what it is: SQL existed,
+    the statement ran, and the database itself is the layer that refused —
+    mid-computation rather than one question ahead of it.  The Python pane
+    still answers, labelled, exactly as on the probe path.
+    """
+    # The failed statement aborted the transaction.  Nothing committed —
+    # the session is read-only besides — but the Python pane still has to
+    # read, so roll back and re-pin what the rollback reverts: SET is
+    # transactional, and both db.py's two pinned session values and the
+    # read-only guard ran inside the transaction that just died.
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    refuse_writes(conn)
+
+    detail = str(exc).strip().splitlines()[0] if str(exc).strip() else "value out of range: overflow"
+    payload = {
+        "layer": 2,
+        "kind": "runtime",
+        "headline": errors.LAYER_2_HEADLINE,
+        "body": (
+            "The expression was inside the subset, SQL was compiled and "
+            "the statement was sent — and the database refused it "
+            "mid-computation: float8 arithmetic overflowed. This is the "
+            "pinned compiler's own recorded divergence "
+            "(KNOWN_DIVERGENCES.float8_overflow_raises): Postgres raises "
+            "where Python's float quietly becomes inf. No number came "
+            "back from the SQL side, and refusing by name is the honest "
+            "answer."
+        ),
+        "construct": "float8 overflow",
+        "why": (
+            f"the database refused the arithmetic: {detail} (SQLSTATE "
+            f"{_FLOAT8_OVERFLOW_SQLSTATE}) — a float8 value in this "
+            "expression exceeded the largest double, about "
+            "1.7976931348623157e+308, while the statement ran"
+        ),
+        "row_key": None,
+        "sql_existed": True,
+        "statement_sent": True,
+    }
+    py_pane, py_total = _fallback_python_pane(conn, pick)
+    body = _refused(
+        payload, pick=pick,
+        panes={"sql": _empty_pane("raised", _EMPTY_PANE_OVERFLOW),
+               "python": py_pane},
+        sql_block=_sql_block(parameterised=built.sql, display=display_sql,
+                             params=built.params, outcomes=outcomes,
+                             sent=True, collection=source),
+    )
+    body["page"]["total"] = py_total
+    body["page"]["ordered_by"] = _ordered_by(pick, shape)
+    return body
 
 
 def run_pick(conn, pick: dict) -> dict:
@@ -957,7 +1105,19 @@ def run_pick(conn, pick: dict) -> dict:
         return body
 
     # ── 5 · both panes, then the whole comparison ───────────────────────
-    sql = sql_pane(conn, built)
+    # One database error, and only that one, is a refusal rather than a
+    # defect: the float8 overflow the pinned compiler records as a known
+    # divergence.  Anything else from either pane propagates — a pick that
+    # produces a number must never produce it by swallowing something.
+    try:
+        sql = sql_pane(conn, built)
+    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+        if getattr(exc, "sqlstate", None) != _FLOAT8_OVERFLOW_SQLSTATE:
+            raise
+        return _float8_overflow_refusal(
+            conn, pick, exc, built=built, display_sql=display_sql,
+            outcomes=outcomes, source=source, shape=verdict["shape"],
+        )
     kinds_by_column = dict(zip(sql["columns"], sql["kinds"]))
     python = python_pane(conn, pick, kinds_by_column)
     comparison = compare_panes(sql, python)
@@ -1019,12 +1179,157 @@ _VENDOR = _DEMO_DIR / "vendor"
 # The sprite route is declared BEFORE the ``/static`` mount because
 # Starlette matches routes in the order they were added, and a Mount at
 # ``/static`` would otherwise answer 404 for it first.
+# ── AC-32 · the vendored sheets are SERVED with their off-host
+#            references removed ────────────────────────────────────────
+#
+# `demo/vendor/styles/watery.css`:8 is a live `@import url(…)` pointing at
+# Google's font service.  `index.html` links that sheet, a browser fetches
+# an applied stylesheet's `@import` unconditionally, and nothing here sets
+# a Content-Security-Policy — so serving the file verbatim made every page
+# load of a demo presented as fully offline go out to another host.  Found
+# by the round-1 review; AC-32 is the criterion it breaks.
+#
+# THE FILE ITSELF MAY NOT BE EDITED.  D1 vendors it byte-identical from
+# GIMS and `demo/manifest.json` pins its digest — that fidelity is its own
+# acceptance criterion, checked by `test_vendor.py`.  So the removal
+# happens HERE, in the layer that composes what goes out: the bytes on
+# disk stay identical, and the bytes on the wire carry nothing that leaves
+# this machine.
+#
+# NOTHING IS LOST BY REMOVING IT.  D11 already self-hosts the same face —
+# `demo/static/demo.css` declares Inter from `demo/static/fonts/*.woff2`,
+# and offline that has always been the only Inter the screen actually got.
+# What changes is that it is now the only one the screen ever ASKS for.
+#
+# AND IT IS NOT A SILENT REWRITE.  Every removal is recorded in
+# `STRIPPED_FROM_VENDORED_CSS` and asserted by name in
+# `demo/tests/test_isolation.py`, so a re-vendored sheet that grows a new
+# off-host reference is a visible, tested event rather than a quiet fix.
+# The demo's OWN stylesheets are deliberately NOT put through this: a
+# remote URL in a file this project can edit is a mistake to fail on, not
+# one to paper over, and the same test fails on it.
+
+#: A URL with an authority component — `scheme://host…` or `//host…` —
+#: i.e. one that names a host to go to.  `data:`, `about:blank` and every
+#: relative path have no authority and are left alone.
+_URL_WITH_A_HOST = re.compile(r"^(?:[a-z][a-z0-9+.\-]*:)?//", re.I)
+
+#: `@import url(…)` / `@import "…"`, whole at-rule.  The quoted forms are
+#: matched as whole strings so a semicolon INSIDE the URL cannot end the
+#: at-rule early — the Google Fonts one has four, in `wght@300;400;…`, and
+#: a looser pattern leaves half an address behind.
+_CSS_AT_IMPORT = re.compile(
+    r"""@import\s+
+        (?: url\(\s* (?: '(?P<a>[^']*)' | "(?P<b>[^"]*)" | (?P<c>[^)\s]*) ) \s*\)
+          | '(?P<d>[^']*)' | "(?P<e>[^"]*)" )
+        [^;]*;?""",
+    re.I | re.X,
+)
+
+#: Every other `url(…)` — a background, a mask, a font file.
+_CSS_URL = re.compile(
+    r"""url\(\s* (?: '(?P<a>[^']*)' | "(?P<b>[^"]*)" | (?P<c>[^)\s]*) ) \s*\)""",
+    re.I | re.X,
+)
+
+#: Left where an off-host reference was.  It names no address on purpose:
+#: these bytes are themselves swept for off-host URLs, and a sheet that
+#: quoted the address it had just removed would fail that sweep for the
+#: wrong reason.
+_STRIP_NOTE = (
+    "/* autoSQL, AC-32: an off-host reference was removed here when this "
+    "vendored sheet was served. The file on disk is untouched and still "
+    "byte-identical to GIMS's own (D1). Inter is self-hosted -- see "
+    "/static/demo.css. */"
+)
+
+#: name → the off-host URLs removed from it, filled in as each sheet is
+#: composed.  Read by the AC-32 test, which is what makes the removal a
+#: checked fact rather than a comment.
+STRIPPED_FROM_VENDORED_CSS: dict[str, list[str]] = {}
+
+#: The vendored stylesheets, by name, read once.  The route below resolves
+#: against THIS mapping and never against the path it was handed, so no
+#: request can name a file outside `demo/vendor/styles/`.
+_VENDORED_STYLESHEETS = {
+    p.stem: p for p in sorted((_VENDOR / "styles").glob("*.css"))
+}
+
+
+def _points_at_another_host(target: str) -> bool:
+    return bool(_URL_WITH_A_HOST.match(target.strip()))
+
+
+def _url_target(m: "re.Match[str]") -> str:
+    for name in ("a", "b", "c", "d", "e"):
+        try:
+            value = m.group(name)
+        except IndexError:
+            continue
+        if value is not None:
+            return value.strip()
+    return ""
+
+
+def offline_css(text: str) -> tuple[str, list[str]]:
+    """`text` with every reference that would leave this host removed.
+
+    Returns the rewritten sheet and the list of what was removed.  An
+    `@import` goes entirely; any other `url(…)` is pointed at
+    ``about:blank``, which is inert — a browser never puts a request on
+    the wire for it — and which keeps the declaration syntactically whole
+    so the rest of the rule still parses.
+    """
+    removed: list[str] = []
+
+    def _drop_import(m: "re.Match[str]") -> str:
+        target = _url_target(m)
+        if not _points_at_another_host(target):
+            return m.group(0)
+        removed.append(target)
+        return _STRIP_NOTE
+
+    def _neutralise_url(m: "re.Match[str]") -> str:
+        target = _url_target(m)
+        if not _points_at_another_host(target):
+            return m.group(0)
+        removed.append(target)
+        return "url(about:blank)"
+
+    # `@import` first: it contains a `url(…)` of its own, and removing the
+    # whole at-rule must not leave half of one behind.
+    out = _CSS_AT_IMPORT.sub(_drop_import, text)
+    out = _CSS_URL.sub(_neutralise_url, out)
+    return out, removed
+
+
+def vendored_css_as_served(name: str) -> tuple[str, list[str]]:
+    """One vendored sheet, exactly as the route below sends it."""
+    served, removed = offline_css(
+        _VENDORED_STYLESHEETS[name].read_text(encoding="utf-8")
+    )
+    STRIPPED_FROM_VENDORED_CSS[name + ".css"] = removed
+    return served, removed
+
+
 if (_STATIC / "js").is_dir():
 
     @app.get("/static/icons.svg", include_in_schema=False)
     def vendored_sprite():
         """GIMS's sprite, at the URL its own Icon component asks for."""
         return FileResponse(_VENDOR / "icons.svg", media_type="image/svg+xml")
+
+    # Declared BEFORE the ``/vendor`` mount, for the same reason the sprite
+    # route is declared before ``/static``: Starlette matches routes in the
+    # order they were added, and the Mount would otherwise answer first —
+    # with the file verbatim, which is the defect.
+    @app.get("/vendor/styles/{name}.css", include_in_schema=False)
+    def vendored_stylesheet(name: str) -> Response:
+        """A vendored Watery sheet, carrying nothing that leaves this host."""
+        if name not in _VENDORED_STYLESHEETS:
+            return Response(status_code=404)
+        served, _removed = vendored_css_as_served(name)
+        return Response(served, media_type="text/css; charset=utf-8")
 
     app.mount("/vendor", StaticFiles(directory=str(_VENDOR)), name="vendor")
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
@@ -1089,6 +1394,19 @@ def api_operations(pick: str | None = None) -> JSONResponse:
         current = _pick_from_query(pick)
     except _BadQueryPick as exc:
         return JSONResponse({"detail": str(exc)}, status_code=422)
+    # A slot of the wrong JSON TYPE cannot drive the controls — refused by
+    # name (DR-2, legality.shape_violations), in the same 422 shape this
+    # route already uses for a pick that is not JSON.  Measured before the
+    # fix: ``?pick={"source":"noun:Heartbeat","sort":"ts"}`` answered a
+    # bare HTTP 500 out of legality's readers.
+    malformed = legality.shape_violations(current)
+    if malformed:
+        return JSONResponse(
+            {"detail": "; ".join(
+                f"operation {v['operation']}: {v['why']}" for v in malformed
+            )},
+            status_code=422,
+        )
     return JSONResponse(operations.contract(current))
 
 
@@ -1109,6 +1427,7 @@ def api_fields(source: str | None = None) -> JSONResponse:
         )
     conn = db.connect(application_name="autosql-demo-fields")
     try:
+        refuse_writes(conn)
         return JSONResponse({
             "source": collection,
             "fields": collection_keys(conn, collection),
@@ -1122,11 +1441,23 @@ def api_fields(source: str | None = None) -> JSONResponse:
 def api_pick(body: dict) -> JSONResponse:
     """One pick: both panes, the verdict, and the whole comparison."""
     pick = body.get("pick", body) if isinstance(body, dict) else body
+    if not isinstance(pick, dict):
+        # DR-2's rule, one level up: a `pick` key holding something other
+        # than an object used to crash normalised_pick as a bare 500.
+        return JSONResponse(
+            {"detail": "the pick must be a JSON object describing a pick, "
+                       f"not a {type(pick).__name__}"},
+            status_code=422,
+        )
     conn = db.connect(application_name="autosql-demo-pick")
     try:
         # The app reads; it never writes.  A pick cannot alter the seeded
         # rows AC-10's digest is taken over, whatever it asks for.
-        conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+        # `refuse_writes` pins the transaction ALREADY OPENED by
+        # db.connect()'s verification reads — the one this pick actually
+        # runs in — and reads the setting back; the session-characteristics
+        # statement alone provably did not (see its docstring).
+        refuse_writes(conn)
         answer = run_pick(conn, pick)
     finally:
         conn.close()

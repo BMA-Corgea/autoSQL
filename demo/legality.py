@@ -96,8 +96,10 @@ ROWS, SCALAR, BUCKET = "ROWS", "SCALAR", "BUCKET"
 # B5b: each names the operation that caused the disable, and none says
 # "invalid combination".
 
-def _why_x1(source: str) -> str:
-    fields = SOURCES.get(source)
+def _why_x1(source) -> str:
+    # `source` is whatever the pick carried; an unhashable value (a list,
+    # a dict) must read as unknown rather than crash the lookup.
+    fields = SOURCES.get(source) if isinstance(source, str) else None
     listed = (
         f"its top-level fields are {fields}"
         if fields
@@ -191,14 +193,22 @@ def shape_of(pick: dict) -> str:
     return ROWS
 
 
-# ── small readers, tolerant of absent keys ──────────────────────────────
+# ── small readers, tolerant of absent keys AND of malformed holders ─────
+# Tolerant here means "does not crash": a holder of the wrong JSON type
+# reads as not-set for the purpose of deriving the shape and the enabled
+# set, and is then REFUSED by name in :func:`shape_violations` (DR-2:
+# answered, never silently repaired).  Before these guards, a pick whose
+# aggregate slot held the string "sum" crashed evaluate() with an
+# AttributeError, and the two routes that call it answered a bare HTTP
+# 500 with nothing a screen or a reader could act on.
 
 def _bucket(pick: dict) -> str:
     return pick.get("bucket") or "off"
 
 
 def _agg(pick: dict) -> dict:
-    return pick.get("aggregate") or {}
+    a = pick.get("aggregate")
+    return a if isinstance(a, dict) else {}
 
 
 def _agg_fn(pick: dict) -> str:
@@ -210,11 +220,13 @@ def _agg_field(pick: dict):
 
 
 def _sort(pick: dict):
-    return pick.get("sort") or None
+    s = pick.get("sort")
+    return s if isinstance(s, dict) and s else None
 
 
 def _window(pick: dict):
-    return pick.get("window") or None
+    w = pick.get("window")
+    return w if isinstance(w, dict) and w else None
 
 
 def _carries_value(pick: dict, n: int) -> bool:
@@ -234,6 +246,97 @@ def _carries_value(pick: dict, n: int) -> bool:
     if n == 9:
         return bool(pick.get("changed"))
     raise ValueError(f"operation {n} is never disabled; no value check for it")
+
+
+# ── the pick's SHAPE, checked by name (DR-2) ────────────────────────────
+
+def _slot_kind(value) -> str:
+    """The JSON name for what the slot actually held, for a refusal that
+    names what it found rather than what it is not."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true/false"
+    if isinstance(value, (int, float)):
+        return "a number"
+    if isinstance(value, str):
+        return f"the text {value!r}"
+    if isinstance(value, list):
+        return "a list"
+    if isinstance(value, dict):
+        return "an object"
+    return repr(value)
+
+
+def shape_violations(pick: dict) -> list[dict]:
+    """Every slot of this pick whose JSON TYPE is not the pinned shape's.
+
+    The pick's shape is pinned beside :func:`default_pick` above; the
+    screen can only produce that shape, so a slot holding the wrong type
+    is a pick arriving other than through the screen — DR-2's case — and
+    it is answered by name here rather than crashing whichever reader
+    touches it first.  Before this function existed, ``aggregate: "sum"``,
+    ``sort: "ts"``, ``window: "payload.load"`` and ``computed: 42`` each
+    took ``/api/pick`` (and the first three ``/api/operations``) down as a
+    bare HTTP 500 with an empty body — neither layer's refusal, naming
+    nothing.
+
+    Returned in the same ``{"operation": n, "why": str}`` form the matrix's
+    own violations use, so one refusal payload carries both kinds.
+    """
+    found: list[dict] = []
+
+    def bad(n: int, why: str) -> None:
+        found.append({"operation": n, "why": why})
+
+    source = pick.get("source")
+    if source is not None and not isinstance(source, str):
+        bad(1, f"the source must be the name of a collection — text — and "
+               f"this pick carries {_slot_kind(source)}")
+
+    computed = pick.get("computed")
+    if computed is not None and not isinstance(computed, list):
+        bad(2, f"the computed columns must be a list of "
+               f"{{name, expression}} objects, and this pick carries "
+               f"{_slot_kind(computed)}")
+    elif isinstance(computed, list):
+        for i, cc in enumerate(computed):
+            if not isinstance(cc, dict):
+                bad(2, f"computed column {i + 1} must be a "
+                       f"{{name, expression}} object, and this pick carries "
+                       f"{_slot_kind(cc)} in its place")
+
+    flt = pick.get("filter")
+    if flt is not None and not isinstance(flt, str):
+        bad(3, f"the filter must be one expression — text — and this pick "
+               f"carries {_slot_kind(flt)}")
+
+    sort = pick.get("sort")
+    if sort is not None and not isinstance(sort, dict):
+        bad(4, f"the sort must be a {{field, dir}} object, and this pick "
+               f"carries {_slot_kind(sort)}")
+
+    aggregate = pick.get("aggregate")
+    if aggregate is not None and not isinstance(aggregate, dict):
+        bad(6, f"the aggregate must be a {{fn, field}} object, and this "
+               f"pick carries {_slot_kind(aggregate)}")
+
+    bucket = pick.get("bucket")
+    if bucket is not None and not isinstance(bucket, str):
+        bad(7, f"the granularity must be one of the words off, hour or day, "
+               f"and this pick carries {_slot_kind(bucket)}")
+
+    window = pick.get("window")
+    if window is not None and not isinstance(window, dict):
+        bad(8, f"the rolling window must be a {{field}} object, and this "
+               f"pick carries {_slot_kind(window)}")
+
+    changed = pick.get("changed")
+    if changed is not None and not isinstance(changed, bool):
+        bad(9, f"keep-only-changed is on or off — true or false — and this "
+               f"pick carries {_slot_kind(changed)}")
+
+    return found
 
 
 # ── THE function (§4.5) ─────────────────────────────────────────────────
@@ -298,13 +401,19 @@ def evaluate(pick: dict) -> dict:
         aggregate_field = {"enabled": True, "why": ""}
 
     # ── violations: values the matrix forbids, present anyway ───────────
-    violations: list[dict] = []
+    # The pick's SHAPE first (DR-2): a slot of the wrong JSON type is
+    # named before its value is judged, because the value of a malformed
+    # slot reads above as not-set and the matrix's own rows would
+    # otherwise say nothing about it.
+    violations: list[dict] = list(shape_violations(pick))
 
     def violate(n: int, why: str) -> None:
         violations.append({"operation": n, "why": why})
 
     # Closed sets first (§4.4 row 7) — fail closed on anything unknown.
-    if source not in SOURCES:
+    # (The isinstance guard keeps an unhashable source out of the set
+    # lookup; shape_violations has already named it.)
+    if not isinstance(source, str) or source not in SOURCES:
         violate(1, f"unknown source {source!r}: the sources are a closed set of three")
     if fn not in AGG_FNS:
         violate(6, f"unknown aggregate {fn!r}: the functions are a closed set")

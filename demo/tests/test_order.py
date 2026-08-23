@@ -4,13 +4,25 @@ WHAT LIVES HERE, AND WHOSE IT IS
   * W9 (this file's first landing): the comparator alone, no database —
     demo/pyrunner/order.py reproduces a hand-written expected sequence over
     a mixed-type fixture.  The expected sequences below were derived BY HAND
-    from spec §7.4(1b)'s table, row by row, and are stated as literals so a
-    reviewer can check the ordering against the spec without trusting the
-    code under test (or any code at all).
+    from spec §7.4(1b)'s table, row by row — PLUS the one measured exception
+    that table omits (the empty top-level array; order.py's module
+    docstring) — and are stated as literals so a reviewer can check the
+    ordering without trusting the code under test (or any code at all).
   * W17 adds AC-41(b)(c)(d)(e) and AC-44 — the end-to-end halves that need
     the seeded database and the running stack.  Not here yet.
+  * The review's HIGH ordering finding adds the last section: the
+    comparator verified against the LIVE ENGINE's answers rather than any
+    transcription, plus the end-to-end regression pick.
 
 WHAT THE FIXTURE DELIBERATELY CONTAINS
+  - a TOP-LEVEL EMPTY ARRAY (a5) — the one value spec §7.4(1b)'s table
+    mis-ranks: Postgres's documented jsonb btree order sorts an empty
+    top-level array below EVERYTHING, JSON null included ('[]'::jsonb <
+    'null'::jsonb is true — measured; see order.py's module docstring).
+    The table is a transcription of Postgres's docs that omitted the docs'
+    own exception clause, so the expected sequences below follow the
+    MEASURED engine, not the table, and the database-backed tests further
+    down ask the engine itself;
   - BOTH kinds of null (§7.4(1b)): present JSON null (None) and absent key
     (MISSING) — they band differently and may never merge;
   - strings whose C-collation byte order differs from dictionary order
@@ -77,9 +89,15 @@ FIXTURE = [
 ]
 
 # ---------------------------------------------------------------------------
-# THE EXPECTED ASCENDING SEQUENCE — derived by hand from §7.4(1b):
+# THE EXPECTED ASCENDING SEQUENCE — derived by hand from §7.4(1b) PLUS the
+# measured exception the table omits (order.py's module docstring):
 #
-# Band 1 · JSON nulls first (Null is the smallest jsonb type; tie -> key ASC):
+# Band 0 · THE EXCEPTION: the empty TOP-LEVEL array, below everything —
+#   even the JSON nulls ('[]'::jsonb < 'null'::jsonb is true on real
+#   Postgres, PG 16.14, C collation).  Nested [] (see o4) does NOT get
+#   this treatment:
+#   a5
+# Band 1 · JSON nulls (Null is the smallest jsonb TYPE; tie -> key ASC):
 #   n1, n2
 # Band 2 · strings, C-collation byte order:
 #   ""(s5) < "Zed"(s1: Z=0x5A) < "a-b"(s2: -=0x2D) < "ab"... none < "apple":
@@ -90,13 +108,15 @@ FIXTURE = [
 # Band 4 · booleans, false < true:
 #   b2, b1
 # Band 5 · arrays: length first, then element by element (numeric, not text):
-#   [](a5) < ["x"](a4) < [1](a6: string<number) < [1,2](a1) < [1,10](a3: 2<10)
-#   < [0,0,0](a2: longer beats content)
-#   a5, a4, a6, a1, a3, a2
+#   ["x"](a4) < [1](a6: string<number) < [1,2](a1) < [1,10](a3: 2<10)
+#   < [0,0,0](a2: longer beats content)      (a5 = [] is in band 0, not here)
+#   a4, a6, a1, a3, a2
 # Band 6 · objects: pair count first; equal counts compare pairs in storage
 #   order (shorter key first, bytewise within a length), key-1, value-1,
 #   key-2, value-2:
-#   one pair:  {"a":1}(o1) < {"a":[]}(o4: same key, number<array)
+#   one pair:  {"a":1}(o1) < {"a":[]}(o4: same key, number<array — the
+#                NESTED [] follows the plain table; the top-level
+#                exception stops at the top level)
 #              < {"b":0}(o3: key "a"<"b" decides first)
 #   two pairs: {"a":1,"b":2}(o2) < {"a":1,"c":9}(o5: k1,v1 tie; "b"<"c")
 #              < {"a":2,"b":0}(o6: v1 1<2 decides BEFORE the second key —
@@ -109,11 +129,12 @@ FIXTURE = [
 #   z1, z2
 
 EXPECTED_ASC = [
+    "a5",
     "n1", "n2",
     "s5", "s1", "s2", "s4",
     "d1", "d3", "d2", "d4", "d5",
     "b2", "b1",
-    "a5", "a4", "a6", "a1", "a3", "a2",
+    "a4", "a6", "a1", "a3", "a2",
     "o1", "o4", "o3", "o2", "o5", "o6", "o8", "o7",
     "z1", "z2",
 ]
@@ -122,15 +143,19 @@ EXPECTED_ASC = [
 # do not (§7.4(1a), (1)):
 #   * the absent band stays LAST (NULLS LAST is unconditional),
 #   * every tie still breaks key ASC (d2 before d4; n1 before n2; z1 before z2),
-#   * within the present values, JSON nulls are now at the END of the values
-#     (smallest value, descending), but still BEFORE the absent band.
+#   * within the present values, JSON nulls are now near the END of the
+#     values (descending), and the empty top-level array (a5) is now the
+#     very LAST present value — the exception inverts with everything else
+#     (measured: ORDER BY v DESC returns [] last) — but both still come
+#     BEFORE the absent band.
 EXPECTED_DESC = [
     "o7", "o8", "o6", "o5", "o2", "o3", "o4", "o1",
-    "a2", "a3", "a1", "a6", "a4", "a5",
+    "a2", "a3", "a1", "a6", "a4",
     "b1", "b2",
     "d5", "d2", "d4", "d3", "d1",
     "s4", "s2", "s1", "s5",
     "n1", "n2",
+    "a5",
     "z1", "z2",
 ]
 
@@ -216,11 +241,39 @@ def test_no_sort_field_collapses_to_key_asc():
 # compare_jsonb directly — one assertion per sentence of §7.4(1b)'s table.
 
 def test_the_type_ladder():
-    """Object > Array > Boolean > Number > String > Null, each adjacent pair."""
-    ladder = [None, "", 0, False, [], {}]
+    """Object > Array > Boolean > Number > String > Null, each adjacent pair
+    — with the empty TOP-LEVEL array below the whole ladder, null included.
+
+    An earlier version of this test used [] as the array exemplar and so
+    pinned compare_jsonb(False, []) == -1, which real Postgres contradicts:
+    '[]'::jsonb < 'false'::jsonb is TRUE (the documented btree exception
+    §7.4(1b)'s table omits — order.py's module docstring).  The array
+    exemplar is therefore non-empty, and [] is asserted at the bottom.
+    test_postgres_is_the_ground_truth_for_jsonb_order below asks the live
+    database the same questions, so this ladder cannot drift from the
+    engine the way the spec's hand-copied table did.
+    """
+    ladder = [[], None, "", 0, False, [1], {}]
     for lo, hi in zip(ladder, ladder[1:]):
         assert compare_jsonb(lo, hi) == -1, f"{lo!r} should sort below {hi!r}"
         assert compare_jsonb(hi, lo) == 1
+    # The exception's own edges, named:
+    assert compare_jsonb([], None) == -1, "'[]' < 'null' is TRUE at top level"
+    assert compare_jsonb([], []) == 0
+    assert compare_jsonb({}, None) == 1, "the exception has NO object analogue"
+
+
+def test_the_empty_array_exception_is_top_level_only():
+    """'[[]]'::jsonb < '[null]'::jsonb is FALSE (measured): a NESTED []
+    follows the plain table (array > null), and only a top-level [] sorts
+    below everything.  Over-applying the exception to nested values would
+    be the same class of defect the exception fixed, in the other
+    direction."""
+    assert compare_jsonb([[]], [None]) == 1        # nested: array > null
+    assert compare_jsonb({"a": []}, {"a": None}) == 1
+    assert compare_jsonb([[], 1], [None, 1]) == 1
+    # ...while the same values at TOP level go the other way:
+    assert compare_jsonb([], None) == -1
 
 
 def test_booleans_are_not_numbers_here():
@@ -641,3 +694,145 @@ def test_ac44_the_hyphen_case_that_a_language_collation_would_flip(oconn):
         f"{sorted(probe)} — the collation is not C"
     )
     assert from_pg[0] == "HB-01-0000", "uppercase sorts first under C, and did not"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# The review's HIGH ordering finding (T-2-review-round-1): the comparator
+# is verified against the ENGINE, not against the spec's table.
+#
+# §7.4(1b)'s table is a hand transcription of Postgres's documented jsonb
+# btree order that dropped the docs' own exception clause — "an empty top
+# level array sorts less than null" — so order.py faithfully implemented
+# an incomplete table, and the old ladder test (which asserted the same
+# table) pinned the wrong value.  A test that asks the database cannot
+# drift that way: everything below takes its expected answers from the
+# live engine at run time.
+# ─────────────────────────────────────────────────────────────────────────
+
+#: jsonb literals spanning every §7.4(1b) band and every edge the
+#: exception has: the empty TOP-LEVEL array (twice, so its tie exercises
+#: the tiebreak inside the exception band), the empty object (which has NO
+#: exception), both empties nested, [[]] vs [null] (the top-level-only
+#: proof pair), the plain ladder, and a numeric representation tie.
+JSONB_PROBE = [
+    "[]", "null", "false", "true",
+    '""', '"Zed"', '"a-b"', '"apple"',
+    "-3", "0", "2", "2.5", "2.50", "10",
+    "[1]", '["x"]', "[1,2]", "[1,10]", "[0,0,0]",
+    "[[]]", "[null]", "[[],1]", "[null,1]",
+    "{}", '{"a":1}', '{"a":[]}', '{"a":null}', '{"b":0}',
+    '{"a":1,"b":2}', '{"aa":1,"c":1}', '{"b":1,"d":1}',
+    "[]",
+]
+
+
+def _parsed_probe() -> list:
+    """The probe values as the Python pane holds them (B7's Decimal parse)."""
+    return [json.loads(s, parse_float=Decimal) for s in JSONB_PROBE]
+
+
+def test_postgres_is_the_ground_truth_for_jsonb_order(oconn):
+    """Every ordered pair of probe values, compared by the engine and by
+    ``compare_jsonb`` — the two must agree on all len(JSONB_PROBE)² pairs.
+
+    This is the test that would have caught the empty-array defect at the
+    unit level: the ground truth is queried from the database each run, so
+    a comparator matching a mis-copied table fails here on the exact pairs
+    it gets wrong, named.  It also proves the nested cases ([[]] vs
+    [null], {"a":[]} vs {"a":null}) without a hand-written answer.
+    """
+    rows = oconn.execute(
+        "SELECT a.i, b.j,"
+        " CASE WHEN a.v < b.v THEN -1 WHEN a.v > b.v THEN 1 ELSE 0 END"
+        " FROM unnest(%(vals)s::jsonb[]) WITH ORDINALITY AS a(v, i)"
+        " CROSS JOIN unnest(%(vals)s::jsonb[]) WITH ORDINALITY AS b(v, j)",
+        {"vals": JSONB_PROBE},
+    ).fetchall()
+    assert len(rows) == len(JSONB_PROBE) ** 2
+    values = _parsed_probe()
+    wrong = []
+    for i, j, engine_says in rows:
+        ours = compare_jsonb(values[i - 1], values[j - 1])
+        if ours != engine_says:
+            wrong.append(
+                f"{JSONB_PROBE[i - 1]} vs {JSONB_PROBE[j - 1]}: "
+                f"engine {engine_says:+d}, compare_jsonb {ours:+d}"
+            )
+    assert not wrong, (
+        f"compare_jsonb contradicts the live engine on {len(wrong)} pairs:\n"
+        + "\n".join(wrong)
+    )
+    # And the probe genuinely contains the exception: the engine itself is
+    # asserted to order '[]' below 'null' at top level, so this test cannot
+    # silently lose its point if the probe list is ever edited.
+    truth = {(i, j): c for i, j, c in rows}
+    i_empty, i_null = JSONB_PROBE.index("[]") + 1, JSONB_PROBE.index("null") + 1
+    assert truth[(i_empty, i_null)] == -1, "the probe no longer exercises '[]' < 'null'"
+    i_nested = JSONB_PROBE.index("[[]]") + 1
+    i_arrnull = JSONB_PROBE.index("[null]") + 1
+    assert truth[(i_nested, i_arrnull)] == 1, "the probe no longer exercises the nested case"
+
+
+@pytest.mark.parametrize("direction", ["asc", "desc"])
+def test_sort_key_reproduces_the_engines_sequence_on_the_probe_set(oconn, direction):
+    """The whole probe set, sorted by the engine and by ``sort_key``, both
+    directions — the exception must invert under DESC like every other
+    present value (measured: ORDER BY v DESC returns [] last), and every
+    tie (2.5/2.50, the two top-level []s) must break by the ascending
+    tiebreak on both sides.  Keys are zero-padded ordinals so the SQL
+    tiebreak (i ASC) and sort_key's key-bytes tiebreak are the same order.
+    """
+    kw = "ASC" if direction == "asc" else "DESC"
+    engine_seq = [i for (i,) in oconn.execute(
+        "SELECT t.i FROM unnest(%(vals)s::jsonb[]) WITH ORDINALITY AS t(v, i)"
+        f" ORDER BY t.v {kw}, t.i ASC",
+        {"vals": JSONB_PROBE},
+    ).fetchall()]
+    values = _parsed_probe()
+    ours = sorted(
+        range(1, len(JSONB_PROBE) + 1),
+        key=lambda i: sort_key(values[i - 1], f"{i:03d}", direction),
+    )
+    assert ours == engine_seq, (
+        f"{direction}: sort_key's sequence diverges from the engine's — "
+        f"first divergence at position "
+        f"{next(p for p in range(len(ours)) if ours[p] != engine_seq[p])}"
+    )
+
+
+def test_the_reviews_reproduction_pick_now_agrees(oconn):
+    """The review's end-to-end reproduction, pinned as a regression.
+
+    Pick: noun:EdgeCase, computed mix = coalesce($.arr, $.tags, $.l, 0),
+    sorted on mix.  edge-09's $.arr is a top-level [] — before the fix the
+    SQL pane (real Postgres) put edge-09 first ascending while the Python
+    pane put it eighth, verdict "disagree", 8 differing rows: the red
+    banner firing with the generated SQL RIGHT and the independent control
+    WRONG — the one signal this demo exists to keep honest, inverted.
+    Both directions must now come back "agree" with zero differing rows.
+    """
+    for direction in ("asc", "desc"):
+        pick = _pick(
+            source=EDGECASE,
+            computed=[{"name": "mix", "expr": "coalesce($.arr, $.tags, $.l, 0)"}],
+            sort={"field": "mix", "dir": direction},
+        )
+        sql, python = _panes(oconn, pick)
+        comparison = _server_app.compare_panes(sql, python)
+        assert comparison["verdict"] == "agree", (
+            f"{direction}: the panes disagree on {comparison['differing_rows']} "
+            f"rows — the control is crying wolf again"
+        )
+        assert comparison["differing_rows"] == 0
+        assert sql["row_count"] == python["row_count"] == 10
+        # The probe value is genuinely in play — edge-09's mix is a
+        # top-level empty array — and it lands where the ENGINE puts it:
+        # first ascending, last descending (every row's mix is present, so
+        # there is no absent band to sit behind).
+        mixes = {row["key"]: row["mix"] for row in sql["rows"]}
+        assert mixes["edge-09"] == [], "the seed no longer gives this pick a top-level []"
+        keys = [row["key"] for row in sql["rows"]]
+        assert keys[0 if direction == "asc" else -1] == "edge-09", (
+            f"{direction}: edge-09 (mix = []) is not where Postgres's "
+            f"exception puts it"
+        )

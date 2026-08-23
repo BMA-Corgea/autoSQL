@@ -18,7 +18,11 @@
 
    WHAT IS HERE
      1. D11's @font-face block — Inter, self-hosted, because watery.css:8
-        imports it from Google Fonts and AC-32 forbids the network.
+        imports it from Google Fonts and AC-32 forbids the network. Since
+        the round-1 review that import no longer reaches the browser at
+        all (demo/server/app.py :: offline_css removes it as the vendored
+        sheet is served), so this block is not the winner of a cascade any
+        more — it is the only Inter the screen has.
      2. The three primitives watery.css genuinely does not carry:
         .icon-sm, .chip.bad, :focus-visible.
      3. One defensive reset — see "THE ONE COLLISION" below.
@@ -42,8 +46,10 @@
    Two files, not ten: fonts.gstatic.com serves ONE variable woff2 per
    subset for all of 300–700 (verified by sha256 — the five weight URLs
    returned identical bytes), so this declares the variable range rather
-   than pretending to five static faces. Declared before watery.css's own
-   @import can fail, which offline it does, silently. */
+   than pretending to five static faces. It used to be described as
+   winning a race against watery.css's own @import; the review found that
+   import was really being fetched, and it is now removed as that sheet is
+   served, so these two files are the whole story. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;

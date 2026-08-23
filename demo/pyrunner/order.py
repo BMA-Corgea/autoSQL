@@ -54,6 +54,37 @@ where the paraphrase is loose, the documented order it transcribes governs,
 because the SQL pane's ``ORDER BY`` is real Postgres and the panes must not
 be made to disagree by a paraphrase.  Recorded by W9 as a clarification, not
 a departure.
+
+THE ONE EXCEPTION THE SPEC'S TABLE OMITS — do not "fix" this back
+-----------------------------------------------------------------
+Spec §7.4(1b)'s table is a transcription of Postgres's documented jsonb
+btree order, and the transcription is incomplete: Postgres's own
+documentation adds *"with the exception that (for historical reasons) an
+empty top level array sorts less than null"*.  An EMPTY TOP-LEVEL ARRAY
+sorts below EVERYTHING, JSON null included.  Measured on this demo's own
+database (PostgreSQL 16.14, C collation, the demo's port):
+
+    SELECT '[]'::jsonb   < 'null'::jsonb;    -- true
+    SELECT '[]'::jsonb   < 'false'::jsonb;   -- true
+    SELECT '[]'::jsonb   < '""'::jsonb;      -- true
+    SELECT '{}'::jsonb   < 'null'::jsonb;    -- FALSE (no object analogue)
+    SELECT '[[]]'::jsonb < '[null]'::jsonb;  -- FALSE (top level ONLY —
+                                             --  nested [] follows the table)
+
+So the exception applies at the TOP LEVEL of the two compared values and
+nowhere below: ``compare_jsonb`` implements it before consulting the
+table, and the recursion into array elements and object pair values
+(``_compare_by_table``) never re-applies it.  Under a descending pick the
+exception inverts with every other present value (measured: ``ORDER BY v
+DESC`` returns ``[]`` last), while the absent band stays last regardless —
+NULLS LAST is unconditional and belongs to ``sort_key``, not to any value.
+The table above governs where it speaks; where it is silent, the measured
+Postgres order governs, because the SQL pane IS real Postgres and a
+comparator that follows the paraphrase against the engine makes the
+disagreement banner fire when the generated SQL is right — the exact
+inversion of this demo's purpose.  ``test_order.py`` asserts this ordering
+against the live database, not against the table, so it cannot drift the
+way the transcription did.
 """
 
 from decimal import Decimal
@@ -124,7 +155,14 @@ def _storage_order_pairs(obj):
 
 
 def compare_jsonb(a, b):
-    """Three-way compare of two *present* jsonb values under §7.4(1b)'s table.
+    """Three-way compare of two *present* TOP-LEVEL jsonb values.
+
+    §7.4(1b)'s table, PLUS the exception the table omits (module
+    docstring): an empty top-level array sorts below everything, JSON null
+    included.  The exception lives here — the top-level entry point — and
+    not in ``_compare_by_table``, because it is top-level only: nested
+    ``[]`` (an array element, an object's value) follows the plain table,
+    which the recursion below applies.
 
     Returns -1, 0 or 1.  ``MISSING`` is not a jsonb value and is refused —
     the absent band is ``sort_key``'s business, because it is a property of
@@ -132,6 +170,25 @@ def compare_jsonb(a, b):
     """
     if a is MISSING or b is MISSING:
         raise TypeError("MISSING is not a jsonb value; absent keys are handled by sort_key()")
+    # The top-level empty-array exception: '[]'::jsonb < 'null'::jsonb is
+    # TRUE on real Postgres (measured — module docstring), so [] compares
+    # below every other value here, and two of them compare equal.
+    a_empty = isinstance(a, (list, tuple)) and len(a) == 0
+    b_empty = isinstance(b, (list, tuple)) and len(b) == 0
+    if a_empty or b_empty:
+        if a_empty and b_empty:
+            return 0
+        return -1 if a_empty else 1
+    return _compare_by_table(a, b)
+
+
+def _compare_by_table(a, b):
+    """§7.4(1b)'s table alone — the order every NESTED value follows.
+
+    ``compare_jsonb`` is the top-level entry point; this is its recursion,
+    and the top-level empty-array exception deliberately does not exist
+    here ('[[]]'::jsonb < '[null]'::jsonb is FALSE — measured, module
+    docstring)."""
     ra = _type_rank(a)
     rb = _type_rank(b)
     if ra != rb:
@@ -154,9 +211,11 @@ def compare_jsonb(a, b):
         # the longer array is greater
         if len(a) != len(b):
             return _cmp(len(a), len(b))
-        # equal lengths compare element by element under this same table
+        # equal lengths compare element by element under this same table —
+        # the plain table, exception-free: elements are nested, and the
+        # empty-array exception is top-level only.
         for ea, eb in zip(a, b):
-            c = compare_jsonb(ea, eb)
+            c = _compare_by_table(ea, eb)
             if c:
                 return c
         return 0
@@ -172,7 +231,8 @@ def compare_jsonb(a, b):
         c = _cmp(ka.encode("utf-8"), kb.encode("utf-8"))
         if c:
             return c
-        c = compare_jsonb(va, vb)
+        # nested again: the plain table, exception-free.
+        c = _compare_by_table(va, vb)
         if c:
             return c
     return 0
@@ -185,8 +245,12 @@ class _ValueKey:
 
       * absent (MISSING) rows sort after every present value, in BOTH
         directions — NULLS LAST is unconditional (§7.4(1));
-      * present values compare under §7.4(1b)'s table, inverted when the
-        pick's direction is 'desc'.
+      * present values compare under §7.4(1b)'s table plus the top-level
+        empty-array exception (module docstring), inverted when the pick's
+        direction is 'desc' — the exception inverts with the rest, so a
+        descending pick puts a top-level ``[]`` last among present values
+        (measured: ``ORDER BY v DESC`` returns ``[]`` last), still ahead
+        of the absent band.
 
     Only __lt__ and __eq__ are defined: Python's sorts use ``<`` alone, and
     tuple comparison additionally uses ``==``.  Nothing else is needed, and

@@ -8,6 +8,12 @@ WHAT LIVES HERE, AND WHOSE IT IS
     a tie, that is a build failure, not a rounding preference (AC-24(b)).
   * W12 adds AC-24(d) — the short-window cases against
     fixtures/expected_step8.json.  Not here yet; do not fold it in elsewhere.
+  * The B7 / plan §8.2 M9 decimal-AGGREGATE cases (bottom of the file,
+    added 2026-08-22): fractional values through ``evaluate.aggregate``,
+    the same values through Postgres, and the plan-promised ``noun:Sample``
+    aggregate over a 4-decimal ``field_n`` end to end.  Until then every
+    aggregated value in the whole suite was a small integer, and a
+    float-contaminated aggregate accumulation passed the entire suite.
 
 WHY THE TIE VALUES ARE WHAT THEY ARE
   AC-24(b) demands "a value whose half-up and half-even results differ".
@@ -20,6 +26,7 @@ WHY THE TIE VALUES ARE WHAT THEY ARE
   criterion exists to kill.
 """
 
+import json
 import sys
 from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP, getcontext, localcontext
 from pathlib import Path
@@ -30,6 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from demo.pyrunner import evaluate  # noqa: E402
 from demo.pyrunner.decimals import SIX_PLACES, is_jsonb_number, q6  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -99,8 +107,27 @@ def test_q6_ignores_the_ambient_decimal_context():
         ctx.prec = 2
         assert q6(Decimal("0.0000005")) == Decimal("0.000001")
         assert q6(Decimal("-0.0000025")) == Decimal("-0.000003")
-    # and the ambient context is left untouched afterwards
-    assert getcontext().rounding != ROUND_HALF_UP or True  # documentative; no mutation happened
+    # And the ambient context really is left untouched afterwards.  Twice:
+    #
+    # (1) leaning on this file's test order — the tie cases above already
+    #     ran q6 many times OUTSIDE any localcontext, so a q6 that switched
+    #     the thread's context to its own half-up mode would be caught here.
+    #     (This line used to read `... != ROUND_HALF_UP or True`, a
+    #     tautology that could not fail; the `or True` is gone.)
+    assert getcontext().rounding != ROUND_HALF_UP, (
+        "the ambient decimal context is now ROUND_HALF_UP — q6 (or something "
+        "it calls) mutated the thread's context instead of using its own"
+    )
+    # (2) directly, with no dependence on test order: one bare q6 call,
+    #     outside any protective localcontext, must leave the ambient
+    #     rounding mode and precision exactly as it found them.
+    before = (getcontext().rounding, getcontext().prec)
+    assert q6(Decimal("0.0000005")) == Decimal("0.000001")
+    after = (getcontext().rounding, getcontext().prec)
+    assert after == before, (
+        f"a single q6 call changed the ambient decimal context: "
+        f"{before} -> {after}"
+    )
 
 
 def test_q6_accepts_ints_exactly():
@@ -188,3 +215,208 @@ def test_postgres_rounds_the_same_tie_the_same_way(demo_db, raw, expected_half_u
     py_value = q6(Decimal(raw))
     assert sql_value == py_value == Decimal(expected_half_up)
     assert sql_value.as_tuple().exponent == -6
+
+
+# ---------------------------------------------------------------------------
+# B7 / plan §8.2 M9 — the decimal-AGGREGATE cases.
+#
+# Until 2026-08-22 every aggregated value in the whole suite was a small
+# integer, so an aggregate accumulation contaminated by float — M9's axis,
+# e.g. `total += Decimal(float(v))` in evaluate.aggregate's sum/avg loop —
+# passed all 568 tests while returning a subtly wrong number: the project's
+# own named failure mode.  Plan §8.2's M9 row promised "a noun:Sample
+# aggregate over a 4-decimal field_n is added to the suite (B7)" and it
+# never was.  This section is that coverage, in three layers:
+#
+#   1. evaluate.aggregate directly, on values where float and exact decimal
+#      arithmetic diverge at the 6th decimal place or beyond — plus a
+#      test-of-the-test proving each case DOES diverge under contamination;
+#   2. the same values through Postgres's numeric aggregates, digit for
+#      digit against the Python answers (the cross-engine half);
+#   3. the plan-promised noun:Sample aggregate over 4-decimal field_1,
+#      end to end through POST /api/pick, each pane compared digit for
+#      digit against a THIRD computation made here from the stored JSON
+#      text (Decimal(text), never Decimal(float)).
+#
+# Each case's values are written as ONE JSON array literal and parsed the
+# way rows.py's record_d parse delivers numbers to the aggregate (B7):
+# json.loads(..., parse_float=Decimal) — ints arrive as exact ints,
+# fractions as exact Decimals carrying the JSON text's digits.
+#
+#   fn     values (JSON)                          exact answer   float-routed
+AGG_HOSTILE_CASES = [
+    ("sum", "[1000000000000.1]",                   "1000000000000.100000"),
+    # float: 1000000000000.099976 — wrong from the 6th place on
+    ("sum", "[1000000000000.1, -1000000000000.0]", "0.100000"),
+    # cancellation: float leaves 0.099976 — wrong from the FIRST place on
+    ("sum", "[1, 0.0000005]",                      "1.000001"),
+    # a tie born inside the accumulation (int + Decimal mixed, B7's types);
+    # float arrives just under the tie and rounds DOWN: 1.000000
+    ("avg", "[1000000000000.1, 3000000000000.5]",  "2000000000000.300000"),
+    # float: 2000000000000.299988
+    ("min", "[-999.9998, 2.5]",                    "-999.9998"),
+    # min/max take no round (§7.2), so the DIGITS carry the check: a float
+    # detour prints -999.99980000000005020410753786563873291015625
+    ("max", "[999.1234, -2.5]",                    "999.1234"),
+]
+
+_AGG_IDS = ["sum-large", "sum-cancel", "sum-tie", "avg-large", "min-digits", "max-digits"]
+
+
+def _record_d_values(json_text: str) -> list:
+    """The values exactly as rows.py's exact parse would deliver them."""
+    return json.loads(json_text, parse_float=Decimal)
+
+
+@pytest.mark.parametrize("fn,json_text,expected", AGG_HOSTILE_CASES, ids=_AGG_IDS)
+def test_aggregate_stays_exact_on_float_hostile_values(fn, json_text, expected):
+    """The aggregate path itself, on values float64 cannot carry: the answer
+    is the exact decimal one, digit for digit, scale included."""
+    values = _record_d_values(json_text)
+    got = evaluate.aggregate(fn, values, len(values))
+    assert isinstance(got, Decimal), f"aggregate returned {type(got).__name__}"
+    assert got == Decimal(expected)
+    assert str(got) == expected, (
+        f"{fn}({json_text}) = {got}, want {expected} digit for digit"
+    )
+    if fn in ("sum", "avg"):
+        assert got.as_tuple().exponent == -6  # q6's quantum, not just the value
+
+
+@pytest.mark.parametrize("fn,json_text,expected", AGG_HOSTILE_CASES, ids=_AGG_IDS)
+def test_the_hostile_values_actually_expose_float_contamination(fn, json_text, expected):
+    """The test of the test: rerun each case with M9's contamination —
+    every value routed through Decimal(float(v)) — inside evaluate's own
+    arithmetic context, and prove the answer COMES OUT DIFFERENT.  A case
+    that cannot tell the two routes apart carries no weight here."""
+    values = _record_d_values(json_text)
+    contaminated = [Decimal(float(v)) for v in values]
+    if fn in ("sum", "avg"):
+        with localcontext(evaluate._ARITH):
+            total = Decimal(0)
+            for v in contaminated:
+                total += v
+            if fn == "avg":
+                total /= Decimal(len(contaminated))
+            wrong = q6(total)
+    else:
+        wrong = min(contaminated) if fn == "min" else max(contaminated)
+    assert str(wrong) != expected, (
+        f"{fn}({json_text}): the float route also gives {expected} — this "
+        f"case cannot catch a contaminated aggregate and must be replaced"
+    )
+
+
+@pytest.mark.parametrize("fn,json_text,expected", AGG_HOSTILE_CASES, ids=_AGG_IDS)
+def test_postgres_agrees_digit_for_digit_on_the_hostile_aggregates(
+        demo_db, fn, json_text, expected):
+    """The cross-engine half: Postgres's numeric aggregate of the same
+    values equals evaluate.aggregate's answer digit for digit — sum/avg
+    through round(…, 6) exactly as the builder emits them, min/max bare."""
+    values = _record_d_values(json_text)
+    as_numeric = [Decimal(v) for v in values]  # exact for ints and Decimals
+    sql_call = {
+        "sum": "round( sum(v), 6)",
+        "avg": "round( avg(v), 6)",
+        "min": "min(v)",
+        "max": "max(v)",
+    }[fn]
+    with demo_db.cursor() as cur:
+        cur.execute(
+            f"SELECT {sql_call} FROM unnest(%s::numeric[]) AS t(v)",
+            (as_numeric,),
+        )
+        (sql_value,) = cur.fetchone()
+    assert isinstance(sql_value, Decimal)
+    py_value = evaluate.aggregate(fn, values, len(values))
+    assert sql_value == py_value == Decimal(expected)
+    assert str(sql_value) == str(py_value) == expected
+
+
+# ---------------------------------------------------------------------------
+# Layer 3 — the plan-promised end-to-end case: a noun:Sample aggregate over
+# the 4-decimal field_1 (§8.2 M9's own words), through POST /api/pick.
+
+@pytest.fixture(scope="module")
+def app_client(demo_db):
+    """POST /api/pick in-process.  Depends on demo_db so the no-stack case
+    is the same loud skip as the rest of this file's SQL half."""
+    try:
+        from fastapi.testclient import TestClient
+
+        from demo.server import app as server_app
+    except Exception as exc:  # pragma: no cover - environment-dependent
+        pytest.skip(
+            "SKIPPED (loudly): the M9/B7 end-to-end case — demo/server/app.py "
+            f"is not importable ({exc!r})"
+        )
+    return TestClient(server_app.app)
+
+
+def _sample_pick(fn: str) -> dict:
+    """The screen's pick shape (legality.default_pick's slots), aimed at
+    noun:Sample's field_1 — a 4-decimal float on the rows where the seed
+    made field_1 numeric (generate.py's t == 1 arm)."""
+    return {
+        "source": "noun:Sample",
+        "computed": [],
+        "filter": None,
+        "sort": None,
+        "cap": None,
+        "aggregate": {"fn": fn, "field": "$.field_1"},
+        "bucket": "off",
+        "window": None,
+        "changed": False,
+    }
+
+
+def test_sample_4_decimal_aggregates_end_to_end(demo_db, app_client):
+    """Plan §8.2 M9 / B7: sum, avg, min and max of noun:Sample's field_1,
+    driven through the API.  Both panes must equal — digit for digit — a
+    third computation made HERE from the JSON text the database stores,
+    parsed with Decimal(text) and accumulated in exact decimal.  min/max
+    carry the parse check (no round hides a float's digit tail); sum/avg
+    carry the accumulation and the 6-place half-up round."""
+    with demo_db.cursor() as cur:
+        cur.execute(
+            "SELECT data #>> '{field_1}', jsonb_typeof(data #> '{field_1}') "
+            "FROM demo.records WHERE collection = 'noun:Sample'"
+        )
+        rows = cur.fetchall()
+    texts = [t for t, ty in rows if ty == "number"]
+    # The case must not hold vacuously: plenty of contributing rows, and
+    # genuinely fractional values (the seed writes round(uniform, 4)).
+    assert len(rows) == 2000, f"noun:Sample is {len(rows)} rows, expected 2000"
+    assert len(texts) >= 100, f"only {len(texts)} numeric field_1 values"
+    assert any("." in t for t in texts), "no fractional field_1 value at all"
+
+    vals = [Decimal(t) for t in texts]  # the exact digits the DB stores
+    with localcontext(evaluate._ARITH):
+        total = Decimal(0)
+        for v in vals:
+            total += v
+        expected = {
+            "sum": q6(total),
+            "avg": q6(total / Decimal(len(vals))),
+            "min": min(vals),
+            "max": max(vals),
+        }
+
+    # And the values must be able to EXPOSE a float parse: the extremes'
+    # float round-trips print different digits (else min/max prove nothing).
+    for extreme in (expected["min"], expected["max"]):
+        assert str(Decimal(float(extreme))) != str(extreme), (
+            f"{extreme} is float-exact; this seed cannot distinguish "
+            f"Decimal(text) from Decimal(float) here"
+        )
+
+    for fn, want in expected.items():
+        body = app_client.post("/api/pick", json=_sample_pick(fn)).json()
+        assert body["accepted"] is True, (fn, body.get("refusal"))
+        sql_cell = body["panes"]["sql"]["rows"][0]["c"][0]
+        py_cell = body["panes"]["python"]["rows"][0]["c"][0]
+        assert sql_cell == py_cell == str(want), (
+            f"{fn}: SQL pane {sql_cell!r}, Python pane {py_cell!r}, "
+            f"independent exact answer {want!r}"
+        )
+        assert body["verdict"] == "agree", fn

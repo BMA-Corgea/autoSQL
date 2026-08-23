@@ -1049,3 +1049,997 @@ def test_b21s_checker_would_actually_catch_one(tmp_path):
         f"This machine has no {client}.\n\n```\nrun-demo up\n```\n"
     )
     assert client not in _code_text(innocent_markdown)
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# AC-32 (round-1 review) — nothing the page loads reaches another host
+# ═════════════════════════════════════════════════════════════════════════
+#
+# WHAT WENT WRONG, AND WHY THE GUARD THAT EXISTED COULD NOT SEE IT
+# -------------------------------------------------------------------------
+# `demo/vendor/styles/watery.css:8` is a live `@import url(…)` pointing at
+# Google's font service.  `demo/static/index.html` links that sheet, a
+# browser fetches an applied sheet's `@import` unconditionally, and the app
+# served the file verbatim — so every page load of a demo presented as
+# fully offline went out to another host.  No Content-Security-Policy
+# stopped it and no service worker intercepted it.
+#
+# The guard that was supposed to stop this
+# (`test_ui.py::test_nothing_on_the_page_is_fetched_from_another_host`)
+# read exactly two files BY NAME — `index.html` and `demo.css` — neither of
+# which has ever contained the string it searches for.  It was structurally
+# incapable of failing on the file that broke the promise.  The assertion
+# was not wrong; the SCOPE was.  A hand-listed pair of files is a guess
+# about where the violation will be, and the violation was elsewhere.
+#
+# WHAT THIS ONE DOES INSTEAD
+# -------------------------------------------------------------------------
+# It reads no list of files.  It starts at `GET /` and FOLLOWS what the
+# screen actually loads — the stylesheets it links, the `@import`s and
+# `url(…)`s inside those, the two bundles, the sprite the bundles resolve,
+# the fonts `demo.css` declares — fetching every one THROUGH THE APP, so
+# what is scanned is the bytes on the wire rather than the bytes on disk.
+#
+# That distinction is the whole point, twice over.  It is why this test can
+# see the vendored `@import` at all (it lives on disk in a file this
+# project may not edit — D1 vendors `watery.css` byte-identical from GIMS
+# and `demo/manifest.json` pins its digest), and it is why it can confirm
+# the fix (which happens on the wire, in the serving layer that composes
+# what goes out: `demo/server/app.py :: offline_css`).
+#
+# THE RULE, AND WHY IT IS COARSER THAN THE PROPERTY
+# -------------------------------------------------------------------------
+# No TEXT asset the page loads may contain any URL that names a host —
+# `scheme://host…` or `//host…` — in ANY position at all.  Not "no URL in a
+# fetching position": deciding whether a string literal buried in minified
+# JavaScript is an argument to `fetch` is a judgement call, and a guard
+# that has to make judgement calls about 140 KB of minified React is a
+# guard nobody can check.  A substring rule cannot be argued past.  The
+# price is that the handful of literals which genuinely are NOT addresses
+# have to be named — and naming six of them once, with each one's
+# inertness proved rather than asserted, is the cheaper half of the trade.
+#
+# TWO CARVE-OUTS, BOTH NARROW AND BOTH CHECKED
+# -------------------------------------------------------------------------
+#   BINARY assets are not scanned.  `inter-latin-ext.woff2` contains the
+#   two bytes `//` three times by coincidence — it is a compressed font,
+#   not a document, and no browser follows a URL out of one.  The carve-out
+#   is decided by the CONTENT TYPE THE APP SERVED, not by file extension,
+#   and a test below pins the not-scanned set to exactly the two fonts, so
+#   it cannot quietly widen to cover a stylesheet.
+#
+#   LOOPBACK is not "another host".  `127.0.0.1`/`localhost`/`[::1]` cannot
+#   leave the machine, and AC-32 is about the network.  Nothing served uses
+#   one today; a test below says so, so the exemption stays visible.
+
+import html.parser  # noqa: E402
+import urllib.parse  # noqa: E402
+
+#: The host the vendored sheet imports from, written split for the reason
+#: `_AC3_FORBIDDEN` above is written split: this file is inside the demo
+#: tree, and a sweep for off-host addresses must not find its own guard.
+_GOOGLE_FONTS_HOST = "fonts." "googleapis.com"
+
+#: A URL that names a host to go to.  `data:`, `about:blank`, `mailto:` and
+#: every relative path have no authority component and are not matched.
+_URL_WITH_A_HOST = re.compile(
+    r"""
+      [a-z][a-z0-9+.\-]* :// [^\s"'`)<>\\]+          # scheme://host/…
+    | (?<![A-Za-z0-9_.\-])
+      // [A-Za-z0-9][A-Za-z0-9.\-]*\.[A-Za-z]{2,}    # //host/…  (dotted)
+      [^\s"'`)<>\\]*
+    """,
+    re.I | re.X,
+)
+
+#: Hosts that cannot leave this machine.
+_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "[::1]", "::1", "0.0.0.0")
+
+#: The URLs that appear in what the page loads and are NOT addresses to
+#: fetch.  Each is here with the reason it is inert, and each reason is
+#: proved mechanically by
+#: `test_ac32_every_named_inert_literal_is_still_there_and_still_inert`
+#: below, and by the fetching-position check under it, which applies to
+#: every off-host URL whether it is on this list or not — an allowlist
+#: nobody re-checks is how the next one gets in.
+_INERT_NOT_AN_ADDRESS = {
+    # The five XML namespace IDENTIFIERS.  A namespace URI is a name, not a
+    # location: `createElementNS`/`setAttributeNS` compare it as a string
+    # and no user agent has ever dereferenced one.  React carries all five;
+    # the two SVG sprites carry the first as their `xmlns`.
+    "http://www.w3.org/2000/svg": "XML namespace identifier",
+    "http://www.w3.org/1999/xhtml": "XML namespace identifier",
+    "http://www.w3.org/1998/Math/MathML": "XML namespace identifier",
+    "http://www.w3.org/1999/xlink": "XML namespace identifier",
+    "http://www.w3.org/XML/1998/namespace": "XML namespace identifier",
+    # React's minified-error text.  React concatenates this into the
+    # MESSAGE of an Error it throws, for a developer to paste into a
+    # browser by hand; nothing in React fetches it.
+    "https://reactjs.org/docs/error-decoder.html?invariant=":
+        "an address printed inside an error message, never fetched",
+}
+
+#: The syntax that turns a string into a request.  Matched against the
+#: characters IMMEDIATELY BEFORE a URL, which is where every one of these
+#: puts it — `fetch("…`, `new WebSocket("…`, `src="…`, `.href = "…`.
+#:
+#: This is the check that carries the allowlist above.  Proving a minified
+#: literal is "used as a namespace" by looking for nearby words does not
+#: work — minified React puts three namespace comparisons in one 200-byte
+#: stretch and a fourth 400 bytes from anything recognisable — and a window
+#: widened until it passes is not a check.  Proving it is NOT in a fetching
+#: position does work, is exact, and is the property AC-32 actually needs.
+_FETCHING_POSITION = re.compile(
+    r"""
+      (?: fetch | importScripts | sendBeacon | XMLHttpRequest | EventSource
+        | WebSocket | Worker | SharedWorker | import | require | open | load )
+      \s*\(\s*["'`]\s*$
+    | (?: src | href | action | data | poster | srcset | formaction
+        | \bxlink:href )
+      \s*=\s*["'`]?\s*$
+    | (?: @import\s+ )? url\(\s*["'`]?\s*$
+    | @import\s+["'`]\s*$
+    """,
+    re.I | re.X,
+)
+
+
+def _fetching_positions(text: str) -> list[tuple[str, str]]:
+    """Every off-host URL in `text` that something is about to FETCH."""
+    caught = []
+    for m in _URL_WITH_A_HOST.finditer(text):
+        before = text[max(0, m.start() - 80):m.start()]
+        if _FETCHING_POSITION.search(before):
+            caught.append((m.group(0), before[-40:]))
+    return caught
+
+
+def _off_host_urls(text: str) -> list[str]:
+    """Every URL in `text` that names a host other than this machine."""
+    found = []
+    for m in _URL_WITH_A_HOST.finditer(text):
+        url = m.group(0)
+        host = urllib.parse.urlsplit(
+            url if "://" in url else "http:" + url
+        ).hostname or ""
+        if host in _LOOPBACK_HOSTS:
+            continue
+        found.append(url)
+    return found
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Following what the screen loads, rather than listing it
+# ─────────────────────────────────────────────────────────────────────────
+
+#: Elements whose attribute below makes the browser FETCH something as part
+#: of loading the page.  `<a href>` and `<form action>` are navigation, not
+#: loading, and are checked for off-host targets without being followed.
+_LOADS_A_SUBRESOURCE = {
+    "link": ("href",),
+    "script": ("src",),
+    "img": ("src", "srcset"),
+    "source": ("src", "srcset"),
+    "image": ("href", "xlink:href"),
+    "use": ("href", "xlink:href"),
+    "video": ("src", "poster"),
+    "audio": ("src",),
+    "track": ("src",),
+    "embed": ("src",),
+    "object": ("data",),
+    "iframe": ("src",),
+}
+
+_NAVIGATES = {"a": ("href",), "form": ("action",), "area": ("href",)}
+
+
+class _SubresourceCollector(html.parser.HTMLParser):
+    """Every reference an HTML (or SVG) document makes."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.loads: list[str] = []
+        self.navigates: list[str] = []
+        self.inline_style = False
+        self.styles: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        got = {k.lower(): (v or "") for k, v in attrs}
+        for attr in _LOADS_A_SUBRESOURCE.get(tag, ()):
+            if got.get(attr):
+                self.loads.extend(
+                    p.strip().split(" ")[0]
+                    for p in got[attr].split(",") if p.strip()
+                )
+        for attr in _NAVIGATES.get(tag, ()):
+            if got.get(attr):
+                self.navigates.append(got[attr])
+        if got.get("style"):
+            self.styles.append(got["style"])
+        if tag == "style":
+            self.inline_style = True
+
+    def handle_endtag(self, tag):
+        if tag == "style":
+            self.inline_style = False
+
+    def handle_data(self, data):
+        if self.inline_style:
+            self.styles.append(data)
+
+
+#: `@import url(…)` / `@import "…"`, and every other `url(…)`.  Quoted
+#: forms are matched as whole strings so that a semicolon INSIDE the URL
+#: (the Google Fonts one has four, in `wght@300;400;…`) cannot end the
+#: at-rule early and leave half an address behind.
+_CSS_AT_IMPORT = re.compile(
+    r"""@import\s+
+        (?: url\(\s* (?: '(?P<a>[^']*)' | "(?P<b>[^"]*)" | (?P<c>[^)\s]*) ) \s*\)
+          | '(?P<d>[^']*)' | "(?P<e>[^"]*)" )
+        [^;]*;?""",
+    re.I | re.X,
+)
+_CSS_URL = re.compile(
+    r"""url\(\s* (?: '(?P<a>[^']*)' | "(?P<b>[^"]*)" | (?P<c>[^)\s]*) ) \s*\)""",
+    re.I | re.X,
+)
+
+#: Same-origin asset paths written as string literals in the bundles —
+#: how `demo/vendor/ui.jsx`'s `Icon` resolves `/static/icons.svg#i-…` and
+#: how `app.jsx` names `/static/icons-demo.svg`.  Followed so that an asset
+#: only JavaScript knows about is still scanned.
+_JS_ASSET_PATH = re.compile(r"""["'`](/(?:static|vendor)/[A-Za-z0-9._/\-]+)""")
+
+
+def _target(m: re.Match) -> str:
+    for name in ("a", "b", "c", "d", "e"):
+        try:
+            value = m.group(name)
+        except IndexError:
+            continue
+        if value is not None:
+            return value.strip()
+    return ""
+
+
+def _references_in(content_type: str, text: str) -> list[str]:
+    """Every reference one served asset makes to another."""
+    kind = content_type.split(";")[0].strip().lower()
+    refs: list[str] = []
+    if kind in ("text/html", "image/svg+xml", "application/xhtml+xml"):
+        collector = _SubresourceCollector()
+        collector.feed(text)
+        refs.extend(collector.loads)
+        for style in collector.styles:
+            refs.extend(_target(m) for m in _CSS_AT_IMPORT.finditer(style))
+            refs.extend(_target(m) for m in _CSS_URL.finditer(style))
+    elif kind == "text/css":
+        refs.extend(_target(m) for m in _CSS_AT_IMPORT.finditer(text))
+        refs.extend(_target(m) for m in _CSS_URL.finditer(text))
+    elif kind in ("text/javascript", "application/javascript"):
+        refs.extend(_JS_ASSET_PATH.findall(text))
+    return [r for r in refs if r and not r.startswith(("#", "data:", "about:"))]
+
+
+def what_the_page_loads(fetch) -> dict[str, tuple[str, bytes]]:
+    """Walk out from `/`, following every reference, and return what came
+    back: url → (content type, body).
+
+    `fetch(url)` returns `(status, content_type, body)`.  It is a parameter
+    rather than a hard-wired client so that the detector test below can run
+    this exact walk over a server that answers with a re-introduced remote
+    URL — the machinery under test is then the real one, not a copy of it.
+    """
+    served: dict[str, tuple[str, bytes]] = {}
+    queue = ["/"]
+    while queue:
+        url = queue.pop(0)
+        base = url.split("#")[0]
+        if base in served:
+            continue
+        status, content_type, body = fetch(base)
+        assert status == 200, (
+            f"the page loads {base}, and this app answers {status} for it — "
+            "a screen with a broken reference is not a screen that passes"
+        )
+        served[base] = (content_type, body)
+        try:
+            text = body.decode("utf-8")
+        except UnicodeDecodeError:
+            continue  # binary: nothing to follow out of it
+        for ref in _references_in(content_type, text):
+            if _off_host_urls(ref):
+                continue  # reported as a violation, not followed off-host
+            queue.append(urllib.parse.urljoin(base, ref).split("#")[0])
+    return served
+
+
+def _text_assets(served: dict) -> dict[str, str]:
+    """The served assets that are documents, and can therefore carry an
+    address a browser would follow."""
+    out = {}
+    for url, (content_type, body) in served.items():
+        kind = content_type.split(";")[0].strip().lower()
+        if kind.startswith("font/") or kind in ("application/font-woff2",
+                                                "application/octet-stream"):
+            continue
+        try:
+            out[url] = body.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+    return out
+
+
+@pytest.fixture(scope="module")
+def served_page():
+    """Everything `GET /` pulls in, as this app actually serves it."""
+    from fastapi.testclient import TestClient
+
+    from demo.server import app as server_app
+
+    client = TestClient(server_app.app)
+
+    def fetch(url):
+        r = client.get(url)
+        return r.status_code, r.headers.get("content-type", ""), r.content
+
+    return what_the_page_loads(fetch)
+
+
+def test_ac32_the_walk_reaches_everything_the_screen_actually_loads(served_page):
+    """The scope, proved rather than assumed.
+
+    The old guard passed because it looked at two files.  A walk that
+    silently followed nothing would pass the same way, so the walk states
+    what it must have reached — and reaching it is the test.
+    """
+    reached = set(served_page)
+    required = {
+        "/",
+        "/vendor/styles/watery.css",
+        "/vendor/styles/dashboard.css",
+        "/vendor/styles/shell.css",
+        "/vendor/styles/components.css",
+        "/static/demo.css",
+        "/static/js/vendor.js",
+        "/static/js/app.js",
+        "/static/fonts/inter-latin.woff2",
+        "/static/fonts/inter-latin-ext.woff2",
+        "/static/icons.svg",
+        "/static/icons-demo.svg",
+    }
+    missing = sorted(required - reached)
+    assert not missing, (
+        "the AC-32 walk did not reach these, so nothing checked them:\n  "
+        + "\n  ".join(missing)
+        + "\nEither the screen stopped loading them or the walk stopped "
+          "following the syntax that pulls them in."
+    )
+
+
+def test_ac32_nothing_the_page_loads_names_another_host(served_page):
+    """AC-32.  Every byte the screen pulls in, over every asset it pulls
+    in, as served — a screen that only looks right online is a screen that
+    is wrong."""
+    findings = []
+    for url, text in sorted(_text_assets(served_page).items()):
+        for found in _off_host_urls(text):
+            if found in _INERT_NOT_AN_ADDRESS:
+                continue
+            line = text[:text.index(found)].count("\n") + 1
+            findings.append(f"{url}:{line} — {found}")
+    assert findings == [], (
+        "AC-32 violated — the screen reaches another host. These are the "
+        "addresses, in what this app actually served:\n  "
+        + "\n  ".join(findings)
+        + "\nIf the file carrying it is under demo/vendor/ it may not be "
+          "edited (D1, and demo/manifest.json pins its digest): remove it "
+          "in the layer that SERVES the file — demo/server/app.py :: "
+          "offline_css — the way watery.css's @import is removed."
+    )
+
+
+def test_ac32_only_the_fonts_are_left_unscanned(served_page):
+    """The binary carve-out, pinned.  A stylesheet that started arriving as
+    `application/octet-stream` would otherwise skip the sweep entirely."""
+    scanned = set(_text_assets(served_page))
+    unscanned = sorted(set(served_page) - scanned)
+    assert unscanned == [
+        "/static/fonts/inter-latin-ext.woff2",
+        "/static/fonts/inter-latin.woff2",
+    ], (
+        "the set of assets AC-32's sweep does not read has changed. Only "
+        "the two committed woff2 files belong here — a font is not a "
+        f"document. Now unscanned: {unscanned}"
+    )
+
+
+def test_ac32_the_page_uses_no_absolute_url_at_all_not_even_loopback(served_page):
+    """The loopback exemption, kept visible.  `http://127.0.0.1:8787/…`
+    would not break AC-32 — it cannot leave the machine — but nothing the
+    screen loads uses one, and an exemption nobody watches is how the next
+    absolute URL gets in."""
+    with_absolute = {
+        url: [m.group(0) for m in _URL_WITH_A_HOST.finditer(text)
+              if m.group(0) not in _INERT_NOT_AN_ADDRESS]
+        for url, text in _text_assets(served_page).items()
+    }
+    offenders = {u: v for u, v in with_absolute.items() if v}
+    assert offenders == {}, (
+        "the screen has started using an absolute URL where a relative "
+        f"path would do: {offenders}"
+    )
+
+
+def test_ac32_nothing_the_page_loads_is_about_to_fetch_an_off_host_url(served_page):
+    """The allowlist cannot be used to smuggle a real request in.
+
+    The sweep above lets six literals through by NAME.  This one lets
+    nothing through: named or not, no off-host URL in anything the page
+    loads may sit where the next thing that happens to it is a request.
+    An entry on the allowlist that turned into a `fetch("…` argument
+    tomorrow fails here even though its text has not changed.
+    """
+    findings = []
+    for url, text in sorted(_text_assets(served_page).items()):
+        for found, before in _fetching_positions(text):
+            findings.append(f"{url} — {found}   (after: …{before})")
+    assert findings == [], (
+        "something the page loads is about to fetch another host:\n  "
+        + "\n  ".join(findings)
+    )
+
+
+def test_ac32_every_named_inert_literal_is_still_there_and_still_inert(served_page):
+    """The allowlist, re-earned rather than trusted (plan §8.2's rule).
+
+    Two ways an allowlist rots: an entry stops being true, or an entry
+    stops being NEEDED and stays on as cover for the next one.  Both fail
+    here — the first via the fetching-position check above, applied per
+    literal; the second because a literal nothing carries any more must be
+    deleted rather than left lying about.
+
+    React's error address gets one extra assertion of its own: it is not
+    merely "not fetched", it is spliced into a string.  Every occurrence is
+    immediately followed by `"+`, which is React concatenating the invariant
+    number onto it to build the text of an Error it is about to throw.
+    """
+    text_by_url = _text_assets(served_page)
+    everything = "\n".join(text_by_url.values())
+    for literal in sorted(_INERT_NOT_AN_ADDRESS):
+        assert literal in everything, (
+            f"{literal!r} is named inert above but nothing the page loads "
+            "contains it any more. Delete the entry — an allowlist longer "
+            "than it needs to be is cover for the next entry."
+        )
+        for url, text in text_by_url.items():
+            start = 0
+            while (at := text.find(literal, start)) != -1:
+                start = at + len(literal)
+                before = text[max(0, at - 80):at]
+                assert not _FETCHING_POSITION.search(before), (
+                    f"{url} is about to fetch {literal!r}: …{before[-40:]}"
+                )
+
+    react = "https://reactjs.org/docs/error-decoder.html?invariant="
+    bundle = text_by_url["/static/js/vendor.js"]
+    start = 0
+    seen = 0
+    while (at := bundle.find(react, start)) != -1:
+        start = at + len(react)
+        seen += 1
+        assert bundle[at + len(react):at + len(react) + 2] == '"+', (
+            "React's error address is no longer being concatenated into a "
+            "message. Re-read what it has become before trusting it."
+        )
+    assert seen == 1, f"expected one occurrence, found {seen}"
+
+
+def test_ac32_the_vendored_sheet_is_still_the_reason_this_exists(served_page):
+    """The strip, proved load-bearing from both sides (plan §8.2).
+
+    On disk the vendored sheet still carries the off-host `@import` — it
+    must, D1 pins it byte-identical to GIMS's own and `test_vendor.py`
+    checks the digest.  On the wire it does not.  Remove the serving-layer
+    strip and this fails; re-vendor a sheet that no longer has the import
+    and this fails too, saying so, rather than leaving dead machinery in
+    place that nobody notices has stopped mattering.
+    """
+    on_disk = (_DEMO_DIR / "vendor" / "styles" / "watery.css").read_text()
+    assert _GOOGLE_FONTS_HOST in on_disk, (
+        "demo/vendor/styles/watery.css no longer imports a remote font. "
+        "Good news — but demo/server/app.py's offline_css and this whole "
+        "section now guard nothing. Check whether they are still needed."
+    )
+    served = served_page["/vendor/styles/watery.css"][1].decode("utf-8")
+    assert _GOOGLE_FONTS_HOST not in served, (
+        "the vendored sheet is being served verbatim again — the strip in "
+        "demo/server/app.py :: offline_css is not applying, and every page "
+        "load goes out to another host"
+    )
+    from demo.server import app as server_app
+    assert server_app.STRIPPED_FROM_VENDORED_CSS.get("watery.css"), (
+        "nothing was recorded as stripped, so the sheet either changed or "
+        "the route stopped running"
+    )
+
+    # And the self-hosted face the strip leaves behind really is served.
+    inter = served_page["/static/demo.css"][1].decode("utf-8")
+    assert "@font-face" in inter and "fonts/inter-latin.woff2" in inter, (
+        "the remote Inter is gone and the local one is not there — the "
+        "screen would fall back to a system face (D11)"
+    )
+
+
+def test_ac32_the_sweep_would_actually_catch_a_reintroduced_remote_url():
+    """The detector, watched catching something (plan §8.2).
+
+    The real walk, over a server that answers exactly as this one does
+    except that four assets have grown an off-host reference — one per
+    syntax that actually fetches.  The old guard would have caught none of
+    these four: three of them are in files it never opened.
+    """
+    from fastapi.testclient import TestClient
+
+    from demo.server import app as server_app
+
+    client = TestClient(server_app.app)
+    cdn = "https://" + "cdn.example" + ".invalid"
+    planted = {
+        # a stylesheet the page links, but not one the old guard read
+        "/vendor/styles/dashboard.css": f"@import url('{cdn}/x.css');\n",
+        # the demo's own sheet, via a declaration rather than an at-rule
+        "/static/demo.css": f".x {{ background: url({cdn}/bg.png); }}\n",
+        # the page itself
+        "/": f'<link rel="stylesheet" href="{cdn}/y.css">\n',
+        # a committed bundle
+        "/static/js/app.js": f'\nvar t = "{cdn}/beacon.gif";\n',
+    }
+    for url, injected in planted.items():
+        def fetch(u, _url=url, _injected=injected):
+            r = client.get(u)
+            body = r.content
+            if u == _url:
+                body = _injected.encode() + body
+            return r.status_code, r.headers.get("content-type", ""), body
+
+        served = what_the_page_loads(fetch)
+        caught = {
+            u: [f for f in _off_host_urls(text)
+                if f not in _INERT_NOT_AN_ADDRESS]
+            for u, text in _text_assets(served).items()
+        }
+        caught = {u: f for u, f in caught.items() if f}
+        assert caught, (
+            f"the AC-32 sweep MISSED an off-host URL planted in {url} — "
+            "this is the exact shape of the defect it exists to catch"
+        )
+        assert url in caught, (
+            f"the sweep fired, but not on {url} (it reported {sorted(caught)}) "
+            "— the walk is not reaching the asset that was poisoned"
+        )
+
+        # Three of the four also sit in a fetching position, and the
+        # narrower check must see those three.  The fourth — a bare string
+        # in a bundle — does NOT, and that asymmetry is the whole argument
+        # for the substring rule being the primary one: the narrow check
+        # is exact where it applies and blind where it does not.
+        fetching = _fetching_positions(_text_assets(served)[url])
+        if url == "/static/js/app.js":
+            assert not fetching, (
+                "a bare string literal is not a fetching position; if this "
+                "started matching, the position check has become loose"
+            )
+        else:
+            assert fetching, (
+                f"the fetching-position check MISSED the URL planted in "
+                f"{url}, which really is about to be fetched"
+            )
+
+    # …and does not fire on the page as it really is.
+    def honest(u):
+        r = client.get(u)
+        return r.status_code, r.headers.get("content-type", ""), r.content
+
+    real = what_the_page_loads(honest)
+    assert not [
+        f for t in _text_assets(real).values() for f in _off_host_urls(t)
+        if f not in _INERT_NOT_AN_ADDRESS
+    ], "the sweep fires on the page as it really is — it is not usable"
+
+
+def test_ac32_nothing_the_demo_runs_reaches_out_at_run_time():
+    """The other half of the offline promise: no CDN, no telemetry, no
+    package index, in anything `up` or `test` executes.
+
+    The sweep above covers what the BROWSER loads.  This covers what the
+    machine runs: no module the demo imports carries an outbound HTTP or
+    socket client, and the one install the demo performs is fenced with
+    `--no-index` (B20).  `run-demo build-ui` is out of scope on purpose and
+    that is checked, not assumed: it is a developer verb that says in its
+    own usage line that only it uses the network, and `up`/`test` never
+    call it.
+    """
+    outbound = {
+        "urllib.request", "urllib.error", "http.client", "requests",
+        "httpx", "aiohttp", "socket", "ftplib", "smtplib", "telnetlib",
+        "xmlrpc.client", "webbrowser",
+    }
+    findings = []
+    for path in sorted(_DEMO_DIR.rglob("*.py")):
+        if _SKIP_DIRECTORIES & set(path.parts):
+            continue
+        if "tests" in path.relative_to(_DEMO_DIR).parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(), filename=str(path))):
+            names = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module]
+            for name in names:
+                root = name.split(".")[0]
+                if name in outbound or root in outbound:
+                    findings.append(
+                        f"{path.relative_to(_REPO_ROOT)}:{node.lineno} — {name}"
+                    )
+    assert findings == [], (
+        "something the demo runs imports an outbound network client:\n  "
+        + "\n  ".join(findings)
+    )
+
+    launcher = (_REPO_ROOT / "run-demo").read_text().splitlines()
+    installs = [
+        (n, line) for n, line in enumerate(launcher, start=1)
+        if re.search(r"\bpip\b.*\binstall\b", line) and not line.lstrip().startswith("#")
+    ]
+    assert installs, "no pip install found in run-demo — has the launcher moved?"
+    for n, line in installs:
+        assert "--no-index" in line, (
+            f"run-demo:{n} installs without --no-index (B20), so the demo "
+            f"can reach a package index at run time: {line.strip()}"
+        )
+
+    # Every `npm` in the launcher is inside build_ui(), the one verb that
+    # says it uses the network — asserted by which function encloses it.
+    enclosing = None
+    npm_lines = []
+    for n, line in enumerate(launcher, start=1):
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\(\)\s*\{", line)
+        if m:
+            enclosing = m.group(1)
+        if re.search(r"(?<![A-Za-z_-])npm\s", line) and not line.lstrip().startswith("#"):
+            npm_lines.append((n, enclosing, line.strip()))
+    for n, where, line in npm_lines:
+        assert where == "build_ui", (
+            f"run-demo:{n} runs npm from {where!r}, not from build_ui — "
+            f"`up` and `test` must not touch the network: {line}"
+        )
+
+
+def test_ac32_the_page_carries_a_policy_that_names_no_other_host(served_page):
+    """The second fence.
+
+    The sweep above proves nothing the page loads TODAY reaches another
+    host.  The Content-Security-Policy proves the browser would refuse one
+    tomorrow, in the window between a mistake landing and this suite
+    running — which for a demo shown on an employer's network is the
+    window that matters.  Its one `'unsafe-inline'` is for style only and
+    grants no origin: React writes `element.style` directly and the policy
+    has to allow that; what it must never allow is another host.
+    """
+    page = served_page["/"][1].decode("utf-8")
+    m = re.search(
+        r"""<meta\s+http-equiv=(?P<q>["'])Content-Security-Policy(?P=q)\s+"""
+        r"""content=(?P<r>["'])(?P<policy>.*?)(?P=r)""",
+        page, re.I | re.X | re.S,
+    )
+    assert m, (
+        "the page carries no Content-Security-Policy. Without one, a "
+        "remote reference that slips into any asset is fetched — which is "
+        "exactly how watery.css:8 went out on every page load."
+    )
+    policy = m.group("policy")
+    directives = {
+        part.split()[0]: part.split()[1:]
+        for part in (p.strip() for p in policy.split(";")) if part
+    }
+    for directive in ("default-src", "script-src", "style-src", "font-src",
+                      "img-src", "connect-src"):
+        assert directive in directives, f"{directive} is not in the policy"
+        sources = directives[directive]
+        assert "'self'" in sources, f"{directive} does not allow this host"
+        for source in sources:
+            assert source in ("'self'", "'unsafe-inline'", "data:", "'none'"), (
+                f"{directive} allows {source!r} — the policy is supposed to "
+                "name no host but this one, and a wildcard or an origin "
+                "here undoes AC-32"
+            )
+    assert directives.get("style-src") == ["'self'", "'unsafe-inline'"], (
+        "style-src has changed; 'unsafe-inline' is deliberate and narrow "
+        "and any other relaxation needs its own reason"
+    )
+    assert "'unsafe-inline'" not in directives.get("script-src", []), (
+        "script-src must not allow inline script: the bundles are "
+        "committed files served from this host (B19)"
+    )
+    assert not _off_host_urls(policy), (
+        f"the policy itself names another host: {_off_host_urls(policy)}"
+    )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Plan §8.1 row 3 (round-1 review) — there is no tolerance, anywhere
+# ═════════════════════════════════════════════════════════════════════════
+#
+# Row 3 of the plan's risk table, verbatim:
+#
+#   "A near miss hides inside a tolerance.  An absolute difference
+#    compared against a tiny negative exponent swallows a real difference
+#    … There is no tolerance anywhere in this suite.
+#    §7.2's exact-decimal rule makes every compared number a
+#    Decimal/numeric rounded half-up to 6 places, so comparison is `==`.
+#    A GREP TEST FAILS THE BUILD if math.isclose, pytest.approx, an
+#    absolute-difference-under-an-epsilon comparison, or a rel_/abs_
+#    tolerance keyword appears anywhere under `demo/`.  Row 3 writes those
+#    four out as literal needles; every one of them is written SPLIT below,
+#    because this file is inside `demo/` and is swept by its own check.
+#    A tolerance is not a testing convenience here; it is
+#    the mechanism by which the defect this demo exists to show would be
+#    hidden."
+#
+# §8.3 restates it in one line: "No tolerance. §8.1 row 3, enforced by
+# grep."  The grep was never written.  The round-1 review checked by hand
+# that the property holds today and found it does — which is the point: a
+# rule that holds by discipline holds until the day it does not, and this
+# demo's whole subject is a wrong number that runs clean.  A tolerance is
+# the one edit that would make the demo's own control stop being able to
+# see the thing it exists to see.
+#
+# WIDER THAN THE FOUR SPELLINGS, AND WHY  (a scope decision, recorded)
+# -------------------------------------------------------------------------
+# Row 3 names four spellings.  The CONTRACT it is enforcing is "no numeric
+# tolerance anywhere in the comparison path", and four spellings are not
+# the four ways a tolerance gets in — `unittest`'s own assertion takes one
+# as `places=`, `numpy` spells the same keywords r/a + tol, and any
+# module's `isclose` does the same job as `math`'s.  A guard that caught
+# only the four named spellings would let the next one through and report
+# green, which is exactly the failure mode the review found in AC-32's
+# guard two sections up.  So the four are rows 1-4 below and the near
+# neighbours are rows 5-6, and this paragraph is the record that the scope
+# was widened deliberately rather than drifting.
+#
+# WHAT IS NOT SWEPT
+# -------------------------------------------------------------------------
+#   `demo/vendor/wheels/*.whl` — third-party distributions, and `pytest`'s
+#   own wheel necessarily contains its `approx` helper: shipping an API is
+#   not this demo using it, and nothing in these files is on the comparison
+#   path (`run-demo` installs them with --no-index, B20).  The exclusion is
+#   proved to be load-bearing below rather than assumed, the way AC-37's
+#   vendor exclusion is.
+#
+#   `demo/.venv/`, `__pycache__/`, `.pytest_cache/`, `node_modules/` — not
+#   committed at all (`.gitignore`), the same set AC-3's sweep skips.
+#
+# Everything else is in, `demo/vendor/`'s source files included: a
+# tolerance in vendored code the comparison path calls would hide a near
+# miss exactly as well as one written here.
+
+#: The needles, each split across two string literals for the reason
+#: `_AC3_FORBIDDEN` above is split: this file is inside `demo/`, it is
+#: swept by its own check, and it has to be able to WRITE what it looks
+#: for.  Python joins each pair at compile time, so the values at run time
+#: are the real names and the source text is not a hit.
+_ISCLOSE = "iscl" "ose"
+_APPROX = "appr" "ox"
+_ABS = "ab" "s"
+_ALMOST = "Almost" "Equal"
+_ALMOST_SNAKE = "al" "most_equal"
+_TOL = "t" "ol"
+
+#: (name, pattern, what a hit means).  A tolerance is a comparison that
+#: says "close enough"; every row here is one of the ways to write one.
+_TOLERANCE_NEEDLES = (
+    (
+        f"math.{_ISCLOSE}",
+        re.compile(rf"(?:\.|\b){_ISCLOSE}\s*\("),
+        "a relative/absolute closeness test in place of ==",
+    ),
+    (
+        f"pytest.{_APPROX}",
+        re.compile(rf"(?:\.|\b){_APPROX}\s*\(|import[^\n]*\b{_APPROX}\b"),
+        "pytest's tolerance wrapper",
+    ),
+    (
+        f"{_ISCLOSE}/{_APPROX} imported by name",
+        re.compile(rf"from\s+\S+\s+import[^\n]*\b(?:{_ISCLOSE}|{_APPROX})\b"),
+        "the same helpers, brought in under a bare name",
+    ),
+    (
+        "a tolerance keyword",
+        re.compile(rf"\b(?:rel_{_TOL}|{_ABS}_{_TOL}|r{_TOL}|a{_TOL})\s*="),
+        "the keyword arguments that turn == into 'close enough'",
+    ),
+    (
+        f"{_ABS}(…) compared against an epsilon",
+        re.compile(
+            rf"\b{_ABS}\s*\([^()\n]*(?:\([^()\n]*\)[^()\n]*)*\)\s*[<>]=?\s*"
+            rf"[^\s;,)]*(?:\de-\d|eps|epsilon|tol)",
+            re.I,
+        ),
+        "row 3's own example: a difference, under a tiny exponent",
+    ),
+    (
+        f"assert{_ALMOST} and friends",
+        re.compile(rf"assert{_ALMOST}|assertNot{_ALMOST}|{_ALMOST_SNAKE}"),
+        "unittest's tolerance, whose default is seven decimal places",
+    ),
+)
+
+#: Not swept, and each entry's reason is in the block comment above.
+_TOLERANCE_SKIP_DIRECTORIES = {
+    ".venv", "__pycache__", ".pytest_cache", "node_modules", "wheels",
+}
+
+
+def _tolerance_swept_files():
+    """Every file the no-tolerance sweep actually reads."""
+    for path in sorted(_DEMO_DIR.rglob("*")):
+        if not path.is_file():
+            continue
+        if _TOLERANCE_SKIP_DIRECTORIES & set(path.parts):
+            continue
+        yield path
+
+
+def _tolerance_hits(paths):
+    """(path, line number, the line, which needle) for every hit."""
+    hits = []
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue  # a font, a compiled artefact — not a comparison
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for name, pattern, _meaning in _TOLERANCE_NEEDLES:
+                if pattern.search(line):
+                    try:
+                        where = str(path.relative_to(_REPO_ROOT))
+                    except ValueError:
+                        where = str(path)  # a tmp_path file, in the detector
+                    hits.append((where, lineno, line.strip(), name))
+    return hits
+
+
+def test_no_tolerance_anywhere_under_demo():
+    """Plan §8.1 row 3 / §8.3, enforced rather than remembered.
+
+    §7.2's exact-decimal rule makes every compared number a Decimal
+    rounded half-up to six places, so the comparison is `==` and there is
+    nothing a tolerance could be for.  A tolerance appearing here would
+    not be a convenience; it is the one edit that makes this demo's
+    control stop being able to see a subtly wrong number.
+    """
+    files = list(_tolerance_swept_files())
+    assert files, (
+        "the no-tolerance sweep found no files at all — the scope is "
+        "broken, not clean"
+    )
+    hits = _tolerance_hits(files)
+    assert hits == [], (
+        "plan §8.1 row 3 violated — a numeric tolerance is present under "
+        "demo/. Every one of these must go: this demo exists to make a "
+        "subtly wrong number visible, and a tolerance is how such a "
+        "number stops being visible:\n  "
+        + "\n  ".join(f"{p}:{ln}: [{name}] {line}" for p, ln, line, name in hits)
+    )
+
+
+def test_no_tolerance_the_sweep_actually_covers_the_comparison_path():
+    """The scope, proved rather than assumed.
+
+    A sweep that quietly stopped reading the files where a tolerance would
+    matter would pass exactly as this one does.  These are the files the
+    two panes are compared in and the arithmetic they compare.
+    """
+    swept = {p.relative_to(_REPO_ROOT).as_posix() for p in _tolerance_swept_files()}
+    for required in (
+        "demo/pyrunner/evaluate.py",
+        "demo/pyrunner/order.py",
+        "demo/server/app.py",
+        "demo/tests/test_walkthrough.py",
+        "demo/tests/test_decimal.py",
+        "demo/tests/test_isolation.py",
+        "demo/vendor/expr.py",
+    ):
+        assert required in swept, (
+            f"{required} is not in the no-tolerance sweep — either it has "
+            "moved or the scope above is wrong"
+        )
+
+
+def test_no_tolerance_the_wheelhouse_exclusion_is_a_real_finding_not_an_assumption():
+    """The one carve-out, shown to be needed (plan §8.2's rule).
+
+    `pytest` ships its own tolerance helper inside its own wheel.  That is
+    a library offering an API, not this demo using one — but the exclusion
+    only earns its place while the collision is real, and an exclusion
+    that has quietly stopped being needed is cover for the next one.
+    """
+    import zipfile
+
+    wheels = sorted((_DEMO_DIR / "vendor" / "wheels").glob("pytest-*.whl"))
+    assert wheels, "the committed wheelhouse has no pytest wheel — B20 has moved"
+    found = False
+    with zipfile.ZipFile(wheels[0]) as zf:
+        for entry in zf.namelist():
+            if not entry.endswith(".py"):
+                continue
+            try:
+                text = zf.read(entry).decode("utf-8")
+            except (UnicodeDecodeError, KeyError):
+                continue
+            if re.search(rf"(?:\.|\b){_APPROX}\s*\(", text):
+                found = True
+                break
+    assert found, (
+        f"{wheels[0].name} no longer contains a {_APPROX} call. The "
+        "wheelhouse exclusion above may have stopped being needed — "
+        "re-check it rather than leaving it in place."
+    )
+    swept = {p.relative_to(_REPO_ROOT).as_posix() for p in _tolerance_swept_files()}
+    assert not any(p.startswith("demo/vendor/wheels/") for p in swept), (
+        "demo/vendor/wheels/ leaked into the no-tolerance sweep"
+    )
+    # …and the rest of demo/vendor/ did NOT get excluded with it.
+    assert "demo/vendor/expr.py" in swept, (
+        "the wheelhouse exclusion has widened to all of demo/vendor/ — the "
+        "vendored calculator is on the comparison path and must be swept"
+    )
+
+
+def test_no_tolerance_the_grep_would_actually_catch_one(tmp_path):
+    """The detector, watched catching something (plan §8.2).
+
+    Every spelling in the table, once each, written the way someone would
+    actually write it while making a flaky comparison go away — and shown
+    NOT to fire on the exact comparisons this suite really does make,
+    which are exact equalities and the spec's own two sanctioned bands
+    (AC-8's 88-92%, AC-40(a)'s 700-1100).
+    """
+    real_tolerances = [
+        f"assert math.{_ISCLOSE}(sql_total, py_total)",
+        f"assert py_total == pytest.{_APPROX}(sql_total)",
+        f"from pytest import {_APPROX}",
+        f"from math import {_ISCLOSE}",
+        f"assert math.{_ISCLOSE}(a, b, rel_{_TOL}=1e-9)",
+        f"numpy.allclose(a, b, r{_TOL}=1e-05)",
+        f"assert {_ABS}(sql_total - py_total) < 1e-9",
+        f"if {_ABS}(a - b) <= EPSILON: return True",
+        f"assert {_ABS}(float(x) - float(y)) < {_TOL}",
+        f"self.assert{_ALMOST}(sql_total, py_total)",
+    ]
+    for line in real_tolerances:
+        guilty = tmp_path / "guilty.py"
+        guilty.write_text(line + "\n")
+        hits = _tolerance_hits([guilty])
+        assert hits, f"the no-tolerance grep MISSED a real tolerance: {line!r}"
+
+    innocent = [
+        "assert py_total == sql_total",
+        'assert rows[0]["total"] == Decimal("400207.000000")',
+        "assert 88 <= pct <= 92  # AC-8's band, and 861 is asserted exactly",
+        "assert 700 <= elapsed_rows <= 1100  # AC-40(a)'s band",
+        f"width = {_ABS}(left - right)",
+        f"n = {_ABS}(index)",
+        "# the two panes are compared exactly, never approximately",
+        "assert kind == 'numeric' and value == Decimal('1.100000')",
+    ]
+    for line in innocent:
+        clean = tmp_path / "clean.py"
+        clean.write_text(line + "\n")
+        hits = _tolerance_hits([clean])
+        assert not hits, (
+            f"the no-tolerance grep wrongly fired on an exact comparison: "
+            f"{line!r} → {hits}"
+        )

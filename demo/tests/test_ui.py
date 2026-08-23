@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import pathlib
 import sys
 from pathlib import Path
 
@@ -968,10 +969,27 @@ class TestDemoCssIsNotAForkOfWatery:
         assert order == sorted(order)
         assert max(order) < html.index("/static/demo.css")
 
-    def test_nothing_on_the_page_is_fetched_from_another_host(self):
-        """AC-32: a screen that only looks right online is a screen that is
-        wrong.  Inter is self-hosted (D11) precisely because watery.css:8
-        imports it from Google and that import is a silent no-op offline."""
+    def test_these_two_files_alone_are_off_host_clean(self):
+        """A NARROW check, and it says so — it is NOT the AC-32 guard.
+
+        This test used to be named
+        ``test_nothing_on_the_page_is_fetched_from_another_host``, which was
+        a promise it could not keep.  It reads exactly two files, so it was
+        structurally unable to see the one real off-host fetch this build
+        shipped with: ``watery.css:8`` imported Inter from Google on every
+        page load, and this test passed the whole time.  A reviewer later
+        demonstrated the same blind spot by planting a telemetry beacon in
+        ``app.js`` and watching this test report ``1 passed``.
+
+        A test that cannot fail for the reason it was written is worse than
+        no test, because it is *read* as coverage.  So it is renamed to what
+        it actually does, and the real guard — a sweep over every asset the
+        page actually loads, bundles and vendored sheets included — lives in
+        ``test_isolation.py`` and runs in this same suite.
+
+        The last assertion below is the one that matters: it fails if that
+        real sweep is ever deleted, so this narrow check can never quietly
+        become the only thing standing."""
         html = (_STATIC / "index.html").read_text()
         css = _DEMO_CSS.read_text()
         for text, name in ((html, "index.html"), (css, "demo.css")):
@@ -979,6 +997,15 @@ class TestDemoCssIsNotAForkOfWatery:
             assert "//fonts.gstatic.com" not in text, name
             assert "http://" not in text.replace("http://127.0.0.1", ""), name
             assert "https://" not in text, name
+
+        # The real AC-32 sweep must exist. If someone deletes it, this fails
+        # rather than leaving the two-file check above as the only guard.
+        isolation = (pathlib.Path(__file__).parent / "test_isolation.py").read_text()
+        assert "AC-32" in isolation and "ac32" in isolation.lower(), (
+            "test_isolation.py no longer carries the AC-32 off-host sweep. "
+            "This two-file check is NOT a substitute for it — it is the check "
+            "that failed to notice watery.css:8 fetching Inter from Google."
+        )
 
     def test_inter_is_committed_and_declared(self):
         fonts = sorted(p.name for p in (_STATIC / "fonts").glob("*.woff2"))

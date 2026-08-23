@@ -290,7 +290,21 @@ def _compile_expression(src: str, ctx_param: str, column: str) -> Compiled:
     except _expr.ExprError as exc:
         raise gate.Refused(src, f"the expression does not parse: {exc}") from exc
     gate.gate(ast)  # Refused propagates with the construct named
-    return compile_ast(ast, column=column, ctx_param=ctx_param)
+    try:
+        return compile_ast(ast, column=column, ctx_param=ctx_param)
+    except _compile.Uncompilable as exc:
+        # The gate's allowlist is supposed to make this branch unreachable:
+        # every tree it approves is one the pinned compiler compiles.  If
+        # the two ever disagree again (the non-finite literal did exactly
+        # that before the gate grew its finiteness row), the person still
+        # gets a NAMED layer-1 refusal — the doctrine of spec §4.3 / plan
+        # §10.1 — never a bare 500 with an empty body.
+        raise gate.Refused(
+            src,
+            f"the expression passed the gate but the pinned compiler cannot "
+            f"compile it: {exc} — this is a gap between the gate's allowlist "
+            f"and the compiler, worth reporting",
+        ) from exc
 
 
 def _ctx_json(ctx: dict | None) -> str:

@@ -23,13 +23,25 @@ and D1/D2 of `design/t2-demo.md`.
      failing (or not running).
 
 AC-39(c) ("`./run-demo up` completes and answers walkthrough steps 2 and 8
-with both variables pointing at nothing") needs the full stack — the
-database, seed, builder, server and screen (W4/W5/W10/W13/W14) — none of
-which exist yet at W2. It is named explicitly below as `xfail(strict=False,
-run=False)` rather than left out silently, because a suite that quietly
-covers less than it claims is exactly the failure mode §9.7 exists to rule
-out. The real end-to-end proof of AC-39(c) belongs in test_walkthrough.py
-(W17), against expected-answers.json's steps 2 and 8.
+with both variables pointing at nothing") was a `run=False` xfail while the
+stack did not exist (W2).  The stack exists, so it is asserted for real at
+the bottom of this file, in two standing halves: nothing `up` or a pick can
+execute so much as names the tree variables or the checkout paths, and the
+demo answers walkthrough steps 2 and 8 — both panes populated, agreeing,
+against expected-answers.json — with both variables pointed at paths that
+do not exist.  (The one part no in-suite test can re-run is a cold-start
+`./run-demo up` itself: the suite's own stack holds 55440/8787, and `up`
+correctly refuses a taken port.  That cold-start run with the poisoned
+variables is recorded in demo/EVIDENCE.md, Run D; the static half here is
+what keeps it true.)
+
+The round-1 review's refusal findings are also pinned at the bottom of
+this file (this suite's groups are split by owned file, and this is the
+refusals group's test file): the gate's finiteness row, the float8
+runtime refusal, the malformed-pick-shape refusals, and the read-only
+guard on the transaction a pick actually runs in — each asserted to
+refuse BY NAME, because a bare "invalid" (or worse, a bare 500) is the
+defect, not the fix.
 """
 
 from __future__ import annotations
@@ -340,16 +352,329 @@ def test_ac39b_manifest_halves_never_skip() -> None:
         )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "AC-39(c) needs the full stack (database, seed, builder, server, screen — "
-        "W4/W5/W10/W13/W14), none of which exist yet at W2. Named here rather than "
-        "omitted so the gap is visible rather than silent (§9.7's own point). The "
-        "real proof belongs in test_walkthrough.py (W17) against "
-        "demo/expected-answers.json's steps 2 and 8."
-    ),
-    run=False,
-    strict=False,
+#: The two override variables AC-39 is about, and the checkout paths their
+#: defaults resolve to.  If any of these strings appears in something `up`
+#: or a pick can execute, the demo has grown a tree dependency.
+_TREE_NEEDLES = (
+    "AUTOSQL_GIMS_TREE",
+    "AUTOSQL_GUTS_TREE",
+    "GIMS-Project",
+    "gims-ledger",
 )
-def test_ac39c_up_completes_with_both_tree_vars_pointed_at_nothing() -> None:
-    raise NotImplementedError
+
+
+def _files_up_can_execute() -> list[Path]:
+    """Everything `./run-demo up` and a pick can run: the launcher itself
+    and every Python file in the demo tree OUTSIDE demo/tests/ (the tests
+    are exactly where the tree variables are ALLOWED — that is AC-34/AC-35's
+    loud-skip machinery).  demo/.venv is installed third-party code and
+    demo/frontend is `build-ui`'s Node toolchain; neither is the demo's own
+    `up` path."""
+    files = [REPO_ROOT / "run-demo"]
+    for path in sorted(DEMO_ROOT.rglob("*.py")):
+        rel = path.relative_to(DEMO_ROOT)
+        if rel.parts[0] in ("tests", ".venv", "frontend"):
+            continue
+        files.append(path)
+    return files
+
+
+def test_ac39c_nothing_up_runs_can_even_name_a_tree() -> None:
+    """AC-39(c), the standing static half: no file `up` or a pick executes
+    mentions the tree variables or the checkout paths AT ALL, so `./run-demo
+    up`, the seed, the builder and the server cannot depend on a GIMS
+    checkout on any machine — there is no code through which they could.
+
+    This is the half that stays true on the owner's machine, where
+    ../GIMS-Project resolves and a behavioural test alone would pass even
+    if `up` quietly started reading it."""
+    hits: list[str] = []
+    for path in _files_up_can_execute():
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for needle in _TREE_NEEDLES:
+            if needle in text:
+                hits.append(f"{path.relative_to(REPO_ROOT)}: {needle!r}")
+    assert hits == [], (
+        "AC-39(c): the demo itself must never depend on a GIMS checkout, but "
+        "these executable files name one — either remove the dependency or, "
+        "if it belongs to the loud-skip machinery, move it under demo/tests/:\n"
+        + "\n".join(hits)
+    )
+
+
+def test_ac39c_steps_2_and_8_answer_with_both_tree_vars_pointed_at_nothing(
+    monkeypatch,
+) -> None:
+    """AC-39(c), the behavioural half: with AUTOSQL_GIMS_TREE and
+    AUTOSQL_GUTS_TREE pointed at paths that do not exist, the demo answers
+    walkthrough steps 2 and 8 with both panes populated and agreeing,
+    against demo/expected-answers.json — driven through ``run_pick``, the
+    same code ``POST /api/pick`` runs, on a connection guarded the same
+    way (this file cannot re-run a cold-start `up`; see the module
+    docstring)."""
+    monkeypatch.setenv("AUTOSQL_GIMS_TREE", "/nope")
+    monkeypatch.setenv("AUTOSQL_GUTS_TREE", "/also-nope")
+
+    from demo.server import app as server_app
+    from demo.server import db
+
+    expected = json.loads((DEMO_ROOT / "expected-answers.json").read_text())
+    steps = {s["step"]: s["expect"] for s in expected["steps"]}
+
+    conn = db.connect(application_name="autosql-demo-ac39c")
+    try:
+        server_app.refuse_writes(conn)  # what api_pick does before a pick
+
+        # Step 2 — the plain heartbeat select, ORDER BY key.
+        r2 = server_app.run_pick(conn, {"source": "noun:Heartbeat"})
+        assert r2["accepted"], f"step 2 was refused: {r2['refusal']}"
+        assert r2["verdict"] == "agree"
+        assert (
+            r2["comparison"]["compared_rows"]
+            == steps[2]["row_count"]["value"]
+            == 8400
+        )
+        for side, pane in r2["panes"].items():
+            assert pane["state"] == "answered", f"step 2 {side} pane not populated"
+            assert pane["row_count"] == 8400
+            assert pane["rows"], f"step 2 {side} pane page is empty"
+        key_col = r2["panes"]["sql"]["columns"].index("key")
+        assert (
+            r2["panes"]["sql"]["rows"][0]["c"][key_col]
+            == steps[2]["first_key"]["value"]
+        )
+
+        # Step 8 — the 3-point rolling average per sender.
+        r8 = server_app.run_pick(
+            conn,
+            {"source": "noun:Heartbeat", "window": {"field": "$.payload.load"}},
+        )
+        assert r8["accepted"], f"step 8 was refused: {r8['refusal']}"
+        assert r8["verdict"] == "agree"
+        assert (
+            r8["comparison"]["compared_rows"] == steps[8]["row_count"]["value"]
+        )
+        assert "rolling_avg" in r8["panes"]["sql"]["columns"]
+        for side, pane in r8["panes"].items():
+            assert pane["state"] == "answered", f"step 8 {side} pane not populated"
+            assert pane["rows"], f"step 8 {side} pane page is empty"
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Round-1 review, the refusals group — four inputs that produced a bare
+# HTTP 500 (neither layer's refusal, naming nothing), and a read-only
+# guard that did not cover the transaction it claimed to.  Spec §4.3's
+# doctrine, which every test below asserts: WHICHEVER layer refuses, the
+# person sees it, and it names what caused it.
+# ---------------------------------------------------------------------------
+
+
+def _api_pick(body: dict) -> tuple[int, dict]:
+    """One body through the real route function — the same code path an
+    HTTP POST runs, without needing an HTTP client."""
+    from demo.server import app as server_app
+
+    response = server_app.api_pick(body)
+    return response.status_code, json.loads(response.body)
+
+
+def test_gate_refuses_a_non_finite_numeric_literal_by_name() -> None:
+    """The gate's finiteness row (round-1 finding: `1e400` parsed to
+    float('inf'), passed the gate, and the pinned compiler's Uncompilable
+    escaped as a bare 500)."""
+    import gate
+
+    for hostile in (float("inf"), float("-inf"), float("nan"), 10**400):
+        with pytest.raises(gate.Refused) as excinfo:
+            gate.gate(("num", hostile))
+        # Named: the construct is the literal itself, and the rule says
+        # what a number has to be — never a bare "invalid".
+        assert excinfo.value.construct == repr(hostile)
+        assert "finite" in excinfo.value.why
+        assert "invalid" not in excinfo.value.why.lower()
+
+    # The boundary from the other side: real numbers still pass.
+    for fine in (0, 1.5, -2.5, 1e308, -1e308, 2**31):
+        gate.gate(("num", fine))
+
+
+@pytest.mark.parametrize(
+    "expr",
+    ["1e400", "1e309", "$.payload.load * 1e309"],
+)
+def test_an_overflow_literal_is_a_named_layer_1_refusal_not_a_500(expr: str) -> None:
+    """End to end through the route: the review's exact reproductions
+    (`computed [{name: c1, expr: "1e400"}]` and the filter spelling) now
+    answer 422 with a layer-1 refusal naming the literal, where they
+    answered HTTP 500 'Internal Server Error' with an empty body."""
+    status, body = _api_pick(
+        {"pick": {"source": "noun:Heartbeat",
+                  "computed": [{"name": "c1", "expr": expr}]}}
+    )
+    assert status == 422, f"expected a refusal, got HTTP {status}"
+    refusal = body["refusal"]
+    assert refusal is not None
+    assert refusal["layer"] == 1
+    assert refusal["construct"] == "inf"
+    assert "finite" in refusal["why"]
+    assert body["sql"]["statement_sent"] is False
+
+
+def test_float8_overflow_at_runtime_is_a_named_refusal_not_a_500() -> None:
+    """The pinned compiler's recorded divergence
+    (KNOWN_DIVERGENCES.float8_overflow_raises), reachable from the screen:
+    seeded edge-04's g sits just below the range guard, so $.g * $.g
+    passes every gate and overflows float8 INSIDE the statement.  Round-1
+    measured a bare 500; now it is a named runtime refusal, the Python
+    pane still answers, and the next pick is unharmed."""
+    status, body = _api_pick(
+        {"pick": {"source": "noun:EdgeCase",
+                  "computed": [{"name": "sq", "expr": "$.g * $.g"}]}}
+    )
+    assert status == 422, f"expected a refusal, got HTTP {status}"
+    refusal = body["refusal"]
+    assert refusal is not None
+    assert refusal["layer"] == 2
+    assert refusal["kind"] == "runtime"
+    assert refusal["construct"] == "float8 overflow"
+    assert "overflow" in refusal["why"]
+    assert "22003" in refusal["why"]
+    assert "invalid" not in refusal["why"].lower()
+    # The statement really ran — this is not the probe path.
+    assert refusal["sql_existed"] is True
+    assert refusal["statement_sent"] is True
+    # The Python pane answers beside the refusal, labelled (the reported
+    # fallback), because Python's float CAN hold the square.
+    assert body["panes"]["python"]["state"] == "answered"
+    assert body["panes"]["python"]["row_count"] == 10
+    assert body["panes"]["sql"]["state"] == "raised"
+    assert body["panes"]["sql"]["rows"] == []
+
+    # And the crash is a refusal, not poison: the very next pick answers.
+    status2, body2 = _api_pick({"pick": {"source": "noun:Heartbeat"}})
+    assert status2 == 200
+    assert body2["verdict"] == "agree"
+
+
+#: The six malformed shapes round-1 measured as bare 500s, with the
+#: operation each names when refused (DR-2: every malformed input gets a
+#: named refusal).
+_MALFORMED_PICKS = [
+    ({"source": "noun:Heartbeat", "aggregate": "sum"}, 6),
+    ({"source": "noun:Heartbeat", "sort": "ts"}, 4),
+    ({"source": "noun:Heartbeat", "window": "payload.load"}, 8),
+    ({"source": "noun:Heartbeat", "computed": "notalist"}, 2),
+    ({"source": "noun:Heartbeat", "computed": 42}, 2),
+    ({"source": "noun:Heartbeat",
+      "computed": [{"name": "c1", "expr": "2 + 2"}, "stray"]}, 2),
+]
+
+
+@pytest.mark.parametrize("pick,operation", _MALFORMED_PICKS)
+def test_a_malformed_pick_shape_is_a_named_refusal_not_a_500(
+    pick: dict, operation: int
+) -> None:
+    status, body = _api_pick({"pick": pick})
+    assert status == 422, f"expected a refusal, got HTTP {status}"
+    refusal = body["refusal"]
+    assert refusal is not None
+    assert refusal["kind"] == "illegal"
+    named_ops = [v["operation"] for v in refusal["violations"]]
+    assert operation in named_ops, (
+        f"the refusal names operations {named_ops}, not the malformed "
+        f"operation {operation}"
+    )
+    why = refusal["why"]
+    assert why.strip(), "the refusal carries no words at all"
+    assert "invalid" not in why.lower(), (
+        f"a bare 'invalid' is the defect, not the fix: {why!r}"
+    )
+    # The refusal names what the slot actually held, so a reader can act.
+    assert "carries" in why
+
+
+@pytest.mark.parametrize("pick,operation", _MALFORMED_PICKS[:3])
+def test_api_operations_refuses_a_malformed_shape_by_name(
+    pick: dict, operation: int
+) -> None:
+    """The contract route the screen re-derives its controls from: the
+    same malformed shapes, refused in the route's own 422 {detail} form
+    (round-1 measured a bare 500 out of legality's readers)."""
+    from demo.server import app as server_app
+
+    response = server_app.api_operations(json.dumps(pick))
+    assert response.status_code == 422
+    detail = json.loads(response.body)["detail"]
+    assert f"operation {operation}" in detail
+    assert "invalid" not in detail.lower()
+
+
+def test_a_pick_that_is_not_an_object_is_answered_not_crashed() -> None:
+    """{'pick': 'hello'} used to reach normalised_pick's TypeError and die
+    as a 500; a client defect must read as a client defect."""
+    status, body = _api_pick({"pick": "hello"})
+    assert status == 422
+    assert "JSON object" in body["detail"]
+
+
+def test_the_connection_a_pick_runs_on_cannot_write() -> None:
+    """The read-only guard, on the transaction a pick ACTUALLY uses.
+
+    Round-1 measured the defect: db.connect()'s verification reads open a
+    transaction BEFORE api_pick's old `SET SESSION CHARACTERISTICS AS
+    TRANSACTION READ ONLY`, which only affects LATER transactions — so
+    `SHOW transaction_read_only` read `off` and an UPDATE was ACCEPTED on
+    the very transaction every pick ran in.  The seed was protected only
+    by the accident that nothing calls commit().
+
+    This test replicates api_pick's exact sequence — same factory, same
+    application_name, the same refuse_writes() call — and proves a write
+    is refused (a) inside the transaction the pick runs in, and (b) after
+    a rollback, on the next transaction the same connection opens."""
+    from demo.server import app as server_app
+    from demo.server import db
+
+    conn = db.connect(application_name="autosql-demo-pick")
+    try:
+        server_app.refuse_writes(conn)
+
+        # (a) The CURRENT transaction — the one db.connect() already
+        # opened, which the old guard provably did not cover.
+        assert conn.execute("SHOW transaction_read_only").fetchone()[0] == "on"
+        answer = server_app.run_pick(conn, {"source": "noun:Heartbeat"})
+        assert answer["accepted"]
+        with pytest.raises(Exception) as excinfo:
+            conn.execute("UPDATE demo.records SET key = key WHERE false")
+        assert getattr(excinfo.value, "sqlstate", None) == "25006", (
+            "the write was not refused by READ ONLY "
+            f"(got {type(excinfo.value).__name__}: {excinfo.value})"
+        )
+        assert "read-only" in str(excinfo.value)
+
+        # (b) Across a mid-pick rollback.  A rollback REVERTS the guard —
+        # SET, session characteristics included, is transactional (measured
+        # here: after a bare rollback the next transaction accepted a
+        # write) — and the float8-overflow refusal is the one code path
+        # that rolls back mid-pick, so it must re-arm the guard itself.
+        # Mirror a fresh request, run that exact pick, and prove the
+        # connection it leaves behind still refuses the write.
+        conn.rollback()
+        server_app.refuse_writes(conn)  # what every fresh request does
+        overflow = server_app.run_pick(
+            conn,
+            {"source": "noun:EdgeCase",
+             "computed": [{"name": "sq", "expr": "$.g * $.g"}]},
+        )
+        assert overflow["accepted"] is False  # the named runtime refusal
+        assert conn.execute("SHOW transaction_read_only").fetchone()[0] == "on", (
+            "the float8-overflow path rolled back and did not re-arm the "
+            "read-only guard — the connection can write"
+        )
+        with pytest.raises(Exception) as excinfo2:
+            conn.execute("UPDATE demo.records SET key = key WHERE false")
+        assert getattr(excinfo2.value, "sqlstate", None) == "25006"
+        conn.rollback()
+    finally:
+        conn.close()
