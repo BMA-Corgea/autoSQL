@@ -28,3 +28,4 @@
 {"ts":"2026-08-23T05:11:28.691Z","kind":"stage.advanced","ticket":"T-3","from":"sp-decide","to":"sp-spawn"}
 {"ts":"2026-08-23T05:12:12.472Z","kind":"pipeline.complete","ticket":"T-3","at":"sp-spawn"}
 {"ts":"2026-08-23T05:12:56.292Z","kind":"stage.loopback","ticket":"T-2","from":"uat","to":"build","attempts":1,"no_progress_streak":1,"stuck":false}
+{"ts":"2026-08-23T05:40:43.955Z","kind":"ticket.blocked","ticket":"T-2","stage":"build"}

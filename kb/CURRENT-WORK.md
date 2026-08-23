@@ -1,5 +1,34 @@
 # autosql — CURRENT WORK
 
+---
+
+> # START HERE — 2026-08-23
+>
+> **Everything is committed and pushed. The tree is clean at `28a9c9a`. Nothing is running.**
+>
+> **One thing is blocking, and it is Evan's call.** His own q4 answer — adopt T-3's corrected
+> runtime — was applied, and **it deletes the demo's centrepiece disagreement.** Verified live:
+> `xpr.f8(1e300)` now returns `1e+300` where the old 297-digit guard returned `NULL`, so the
+> `edge-01` pick that answered SQL **1** vs Python **1e+300** now **agrees**, `differing_rows` 0.
+> The showcase divergence was itself an artifact of the bug T-3 found and fixed. Suite is
+> **1144 passed / 2 failed**, and both failures are exactly that.
+>
+> **Read `.autodev/handoffs/T-2.md` — 73 lines, it has everything**, including his three options
+> and the exact ordered next steps. The question is in the form:
+> `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
+>
+> **T-5 is the thing that can start with no input from him at all** — a read-only sweep asking
+> whether non-ASCII digit strings actually occur in his data. It touches nothing, and it answers
+> the single biggest open question on the whole project: T-3 proved the failure *can* happen and
+> never measured whether it *will*.
+>
+> **Also done and needing nothing:** T-3 is COMPLETE (his ruling is an ADR at
+> `kb/wiki/decision-t3-correctness-run.md`, and it spawned T-5 and T-6). AC-35 is re-scoped and its
+> two failures are gone. The accept gate is back to `human`. Still NOT started: his q8 layout fix,
+> which GA-8 requires before acceptance.
+
+---
+
 Present tense only. Updated at EVERY handoff (see the handoff procedure).
 Target size: ~2 pages. The **live edge** — what is in motion right now — is never pruned; the recent
 past keeps ~15 items or ~30 days, one line each with the WHY; anything older is dropped here and found
@@ -47,7 +76,6 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — **at
   `uat`, MERGED TO MAIN, WAITING ON EVAN.** The gate is `accept`, policy **`human:strict`** — hardened
   on this ticket 2026-08-22 under his items 35/36, so **on-behalf clearing is refused**; only his own
   `--i-am-human` hand clears it. Acceptance package, with the screen photographed:
@@ -127,23 +155,17 @@ always showing its derivation, always overturnable by one line from him.
 lifted: T-2's design block was cleared by Evan's own look sign-off, and the 38-item wrap-up form is
 fully answered — nine by him in session, the other 29 ruled under GA-6 and recorded where each lives.
 
-- **T-3's `sp_decide` gate — the big one.** Waiting on `human:evan` since 2026-08-22, ping delivered
-  to Telegram (via the outbox file seam; see the note below on why the automatic path did not fire).
-  The correctness run **failed** and he has four options in `spikes/T-3/SYNTHESIS.md`, published at
-  `https://claude.ai/code/artifact/75bc45a2-7601-4334-aa2a-5dd6f7ef3351`. **Do not clear this
-  on-behalf.** GA-6 would technically permit it; a failing result that decides whether the SQL path is
-  funded is his. He clears it with:
-  `tracker.mjs approve T-3 sp_decide --by human:evan --i-am-human`
-- **T-2's `accept` gate, when it gets there.** Hardened to **`human:strict`** on this ticket on
-  2026-08-22 (wrap-up items 35/36, ruled under GA-6), so on-behalf clearing is **refused** — the demo
-  physically cannot ship without him. Per-ticket, not shop-wide, because he was never asked 35 or 36.
-  The recommendation to make it shop-wide is written in the form for whenever he agrees.
-- **AC-35 needs a decision from him.** It asserts `git status --porcelain` is empty in two live GIMS
-  checkouts; both carry **his own uncommitted edits from 2026-08-13**, in files T-2 never reads. Both
-  trees are read-only to this ticket, so it cannot be resolved from here. Two ways out, both his:
-  commit/stash those eight files (wrap-up item 33), or re-scope AC-35 to ignore modifications outside
-  the seven files the ticket actually vendors. **A build worker refused to weaken the check to make it
-  green, which was right.**
+- **T-3's `sp_decide` gate — CLEARED 2026-08-23.** He ruled from the form: *"Homework first,
+  then fix-and-re-run."* T-3 is complete; the ADR is `kb/wiki/decision-t3-correctness-run.md` and it
+  spawned **T-5** and **T-6**. Nothing waits here any more.
+- **T-2's `accept` gate — SOFTENED back to `human` 2026-08-23**, on his own instruction (form q6).
+  Hardening it to `human:strict` was a session's ruling on items 35/36, questions he was never asked,
+  and the effect was that his answers in a form could not clear his own gate. It can now be cleared
+  on-behalf against **GA-8** — but only **after** his q8 layout fix lands, which GA-8 states
+  explicitly. The `design` gate stays `human:strict`; that one he did ask for.
+- **AC-35 — RESOLVED 2026-08-23.** He chose re-scope (form q3); it now asserts none of the seven
+  files the ticket actually vendors is modified. Its two standing failures are gone and his own
+  uncommitted GIMS edits were never touched.
 - **Should the demo adopt T-3's corrected runtime?** Open, and genuinely his. The demo currently pins
   `demo/vendor/runtime.sql` at the 427-line version its 45 criteria describe, while the spike tree
   carries T-3's 472-line fix. Adopting the fix would change B15's guard digits, B24's edge-04/edge-05
@@ -164,6 +186,7 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
+- **T-2** — blocked: STOPPED FOR THE NIGHT at Evan's request, at a clean boundary. His q3 (re-scope …
 
 ## Recent past (~15 items / ~30 days)
 
