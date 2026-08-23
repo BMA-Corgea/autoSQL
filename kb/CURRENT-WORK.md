@@ -47,34 +47,40 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — uat
-  `build`, BUILT AND GREEN, not yet passed.** Evan's look sign-off on 2026-08-22 (GA-6, wrap-up item 3,
-  *"Approve as drawn"*) lifted the block; item 5 (*"Run the rest full"*) put it on the full process, so
-  it builds in an **isolated worktree at `/home/corgea/autoSQL-T-2-build`, branch `feat/T-2-demo`**
-  (pushed). `locate`+`plan` produced `.autodev/specs/T-2-locate.md` (457 lines, **eleven gaps** neither
-  spec nor design settles) and `.autodev/specs/T-2-plan.md` (1,486 lines, all 16 punch-list items
-  resolved, 45 ACs mapped, **32 rulings B1–B32**). The build ran as **18 work items across 16 workers**;
-  five died on a session limit and were resumed after it reset.
-  **It runs:** `./run-demo up` brings up a container on 55440 (`lc_collate=C`), installs offline from a
-  committed wheelhouse with `--no-index`, seeds **10,410 invented rows** (10 EdgeCase / 8,400 Heartbeat
-  / 2,000 Sample) and serves the screen on 8787. Evan's live `glp-strong-db` untouched throughout.
-  **Suite: 565 passed, 9 skipped, 1 xfailed, 0 failed**, B10 checksum guard verified.
-  **Two findings worth carrying forward.** (1) **The spec was wrong about `inf`.** AC-17 asserts the
-  Python pane shows `inf` for edge-03's `huge`; jsonb renders that value as a bare 401-digit *integer*,
-  so Python's `parse_int` returns an exact int and the overflow surfaces later as `OverflowError`. W13
-  reached this in code (ruling W13-2) and **T-3 reached it independently the same day** — two
-  measurements, one conclusion — so the documents were corrected at their sources and AC-17 carries a
-  dated note with its signed text intact. A carve-out that had excluded that value from AC-31's
-  three-way sweep is also gone, which is *why* the wrong value survived. (2) **T-2 and T-3 collided on
-  `spikes/T-1/proto/runtime.sql`** — T-3 legitimately fixed its 297→309-digit guard, which T-2's 45
-  criteria were not written against. Resolved by vendoring: `demo/vendor/runtime.sql` is pinned at 427
-  lines and the spike tree keeps T-3's 472-line fix; a test asserts the two stay **different**.
-  **Still open on this ticket:** AC-19 (being implemented), **AC-35 needs Evan** (it asserts his GIMS
-  checkouts are clean; they carry his own uncommitted edits — wrap-up item 33), and whether the demo
-  should **adopt** T-3's corrected runtime, which would change four signed criteria.
-  **Next:** finish AC-19, run AC-4's neighbour-ports check, pass `build`, then `auto-review` → `gate`
-  (unattended) → `verify` → **`uat`, which is Evan's and is `human:strict` on this ticket** — it
-  physically cannot ship without him. Handoff: `.autodev/handoffs/T-2.md`.
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — **at
+  `uat`, MERGED TO MAIN, WAITING ON EVAN.** The gate is `accept`, policy **`human:strict`** — hardened
+  on this ticket 2026-08-22 under his items 35/36, so **on-behalf clearing is refused**; only his own
+  `--i-am-human` hand clears it. Acceptance package, with the screen photographed:
+  `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
+  **It runs.** `./run-demo up` → own container on 55440 (`lc_collate=C`), offline install from a
+  committed wheelhouse (`--no-index`, so AC-32 is proven by the command), **10,410 invented rows**
+  (10 EdgeCase / 8,400 Heartbeat / 2,000 Sample), screen on 8787 with **no Node at run time**.
+  **Suite on main: 1141 passed, 0 skipped, 2 failed** — both `AC-35`, which is Evan's own uncommitted
+  GIMS edits and his call. All 14 walkthrough steps driven as **raw HTTP against the live app**, every
+  number matching `expected-answers.json`; **step 11 disagrees exactly as asserted** (SQL `1`, Python
+  `1e+300`, key `edge-01`, 1 differing row of 10, flagged), reproduced after a cold start that removed
+  the container *and* its volume.
+  **Three review rounds: 16 defects → 2 → 0.** Round 1's headline inverted the demo's own signal —
+  Postgres sorts a top-level empty jsonb array below everything including null, the spec's ordering
+  table omits that exception, so a reachable pick made the disagreement banner fire when the SQL was
+  **right** and the Python control **wrong**. Round 2 found that round 1's fix had a guard test that
+  **could not see six new instances of what it fixed** — a hand-maintained list of known-bad inputs,
+  the same blindness round 1 had flagged in the AC-32 font guard. Both guards were rebuilt
+  **generative**, and the sweep immediately found **four crashes the review never listed**. Round 3
+  proved the sweeps load-bearing by monkeypatching the old code back in and watching 24 cases go red.
+  **THE SCREEN HAS NOW BEEN RENDERED** — a Chromium already in the Playwright cache was used (AC-32
+  forbids *fetching* browser automation, not using what is present; nothing was downloaded). Eight
+  screenshots in `.autodev/evidence/T-2/`. **What looking found:** at **1440**, the design brief's own
+  target width, the `biggest` column — the column the disagreement is *in* — is clipped at the pane
+  edge in the SQL pane and off-screen in the Python pane; at 1920 the SQL side appears but the Python
+  side is still clipped. The banner promises the disagreement is *"located, not merely announced"* and
+  at the target width it is announced but not located. **No number is wrong** — a layout call for his
+  acceptance, and exactly what Q27's look sign-off existed to catch.
+  **Still open on this ticket, all his:** AC-35; whether the demo should **adopt** T-3's corrected
+  runtime (it pins the older 427-line version, so it currently demonstrates behaviour T-3 has since
+  proven wrong); and the clipped column. **Plan §8.2's mutation pass has still never run** — 4 of 16
+  hand-run and killed, 3 with standing detectors, **9 never watched failing** — now printed as a
+  DISCLOSURE above every suite summary. Handoff: `.autodev/handoffs/T-2.md`.
 - **T-3** (spike) — *Correctness run: does the restricted expression subset ever return a wrong
   number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON EVAN. The answer is NO: it does
   return wrong numbers.** The bar (zero wrong answers at each of `extra_float_digits` 1, 0 and −3,
