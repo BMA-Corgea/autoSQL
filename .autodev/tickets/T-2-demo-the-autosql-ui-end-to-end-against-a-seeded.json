@@ -26,11 +26,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-23 advanced auto-review → gate · auto-review on claude-fable-5",
     "2026-08-23 gate merge cleared by policy:unattended",
     "2026-08-23 advanced gate → verify · gate on claude-fable-5",
     "2026-08-23 verify: worker started (claude-fable-5) 03:48",
-    "2026-08-23 advanced verify → uat · verify on claude-fable-5"
+    "2026-08-23 advanced verify → uat · verify on claude-fable-5",
+    "2026-08-23 checkpoint accept: human:strict → human by agent:claude(on-behalf:evan,GA-7): Evan's own instruction, form answer q6 under GA-7: 'Soften it back to human - my answers here are enough'. I hardened this gate to human:strict this morning under wrapup items 35/36 - questions he was NEVER ASKED - and the effect was that his answers in a form could not clear his own gate. That was friction I invented on a question he had no vote on. He was given the option to undo it and took it. Back to 'human', which still means it is his call and still refuses --by human:evan from an agent; it only permits honest on-behalf clearing against a recorded go-ahead. The design gate stays human:strict, because THAT one he did ask for (item 4)."
   ],
   "assignees": {},
   "links": {},
@@ -45,7 +45,7 @@
   },
   "overrides": {
     "gates": {
-      "accept": "human:strict"
+      "accept": "human"
     }
   },
   "loop": {

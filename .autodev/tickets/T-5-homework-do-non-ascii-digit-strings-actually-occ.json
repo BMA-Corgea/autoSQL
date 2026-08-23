@@ -1,0 +1,39 @@
+{
+  "id": "T-5",
+  "slug": "homework-do-non-ascii-digit-strings-actually-occ",
+  "type": "spike",
+  "title": "Homework: do non-ASCII digit strings actually occur in the real data?",
+  "stage": "sp-frame",
+  "status": "spike_todo",
+  "spec": "READ-ONLY. The single biggest unmeasured qualifier on T-3's failed correctness run. T-3 proved 'this CAN happen' - the Unicode-digit coercion gap makes float('１２３') read as 123.0 in Python and NULL in SQL - but never measured whether such strings occur in Evan's real data, so it did NOT prove 'this WILL happen to you'. Two parts: (1) a read-only sweep of the real GIMS data for strings containing non-ASCII digit characters, extending T-1's magnitude sweep to look INSIDE strings, reporting prevalence per collection; (2) a one-question inventory - is anything other than the GIMS Python process ever going to write rows autoSQL reads? Touches nothing, writes nothing, hours of work. This decides how good the other options look: if non-ASCII digits turn out to be COMMON, T-3's chosen fix converts silent wrong numbers into frequent visible refusals, and abandoning or narrowing the language become the honest choices instead. Ruled by Evan 2026-08-23 under GA-7, form answer q5.",
+  "pipeline_version": "spike@v2",
+  "modifiers": [],
+  "pipeline": [
+    "sp-frame",
+    "sp-investigate",
+    "sp-synth",
+    "sp-decide",
+    "sp-spawn"
+  ],
+  "passport": [
+    "2026-08-23 created as spike \"Homework: do non-ASCII digit strings actually occur in the real data?\" on spike@v2 by agent:claude(on-behalf:evan,GA-7)"
+  ],
+  "assignees": {},
+  "links": {},
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}

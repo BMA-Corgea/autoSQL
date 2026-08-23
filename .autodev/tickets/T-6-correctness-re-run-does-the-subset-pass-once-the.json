@@ -1,0 +1,42 @@
+{
+  "id": "T-6",
+  "slug": "correctness-re-run-does-the-subset-pass-once-the",
+  "type": "spike",
+  "title": "Correctness re-run: does the subset pass once the two mechanisms are fixed?",
+  "stage": "sp-frame",
+  "status": "spike_todo",
+  "spec": "The second half of Evan's T-3 ruling (GA-7, form answer q5): fix and re-run, in its CHEAP form, against the SAME unchanged zero-wrong-answers bar. Three changes, then the same batteries on the same instruments. (1) PIN extra_float_digits = 1 per session and treat anything else as a configuration defect - this cures the value-channel truncation entirely, proven by T-3's own data. (2) Convert the UNICODE-DIGIT GAP into a NAMED REFUSAL. It cannot cheaply be made to match Python - Postgres regexes have no equivalent of Python's any-Unicode-digit class - so the generated SQL raises a named error whenever a rejected string contains non-ASCII digits. Under the standing ruling a loud refusal is an allowed outcome where a silent wrong number is not. (3) The CONTAINER comparison rule goes back to EVAN as its own one-line decision: T-3's investigation was explicit that comparing whole containers with no tolerance is as much a defect of the comparison rule as of the compiler, and that is his call, not this ticket's. Then re-run the three subset fuzz batteries, the fixture, the domain gate and the controls, per setting, unchanged. WHAT A PASS BUYS: admission to T-4, the speed run - NOT admission to GIMS. WHAT TO WATCH: T-3 found unpredicted mechanisms twice, so a third layer is possible; and if T-5's sweep finds non-ASCII digits are common, this fix produces frequent visible refusals and Evan should be asked again before it is treated as the answer.",
+  "pipeline_version": "spike@v2",
+  "modifiers": [],
+  "pipeline": [
+    "sp-frame",
+    "sp-investigate",
+    "sp-synth",
+    "sp-decide",
+    "sp-spawn"
+  ],
+  "passport": [
+    "2026-08-23 created as spike \"Correctness re-run: does the subset pass once the two mechanisms are fixed?\" on spike@v2 by agent:claude(on-behalf:evan,GA-7)"
+  ],
+  "assignees": {},
+  "links": {},
+  "depends_on": [
+    "T-5"
+  ],
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}

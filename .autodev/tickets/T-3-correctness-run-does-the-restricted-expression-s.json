@@ -3,8 +3,8 @@
   "slug": "correctness-run-does-the-restricted-expression-s",
   "type": "spike",
   "title": "Correctness run: does the restricted expression subset ever return a wrong number?",
-  "stage": "sp-decide",
-  "status": "spike_review",
+  "stage": "sp-spawn",
+  "status": "complete",
   "spec": "THE RUN Evan funded first (his Q6: 'Both, correctness run first'). Full spec: spikes/T-1/EXPERIMENTS.md section 1.\n\nQUESTION: on the restricted subset only, does the generated SQL ever disagree with the Python evaluator — a different value, a value turning into null, a null turning into a value, or Python raising where SQL quietly returns a number?\n\nPASS BAR: zero wrong answers of any kind. Not 'few'. Zero.\n\nBINDING CONSTRAINTS (Evan's answers, ANSWERS-FROM-EVAN.md):\n- Q10: run the 130 cases at all three extra_float_digits values and report each separately.\n- Q11: no database indexes, ever. Do not assume index help anywhere.\n- Q7: the throwaway instruments under spikes/T-1/proto and analysis/fuzz MAY be edited in place.\n- Q2: this run IS the acceptance test. The 130-case fixture was ruled inadequate for a third runtime.\n\nKNOWN BEFORE STARTING: EXPERIMENTS.md section 1.2 records that the restricted subset FAILS this bar today — there is a 12-character defect in a guard literal, and one divergence survives fixing it (expressions that can produce a magnitude above the largest representable double, which is not decidable when the SQL is generated because it depends on the row).\n\nBLOCKED ON EVAN: how to handle that surviving divergence — exclude such expressions, write a named carve-out into the bar, or refuse the subset. Do not pick for him.",
   "pipeline_version": "spike@v2",
   "modifiers": [],
@@ -16,11 +16,11 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-08-22 advanced sp-frame → sp-investigate · sp-frame on claude-fable-5",
-    "2026-08-22 sp-investigate: worker started (claude-fable-5) 17:52",
-    "2026-08-22 advanced sp-investigate → sp-synth · sp-investigate on claude-fable-5",
     "2026-08-22 sp-synth: worker started (claude-fable-5) 18:25",
-    "2026-08-22 advanced sp-synth → sp-decide · sp-synth on claude-fable-5"
+    "2026-08-22 advanced sp-synth → sp-decide · sp-synth on claude-fable-5",
+    "2026-08-23 gate sp_decide cleared by agent:claude(on-behalf:evan,GA-7) on go-ahead GA-7 (\"FORM ANSWERS saved by Evan 2026-08-23 05:08 UTC in the inter\")",
+    "2026-08-23 advanced sp-decide → sp-spawn · sp-decide on claude-fable-5",
+    "2026-08-23 pipeline complete at sp-spawn"
   ],
   "assignees": {},
   "links": {},
@@ -32,14 +32,15 @@
     "merge": false,
     "accept": false,
     "deploy": false,
-    "sp_decide": false,
+    "sp_decide": true,
     "ex_decide": false,
     "compliance": false
   },
   "overrides": {},
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "T-5 and T-6 created in the ledger from Evan's ruling — .autodev/tickets/T-5-*.json (the read-only homework: does real data actually contain non-ASCII digit strings, plus the writer inventory) and .autodev/tickets/T-6-*.json (the cheap fix-and-re-run: pin extra_float_digits=1, convert the Unicode-digit gap to a named refusal, put the container comparison-rule question back to Evan, then re-run the same batteries against the same unchanged zero bar), sequenced T-5 then T-6 so the measurement lands before the engineering. Both carry the ruling's own stated trigger to revisit: if T-5 finds non-ASCII digits are COMMON, T-6's fix turns silent wrong numbers into frequent visible refusals and abandoning or narrowing become the honest choices — Evan is to be asked again at that point rather than the fix being treated as the answer."
   },
   "history": [
     {
@@ -59,6 +60,12 @@
       "to": "sp-decide",
       "by": "agent:claude(on-behalf:evan,GA-6)",
       "at": "2026-08-22T18:33:36.652Z"
+    },
+    {
+      "from": "sp-decide",
+      "to": "sp-spawn",
+      "by": "agent:claude(on-behalf:evan,GA-7)",
+      "at": "2026-08-23T05:11:28.683Z"
     }
   ],
   "receipts": {
@@ -85,6 +92,23 @@
       "by": "agent:claude(on-behalf:evan,GA-6)",
       "at": "2026-08-22T18:33:36.649Z",
       "model": "claude-fable-5"
+    },
+    "sp-decide": {
+      "evidence": "kb/wiki/decision-t3-correctness-run.md — the ADR for Evan's ruling, made 2026-08-23 05:08 UTC in the decision form and recorded as GA-7 with scope_confirmed:true. THE RULING: 'Homework first, then fix-and-re-run' - (1) a read-only sweep of real data for non-ASCII digit strings plus a writer inventory, which turns the run's single biggest unmeasured qualifier into a number; (2) then the cheap form of fix-and-re-run: pin extra_float_digits=1, convert the Unicode-digit gap to a NAMED REFUSAL since it cannot cheaply be made to match Python, and put the container comparison-rule question back to him as its own decision; (3) re-run the same batteries against the same unchanged zero bar; (4) hold T-4 until the re-run reports. Not abandoned, not accepted with a carve-out. The ADR records why this over the other three options, what it does NOT settle (the GIMS gate stays shut; a passed re-run buys admission to T-4, not to GIMS; speed is untouched), and the recommendation's own weakest point as the stated trigger to revisit - if the sweep finds non-ASCII digits are common, the fix turns silent wrong numbers into frequent visible refusals and abandoning or narrowing become the honest choices.",
+      "kind": "other",
+      "fingerprint": "kb/wiki/decision-t3-correctness-run.md — the ADR for Evan's ruling, made 2026-08-23 05:08 UTC in the decision form and recorded as GA-7 with scope_confirmed:true. THE RULING: 'Homework first, then fix-and-re-run' - (1) a read-only sweep of real data for non-ASCII digit strings plus a writer inventory, which turns the run's single biggest unmeasured qualifier into a number; (2) then the cheap form of fix-and-re-run: pin extra_float_digits=1, convert the Unicode-digit gap to a NAMED REFUSAL since it cannot cheaply be made to match Python, and put the container comparison-rule question back to him as its own decision; (3) re-run the same batteries against the same unchanged zero bar; (4) hold T-4 until the re-run reports. Not abandoned, not accepted with a carve-out. The ADR records why this over the other three options, what it does NOT settle (the GIMS gate stays shut; a passed re-run buys admission to T-4, not to GIMS; speed is untouched), and the recommendation's own weakest point as the stated trigger to revisit - if the sweep finds non-ASCII digits are common, the fix turns silent wrong numbers into frequent visible refusals and abandoning or narrowing become the honest choices.",
+      "by": "agent:claude(on-behalf:evan,GA-7)",
+      "at": "2026-08-23T05:11:28.682Z",
+      "model": "claude-fable-5"
+    },
+    "sp-spawn": {
+      "evidence": "T-5 and T-6 created in the ledger from Evan's ruling — .autodev/tickets/T-5-*.json (the read-only homework: does real data actually contain non-ASCII digit strings, plus the writer inventory) and .autodev/tickets/T-6-*.json (the cheap fix-and-re-run: pin extra_float_digits=1, convert the Unicode-digit gap to a named refusal, put the container comparison-rule question back to Evan, then re-run the same batteries against the same unchanged zero bar), sequenced T-5 then T-6 so the measurement lands before the engineering. Both carry the ruling's own stated trigger to revisit: if T-5 finds non-ASCII digits are COMMON, T-6's fix turns silent wrong numbers into frequent visible refusals and abandoning or narrowing become the honest choices — Evan is to be asked again at that point rather than the fix being treated as the answer.",
+      "kind": "other",
+      "fingerprint": "T-5 and T-6 created in the ledger from Evan's ruling — .autodev/tickets/T-5-*.json (the read-only homework: does real data actually contain non-ASCII digit strings, plus the writer inventory) and .autodev/tickets/T-6-*.json (the cheap fix-and-re-run: pin extra_float_digits=1, convert the Unicode-digit gap to a named refusal, put the container comparison-rule question back to Evan, then re-run the same batteries against the same unchanged zero bar), sequenced T-5 then T-6 so the measurement lands before the engineering. Both carry the ruling's own stated trigger to revisit: if T-5 finds non-ASCII digits are COMMON, T-6's fix turns silent wrong numbers into frequent visible refusals and abandoning or narrowing become the honest choices — Evan is to be asked again at that point rather than the fix being treated as the answer.",
+      "by": "agent:claude(on-behalf:evan,GA-7)",
+      "at": "2026-08-23T05:12:12.470Z",
+      "model": "claude-fable-5"
     }
-  }
+  },
+  "completed": true
 }

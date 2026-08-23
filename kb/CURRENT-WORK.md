@@ -81,7 +81,6 @@ always showing its derivation, always overturnable by one line from him.
   proven wrong); and the clipped column. **Plan §8.2's mutation pass has still never run** — 4 of 16
   hand-run and killed, 3 with standing detectors, **9 never watched failing** — now printed as a
   DISCLOSURE above every suite summary. Handoff: `.autodev/handoffs/T-2.md`.
-- **T-3** (spike) — *Correctness run: does the restricted expression subset ever return a wrong
   number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON EVAN. The answer is NO: it does
   return wrong numbers.** The bar (zero wrong answers at each of `extra_float_digits` 1, 0 and −3,
   reported separately) is **FAILED at all three**, and not by the guard defect — step zero fixed that
@@ -116,6 +115,8 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
+- **T-5** (spike) — Homework: do non-ASCII digit strings actually occur in the real data? — sp-frame
+- **T-6** (spike) — Correctness re-run: does the subset pass once the two mechanisms are fixed? — sp-frame
 
 ## Waiting on
 
@@ -169,6 +170,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-08-23 **T-3 COMPLETE** — Correctness run: does the restricted expression subset ever return a wrong numb…
 - **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
   block was recorded in its place rather than inventing a gate or building past him.
 - **2026-08-21 — the 38-item wrap-up swept and put to Evan.** Written because roughly 47 decisions had
