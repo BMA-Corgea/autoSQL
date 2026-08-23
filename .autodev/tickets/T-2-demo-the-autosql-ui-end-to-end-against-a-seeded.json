@@ -26,11 +26,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-22 build: worker started (claude-fable-5) 18:11",
+    "2026-08-23 build: worker started (claude-fable-5) · attempt 2 01:35",
     "2026-08-23 advanced build → auto-review · build on claude-fable-5",
-    "2026-08-23 auto-review: worker started (claude-fable-5) 01:01",
-    "2026-08-23 moved auto-review → build by agent:claude(on-behalf:evan,GA-6), attempt 1 · why: auto-review round 1: 16 confirmed defects, 4 HIGH. Four lenses reviewed the diff and every finding was then handed to a separate agent whose job was to REFUTE it, defaulting to not-real when uncertain; 16 survived that and 1 did not. The headline finding inverts the demo's own signal: Postgres sorts a top-level empty jsonb array below everything including null, the spec's ordering table omits that exception, so a UI-reachable pick makes the red disagreement banner fire when the generated SQL is RIGHT and the independent Python control is WRONG - and the suite pins the wrong value. Also: the served page fetches a stylesheet from fonts.googleapis.com on every load while the AC-32 test guarding 'no network' reads only two files that never contained the URL; run-demo's readiness poll is a second unfenced connection factory that PGHOSTADDR can redirect off 127.0.0.1; and every aggregated value in all 568 tests is a small integer, so a float-contaminated aggregate passes the whole suite. Full report: .autodev/specs/T-2-review-round-1.md · leaving: Machine review: code review + security review + full preflight (lint, typecheck, unit,… · next: Implement the plan: code + tests on the ticket branch.",
-    "2026-08-23 build: worker started (claude-fable-5) · attempt 2 01:35"
+    "2026-08-23 auto-review: worker started (claude-fable-5) · attempt 2 02:11",
+    "2026-08-23 moved auto-review → build by agent:claude(on-behalf:evan,GA-6), attempt 2 · why: auto-review round 2: 2 findings on the fix diff. (1) MEDIUM - six malformed picks still return bare HTTP 500: shape_violations validates only the OUTER holder type, never the inner value, so aggregate.field/window.field as a list or dict crash at builder.py:372 and computed[].name as a list or dict crashes at app.py:733. Worse, the new guard test parametrizes only the six holder-type shapes round 1 already named, so it passes green while these still 500 - the same structural test-blindness round 1 flagged for the AC-32 guard, reproduced inside the test written to close it. (2) LOW/latent - the serving-layer font strip only matches the canonical route spelling; dot-segment, doubled-slash and trailing-slash paths fall through to the raw mount and serve the live googleapis @import. Not a live AC-32 breach (the page links canonically and browsers normalise) but the stated guarantee is false. Everything else in the fix diff verified sound, including the ordering fix end-to-end, both named refusals, the read-only guard's rollback subtlety, CSS digest integrity and the run-demo shell's quoting. Full report: .autodev/specs/T-2-review-round-2.md · leaving: Machine review: code review + security review + full preflight (lint, typecheck, unit,… · next: Implement the plan: code + tests on the ticket branch.",
+    "2026-08-23 build: worker started (claude-fable-5) · attempt 3 02:29"
   ],
   "assignees": {},
   "links": {},
@@ -50,7 +50,7 @@
   },
   "loop": {
     "validator_passed": false,
-    "attempts": 1
+    "attempts": 2
   },
   "history": [
     {
@@ -100,6 +100,18 @@
       "to": "build",
       "by": "agent:claude(on-behalf:evan,GA-6):auto-review round 1: 16 confirmed defects, 4 HIGH. Four lenses reviewed the diff and every finding was then handed to a separate agent whose job was to REFUTE it, defaulting to not-real when uncertain; 16 survived that and 1 did not. The headline finding inverts the demo's own signal: Postgres sorts a top-level empty jsonb array below everything including null, the spec's ordering table omits that exception, so a UI-reachable pick makes the red disagreement banner fire when the generated SQL is RIGHT and the independent Python control is WRONG - and the suite pins the wrong value. Also: the served page fetches a stylesheet from fonts.googleapis.com on every load while the AC-32 test guarding 'no network' reads only two files that never contained the URL; run-demo's readiness poll is a second unfenced connection factory that PGHOSTADDR can redirect off 127.0.0.1; and every aggregated value in all 568 tests is a small integer, so a float-contaminated aggregate passes the whole suite. Full report: .autodev/specs/T-2-review-round-1.md",
       "at": "2026-08-23T01:34:32.310Z"
+    },
+    {
+      "from": "build",
+      "to": "auto-review",
+      "by": "agent:claude(on-behalf:evan,GA-6)",
+      "at": "2026-08-23T02:11:15.861Z"
+    },
+    {
+      "from": "auto-review",
+      "to": "build",
+      "by": "agent:claude(on-behalf:evan,GA-6):auto-review round 2: 2 findings on the fix diff. (1) MEDIUM - six malformed picks still return bare HTTP 500: shape_violations validates only the OUTER holder type, never the inner value, so aggregate.field/window.field as a list or dict crash at builder.py:372 and computed[].name as a list or dict crashes at app.py:733. Worse, the new guard test parametrizes only the six holder-type shapes round 1 already named, so it passes green while these still 500 - the same structural test-blindness round 1 flagged for the AC-32 guard, reproduced inside the test written to close it. (2) LOW/latent - the serving-layer font strip only matches the canonical route spelling; dot-segment, doubled-slash and trailing-slash paths fall through to the raw mount and serve the live googleapis @import. Not a live AC-32 breach (the page links canonically and browsers normalise) but the stated guarantee is false. Everything else in the fix diff verified sound, including the ordering fix end-to-end, both named refusals, the read-only guard's rollback subtlety, CSS digest integrity and the run-demo shell's quoting. Full report: .autodev/specs/T-2-review-round-2.md",
+      "at": "2026-08-23T02:29:10.299Z"
     }
   ],
   "pins": {
@@ -155,18 +167,18 @@
       "model": "claude-opus-5[1m]"
     },
     "build": {
-      "evidence": "branch feat/T-2-demo at 8bb9018 (pushed to origin) — worktree /home/corgea/autoSQL-T-2-build; demo/EVIDENCE.md (the §6.4 pack: 14 steps' generated SQL verbatim, rows returned, both panes side by side with verdicts, expected-answers.json derivations, three digests, suite summary); demo/ac19-expr-vectors.md (130 cases, 68 accepted / 62 refused); ./run-demo up seeds 10,410 rows and serves 8787; ./run-demo test = 568 passed, 10 skipped, 1 xfailed, 0 failed; ops/checks/neighbour-ports.sh = PASS",
+      "evidence": "branch feat/T-2-demo at 950b36d (pushed) — ./run-demo test = 624 passed, 10 skipped, 0 failed, 0 xfailed, B10 checksum guard verified; all 16 findings of .autodev/specs/T-2-review-round-1.md fixed; the four HIGH ones reproduced-then-re-reproduced by an independent verifier who made none of the changes, each confirmed by mutation in both directions (ordering exception removed = 8 failures, over-applied = 6 failures; aggregate float contamination = 8 failures where previously 0 of 568); weakened-test audit over all five changed test files found no weakening",
       "kind": "other",
-      "fingerprint": "branch feat/T-2-demo at 8bb9018 (pushed to origin) — worktree /home/corgea/autoSQL-T-2-build; demo/EVIDENCE.md (the §6.4 pack: 14 steps' generated SQL verbatim, rows returned, both panes side by side with verdicts, expected-answers.json derivations, three digests, suite summary); demo/ac19-expr-vectors.md (130 cases, 68 accepted / 62 refused); ./run-demo up seeds 10,410 rows and serves 8787; ./run-demo test = 568 passed, 10 skipped, 1 xfailed, 0 failed; ops/checks/neighbour-ports.sh = PASS",
+      "fingerprint": "branch feat/T-2-demo at 950b36d (pushed) — ./run-demo test = 624 passed, 10 skipped, 0 failed, 0 xfailed, B10 checksum guard verified; all 16 findings of .autodev/specs/T-2-review-round-1.md fixed; the four HIGH ones reproduced-then-re-reproduced by an independent verifier who made none of the changes, each confirmed by mutation in both directions (ordering exception removed = 8 failures, over-applied = 6 failures; aggregate float contamination = 8 failures where previously 0 of 568); weakened-test audit over all five changed test files found no weakening",
       "by": "agent:claude(on-behalf:evan,GA-6)",
-      "at": "2026-08-23T01:01:35.619Z",
+      "at": "2026-08-23T02:11:15.859Z",
       "model": "claude-fable-5"
     }
   },
   "bounces": {
     "auto-review": {
-      "attempts": 1,
-      "no_progress_streak": 1,
+      "attempts": 2,
+      "no_progress_streak": 2,
       "last_digest": null
     }
   }
