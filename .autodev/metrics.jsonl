@@ -17,3 +17,5 @@
 {"ts":"2026-08-22T18:09:23.325Z","kind":"stage.advanced","ticket":"T-2","from":"plan","to":"build"}
 {"ts":"2026-08-22T18:24:32.143Z","kind":"stage.advanced","ticket":"T-3","from":"sp-investigate","to":"sp-synth"}
 {"ts":"2026-08-22T18:33:36.652Z","kind":"stage.advanced","ticket":"T-3","from":"sp-synth","to":"sp-decide"}
+{"ts":"2026-08-23T01:01:35.623Z","kind":"stage.advanced","ticket":"T-2","from":"build","to":"auto-review"}
+{"ts":"2026-08-23T01:34:32.311Z","kind":"stage.loopback","ticket":"T-2","from":"auto-review","to":"build","attempts":1,"no_progress_streak":1,"stuck":false}
