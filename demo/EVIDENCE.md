@@ -1811,3 +1811,58 @@ and the first row in key order (`smp-0000`) carries 13 — so a build reading on
 row would let `field_13` and `field_14` through as aliases. Those facts are
 asserted first, so a reseed that made every row carry all fifteen would fail
 loudly rather than let (c) pass by accident.
+
+---
+
+## Step 11's witness, and why it will have to move again — 2026-09-01, GA-11
+
+**What step 11 shows today.** `max($.m)` over `noun:EdgeCase`. Row `edge-01` carries
+`"m": ["１２３", 1]` — full-width digits. Python's coercion is Unicode-aware and reads **123**; the
+vendored runtime's ASCII gate returns NULL, so SQL's `max()` answers **1**. Python **123** beside
+SQL **1**, flagged, one row differing. Verified live on the running stack, not inferred.
+
+**Why it is not `$.l` any more.** It was, and `$.l = [1e300, 1]` no longer diverges: the shipped
+297-digit guard that silently nulled `1e300` was a *defect*, T-3 corrected it to 309 digits, and
+Evan's q4 ruling adopted the corrected runtime. Both engines now read `1e300`, so `max($.l)` agrees.
+**The original showcase divergence was an artifact of the bug the adopted fix removed.** Full note
+against AC-22 in `.autodev/specs/T-2.md`.
+
+**Why it will have to move a third time — read this before touching T-8.** T-6 (ruled 2026-09-01,
+`kb/wiki/decision-t6-correctness-rerun.md`) adopted **variant C**: `xpr.num` maps the 670 non-ASCII
+`Nd` code points onto ASCII, so `float("１２３")` and the compiled SQL **agree**. Measured: zero
+divergences at the pinned float setting across 11,367 expressions.
+
+**When T-8 lands variant C in `demo/vendor/`, `$.m` stops diverging exactly the way `$.l` did.**
+
+That is not a regression to fix — it is T-6 passing. And on present evidence **there is no in-subset
+value disagreement left after T-8**, which means step 11 cannot keep making the claim it makes now.
+The honest successor is the magnitude refusal already demonstrated at step 13 (`edge-03`), and
+step 11's claim changes from *"the two engines disagree"* to *"the tool refuses rather than
+guessing"*.
+
+**That changes what the demo argues, so it is Evan's call, not T-8's.** It is written down in three
+places — here, against AC-22, and in `kb/CURRENT-WORK.md` — so T-8 cannot make it by accident.
+
+## The differing column sits beside the marker — q8, GA-8
+
+Evan, 2026-08-23: *"Fix it first — move the differing column beside the marker."* Implemented
+2026-09-01.
+
+The grid is `[SQL pane | coral spine | Python pane]`, so "beside the marker" is **mirrored about the
+spine**: the differing columns move to the far **right** of the left pane and the far **left** of
+the right pane, putting the two values either side of the `≠` and touching it. Verified live:
+
+```
+SQL order    : collection · key · data · biggest      value at the marker: 1
+Python order : biggest · collection · key · data      value at the marker: 123
+```
+
+**The order is computed on the server** and published as `column_order`, a permutation of column
+indices. `columns` and `kinds` are untouched, so every criterion asserting on them still holds and a
+client ignoring the field renders what it always did. **An agreeing pick is not reordered at all** —
+nine picks in ten must not move, or the screen becomes unpredictable for the sake of the tenth.
+
+Six end-to-end tests in `demo/tests/test_ui.py::TestTheDifferingColumnSitsBesideTheMarker` pin it:
+both orders are permutations of every column, agreeing picks stay natural, the differing block is
+adjacent to the spine on both sides, the two orders mirror each other, untouched columns keep their
+relative order, and the built bundle actually reads the published order (so a stale bundle fails).

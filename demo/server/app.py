@@ -369,6 +369,31 @@ def _page_start(first: int | None) -> int:
     return max(0, first - 5)
 
 
+def column_order(width: int, per_row: dict) -> dict:
+    """q8 (Evan, GA-8): *"move the differing column beside the marker"*.
+
+    The grid is [SQL pane | coral spine | Python pane], so "beside the marker"
+    is MIRRORED about the spine: on the left pane the differing columns move to
+    the far right, on the right pane to the far left. The two differing values
+    then sit either side of the marker, touching it, and the row shows its own
+    disagreement instead of the reader scrolling sideways to find values the
+    banner already named.
+
+    Returns index permutations, not columns: `columns` and `kinds` are left
+    exactly as they were, so every criterion asserting on them still holds and
+    a client that ignores this field renders what it always did.
+
+    Nothing differing means no reordering at all -- nine picks in ten must not
+    move, or the screen becomes unpredictable for the sake of the tenth.
+    """
+    natural = list(range(width))
+    differing = sorted({j for cols in per_row.values() for j in cols})
+    if not differing or len(differing) >= width:
+        return {"sql": natural, "python": natural}
+    rest = [j for j in natural if j not in set(differing)]
+    return {"sql": rest + differing, "python": differing + rest}
+
+
 def _rendered_pane(pane: dict, differing: dict, start: int, state: str,
                    note: str) -> dict:
     """One pane, as the screen receives it: the true total, and a page."""
@@ -1137,6 +1162,7 @@ def run_pick(conn, pick: dict) -> dict:
         "source": source,
         "verdict": comparison["verdict"],
         "comparison": comparison,
+        "column_order": column_order(len(sql["columns"]), per_row),
         "panes": {
             "sql": _rendered_pane(sql, per_row, start, "answered", _SQL_NOTE),
             "python": _rendered_pane(python, per_row, start, "answered", _PY_NOTE),

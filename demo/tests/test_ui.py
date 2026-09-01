@@ -1161,8 +1161,21 @@ SEVEN_STATES = {
     "buckets": (pick(bucket="day", aggregate={"fn": "count", "field": None}),
                 "agree", None),
     "changed": (pick(changed=True), "agree", None),
+    # 2026-09-01 (GA-11): was max($.l).  Under the adopted corrected runtime the
+    # guard reads 1e300 properly, so [1e300, 1] AGREES on both engines and this
+    # state stopped being a disagreement at all -- the two failing tests were
+    # telling the truth.  ACCEPTED_PICKS above had already been moved to $.m on
+    # 2026-08-23; this second definition was missed.  $.m is ["\uff11\uff12\uff13", 1]:
+    # Python coerces the full-width digits to 123, the ASCII gate in the vendored
+    # runtime returns NULL, so max() answers 123 against 1.  That divergence is
+    # real, in-subset, and survives the corrected guard.
+    #
+    # IT DOES NOT SURVIVE T-8.  T-6 adopted variant C, which maps non-ASCII digits
+    # onto ASCII and makes both engines agree here too.  When T-8 lands variant C
+    # in demo/vendor/, this state needs a new witness -- see the note in
+    # demo/EVIDENCE.md.
     "disagree": (pick(source=EDGECASE,
-                      computed=[{"name": "biggest", "expr": "max($.l)"}]),
+                      computed=[{"name": "biggest", "expr": "max($.m)"}]),
                  "disagree", None),
     "gate": (pick(computed=[{"name": "hot",
                              "expr": "round($.payload.load, 1)"}]),
@@ -1233,3 +1246,93 @@ class TestTheSevenStatesAreReachable:
         contract = client.get("/api/operations",
                               params={"pick": json.dumps(p)}).json()
         assert {o["n"] for o in contract["operations"] if not o["enabled"]} == {4, 8, 9}
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# q8 (GA-8) — the differing column sits BESIDE the marker
+#
+# Evan, 2026-08-23, resolving his own Q1/Q2 contradiction: *"Fix it first -
+# move the differing column beside the marker"* — so that a row shows its own
+# disagreement instead of the reader scrolling sideways to find the values the
+# banner already named.
+#
+# The grid is  [SQL pane | coral spine | Python pane].  "Beside the marker"
+# therefore means MIRRORED about the spine: on the left pane the differing
+# column moves to the far RIGHT, on the right pane to the far LEFT, so the two
+# differing values end up either side of the ≠ and touching it.
+#
+# The order is computed on the SERVER and published as `column_order`, which is
+# why these are real end-to-end assertions rather than a grep over the bundle.
+# `columns` itself is untouched, so every criterion asserting on it still holds.
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestTheDifferingColumnSitsBesideTheMarker:
+
+    def _order(self, answer):
+        o = answer["column_order"]
+        return o["sql"], o["python"]
+
+    def test_both_orders_are_permutations_of_every_column(self, conn):
+        """Reordering may not drop, duplicate or invent a column."""
+        for name, p in ACCEPTED_PICKS.items():
+            answer = run(conn, p)
+            width = len(answer["panes"]["sql"]["columns"]) or \
+                    len(answer["panes"]["python"]["columns"])
+            if not width:
+                continue
+            s, y = self._order(answer)
+            assert sorted(s) == list(range(width)), name
+            assert sorted(y) == list(range(width)), name
+
+    def test_an_agreeing_pick_is_left_in_its_natural_order(self, conn):
+        """The reorder is for disagreement only. Nine picks in ten must not move."""
+        for state in ("agree", "buckets", "changed"):
+            p, _, _ = SEVEN_STATES[state]
+            answer = run(conn, p)
+            width = len(answer["panes"]["sql"]["columns"])
+            s, y = self._order(answer)
+            assert s == list(range(width)), state
+            assert y == list(range(width)), state
+
+    def test_the_differing_column_is_adjacent_to_the_spine_on_both_sides(self, conn):
+        """The whole of q8, stated once."""
+        p, _, _ = SEVEN_STATES["disagree"]
+        answer = run(conn, p)
+        rows = answer["panes"]["sql"]["rows"]
+        diffs = sorted({j for r in rows if r.get("diff") for j in r["diff"]})
+        assert diffs, "this state must actually differ, or the test proves nothing"
+
+        s, y = self._order(answer)
+        # SQL is LEFT of the spine: its differing columns are the last ones.
+        assert s[-len(diffs):] == diffs
+        # Python is RIGHT of the spine: its differing columns are the first ones.
+        assert y[:len(diffs)] == diffs
+
+    def test_the_two_orders_mirror_each_other_about_the_spine(self, conn):
+        """Not merely 'both moved' — the same block, flipped across the marker,
+        so the eye travels the shortest distance between the two values."""
+        p, _, _ = SEVEN_STATES["disagree"]
+        answer = run(conn, p)
+        s, y = self._order(answer)
+        rows = answer["panes"]["sql"]["rows"]
+        diffs = sorted({j for r in rows if r.get("diff") for j in r["diff"]})
+        k = len(diffs)
+        assert s[-k:] == y[:k], "the differing block is not mirrored"
+        assert s[:-k] == y[k:], "the untouched columns are not in the same relative order"
+
+    def test_the_untouched_columns_keep_their_relative_order(self, conn):
+        """Moving the differing column must not shuffle everything else."""
+        p, _, _ = SEVEN_STATES["disagree"]
+        answer = run(conn, p)
+        s, _ = self._order(answer)
+        rows = answer["panes"]["sql"]["rows"]
+        diffs = {j for r in rows if r.get("diff") for j in r["diff"]}
+        rest = [j for j in s if j not in diffs]
+        assert rest == sorted(rest)
+
+    def test_the_screen_actually_follows_the_published_order(self):
+        """A server-side order nothing renders is not a layout fix."""
+        src = (_REPO_ROOT / "demo" / "frontend" / "panes.jsx").read_text(encoding="utf-8")
+        assert "column_order" in src, "the view never reads the published order"
+        bundle = (_REPO_ROOT / "demo" / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        assert "column_order" in bundle, "the built bundle is stale — run ./run-demo build-ui"

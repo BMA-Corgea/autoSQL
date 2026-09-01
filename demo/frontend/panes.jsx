@@ -213,14 +213,41 @@ export function Panes({ answer, hot, setHot }) {
     "--cols-m": columns.length ? template(columns, kinds, narrowFor) : "1fr",
   };
 
-  const ColHead = ({ col }) => (
-    <div className="cmp-cell rowcells colhead" style={{ gridColumn: col, gridRow: 2 }}>
-      {columns.map((c) => <span key={c}>{c}</span>)}
-    </div>
-  );
+  // q8 (Evan, GA-8): "move the differing column beside the marker".  The server
+  // publishes the permutation; this view only follows it.  The grid is
+  // [SQL | spine | Python], so the two orders are mirrored about the spine and
+  // each pane needs its OWN track template — hence the inline --cols here,
+  // which overrides the container's for that pane's rows only.
+  const natural = columns.map((_, j) => j);
+  const orders = answer && answer.column_order
+    ? answer.column_order
+    : { sql: natural, python: natural };
+  const orderOf = (side) =>
+    (orders && orders[side] && orders[side].length === columns.length)
+      ? orders[side]
+      : natural;
 
-  const DataRows = ({ col, pane }) =>
-    (pane.rows || []).map((r, i) => (
+  const tracksFor = (order) => ({
+    "--cols": columns.length
+      ? order.map((j) => widthFor(columns[j], kinds[j])).join(" ") : "1fr",
+    "--cols-m": columns.length
+      ? order.map((j) => narrowFor(columns[j], kinds[j])).join(" ") : "1fr",
+  });
+
+  const ColHead = ({ col, side }) => {
+    const order = orderOf(side);
+    return (
+      <div className="cmp-cell rowcells colhead"
+           style={{ gridColumn: col, gridRow: 2, ...tracksFor(order) }}>
+        {order.map((j) => <span key={columns[j]}>{columns[j]}</span>)}
+      </div>
+    );
+  };
+
+  const DataRows = ({ col, pane, side }) => {
+    const order = orderOf(side);
+    const tracks = tracksFor(order);
+    return (pane.rows || []).map((r, i) => (
       <div
         key={r.i}
         className={
@@ -230,16 +257,17 @@ export function Panes({ answer, hot, setHot }) {
           (hot === r.i ? " hot" : "")
         }
         data-r={r.i}
-        style={{ gridColumn: col, gridRow: 3 + i, "--i": i }}
+        style={{ gridColumn: col, gridRow: 3 + i, "--i": i, ...tracks }}
         onMouseEnter={() => setHot(r.i)}
         onMouseLeave={() => setHot(null)}
       >
-        {r.c.map((v, j) => (
-          <Cell key={j} value={v} tag={r.t[j]} column={columns[j]}
+        {order.map((j) => (
+          <Cell key={j} value={r.c[j]} tag={r.t[j]} column={columns[j]}
                 isDiff={!!(r.diff && r.diff.indexOf(j) >= 0)} />
         ))}
       </div>
     ));
+  };
 
   const Note = ({ col, text }) => (
     <div className="cmp-cell pane-note" style={{ gridColumn: col, gridRow: lastRow + 1 }}>
@@ -308,8 +336,8 @@ export function Panes({ answer, hot, setHot }) {
                   col={3} row={1} />
         {py.state === "answered" ? (
           <>
-            <ColHead col={3} />
-            <DataRows col={3} pane={py} />
+            <ColHead col={3} side="python" />
+            <DataRows col={3} pane={py} side="python" />
             <Note col={3} text={py.note} />
           </>
         ) : (
@@ -324,8 +352,8 @@ export function Panes({ answer, hot, setHot }) {
     cells = (
       <>
         <PaneHead side="sql" sub={subFor(sql)} count={nf(sql.row_count) + (sql.row_count === 1 ? " row" : " rows")} col={1} row={1} />
-        <ColHead col={1} />
-        <DataRows col={1} pane={sql} />
+        <ColHead col={1} side="sql" />
+        <DataRows col={1} pane={sql} side="sql" />
         <Note col={1} text={sql.note} />
 
         <div className="cmp-cell spine spine-head" style={{ gridColumn: 2, gridRow: 1 }}>
@@ -351,8 +379,8 @@ export function Panes({ answer, hot, setHot }) {
 
         <MobileSep />
         <PaneHead side="py" sub={subFor(py)} count={nf(py.row_count) + (py.row_count === 1 ? " row" : " rows")} col={3} row={1} />
-        <ColHead col={3} />
-        <DataRows col={3} pane={py} />
+        <ColHead col={3} side="python" />
+        <DataRows col={3} pane={py} side="python" />
         <Note col={3} text={py.note} />
       </>
     );
