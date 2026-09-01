@@ -9,6 +9,24 @@ hand, end to end, before it goes anywhere near GIMS or any real data.
 Every row behind this screen is invented. Nothing here describes anything
 real, and none of it should be read as though it does.
 
+## The front door
+
+From the repository root:
+
+```
+./start.sh          # bring it up and open the screen
+./start.sh stop     # tear it down (container and volume removed)
+./start.sh status   # is it running?
+```
+
+`start.sh` is a friendly wrapper over `./run-demo`, which does the real work and stays
+the thing the tests and CI call. If anything goes wrong, run `./run-demo up` directly —
+it prints everything untrimmed.
+
+`demo/launcher.html` is a standalone page you can open from disk with nothing running.
+It explains what the demo is, lists the seven states, and tells you live whether the
+screen is up.
+
 ## Running it
 
 From a clean checkout, one command:

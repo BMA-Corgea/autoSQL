@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>autoSQL — the demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   autoSQL demo launcher — the WATERY house style.
+
+   Tokens lifted from demo/vendor/styles/watery.css, the project's own
+   design system (vendored byte-identical from GIMS). Recolour a :root
+   variable, not 40 hex codes.
+
+   Self-contained on purpose: no build, no server, no network. Open the
+   file. It works whether or not anything is running.
+   ═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #06140f; --bg2: #0a1f1a; --surface: #0e2a23;
+  --card: #11362a; --card-2: #173f2f;
+  --card-edge: rgba(216,189,138,0.55); --card-edge-strong: rgba(230,203,152,0.82);
+  --border: rgba(140,230,200,0.14); --border2: rgba(140,230,200,0.30);
+  --text: #e8f4ee; --text-mid: #a6cabd; --text-soft: #6f988b; --text-mute: #436055;
+  --accent: #2dd4bf; --accent-2: #6ee7c7;
+  --accent-light: rgba(45,212,191,0.14); --accent-glow: rgba(45,212,191,0.32);
+  --blue: #4f9dff; --blue-2: #74b9ff; --blue-text: #bcd9ff;
+  --blue-light: rgba(79,157,255,0.14); --blue-border: rgba(79,157,255,0.42);
+  --blue-cta-1: #1d56c9; --blue-cta-2: #2970d8;
+  --warm: #f4c987; --warm-2: #f0a868; --warm-glow: rgba(244,201,135,0.16);
+  --glow-aqua: rgba(45,212,191,0.10); --glow-floor: rgba(20,90,72,0.22);
+  --green: #34e0a1; --green-light: rgba(52,224,161,0.13); --green-text: #6ef0bf;
+  --amber: #f5b544; --amber-light: rgba(245,181,68,0.13); --amber-text: #ffd794;
+  --coral: #ff7a6b; --coral-light: rgba(255,122,107,0.13); --coral-text: #ffb3a8;
+  --mono: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 620px at 18% -8%,  var(--glow-aqua), transparent 60%),
+    radial-gradient(900px 520px at 88% 4%,    var(--warm-glow), transparent 62%),
+    radial-gradient(1200px 700px at 50% 108%, var(--glow-floor), transparent 65%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 62rem; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+
+/* ── hero ─────────────────────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-size: .72rem; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent);
+  padding: .3rem .6rem; border-radius: 999px;
+  background: var(--accent-light); border: 1px solid var(--border2);
+  margin-bottom: 1.25rem;
+}
+h1 {
+  font-size: clamp(2.2rem, 5.5vw, 3.4rem); font-weight: 300;
+  letter-spacing: -.02em; line-height: 1.08; text-wrap: balance;
+  margin-bottom: .9rem;
+}
+h1 b { font-weight: 600; color: var(--accent-2); }
+.lede {
+  font-size: 1.12rem; color: var(--text-mid); max-width: 44rem;
+  margin-bottom: 2rem;
+}
+.lede strong { color: var(--text); font-weight: 600; }
+
+/* ── the start panel ──────────────────────────────────────────────── */
+.panel {
+  background: linear-gradient(160deg, var(--card), var(--card-2));
+  border: 1px solid var(--card-edge);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.8);
+  transition: border-color .18s;
+}
+.panel:hover { border-color: var(--card-edge-strong); }
+
+.start { display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: center; margin-bottom: 2.5rem; }
+.start h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: .35rem; }
+.start p { color: var(--text-soft); font-size: .93rem; margin-bottom: .9rem; }
+.cmd {
+  display: flex; align-items: center; gap: .7rem;
+  font-family: var(--mono); font-size: .92rem;
+  background: rgba(0,0,0,.32); border: 1px solid var(--border);
+  border-radius: 9px; padding: .65rem .85rem; color: var(--accent-2);
+}
+.cmd span { color: var(--text-mute); user-select: none; }
+.cmd code { flex: 1; color: var(--accent-2); }
+.copy {
+  font: inherit; font-size: .78rem; font-weight: 600; font-family: Inter, sans-serif;
+  background: transparent; border: 1px solid var(--border2); color: var(--text-mid);
+  border-radius: 6px; padding: .25rem .6rem; cursor: pointer; transition: all .15s;
+}
+.copy:hover { border-color: var(--accent); color: var(--accent-2); transform: translateY(-1px); }
+.copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── live status ──────────────────────────────────────────────────── */
+.status { text-align: center; min-width: 12rem; }
+.dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  margin-right: .45rem; vertical-align: 1px; background: var(--text-mute);
+}
+.dot.up   { background: var(--green); box-shadow: 0 0 0 0 var(--green); animation: pulse-dot 2.2s infinite; }
+.dot.down { background: var(--text-mute); }
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgba(52,224,161,.5); }
+  70%  { box-shadow: 0 0 0 9px rgba(52,224,161,0); }
+  100% { box-shadow: 0 0 0 0 rgba(52,224,161,0); }
+}
+.status-label { font-size: .8rem; letter-spacing: .09em; text-transform: uppercase; font-weight: 600; color: var(--text-soft); margin-bottom: .8rem; }
+.btn {
+  display: inline-block; font: inherit; font-size: .92rem; font-weight: 600;
+  padding: .6rem 1.3rem; border-radius: 9px; text-decoration: none;
+  background: linear-gradient(135deg, var(--blue-cta-1), var(--blue-cta-2));
+  color: #fff; border: 1px solid var(--blue-border);
+  transition: transform .15s, filter .15s; position: relative; overflow: hidden;
+}
+.btn:hover { transform: translateY(-2px); filter: brightness(1.12); }
+.btn:focus-visible { outline: 2px solid var(--blue-2); outline-offset: 2px; }
+.btn[aria-disabled="true"] {
+  background: rgba(255,255,255,.04); color: var(--text-mute);
+  border-color: var(--border); pointer-events: none; transform: none;
+}
+
+/* ── section headings ─────────────────────────────────────────────── */
+h2.sec {
+  font-size: .78rem; font-weight: 600; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--text-soft);
+  padding-bottom: .55rem; border-bottom: 1px solid var(--border);
+  margin: 3rem 0 1.25rem;
+}
+
+/* ── the seven states ─────────────────────────────────────────────── */
+.states { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .9rem; }
+.state {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 11px; padding: 1.05rem 1.15rem;
+  transition: transform .16s, border-color .16s;
+  /* Column + auto margin on the tag: the answers/refuses chips line up across a
+     row whatever the copy length, instead of floating at three heights. */
+  display: flex; flex-direction: column;
+}
+.state:hover { transform: translateY(-2px); border-color: var(--border2); }
+.state-head { display: flex; align-items: baseline; gap: .55rem; margin-bottom: .5rem; }
+.n {
+  font-family: var(--mono); font-size: .72rem; font-weight: 500;
+  color: var(--accent); background: var(--accent-light);
+  border-radius: 5px; padding: .12rem .4rem; flex: none;
+}
+.state h3 { font-size: 1rem; font-weight: 600; letter-spacing: -.005em; }
+.state p { font-size: .88rem; color: var(--text-soft); }
+.state p em { color: var(--text-mid); font-style: normal; }
+.tag {
+  display: inline-block; align-self: flex-start; margin-top: auto; font-size: .66rem; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: .12rem .42rem; border-radius: 4px;
+}
+.tag.answers { background: var(--green-light); color: var(--green-text); }
+.tag.refuses { background: var(--amber-light); color: var(--amber-text); }
+
+/* ── the numbers ──────────────────────────────────────────────────── */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .9rem; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 11px; padding: 1rem 1.1rem; }
+.stat dt { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-soft); font-weight: 600; margin-bottom: .4rem; }
+.stat dd { font-size: 1.55rem; font-weight: 300; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+.stat dd small { display: block; font-size: .8rem; font-weight: 400; color: var(--text-soft); letter-spacing: 0; margin-top: .2rem; }
+.stat.warm dd { color: var(--warm); }
+
+/* ── the honest note ──────────────────────────────────────────────── */
+.note { border-left: 2px solid var(--warm); padding-left: 1.1rem; color: var(--text-mid); font-size: .95rem; margin-top: 1.25rem; }
+.note b { color: var(--warm); font-weight: 600; }
+
+table.cmp { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 1rem; }
+table.cmp th { text-align: left; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-soft); font-weight: 600; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+table.cmp td { padding: .55rem 0; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: .84rem; color: var(--text-mid); }
+table.cmp td:first-child { font-family: Inter, sans-serif; font-size: .9rem; color: var(--text); }
+table.cmp td.good { color: var(--green-text); }
+table.cmp td.bad  { color: var(--coral-text); }
+
+footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--text-mute); }
+footer code { font-family: var(--mono); font-size: .9em; color: var(--text-soft); }
+a { color: var(--blue-text); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 40rem) { .start { grid-template-columns: 1fr; } .status { text-align: left; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow"><span class="dot" id="dot"></span><span id="eyebrow-text">checking…</span></p>
+
+  <h1>The same question,<br>answered <b>two ways</b>.</h1>
+  <p class="lede">
+    autoSQL compiles a dashboard expression into SQL and runs it in Postgres. This demo puts that
+    answer <strong>beside the answer today's Python gives</strong>, over the same rows, and marks
+    every place they differ — because the failure this project exists to prevent is a
+    <strong>silently wrong number</strong>, and the only way to catch one is to compute it twice.
+  </p>
+
+  <section class="panel start">
+    <div>
+      <h2>Start it</h2>
+      <p>One command. Brings up its own Postgres, seeds 10,410 invented rows, and opens the screen.</p>
+      <div class="cmd"><span>$</span><code id="cmd">./start.sh</code>
+        <button class="copy" id="copy" type="button">Copy</button></div>
+    </div>
+    <div class="status">
+      <div class="status-label" id="status-label">checking…</div>
+      <a class="btn" id="open" href="http://127.0.0.1:8787/" aria-disabled="true">Open the screen</a>
+    </div>
+  </section>
+
+  <h2 class="sec">The seven states — every one is a real query, not a drawing</h2>
+  <div class="states" id="states"></div>
+
+  <h2 class="sec">Where the correctness work got to</h2>
+  <dl class="stats">
+    <div class="stat"><dt>Wrong numbers</dt><dd>0<small>over 11,367 expressions</small></dd></div>
+    <div class="stat"><dt>Contract fixture</dt><dd>130 / 130<small>at all three float settings</small></dd></div>
+    <div class="stat"><dt>Tests</dt><dd>1,247<small>demo 1155 · runtime 58 · compiler 34</small></dd></div>
+    <div class="stat warm"><dt>Invented rows</dt><dd>10,410<small>none of it is real data</small></dd></div>
+  </dl>
+
+  <div class="panel" style="margin-top:1.5rem">
+    <h2 style="font-size:1.05rem;font-weight:600;margin-bottom:.3rem">The numbers no longer depend on a database setting</h2>
+    <p style="color:var(--text-soft);font-size:.93rem">
+      Postgres prints floating-point numbers to a precision a session variable controls. Set wrong, it
+      returns numbers that are <em style="font-style:normal;color:var(--text-mid)">short</em> — quietly.
+      The shipping compiler is now immune to it.
+    </p>
+    <table class="cmp">
+      <thead><tr><th>compiling <code style="font-family:var(--mono)">1 / 3</code></th><th>setting = 1</th><th>setting = &minus;3</th></tr></thead>
+      <tbody>
+        <tr><td>the original prototype</td><td>0.3333333333333333</td><td class="bad">0.333333333333</td></tr>
+        <tr><td>what ships today</td><td>0.3333333333333333</td><td class="good">0.3333333333333333</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>One thing this demo no longer shows, on purpose.</b> Its centrepiece used to be a
+    <em>disagreement</em> — the two engines returning different numbers. There isn't one any more:
+    the last in-subset divergence was closed, so state 4 shows the exact value that used to come back
+    wrong now reading <strong style="color:var(--text)">123</strong> on both sides. That is the result,
+    not a regression.
+  </div>
+
+  <footer>
+    Every row in this demo is <strong>invented</strong> — fabricated by <code>demo/seed/generate.py</code>
+    from fixed literal seeds. Nothing in it is real, and it never touches a live database.
+    Full walkthrough in <code>demo/WALKTHROUGH.md</code>; the decisions behind it in <code>kb/wiki/</code>.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STATES = [
+    { n: 1, id: "agree",      name: "Agreement",              kind: "answers",
+      what: "A rolling average over a window. Both engines walk the same rows and land on the same number, digit for digit." },
+    { n: 2, id: "buckets",    name: "Time buckets",           kind: "answers",
+      what: "Counts per day. Bucket labels are fixed-width UTC strings on both sides, so a timezone cannot quietly shift a row into yesterday." },
+    { n: 3, id: "changed",    name: "Only what changed",      kind: "answers",
+      what: "Rows whose value moved since the previous reading. The case the whole project was pitched on." },
+    { n: 4, id: "reconciled", name: "Reconciled",             kind: "answers",
+      what: "The value that used to come back wrong. Full-width digits, which Python reads and plain SQL could not — both now answer 123." },
+    { n: 5, id: "gate",       name: "Refused: the expression", kind: "refuses",
+      what: "An expression outside the safe subset. Refused before any SQL is written, naming the construct." },
+    { n: 6, id: "alias",      name: "Refused: the column name", kind: "refuses",
+      what: "A column name carrying an injection attempt. Refused at the allowlist — it never reaches the database." },
+    { n: 7, id: "probe",      name: "Refused while running",  kind: "refuses",
+      what: "A number too large for a double. Refused by name at runtime rather than returned as a wrong or empty value." }
+  ];
+
+  var root = document.getElementById("states");
+  STATES.forEach(function (s) {
+    var el = document.createElement("article");
+    el.className = "state";
+    el.innerHTML =
+      '<div class="state-head"><span class="n">' + s.n + '</span><h3></h3></div>' +
+      '<p></p><span class="tag ' + s.kind + '">' +
+      (s.kind === "answers" ? "answers" : "refuses") + "</span>";
+    el.querySelector("h3").textContent = s.name;
+    el.querySelector("p").textContent = s.what;
+    root.appendChild(el);
+  });
+
+  // ── liveness. The page is opened from disk, so a normal fetch is blocked by
+  //    CORS; a no-cors probe still tells us whether anything answered. ────────
+  var dot = document.getElementById("dot");
+  var eyebrow = document.getElementById("eyebrow-text");
+  var label = document.getElementById("status-label");
+  var open = document.getElementById("open");
+
+  function setUp(up) {
+    dot.className = "dot " + (up ? "up" : "down");
+    eyebrow.textContent = up ? "the demo is running" : "the demo is not running";
+    label.textContent = up ? "running" : "not running";
+    open.setAttribute("aria-disabled", up ? "false" : "true");
+    open.textContent = up ? "Open the screen" : "Run ./start.sh first";
+  }
+
+  function probe() {
+    var done = false;
+    var timer = setTimeout(function () { if (!done) { done = true; setUp(false); } }, 1500);
+    fetch("http://127.0.0.1:8787/api/operations", { mode: "no-cors", cache: "no-store" })
+      .then(function () { if (!done) { done = true; clearTimeout(timer); setUp(true); } })
+      .catch(function () { if (!done) { done = true; clearTimeout(timer); setUp(false); } });
+  }
+
+  probe();
+  setInterval(probe, 4000);
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var btn = this, text = document.getElementById("cmd").textContent;
+    var done = function (ok) {
+      btn.textContent = ok ? "Copied" : "Select it";
+      setTimeout(function () { btn.textContent = "Copy"; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } else { done(false); }
+  });
+})();
+</script>
+</body>
+</html>
