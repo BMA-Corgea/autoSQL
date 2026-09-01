@@ -3,8 +3,8 @@
   "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
   "type": "feature",
   "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
-  "stage": "uat",
-  "status": "acceptance",
+  "stage": "monitor",
+  "status": "complete",
   "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
   "pipeline_version": "feature@v1",
   "modifiers": [
@@ -26,19 +26,19 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
-    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
-    "2026-09-01 gate merge cleared by policy:unattended",
-    "2026-09-01 advanced gate → verify · gate on claude-opus-5[1m]",
-    "2026-09-01 advanced verify → uat · verify on claude-opus-5[1m]"
+    "2026-09-01 gate accept cleared by agent:claude(on-behalf:evan,GA-12) on go-ahead GA-12 (\"accept T-2 and keep going with T-8\")",
+    "2026-09-01 advanced uat → release · uat on claude-opus-5[1m]",
+    "2026-09-01 gate deploy cleared by policy:unattended",
+    "2026-09-01 advanced release → monitor · release on claude-opus-5[1m]",
+    "2026-09-01 pipeline complete at monitor"
   ],
   "assignees": {},
   "links": {},
   "gates": {
     "spec_ready": true,
     "merge": true,
-    "accept": false,
-    "deploy": false,
+    "accept": true,
+    "deploy": true,
     "sp_decide": false,
     "ex_decide": false,
     "compliance": false
@@ -49,8 +49,9 @@
     }
   },
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "live health probes on the running stack (pid 394292, up 14m39s): /api/operations HTTP 200 x3, /api/pick 0.360s/0.343s/0.346s over 8,400 heartbeat rows, no errors. There is no rollout telemetry to watch because there is no production rollout — this is a local demo and that is stated rather than dressed up. Follow-up already filed through triage rather than left in a comment: T-8 will remove this demo's disagreement state (variant C makes the witness agree), recorded against AC-22, in demo/EVIDENCE.md and in kb/CURRENT-WORK.md."
   },
   "history": [
     {
@@ -166,6 +167,18 @@
       "to": "uat",
       "by": "agent:claude(on-behalf:evan,GA-11)",
       "at": "2026-09-01T21:20:52.203Z"
+    },
+    {
+      "from": "uat",
+      "to": "release",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:31:06.542Z"
+    },
+    {
+      "from": "release",
+      "to": "monitor",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:31:21.954Z"
     }
   ],
   "pins": {
@@ -251,20 +264,39 @@
       "by": "agent:claude(on-behalf:evan,GA-11)",
       "at": "2026-09-01T21:20:52.201Z",
       "model": "claude-opus-5[1m]"
-    }
-  },
-  "bounces": {
+    },
     "uat": {
-      "attempts": 1,
-      "no_progress_streak": 1,
-      "last_digest": null
+      "evidence": "accept gate cleared on Evan's explicit instruction (GA-12, 'accept T-2 and keep going with T-8'), against the live stack at 127.0.0.1:8787 — 1152 passed 0 failed, all seven states verified over HTTP in demo/VERIFY-2026-09-01.txt, q8's layout proven live",
+      "kind": "other",
+      "fingerprint": "accept gate cleared on Evan's explicit instruction (GA-12, 'accept T-2 and keep going with T-8'), against the live stack at 127.0.0.1:8787 — 1152 passed 0 failed, all seven states verified over HTTP in demo/VERIFY-2026-09-01.txt, q8's layout proven live",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:31:06.541Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "release": {
+      "evidence": "merged to main at 1f9651a; 'deployment' for this ticket is the local demo stack, which is the only target it has — no production environment exists for it and none is claimed. Running and answering: HTTP 200 on http://127.0.0.1:8787/ and /static/js/app.js, seven states exercised live. Rollback path: git revert on main, then ./run-demo up.",
+      "kind": "other",
+      "fingerprint": "merged to main at 1f9651a; 'deployment' for this ticket is the local demo stack, which is the only target it has — no production environment exists for it and none is claimed. Running and answering: HTTP 200 on http://127.0.0.1:8787/ and /static/js/app.js, seven states exercised live. Rollback path: git revert on main, then ./run-demo up.",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:31:21.953Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "monitor": {
+      "evidence": "live health probes on the running stack (pid 394292, up 14m39s): /api/operations HTTP 200 x3, /api/pick 0.360s/0.343s/0.346s over 8,400 heartbeat rows, no errors. There is no rollout telemetry to watch because there is no production rollout — this is a local demo and that is stated rather than dressed up. Follow-up already filed through triage rather than left in a comment: T-8 will remove this demo's disagreement state (variant C makes the witness agree), recorded against AC-22, in demo/EVIDENCE.md and in kb/CURRENT-WORK.md.",
+      "kind": "other",
+      "fingerprint": "live health probes on the running stack (pid 394292, up 14m39s): /api/operations HTTP 200 x3, /api/pick 0.360s/0.343s/0.346s over 8,400 heartbeat rows, no errors. There is no rollout telemetry to watch because there is no production rollout — this is a local demo and that is stated rather than dressed up. Follow-up already filed through triage rather than left in a comment: T-8 will remove this demo's disagreement state (variant C makes the witness agree), recorded against AC-22, in demo/EVIDENCE.md and in kb/CURRENT-WORK.md.",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:31:39.676Z",
+      "model": "claude-opus-5[1m]"
     }
   },
+  "bounces": {},
   "consent_epoch": "2026-08-23T05:12:56.291Z",
   "blocked": {
     "reason": "STOPPED FOR THE NIGHT at Evan's request, at a clean boundary. His q3 (re-scope AC-35) is DONE and its two failures are gone. His q4 (adopt T-3's corrected runtime) is applied in code, with B15/B24/AC-13 amended and AC-22's note missing because the worker was stopped mid-write. THE THING THAT NEEDS HIM: adopting the corrected runtime DELETES the demo's centrepiece disagreement. Verified on the running stack - xpr.f8(1e300) now returns 1e+300 where the old 297-digit guard returned NULL, so the edge-01 pick that answered SQL=1 vs Python=1e+300 now AGREES, differing_rows 0. The showcase divergence was itself an artifact of the guard defect T-3 fixed. Suite 1144 passed / 2 failed, and both failures are exactly that - the disagreement state asserting a divergence that no longer occurs. This is a product question and it is his: find a different in-subset disagreement the corrected runtime still produces, keep the pinned pre-fix runtime for the DEMO only while adopting it everywhere else, or accept a demo whose disagreement state is a refusal rather than a divergence. Also still queued and NOT started: his q8 layout fix (move the differing column beside the coral marker), which must land before acceptance per GA-8.",
     "remedy": "Read .autodev/handoffs/T-2.md, then answer the question in the form at https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb . Then: tracker.mjs unblock T-2 --by <actor>",
     "since": "2026-08-23T05:40:43.953Z",
     "by": "agent:claude(on-behalf:evan,GA-8)"
-  }
+  },
+  "completed": true
 }
