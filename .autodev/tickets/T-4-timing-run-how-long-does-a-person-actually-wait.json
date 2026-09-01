@@ -16,7 +16,8 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-08-21 created as spike \"Timing run: how long does a person actually wait, generated SQL vs today's Python?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)"
+    "2026-08-21 created as spike \"Timing run: how long does a person actually wait, generated SQL vs today's Python?\" on spike@v2 by agent:claude(on-behalf:evan,GA-3)",
+    "2026-09-01 BLOCKED at sp-frame: The host is not quiet, and T-4's own framing forbids starting here. Measured 2026-09-01 23:1x UTC: 1-minute load average 2.30, against the framing §5's REQUIRED '<= 2.0 when a size starts'. The load is not this session's -- 'python -m uvicorn gui.backend.main:app --port 8642' has been at 85% CPU for 5 hours (another of Evan's projects), a GUTS/gons multiprocessing worker is spawning, and Firefox is active with several content processes. None of it is mine to stop. EXPERIMENTS.md 2.6 budgets an EXCLUSIVE 2-3 hour window, which does not exist while he is working. T-4 is measured in ABSOLUTE MILLISECONDS -- that is Evan's own correction under GA-3 -- so numbers taken at an unknown or elevated load are not merely weaker, they are void: framing section 6 item 1 voids the cell. Running it anyway would burn the one quiet window on numbers its own bar rejects."
   ],
   "assignees": {},
   "links": {},
@@ -38,5 +39,11 @@
     "validator_passed": false,
     "attempts": 0
   },
-  "history": []
+  "history": [],
+  "blocked": {
+    "reason": "The host is not quiet, and T-4's own framing forbids starting here. Measured 2026-09-01 23:1x UTC: 1-minute load average 2.30, against the framing §5's REQUIRED '<= 2.0 when a size starts'. The load is not this session's -- 'python -m uvicorn gui.backend.main:app --port 8642' has been at 85% CPU for 5 hours (another of Evan's projects), a GUTS/gons multiprocessing worker is spawning, and Firefox is active with several content processes. None of it is mine to stop. EXPERIMENTS.md 2.6 budgets an EXCLUSIVE 2-3 hour window, which does not exist while he is working. T-4 is measured in ABSOLUTE MILLISECONDS -- that is Evan's own correction under GA-3 -- so numbers taken at an unknown or elevated load are not merely weaker, they are void: framing section 6 item 1 voids the cell. Running it anyway would burn the one quiet window on numbers its own bar rejects.",
+    "remedy": "Wait for a genuinely quiet host, then: (1) confirm /proc/loadavg 1-min is <= 2.0 and record the top 3 processes by CPU at start and end (framing section 5.1 item 3); (2) stop the demo stack with ./run-demo down; (3) rebuild the six-size corpus per spikes/T-1/proto/REGENERATE-CORPUS.md -- about 70s, and note section 7's patch adds the two fields EXPERIMENTS 2.3 needs; (4) run arms and sizes per framing section 5.2 (n=25 at 20k and 100k, n=9 at 1M). Disk is at 93% with 33GB free -- enough, but check before the 1M build. GA-8 q9 also carries a standing commitment that Evan is TOLD BEFORE IT STARTS.",
+    "since": "2026-09-01T23:10:24.132Z",
+    "by": "agent:claude(on-behalf:evan,GA-15)"
+  }
 }

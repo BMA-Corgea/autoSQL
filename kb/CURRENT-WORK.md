@@ -157,7 +157,6 @@ always showing its derivation, always overturnable by one line from him.
   **Evidence integrity:** `spikes/T-1/FINDINGS.md` is untouched (sha256 `bcda73d6…`, matching its
   recorded digest), but T-1's numbers can no longer be reproduced byte-identically from the current
   instruments — that needs a checkout of `01e75b0`. Handoff: `.autodev/handoffs/T-3.md`.
-- **T-4** (spike) — *Timing run: how long does a person actually wait, generated SQL vs today's
   Python?* — **at `sp-frame`, framed, and deliberately NOT started today.** `depends_on:
   ["T-1","T-3"]`. Evan's wrap-up item 28 put the correctness run and the demo build on today and left
   the timing run for a booked window, because building the demo is exactly the heavy work that voids
@@ -167,8 +166,6 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
-- **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — gate
 
 ## Waiting on
 
@@ -195,7 +192,7 @@ fully answered — nine by him in session, the other 29 ruled under GA-6 and rec
   carries T-3's 472-line fix. Adopting the fix would change B15's guard digits, B24's edge-04/edge-05
   pair, AC-13's fifth witness and AC-17's mechanism — four signed criteria — so it was not taken
   unilaterally. One line either way.
-- **T-4 needs two things only he can give:** an exclusive quiet 2–3 hour window on this machine
+- **T-4** — blocked: The host is not quiet, and T-4's own framing forbids starting here. Measured 20…
   (item 29), and either a real dashboard widget of his own or acceptance of the invented one, which is
   labelled invented everywhere it appears (item 30). After T-3's failure, whether T-4 runs at all is
   part of the `sp-decide` decision rather than an automatic next step.
@@ -210,13 +207,14 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
-- **T-10** — waiting at spec_ready on human:owner since 2026-09-01
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-7 COMPLETE** — Audit: which write path stores rows that skip the schema type check?
+- 2026-09-01 **T-10 COMPLETE** — The correctness harness fingerprints the wrong runtime
 - 2026-09-01 **T-11 COMPLETE** — Promote the compiler out of the frozen spike, and route its output through xpr.j
 - 2026-09-01 **T-9 COMPLETE** — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing …
 - 2026-09-01 **T-8 COMPLETE** — Adopt variant C as the shipping runtime, with a regenerable digit mapping
