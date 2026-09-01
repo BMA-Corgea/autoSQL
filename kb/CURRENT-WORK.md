@@ -2,51 +2,63 @@
 
 ---
 
-> # START HERE — 2026-09-01 (seventh update: T-11 complete; six tickets done today)
+> # START HERE — 2026-09-01 (final: everything closed except T-4, which is BLOCKED on a quiet machine)
 >
-> **Everything is on `main`. Nothing is blocked. Nothing is running.**
-> Done today: **T-2, T-5, T-6, T-8, T-9, T-11**.
+> **Eight tickets finished today: T-2, T-5, T-6, T-7, T-8, T-9, T-10, T-11.** One remains, and it is
+> blocked for a measured reason, not an unfinished one. Everything is on `main`; the tree is clean
+> and every feature branch is merged and deleted.
 >
-> **The correctness story is now closed end to end.** The compiled SQL and the Python evaluator
-> agree (0 wrong numbers over 11,367 expressions, fixture 130/130 — T-6), the runtime that makes
-> that true ships from **`runtime/`** and is generated (T-8), and as of T-9 + T-11 **the numbers no
-> longer depend on a session setting at all**: every float8 result is emitted through `xpr.j`,
-> which carries its own `SET extra_float_digits = 1`.
+> ## The one thing left — T-4, and why it did not run
 >
-> Proven both directions, which is the part that matters:
+> **T-4 is BLOCKED, deliberately, and it is ready to start the moment the machine is free.**
+>
+> Its own framing requires a **1-minute load average ≤ 2.0 at the start** and an **exclusive 2–3
+> hour window**. Measured when the loop reached it: **load 2.30**, with
+> `uvicorn gui.backend.main:app --port 8642` at **85 % CPU for five hours** (another of Evan's
+> projects), a GUTS/gons worker spawning, and Firefox active. **None of that is this session's to
+> stop.**
+>
+> T-4 is measured in **absolute milliseconds** — Evan's own correction under GA-3 — so numbers taken
+> at an elevated load are not weaker, they are **void** (framing §6 item 1). Running it would have
+> burned the one quiet window on numbers its own bar rejects. **The block carries the exact restart
+> recipe**; `tracker.mjs show T-4` prints it. **GA-8 q9 also carries a standing commitment that Evan
+> is told before it starts.**
+>
+> **T-4 is the last thing between this project and the GIMS gate.** T-1 measured the compiled path
+> 3.8×–7.2× slower than today's Python and that has never been refined.
+>
+> ## Where the project got to
+>
+> The correctness thread that began with T-1 is **closed end to end**. The compiled SQL and the
+> Python evaluator agree — **0 wrong numbers over 11,367 expressions**, contract fixture **130/130**
+> (T-6) — and as of T-9 + T-11 the numbers **no longer depend on a session setting at all**:
 >
 > | | efd 1 | efd −3 |
 > |---|---|---|
 > | frozen spike compiler | `0.3333333333333333` | `0.333333333333` ← moves |
 > | shipping compiler | `0.3333333333333333` | `0.3333333333333333` ← immune |
 >
-> **Three things a resuming session must not miss:**
+> **Two directories are now the source of truth:** **`runtime/`** (SQL, generated) and
+> **`compiler/`** (Python). Everything under `spikes/` is **FROZEN EVIDENCE** —
+> `spikes/T-1/proto/runtime.sql` (`1c58d548a6045aa6`), `spikes/T-6/runtime.sql`
+> (`871b1b4c2df95719`), `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Tests assert all three.
+>
+> **Suites:** demo **1155** · runtime **58** · compiler **34** — all green, B10 checksum guard verified.
+>
+> ## Three things a resuming session must not miss
 >
 > 1. **`runtime/runtime.sql` is GENERATED.** Edit `runtime/runtime.sql.in`, run
 >    `python3 runtime/generate.py`. Its digit mapping comes from the **running Python's**
 >    `unicodedata` — freeze it and a Python upgrade splits the two engines silently.
-> 2. **Two directories are now the source of truth: `runtime/` (SQL) and `compiler/` (Python).**
->    Everything under `spikes/` is **FROZEN EVIDENCE** — `spikes/T-1/proto/runtime.sql`
->    (`1c58d548a6045aa6`), `spikes/T-6/runtime.sql` (`871b1b4c2df95719`) and
->    `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Their digests are cited in T-3's and T-6's
->    findings and in 42 battery outputs. Tests assert all three.
-> 3. **The demo shows no disagreement, and that is not a regression.** Step 11's artboard is
+> 2. **The demo shows no disagreement, and that is not a regression.** Step 11's artboard is
 >    `reconciled`: the value that used to come back wrong now reads `123` on both engines. Every
->    assertion was inverted, not deleted.
+>    assertion was inverted, not deleted. Revert by pinning `demo/vendor/runtime.sql` to pre-T-8.
+> 3. **A declared field type is not a guarantee about stored content** (T-7) — six of seven GIMS
+>    write paths never check it. Any design reaching for a per-path typed expression index must
+>    guard it or expect the failure. `kb/wiki/declared-types-are-not-a-guarantee.md`.
 >
-> **Suites:** demo **1155**, runtime **58**, compiler **34** — all green, B10 checksum guard verified.
->
-> **Open, none started:**
->
-> - **T-10 (techdebt, `intake`)** — the correctness harness fingerprints the file it expects rather
->   than what is installed; all 42 of T-6's battery outputs named the wrong runtime.
-> - **T-4 (spike, `sp-frame`)** — the speed run. Released by T-6; needs a quiet machine, and Evan
->   asked to be told before it starts. **This is the last thing standing between the project and the
->   GIMS gate** — T-1 measured the compiled path 3.8×–7.2× slower and that has never been refined.
-> - **T-7 (spike, `sp-frame`)** — parked by Evan's own Q6.
->
-> **Decisions of record:** `kb/wiki/decision-t5-homework.md` · `decision-t6-correctness-rerun.md` ·
-> `runtime/README.md` · `compiler/README.md`.
+> **Decisions of record:** `decision-t5-homework.md` · `decision-t6-correctness-rerun.md` ·
+> `declared-types-are-not-a-guarantee.md` · `runtime/README.md` · `compiler/README.md`.
 >
 > **Standing:** never port **55433**. Nothing in either GIMS checkout has been changed (Q3 park).
 > Plan §8.2's mutation pass has **still never run** — 9 of 16 mutants never watched failing.
