@@ -1,0 +1,42 @@
+{
+  "id": "T-7",
+  "slug": "audit-which-write-path-stores-rows-that-skip-the",
+  "type": "spike",
+  "title": "Audit: which write path stores rows that skip the schema type check?",
+  "stage": "sp-frame",
+  "status": "spike_todo",
+  "spec": "Q6 of Evan's 2026-09-01 form (GA-9): 'log it as a ticket, do not chase now'. LOW PRIORITY - opened so it is on the record, NOT to be worked before T-6. T-5 found, on the way past, that GIMS's LIMS-System project has Glove.size declared type:float in noun_types.json while the stored rows contain 'lmao im a changling', '3 more boss', 'oh okay', 'ok I pull up' (spikes/T-5/probes/P3_number_fields_on_disk.txt). core/words/validation.py:88-97 is_number() rejects all four, so either some write path reaches store.put_record without validate_item_against_schema, or those rows predate the check. The question: WHICH. Why it matters to autoSQL specifically - a declared field type is then not a guarantee about stored content, so any design that trusts declared types (per-path expression indexes per assumed scalar type, the f3 section 3.6 H3 hazard) inherits an assumption that does not hold. Read-only audit of INSERT/put_record paths in both trees; no fix in scope.",
+  "pipeline_version": "spike@v2",
+  "modifiers": [],
+  "pipeline": [
+    "sp-frame",
+    "sp-investigate",
+    "sp-synth",
+    "sp-decide",
+    "sp-spawn"
+  ],
+  "passport": [
+    "2026-09-01 created as spike \"Audit: which write path stores rows that skip the schema type check?\" on spike@v2 by agent:claude(on-behalf:evan,GA-9)",
+    "2026-09-01 relinked intent null → \"T-5\" by agent:claude(on-behalf:evan,GA-9): T-7 was spawned by T-5's sp-spawn from Evan's Q6 ruling (GA-9); links.intent is the hierarchy edge the stage validator requires"
+  ],
+  "assignees": {},
+  "links": {
+    "intent": "T-5"
+  },
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}

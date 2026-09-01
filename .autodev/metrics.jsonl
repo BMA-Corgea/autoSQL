@@ -29,3 +29,8 @@
 {"ts":"2026-08-23T05:12:12.472Z","kind":"pipeline.complete","ticket":"T-3","at":"sp-spawn"}
 {"ts":"2026-08-23T05:12:56.292Z","kind":"stage.loopback","ticket":"T-2","from":"uat","to":"build","attempts":1,"no_progress_streak":1,"stuck":false}
 {"ts":"2026-08-23T05:40:43.955Z","kind":"ticket.blocked","ticket":"T-2","stage":"build"}
+{"ts":"2026-09-01T19:43:45.266Z","kind":"stage.advanced","ticket":"T-5","from":"sp-frame","to":"sp-investigate"}
+{"ts":"2026-09-01T19:53:57.956Z","kind":"stage.advanced","ticket":"T-5","from":"sp-investigate","to":"sp-synth"}
+{"ts":"2026-09-01T19:55:31.554Z","kind":"stage.advanced","ticket":"T-5","from":"sp-synth","to":"sp-decide"}
+{"ts":"2026-09-01T20:14:01.935Z","kind":"stage.advanced","ticket":"T-5","from":"sp-decide","to":"sp-spawn"}
+{"ts":"2026-09-01T20:15:13.333Z","kind":"pipeline.complete","ticket":"T-5","at":"sp-spawn"}
