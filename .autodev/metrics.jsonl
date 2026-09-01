@@ -51,3 +51,4 @@
 {"ts":"2026-09-01T21:33:41.998Z","kind":"stage.advanced","ticket":"T-8","from":"queue","to":"locate"}
 {"ts":"2026-09-01T21:34:06.085Z","kind":"stage.advanced","ticket":"T-8","from":"locate","to":"plan"}
 {"ts":"2026-09-01T21:34:30.157Z","kind":"stage.advanced","ticket":"T-8","from":"plan","to":"build"}
+{"ts":"2026-09-01T21:50:08.934Z","kind":"stage.advanced","ticket":"T-8","from":"build","to":"auto-review"}

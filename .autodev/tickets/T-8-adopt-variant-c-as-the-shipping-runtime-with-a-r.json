@@ -3,8 +3,8 @@
   "slug": "adopt-variant-c-as-the-shipping-runtime-with-a-r",
   "type": "feature",
   "title": "Adopt variant C as the shipping runtime, with a regenerable digit mapping",
-  "stage": "build",
-  "status": "building",
+  "stage": "auto-review",
+  "status": "in_review",
   "spec": "Spawned by T-6's ruling (kb/wiki/decision-t6-correctness-rerun.md). Replace the xpr runtime's string-coercion branch with variant C, proven at spikes/T-6/runtime-variantC.sql: after the ASCII numeric gate fails, btrim with Python's full 29-code-point isspace set and translate the 670 non-ASCII Nd code points onto 0-9, then re-test. Measured: 0 wrong numbers at efd 1 over 11,367 expressions, 0 refusals, fixture 130/130, 812ms vs an 852ms baseline per 300k ordinary coercions. THE NESTING IS LOAD-BEARING: hoisting translate() above the ASCII gate costs 5.3x (4553ms) because every ordinary numeric string then pays it, and T-5 found every number-declared field in the tenant project is stored as text. Keep the comment that says so. ALSO IN SCOPE: the 670-character mapping is generated from Python's unicodedata, not hand-written, so add the generator to the build and a test that fails when the installed mapping disagrees with the running Python's Nd set - a Unicode version bump must not silently desync the two engines. Variant A (the named refusal, spikes/T-6/runtime.sql) stays committed as the one-line reversal if Evan overturns the deviation.",
   "pipeline_version": "feature@v1",
   "modifiers": [],
@@ -23,11 +23,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 gate spec_ready cleared by agent:claude(on-behalf:evan,GA-12) on go-ahead GA-12 (\"accept T-2 and keep going with T-8\")",
     "2026-09-01 advanced refine → queue · refine on claude-opus-5[1m]",
     "2026-09-01 advanced queue → locate · queue on claude-opus-5[1m]",
     "2026-09-01 advanced locate → plan · locate on claude-opus-5[1m]",
-    "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]"
+    "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]",
+    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]"
   ],
   "assignees": {},
   "links": {
@@ -78,6 +78,12 @@
       "to": "build",
       "by": "agent:claude(on-behalf:evan,GA-12)",
       "at": "2026-09-01T21:34:30.156Z"
+    },
+    {
+      "from": "build",
+      "to": "auto-review",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:08.934Z"
     }
   ],
   "receipts": {
@@ -119,6 +125,14 @@
       "fingerprint": ".autodev/notes/T-8-plan.md @ 6de2eb0 — six ordered steps, each with its failure mode named, plus the rollback",
       "by": "agent:claude(on-behalf:evan,GA-12)",
       "at": "2026-09-01T21:34:30.156Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "build": {
+      "evidence": "9da3a51 on feat/T-8-variant-c-runtime — runtime/ created (generated, 21 xpr functions installed), 51 runtime tests pass, demo 1155 passed/0 failed with B10 guard verified. AC-1..AC-8 all met; §3.4's named successor corrected during build and the correction recorded in the spec.",
+      "kind": "other",
+      "fingerprint": "9da3a51 on feat/T-8-variant-c-runtime — runtime/ created (generated, 21 xpr functions installed), 51 runtime tests pass, demo 1155 passed/0 failed with B10 guard verified. AC-1..AC-8 all met; §3.4's named successor corrected during build and the correction recorded in the spec.",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:08.933Z",
       "model": "claude-opus-5[1m]"
     }
   }
