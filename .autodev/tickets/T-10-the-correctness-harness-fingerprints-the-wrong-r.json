@@ -3,8 +3,8 @@
   "slug": "the-correctness-harness-fingerprints-the-wrong-r",
   "type": "techdebt",
   "title": "The correctness harness fingerprints the wrong runtime",
-  "stage": "gate",
-  "status": "awaiting_approval",
+  "stage": "monitor",
+  "status": "complete",
   "spec": "Spawned by T-6 (FINDINGS section 7). Every battery output prints 'runtime.sql sha256=<hash>' computed by hashing the FILE the harness expects (spikes/T-1/proto/runtime.sql) rather than the functions actually installed in the database. During T-6 that made all 42 battery outputs claim T-3's runtime while the database held T-6's patched one - the results were correct but the provenance line on every one of them was wrong. It was caught only because a probe was written specifically to check it (spikes/T-6/probes/P3_installed_fingerprint.py). Fix: fingerprint pg_get_functiondef over the installed xpr schema, not the file on disk, and print both when they disagree. Small change, high value - an evidence-integrity defect in the instrument that decides whether this project ships.",
   "pipeline_version": "techdebt@v1",
   "modifiers": [],
@@ -23,11 +23,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 advanced locate → plan · locate on claude-opus-5[1m]",
-    "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]",
-    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
-    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
-    "2026-09-01 gate merge cleared by policy:unattended"
+    "2026-09-01 gate accept cleared by agent:claude(on-behalf:evan,GA-15) on go-ahead GA-15 (\"Loop until everything is closed\")",
+    "2026-09-01 advanced uat → release · uat on claude-opus-5[1m]",
+    "2026-09-01 gate deploy cleared by policy:unattended",
+    "2026-09-01 advanced release → monitor · release on claude-opus-5[1m]",
+    "2026-09-01 pipeline complete at monitor"
   ],
   "assignees": {},
   "links": {
@@ -36,8 +36,8 @@
   "gates": {
     "spec_ready": true,
     "merge": true,
-    "accept": false,
-    "deploy": false,
+    "accept": true,
+    "deploy": true,
     "sp_decide": false,
     "ex_decide": false,
     "compliance": false,
@@ -45,8 +45,9 @@
   },
   "overrides": {},
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "nothing to monitor: the change is to developer instrumentation with no runtime presence. The demo stack is unaffected and still serving (HTTP 200). No follow-ups."
   },
   "history": [
     {
@@ -90,6 +91,30 @@
       "to": "gate",
       "by": "agent:claude(on-behalf:evan,GA-15)",
       "at": "2026-09-01T23:04:01.854Z"
+    },
+    {
+      "from": "gate",
+      "to": "verify",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.620Z"
+    },
+    {
+      "from": "verify",
+      "to": "uat",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.665Z"
+    },
+    {
+      "from": "uat",
+      "to": "release",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.793Z"
+    },
+    {
+      "from": "release",
+      "to": "monitor",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:39.662Z"
     }
   ],
   "receipts": {
@@ -148,6 +173,47 @@
       "by": "agent:claude(on-behalf:evan,GA-15)",
       "at": "2026-09-01T23:04:01.854Z",
       "model": "claude-opus-5[1m]"
+    },
+    "gate": {
+      "evidence": "auto-review: demo 1155/0 with B10 guard verified, compiler+runtime 92/0. Review: all three edits are additive provenance reporting -- no verdict, count or comparison changed, which is why every existing suite passes unmodified; the failure path returns a marker so a label can never fail a run; nothing digest-cited was touched",
+      "kind": "other",
+      "fingerprint": "auto-review: demo 1155/0 with B10 guard verified, compiler+runtime 92/0. Review: all three edits are additive provenance reporting -- no verdict, count or comparison changed, which is why every existing suite passes unmodified; the failure path returns a marker so a label can never fail a run; nothing digest-cited was touched",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.619Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "verify": {
+      "evidence": "gate: merged to main at 354f882, merge gate cleared by unattended policy",
+      "kind": "other",
+      "fingerprint": "gate: merged to main at 354f882, merge gate cleared by unattended policy",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.664Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "uat": {
+      "evidence": "verify: on main, ./run-demo test 1155/0, compiler+runtime 92/0, and a live battery prints both fingerprints and correctly flags the mismatch",
+      "kind": "other",
+      "fingerprint": "verify: on main, ./run-demo test 1155/0, compiler+runtime 92/0, and a live battery prints both fingerprints and correctly flags the mismatch",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:30.707Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "release": {
+      "evidence": "merged to main at 354f882. This ticket changes only the spike harness, which has no deployment target at all -- it is developer instrumentation, not shipped code. Rollback: revert the merge.",
+      "kind": "other",
+      "fingerprint": "merged to main at 354f882. This ticket changes only the spike harness, which has no deployment target at all -- it is developer instrumentation, not shipped code. Rollback: revert the merge.",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:39.661Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "monitor": {
+      "evidence": "nothing to monitor: the change is to developer instrumentation with no runtime presence. The demo stack is unaffected and still serving (HTTP 200). No follow-ups.",
+      "kind": "other",
+      "fingerprint": "nothing to monitor: the change is to developer instrumentation with no runtime presence. The demo stack is unaffected and still serving (HTTP 200). No follow-ups.",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:05:39.711Z",
+      "model": "claude-opus-5[1m]"
     }
-  }
+  },
+  "completed": true
 }
