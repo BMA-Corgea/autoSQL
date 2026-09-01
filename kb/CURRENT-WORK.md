@@ -166,7 +166,7 @@ always showing its derivation, always overturnable by one line from him.
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
-- **T-11** (feature) — Promote the compiler out of the frozen spike, and route its output through xpr.j — intake
+- **T-11** (feature) — Promote the compiler out of the frozen spike, and route its output through xpr.j — gate
 
 ## Waiting on
 

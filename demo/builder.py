@@ -89,8 +89,13 @@ def _load_from_path(name: str, path: Path):
 
 #: The T-1 compiler, reused AS-IS (Q19; AC-33 checksums it).  Loaded from its
 #: pinned location; never copied, never edited.
+#: The SHIPPING compiler. Until 2026-09-01 this loaded
+#: spikes/T-1/proto/compile.py directly -- a spike prototype, and one that is
+#: frozen evidence (its sha is cited in T-6's attestation and in 42 battery
+#: outputs), so it could never be changed. T-11 promoted it to compiler/, which
+#: is where fixes now land. The spike copy stays byte-identical forever.
 _compile = _load_from_path(
-    "autosql_t1_compile", _REPO_ROOT / "spikes" / "T-1" / "proto" / "compile.py"
+    "autosql_compile", _REPO_ROOT / "compiler" / "compile.py"
 )
 #: The vendored expression parser (AC-34) — the gate reads its trees.
 _expr = _load_from_path(
