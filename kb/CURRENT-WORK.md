@@ -2,48 +2,51 @@
 
 ---
 
-> # START HERE — 2026-09-01 (sixth update: T-9 complete; five tickets done today)
+> # START HERE — 2026-09-01 (seventh update: T-11 complete; six tickets done today)
 >
 > **Everything is on `main`. Nothing is blocked. Nothing is running.**
-> Done today: **T-2, T-5, T-6, T-8, T-9**.
+> Done today: **T-2, T-5, T-6, T-8, T-9, T-11**.
 >
-> **The state of the correctness work.** autoSQL's compiled SQL and its Python evaluator agree —
-> 0 wrong numbers over 11,367 expressions at the pinned float setting, fixture 130/130 (T-6). The
-> runtime that makes that true ships from **`runtime/`** and is **generated** (T-8). T-9 added the
-> two functions that let a caller stop depending on a session setting at all.
+> **The correctness story is now closed end to end.** The compiled SQL and the Python evaluator
+> agree (0 wrong numbers over 11,367 expressions, fixture 130/130 — T-6), the runtime that makes
+> that true ships from **`runtime/`** and is generated (T-8), and as of T-9 + T-11 **the numbers no
+> longer depend on a session setting at all**: every float8 result is emitted through `xpr.j`,
+> which carries its own `SET extra_float_digits = 1`.
+>
+> Proven both directions, which is the part that matters:
+>
+> | | efd 1 | efd −3 |
+> |---|---|---|
+> | frozen spike compiler | `0.3333333333333333` | `0.333333333333` ← moves |
+> | shipping compiler | `0.3333333333333333` | `0.3333333333333333` ← immune |
 >
 > **Three things a resuming session must not miss:**
 >
 > 1. **`runtime/runtime.sql` is GENERATED.** Edit `runtime/runtime.sql.in`, run
->    `python3 runtime/generate.py`. Its 670-code-point digit mapping comes from the **running
->    Python's** `unicodedata` — freeze it and a Python upgrade splits the two engines silently.
-> 2. **`xpr.j()` is immune to `extra_float_digits`; nothing calls it yet.** That is **T-11**, and
->    until it lands the demo is protected only by `demo/server/db.py` pinning and verifying the GUC
->    per connection — real protection, but by convention at the edge rather than by construction.
->    At efd 0 or −3 an unprotected path returns **short numbers** (62–66 wrong across T-6's
->    batteries).
+>    `python3 runtime/generate.py`. Its digit mapping comes from the **running Python's**
+>    `unicodedata` — freeze it and a Python upgrade splits the two engines silently.
+> 2. **Two directories are now the source of truth: `runtime/` (SQL) and `compiler/` (Python).**
+>    Everything under `spikes/` is **FROZEN EVIDENCE** — `spikes/T-1/proto/runtime.sql`
+>    (`1c58d548a6045aa6`), `spikes/T-6/runtime.sql` (`871b1b4c2df95719`) and
+>    `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Their digests are cited in T-3's and T-6's
+>    findings and in 42 battery outputs. Tests assert all three.
 > 3. **The demo shows no disagreement, and that is not a regression.** Step 11's artboard is
 >    `reconciled`: the value that used to come back wrong now reads `123` on both engines. Every
->    assertion was inverted, not deleted. Revert by pinning `demo/vendor/runtime.sql` to pre-T-8.
+>    assertion was inverted, not deleted.
 >
-> **FROZEN EVIDENCE — never edit:** `spikes/T-1/proto/runtime.sql` (`1c58d548a6045aa6`),
-> `spikes/T-6/runtime.sql` (`871b1b4c2df95719`), and **`spikes/T-1/proto/compile.py`**
-> (`b71b153802d0df94`, which the demo loads directly at `demo/builder.py:92`). Their digests are
-> cited in T-3's and T-6's findings and in 42 battery outputs. Tests assert the first two.
+> **Suites:** demo **1155**, runtime **58**, compiler **34** — all green, B10 checksum guard verified.
 >
 > **Open, none started:**
 >
-> - **T-11 (feature, `intake`)** — promote the compiler out of the frozen spike and route its
->   `to_jsonb(<float8>)` emission through `xpr.j`. The thing that makes T-9's immunity reach real
->   queries.
-> - **T-10 (techdebt, `intake`)** — the harness fingerprints the file it expects rather than what is
->   installed; all 42 of T-6's battery outputs named the wrong runtime.
+> - **T-10 (techdebt, `intake`)** — the correctness harness fingerprints the file it expects rather
+>   than what is installed; all 42 of T-6's battery outputs named the wrong runtime.
 > - **T-4 (spike, `sp-frame`)** — the speed run. Released by T-6; needs a quiet machine, and Evan
->   asked to be told before it starts.
+>   asked to be told before it starts. **This is the last thing standing between the project and the
+>   GIMS gate** — T-1 measured the compiled path 3.8×–7.2× slower and that has never been refined.
 > - **T-7 (spike, `sp-frame`)** — parked by Evan's own Q6.
 >
 > **Decisions of record:** `kb/wiki/decision-t5-homework.md` · `decision-t6-correctness-rerun.md` ·
-> `runtime/README.md`.
+> `runtime/README.md` · `compiler/README.md`.
 >
 > **Standing:** never port **55433**. Nothing in either GIMS checkout has been changed (Q3 park).
 > Plan §8.2's mutation pass has **still never run** — 9 of 16 mutants never watched failing.
@@ -166,7 +169,6 @@ always showing its derivation, always overturnable by one line from him.
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
-- **T-11** (feature) — Promote the compiler out of the frozen spike, and route its output through xpr.j — gate
 
 ## Waiting on
 
@@ -214,6 +216,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-11 COMPLETE** — Promote the compiler out of the frozen spike, and route its output through xpr.j
 - 2026-09-01 **T-9 COMPLETE** — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing …
 - 2026-09-01 **T-8 COMPLETE** — Adopt variant C as the shipping runtime, with a regenerable digit mapping
 - 2026-09-01 **T-2 COMPLETE** — Demo the autoSQL UI end-to-end against a seeded fake-data database
