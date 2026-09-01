@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/evidence/T-2/07-probe.jpg",
+    "repo": "",
+    "bytes": 181155,
+    "loc": 0,
+    "language": null,
+    "sha256": "9d40678212181d8faebec7ee223f1e8445a26f15dae747b8012549aceee46cd4",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": ".autodev/evidence/T-2/07-probe.jpg",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

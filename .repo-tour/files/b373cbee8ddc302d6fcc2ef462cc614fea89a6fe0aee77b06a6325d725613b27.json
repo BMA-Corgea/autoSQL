@@ -1,0 +1,113 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/coverage_probe.py",
+    "repo": "",
+    "bytes": 7997,
+    "loc": 163,
+    "language": "python",
+    "sha256": "b373cbee8ddc302d6fcc2ef462cc614fea89a6fe0aee77b06a6325d725613b27",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/coverage_probe.py",
+    "score": 0.22356983768721767,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 163,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5881791333611522,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/coverage_probe.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "PROTO",
+        "kind": "variable",
+        "line": 15,
+        "endLine": 15,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "GIMS",
+        "kind": "variable",
+        "line": 16,
+        "endLine": 16,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "KINDS",
+        "kind": "variable",
+        "line": 26,
+        "endLine": 33,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "probes",
+        "kind": "function",
+        "line": 35,
+        "endLine": 105,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 107,
+        "endLine": 160,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "importlib.util",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 18
+      },
+      {
+        "raw": "psycopg2",
+        "resolved": null,
+        "line": 23
+      },
+      {
+        "raw": "collections",
+        "resolved": null,
+        "line": 154
+      }
+    ],
+    "parseErrors": 0
+  }
+}

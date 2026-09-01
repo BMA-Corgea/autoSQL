@@ -1,0 +1,44 @@
+{
+  "path": ".autodev/roster",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    ".autodev/roster/autosql"
+  ],
+  "childFiles": [],
+  "fileCount": 4,
+  "loc": 154,
+  "topFiles": [
+    {
+      "path": ".autodev/roster/autosql/coder.md",
+      "score": 0.062189509100737894,
+      "why": "1 commits · 80 loc · data"
+    },
+    {
+      "path": ".autodev/roster/autosql/compliance-officer.md",
+      "score": 0.06033970807054351,
+      "why": "1 commits · 61 loc · data"
+    },
+    {
+      "path": ".autodev/roster/autosql/seats.json",
+      "score": 0.05004231045955448,
+      "why": "1 commits · 13 loc · data"
+    },
+    {
+      "path": ".autodev/roster/autosql/.gitkeep",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    }
+  ],
+  "score": 0.062189509100737894,
+  "languages": {
+    "markdown": 2,
+    "json": 1
+  },
+  "classifications": {
+    "data": 4
+  },
+  "publicSymbols": 0,
+  "hash": "2de4e300d64a1c368934d73c3b26d3204c107eb3e12cc619486854a51917693d",
+  "sourcedFrom": "children"
+}

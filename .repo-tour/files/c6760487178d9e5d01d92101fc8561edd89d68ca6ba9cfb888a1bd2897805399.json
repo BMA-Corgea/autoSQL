@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/import-record.json",
+    "repo": "",
+    "bytes": 3188,
+    "loc": 113,
+    "language": "json",
+    "sha256": "c6760487178d9e5d01d92101fc8561edd89d68ca6ba9cfb888a1bd2897805399",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/import-record.json",
+    "score": 0.06455439225506769,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 113,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5462364825095253,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

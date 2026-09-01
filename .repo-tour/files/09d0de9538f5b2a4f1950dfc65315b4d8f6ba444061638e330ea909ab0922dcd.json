@@ -1,0 +1,183 @@
+{
+  "file": {
+    "path": "demo/tests/test_walkthrough_doc.py",
+    "repo": "",
+    "bytes": 16943,
+    "loc": 380,
+    "language": "python",
+    "sha256": "09d0de9538f5b2a4f1950dfc65315b4d8f6ba444061638e330ea909ab0922dcd",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_walkthrough_doc.py",
+    "score": 0.1524903672323712,
+    "classification": "test",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 380,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.6853964972750289,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_walkthrough_doc.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "_is_leaf_wrapper",
+        "kind": "function",
+        "line": 87,
+        "endLine": 96,
+        "exported": false,
+        "doc": "True for the ``{\"value\": ..., \"derivation\": \"...\"}`` shape B8 uses for every entry — the wrapper is metadata; the path continues into ``value`` without advancing, which is what lets ``steps[6].expect.sum`` name a leaf directly instead of ``steps[6].expect.sum.value``."
+      },
+      {
+        "name": "_flatten",
+        "kind": "function",
+        "line": 99,
+        "endLine": 116,
+        "exported": false,
+        "doc": "Yield ``(path, value)`` for every leaf reachable from ``node``."
+      },
+      {
+        "name": "_is_numeric",
+        "kind": "function",
+        "line": 119,
+        "endLine": 133,
+        "exported": false,
+        "doc": "Matches this project's own notion of \"a number\" — see the module docstring. ``bool`` is excluded even though Python's ``bool`` is an ``int`` subclass: ``true``/``false`` are not numbers a reader checks."
+      },
+      {
+        "name": "_required_numbers",
+        "kind": "function",
+        "line": 136,
+        "endLine": 145,
+        "exported": false,
+        "doc": "Every numeric leaf under `corpus` and `steps`, keyed by its exact dotted/bracketed path — the walkthrough's complete \"must appear, annotated, somewhere\" list, computed fresh from the JSON every run."
+      },
+      {
+        "name": "_resolve",
+        "kind": "function",
+        "line": 155,
+        "endLine": 179,
+        "exported": false,
+        "doc": "The value ``_flatten`` would have yielded at ``path`` — walking the JSON the same way, unwrapping the same B8 leaf-wrapper shape at every step, so a path taken from the walkthrough always means what ``_required_numbers`` above means by the same string."
+      },
+      {
+        "name": "_annotations",
+        "kind": "function",
+        "line": 192,
+        "endLine": 199,
+        "exported": false,
+        "doc": "(path, doc_token, line number) for every annotation in ``text``."
+      },
+      {
+        "name": "_tokens_equal",
+        "kind": "function",
+        "line": 202,
+        "endLine": 218,
+        "exported": false,
+        "doc": "Compare the way §7.2/B7 require: commas are formatting and are stripped; nothing else is. No float() coercion — a decimal string's trailing zeros and an exponent's exact spelling are the entire point of B7's exact-decimal rule, and float() would erase both."
+      },
+      {
+        "name": "answers",
+        "kind": "function",
+        "line": 226,
+        "endLine": 228,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "walkthrough_text",
+        "kind": "function",
+        "line": 232,
+        "endLine": 236,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_document_exists_and_has_fourteen_steps",
+        "kind": "function",
+        "line": 243,
+        "endLine": 249,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_annotated_number_matches_expected_answers",
+        "kind": "function",
+        "line": 252,
+        "endLine": 279,
+        "exported": true,
+        "doc": "Soundness: every `` `value` ``<!--#path--> in the document really is what expected-answers.json says at that path."
+      },
+      {
+        "name": "test_every_required_number_is_annotated_somewhere",
+        "kind": "function",
+        "line": 282,
+        "endLine": 296,
+        "exported": true,
+        "doc": "Completeness: every numeric leaf under `corpus`/`steps` in expected-answers.json is cited, annotated, at least once. Computed fresh from the JSON (never a hand-copied list), so this can never silently fall behind a reseed or a new field in expectations.py."
+      },
+      {
+        "name": "test_the_required_set_has_the_shape_this_walkthrough_was_written_against",
+        "kind": "function",
+        "line": 299,
+        "endLine": 314,
+        "exported": true,
+        "doc": "A pin, not a duplicate of the two tests above: if this count moves, something changed under `corpus`/`steps` that the prose may not have caught up with yet, even where every individual number still resolves (e.g. a field renamed to something that happens to parse as numeric under the old name too). A moved count is a prompt to re-read the walkthrough by eye once, not a failure on its own — so t…"
+      },
+      {
+        "name": "test_the_checker_would_actually_catch_a_wrong_number",
+        "kind": "function",
+        "line": 317,
+        "endLine": 344,
+        "exported": true,
+        "doc": "The detector, watched catching something (plan §8.2). A tiny planted document, one number deliberately wrong, must fail — proving the two tests above are not vacuously passing because nothing is ever compared."
+      },
+      {
+        "name": "test_decimal_precision_is_checked_to_the_digit_not_by_value",
+        "kind": "function",
+        "line": 347,
+        "endLine": 380,
+        "exported": true,
+        "doc": "B7's exact-decimal rule has teeth here specifically: `27.00000` (5 places) and `27.000000` (6, what the JSON actually holds) are numerically identical and must NOT be treated as a match — this project's failure mode is \"a subtly wrong number that still runs clean\", and a rounding- tolerant comparison here would be exactly that hole."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 55
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 56
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 57
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 58
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 60
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "path": "demo/static/fonts",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "demo/static/fonts/inter-latin-ext.woff2",
+    "demo/static/fonts/inter-latin.woff2"
+  ],
+  "fileCount": 2,
+  "loc": 0,
+  "topFiles": [
+    {
+      "path": "demo/static/fonts/inter-latin-ext.woff2",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": "demo/static/fonts/inter-latin.woff2",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    }
+  ],
+  "score": 0.031780203304496164,
+  "languages": {},
+  "classifications": {
+    "data": 2
+  },
+  "publicSymbols": 0,
+  "hash": "f3c1cec7660edf396475d8ba05608b11ab7499436c62f4173d6f90c5e63cf9f5",
+  "sourcedFrom": "children"
+}

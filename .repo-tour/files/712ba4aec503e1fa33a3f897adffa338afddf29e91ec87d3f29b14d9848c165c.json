@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/roster/autosql/compliance-officer.md",
+    "repo": "",
+    "bytes": 3038,
+    "loc": 61,
+    "language": "markdown",
+    "sha256": "712ba4aec503e1fa33a3f897adffa338afddf29e91ec87d3f29b14d9848c165c",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/roster/autosql/compliance-officer.md",
+    "score": 0.06033970807054351,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 61,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.47599174610078904,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

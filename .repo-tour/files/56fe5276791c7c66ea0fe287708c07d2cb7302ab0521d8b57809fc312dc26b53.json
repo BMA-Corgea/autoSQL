@@ -1,0 +1,91 @@
+{
+  "file": {
+    "path": "demo/frontend/icons.jsx",
+    "repo": "",
+    "bytes": 3256,
+    "loc": 72,
+    "language": "javascript",
+    "sha256": "56fe5276791c7c66ea0fe287708c07d2cb7302ab0521d8b57809fc312dc26b53",
+    "classification": "source",
+    "signals": [
+      "language:javascript"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/frontend/icons.jsx",
+    "score": 0.5148673459857307,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 6,
+    "loc": 72,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.8856218745807111,
+      "size": 0.49482839433747333,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/frontend/icons.jsx",
+    "language": "javascript",
+    "symbols": [
+      {
+        "name": "VENDORED",
+        "kind": "variable",
+        "line": 32,
+        "endLine": 41,
+        "exported": true,
+        "doc": ": The 54 ids in demo/vendor/icons.svg, without the `i-` prefix — the : form vendor/ui.jsx's Icon takes. Sorted; kept honest by the test."
+      },
+      {
+        "name": "VENDORED_SET",
+        "kind": "variable",
+        "line": 43,
+        "endLine": 43,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "DEMO_ONLY",
+        "kind": "variable",
+        "line": 46,
+        "endLine": 50,
+        "exported": true,
+        "doc": ": The 18 that live only in demo/static/icons-demo.svg."
+      },
+      {
+        "name": "DEMO_SPRITE",
+        "kind": "variable",
+        "line": 52,
+        "endLine": 52,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "Ic",
+        "kind": "function",
+        "line": 60,
+        "endLine": 67,
+        "exported": true,
+        "doc": "One icon, resolved to whichever sprite holds it — vendored first."
+      },
+      {
+        "name": "spriteFor",
+        "kind": "function",
+        "line": 70,
+        "endLine": 72,
+        "exported": true,
+        "doc": "Which sprite a name comes from — used by the contract test and by nothing else."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "../vendor/ui.jsx",
+        "resolved": "demo/vendor/ui.jsx",
+        "line": 28
+      }
+    ],
+    "parseErrors": 0
+  }
+}

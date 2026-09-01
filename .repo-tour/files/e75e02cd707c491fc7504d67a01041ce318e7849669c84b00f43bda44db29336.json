@@ -1,0 +1,158 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/differ.py",
+    "repo": "",
+    "bytes": 11238,
+    "loc": 251,
+    "language": "python",
+    "sha256": "e75e02cd707c491fc7504d67a01041ce318e7849669c84b00f43bda44db29336",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/differ.py",
+    "score": 0.3394123353841566,
+    "classification": "source",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 251,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.6377215667709107,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/differ.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "DSN",
+        "kind": "variable",
+        "line": 44,
+        "endLine": 44,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EFD",
+        "kind": "variable",
+        "line": 61,
+        "endLine": 61,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EFD_READBACK",
+        "kind": "variable",
+        "line": 66,
+        "endLine": 66,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "GUARD_REFUSAL_SQLSTATE",
+        "kind": "variable",
+        "line": 73,
+        "endLine": 73,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "refusal_kind",
+        "kind": "function",
+        "line": 76,
+        "endLine": 88,
+        "exported": true,
+        "doc": "framing 4.5/C4: a refusal must be IDENTIFIABLE. Returns the named kind for a deliberate refusal, or None for an unexplained raise (which stays a defect)."
+      },
+      {
+        "name": "matches",
+        "kind": "function",
+        "line": 91,
+        "endLine": 97,
+        "exported": true,
+        "doc": "Mirrored UNCHANGED from tests/test_dashboard_expr.py:20-25."
+      },
+      {
+        "name": "conn",
+        "kind": "function",
+        "line": 103,
+        "endLine": 117,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "Outcome",
+        "kind": "class",
+        "line": 120,
+        "endLine": 121,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "run_case",
+        "kind": "function",
+        "line": 124,
+        "endLine": 230,
+        "exported": true,
+        "doc": "Return an Outcome describing Python vs Postgres for one expression."
+      },
+      {
+        "name": "show",
+        "kind": "function",
+        "line": 233,
+        "endLine": 251,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 24
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 26
+      },
+      {
+        "raw": "math",
+        "resolved": null,
+        "line": 27
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 28
+      },
+      {
+        "raw": "traceback",
+        "resolved": null,
+        "line": 29
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "compile",
+        "resolved": null,
+        "line": 35
+      },
+      {
+        "raw": "psycopg2",
+        "resolved": null,
+        "line": 37
+      }
+    ],
+    "parseErrors": 0
+  }
+}

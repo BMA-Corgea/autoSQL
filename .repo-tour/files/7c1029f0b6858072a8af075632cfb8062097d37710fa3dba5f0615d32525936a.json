@@ -1,0 +1,333 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/conformance.py",
+    "repo": "",
+    "bytes": 59070,
+    "loc": 1109,
+    "language": "python",
+    "sha256": "7c1029f0b6858072a8af075632cfb8062097d37710fa3dba5f0615d32525936a",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/conformance.py",
+    "score": 0.3736126463335262,
+    "classification": "source",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 1109,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.8087231215177587,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/conformance.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "GIMS",
+        "kind": "variable",
+        "line": 46,
+        "endLine": 46,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PROTO",
+        "kind": "variable",
+        "line": 47,
+        "endLine": 47,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "FIXTURE",
+        "kind": "variable",
+        "line": 48,
+        "endLine": 48,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "RESULTS_JSON",
+        "kind": "variable",
+        "line": 49,
+        "endLine": 49,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "REPORT_MD",
+        "kind": "variable",
+        "line": 50,
+        "endLine": 50,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_dsn",
+        "kind": "function",
+        "line": 57,
+        "endLine": 76,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "DSN",
+        "kind": "variable",
+        "line": 79,
+        "endLine": 79,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CASES",
+        "kind": "variable",
+        "line": 121,
+        "endLine": 121,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "matches",
+        "kind": "function",
+        "line": 124,
+        "endLine": 130,
+        "exported": true,
+        "doc": "Byte-for-byte the rule at tests/test_dashboard_expr.py:20-25."
+      },
+      {
+        "name": "deep_strict",
+        "kind": "function",
+        "line": 140,
+        "endLine": 153,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "WRAPPER",
+        "kind": "variable",
+        "line": 184,
+        "endLine": 187,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SqlRaised",
+        "kind": "class",
+        "line": 190,
+        "endLine": 194,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 191,
+        "endLine": 194,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "check_placeholders",
+        "kind": "function",
+        "line": 197,
+        "endLine": 216,
+        "exported": true,
+        "doc": "Every % in the generated SQL must be a known %(name)s placeholder."
+      },
+      {
+        "name": "run_sql",
+        "kind": "function",
+        "line": 219,
+        "endLine": 238,
+        "exported": true,
+        "doc": "Execute the PARAMETERISED compiled expression. Returns (is_sql_null, jtype, jtext)."
+      },
+      {
+        "name": "OUTCOME_DEFINITIONS",
+        "kind": "variable",
+        "line": 244,
+        "endLine": 265,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "cause_shape",
+        "kind": "function",
+        "line": 270,
+        "endLine": 288,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CAUSES",
+        "kind": "variable",
+        "line": 293,
+        "endLine": 293,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PROBES",
+        "kind": "variable",
+        "line": 304,
+        "endLine": 321,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "out_of_fixture_probes",
+        "kind": "function",
+        "line": 324,
+        "endLine": 349,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "sha256",
+        "kind": "function",
+        "line": 352,
+        "endLine": 354,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "run",
+        "kind": "function",
+        "line": 357,
+        "endLine": 579,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "MUTATION_NOTES",
+        "kind": "variable",
+        "line": 585,
+        "endLine": 602,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "MARK",
+        "kind": "variable",
+        "line": 606,
+        "endLine": 607,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "cell",
+        "kind": "function",
+        "line": 610,
+        "endLine": 615,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "fmt_value",
+        "kind": "function",
+        "line": 618,
+        "endLine": 628,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "write_report",
+        "kind": "function",
+        "line": 631,
+        "endLine": 921,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "tidy",
+        "kind": "function",
+        "line": 924,
+        "endLine": 960,
+        "exported": true,
+        "doc": "Insert the blank lines Markdown needs between blocks."
+      },
+      {
+        "name": "selftest",
+        "kind": "function",
+        "line": 972,
+        "endLine": 1071,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 1074,
+        "endLine": 1105,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "importlib.util",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 35
+      },
+      {
+        "raw": "math",
+        "resolved": null,
+        "line": 36
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 37
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 38
+      },
+      {
+        "raw": "traceback",
+        "resolved": null,
+        "line": 39
+      },
+      {
+        "raw": "typing",
+        "resolved": null,
+        "line": 40
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 82
+      },
+      {
+        "raw": "psycopg2",
+        "resolved": null,
+        "line": 90
+      },
+      {
+        "raw": "psycopg2.extras",
+        "resolved": null,
+        "line": 91
+      },
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 353
+      }
+    ],
+    "parseErrors": 0
+  }
+}

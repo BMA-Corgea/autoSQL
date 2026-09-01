@@ -1,0 +1,211 @@
+{
+  "file": {
+    "path": "demo/pyrunner/evaluate.py",
+    "repo": "",
+    "bytes": 20759,
+    "loc": 462,
+    "language": "python",
+    "sha256": "3242281196f123168951c407fbcea5e0debf2058660aede96fa441090d596ce2",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/pyrunner/evaluate.py",
+    "score": 0.3094770245108107,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 462,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.7078779475053705,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/pyrunner/evaluate.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "dollar_path",
+        "kind": "function",
+        "line": 102,
+        "endLine": 114,
+        "exported": true,
+        "doc": "Parse a ``$.a.b`` / ``$.l[0]`` field string into expr.py path steps."
+      },
+      {
+        "name": "resolve",
+        "kind": "function",
+        "line": 117,
+        "endLine": 138,
+        "exported": true,
+        "doc": "``data #> path`` with the two nulls kept apart (§7.4(1b))."
+      },
+      {
+        "name": "text_of",
+        "kind": "function",
+        "line": 141,
+        "endLine": 159,
+        "exported": true,
+        "doc": "``->>`` for the values the frame actually orders on: text or null."
+      },
+      {
+        "name": "numeric_value",
+        "kind": "function",
+        "line": 162,
+        "endLine": 177,
+        "exported": true,
+        "doc": "§7.2 item 5's numeric read, Python half, over the exact parse (B7)."
+      },
+      {
+        "name": "parse_computed",
+        "kind": "function",
+        "line": 182,
+        "endLine": 187,
+        "exported": true,
+        "doc": "Parse each computed column's expression once. [(name, ast), …] in entry order. The gate has already accepted these (§4.5: the server gates before either pane runs); a parse error here propagates loudly."
+      },
+      {
+        "name": "computed_values",
+        "kind": "function",
+        "line": 190,
+        "endLine": 199,
+        "exported": true,
+        "doc": "Operation 2 on one row: evaluate each AST on ``record_f``."
+      },
+      {
+        "name": "keep_by_filter",
+        "kind": "function",
+        "line": 202,
+        "endLine": 204,
+        "exported": true,
+        "doc": "Operation 3 on one row: expr truthiness of the filter, on record_f."
+      },
+      {
+        "name": "field_reader",
+        "kind": "function",
+        "line": 209,
+        "endLine": 240,
+        "exported": true,
+        "doc": "One reader for op 6's and op 8's chosen field (§4.4 row 6's two forms)."
+      },
+      {
+        "name": "_frame_order_key",
+        "kind": "function",
+        "line": 245,
+        "endLine": 252,
+        "exported": false,
+        "doc": "``ORDER BY (data ->> 'ts'), key`` within one partition — text order, which for the seed's fixed-width UTC ISO-8601 is time order, with SQL NULL last (Postgres's ASC default) and ``key`` the tiebreak (§7.4)."
+      },
+      {
+        "name": "partition_walk",
+        "kind": "function",
+        "line": 255,
+        "endLine": 275,
+        "exported": true,
+        "doc": "``PARTITION BY (data ->> 'sender_id') ORDER BY (data ->> 'ts'), key``."
+      },
+      {
+        "name": "rolling_averages",
+        "kind": "function",
+        "line": 278,
+        "endLine": 315,
+        "exported": true,
+        "doc": "Operation 8: ``avg(<numeric read>) OVER (w ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)`` — {row index: value}."
+      },
+      {
+        "name": "_compared_value",
+        "kind": "function",
+        "line": 318,
+        "endLine": 330,
+        "exported": false,
+        "doc": "§7.1's comparison rule: the record minus its ordering key — the spec's own spelling, over the EXACT parse (B7 rules op 9's comparison onto ``record_d``: jsonb compares numbers as numerics, exactly, and so does a dict of int/Decimal). Content equality, key order irrelevant — never serialised text."
+      },
+      {
+        "name": "changed_flags",
+        "kind": "function",
+        "line": 336,
+        "endLine": 354,
+        "exported": true,
+        "doc": "Operation 9: ``lag(data - 'ts') OVER w IS DISTINCT FROM (data - 'ts')`` — {row index: kept?}."
+      },
+      {
+        "name": "aggregate",
+        "kind": "function",
+        "line": 359,
+        "endLine": 403,
+        "exported": true,
+        "doc": "Operation 6 over one group of rows (the whole pick for SCALAR, one bucket for BUCKET)."
+      },
+      {
+        "name": "bucket_label",
+        "kind": "function",
+        "line": 409,
+        "endLine": 432,
+        "exported": true,
+        "doc": "Operation 7's bucket for one row, as the label BOTH panes key by."
+      },
+      {
+        "name": "row_sort_key",
+        "kind": "function",
+        "line": 437,
+        "endLine": 462,
+        "exported": true,
+        "doc": "§7.4's total order for one row, routed through W9's ``sort_key``."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 58
+      },
+      {
+        "raw": "datetime",
+        "resolved": null,
+        "line": 59
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 60
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 61
+      },
+      {
+        "raw": "typing",
+        "resolved": null,
+        "line": 62
+      },
+      {
+        "raw": ".decimals",
+        "resolved": "demo/pyrunner/decimals.py",
+        "line": 64
+      },
+      {
+        "raw": ".order",
+        "resolved": "demo/pyrunner/order.py",
+        "line": 65
+      },
+      {
+        "raw": ".rows",
+        "resolved": "demo/pyrunner/rows.py",
+        "line": 66
+      },
+      {
+        "raw": "demo.vendor",
+        "resolved": null,
+        "line": 75
+      }
+    ],
+    "parseErrors": 0
+  }
+}

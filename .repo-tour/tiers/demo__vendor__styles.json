@@ -1,0 +1,46 @@
+{
+  "path": "demo/vendor/styles",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "demo/vendor/styles/components.css",
+    "demo/vendor/styles/dashboard.css",
+    "demo/vendor/styles/shell.css",
+    "demo/vendor/styles/watery.css"
+  ],
+  "fileCount": 4,
+  "loc": 827,
+  "topFiles": [
+    {
+      "path": "demo/vendor/styles/components.css",
+      "score": 0,
+      "why": "1 commits · 187 loc · vendored"
+    },
+    {
+      "path": "demo/vendor/styles/dashboard.css",
+      "score": 0,
+      "why": "1 commits · 179 loc · vendored"
+    },
+    {
+      "path": "demo/vendor/styles/shell.css",
+      "score": 0,
+      "why": "1 commits · 219 loc · vendored"
+    },
+    {
+      "path": "demo/vendor/styles/watery.css",
+      "score": 0,
+      "why": "1 commits · 242 loc · vendored"
+    }
+  ],
+  "score": 0,
+  "languages": {
+    "css": 4
+  },
+  "classifications": {
+    "vendored": 4
+  },
+  "publicSymbols": 0,
+  "hash": "c80ae09beb8469768cacb26fa33035f36a31ca4b0bd91c7fd622d03b67ba3710",
+  "sourcedFrom": "children"
+}

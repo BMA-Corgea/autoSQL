@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/EXPERIMENTS.md",
+    "repo": "",
+    "bytes": 70643,
+    "loc": 996,
+    "language": "markdown",
+    "sha256": "c61f845fe45ca3f9a012a9a4dd64fdf7e194a0306faae56c228c6f6a0f9f33e9",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/EXPERIMENTS.md",
+    "score": 0.0981508621839552,
+    "classification": "data",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 996,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.796340528017237,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

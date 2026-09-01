@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/idna-3.19-py3-none-any.whl",
+    "repo": "",
+    "bytes": 68550,
+    "loc": 0,
+    "language": null,
+    "sha256": "815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/idna-3.19-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

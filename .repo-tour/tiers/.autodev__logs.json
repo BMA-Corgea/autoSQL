@@ -1,0 +1,26 @@
+{
+  "path": ".autodev/logs",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    ".autodev/logs/verify-access.log"
+  ],
+  "fileCount": 1,
+  "loc": 0,
+  "topFiles": [
+    {
+      "path": ".autodev/logs/verify-access.log",
+      "score": 0,
+      "why": "0 loc · data"
+    }
+  ],
+  "score": 0,
+  "languages": {},
+  "classifications": {
+    "data": 1
+  },
+  "publicSymbols": 0,
+  "hash": "ae09edf50d13e3e48dde42f9621275daa22b51043983fd81a288d0bc78674d55",
+  "sourcedFrom": "children"
+}

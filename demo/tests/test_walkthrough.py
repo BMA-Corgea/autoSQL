@@ -759,21 +759,29 @@ def test_step_10_the_static_gate_refuses_round_before_any_sql(ran, answers):
 # says 1.  The disagreement is still asserted, not tolerated.
 # ─────────────────────────────────────────────────────────────────────────
 
-def test_ac22_step_11_python_says_123_where_sql_says_1_and_it_is_flagged(
+def test_ac22_step_11_both_engines_now_read_123_and_nothing_is_flagged(
     ran, answers
 ):
-    """§10 step 11 — the deliberate divergence, asserted from both sides."""
+    """§10 step 11 — the value that used to be wrong, read from both sides.
+
+    T-8, 2026-09-01. This test asserted a divergence for as long as one existed.
+    T-6's variant C closed the last in-subset value disagreement, so every claim
+    here is INVERTED rather than dropped: same pick, same row, same two panes,
+    same three flag signals -- each now asserting the opposite outcome. Deleting
+    it would have removed the only end-to-end check on the value this whole demo
+    was built to talk about.
+    """
     status, body = ran[11]
-    assert status == 200, "step 11 is ACCEPTED — the disagreement is a result, not a refusal"
+    assert status == 200, "step 11 is ACCEPTED — an agreement is a result, not a refusal"
     assert body["accepted"] is True
     assert body["refusal"] is None
 
     expected_row = _value(answers, 11, "row")
     expected_py = _value(answers, 11, "python_value")
     expected_sql = _value(answers, 11, "sql_value")
-    assert (expected_row, expected_py, expected_sql) == ("edge-01", "123", "1")
-    assert _value(answers, 11, "panes_agree") is False
-    assert _value(answers, 11, "flagged") is True
+    assert (expected_row, expected_py, expected_sql) == ("edge-01", "123", "123")
+    assert _value(answers, 11, "panes_agree") is True
+    assert _value(answers, 11, "flagged") is False
 
     # ── the two numbers, read out of the response the screen renders ──
     sql_pane = body["panes"]["sql"]
@@ -788,24 +796,25 @@ def test_ac22_step_11_python_says_123_where_sql_says_1_and_it_is_flagged(
         "the Python pane must report 123: float() reads the FULLWIDTH "
         'digits of "１２３" as 123.0 — any Unicode decimal digit converts'
     )
-    assert sql_row["c"][bi] == expected_sql == "1", (
-        "the SQL pane must report 1: the corrected runtime's ASCII-only "
-        'string-to-number regex reads "１２３" as NULL, max ignores NULLs, '
-        "and 1 is what is left (the Unicode-digit gap, T-3 finding 1)"
+    assert sql_row["c"][bi] == expected_sql == "123", (
+        "the SQL pane must report 123: when the ASCII-only gate misses, the "
+        'adopted runtime translates the 670 non-ASCII decimal digits onto 0-9 '
+        'and re-tests, so "１２３" reads as 123 exactly as Python reads it '
+        "(T-6 variant C, which closed T-3 finding 1 by matching rather than refusing)"
     )
-    assert sql_row["c"][bi] != py_row["c"][bi], (
-        "AC-22 ASSERTS A DISAGREEMENT. The two panes agreeing here means "
-        "the runtime, the compiler or the comparison has changed — see "
-        "AC-22 and its 2026-08-23 note."
+    assert sql_row["c"][bi] == py_row["c"][bi], (
+        "AC-22 NOW ASSERTS AN AGREEMENT. The two panes differing here means "
+        "the runtime, the compiler or the comparison has changed — see AC-22 "
+        "and its 2026-09-01 note."
     )
 
     # ── and the flag: three independent signals, not one ──────────────
-    assert body["verdict"] == "disagree"
-    assert body["comparison"]["verdict"] == "disagree"
-    assert body["comparison"]["differing_rows"] == 1, (
-        "exactly one row differs — edge-01, the only EdgeCase row with an `m` key"
+    assert body["verdict"] == "agree"
+    assert body["comparison"]["verdict"] == "agree"
+    assert body["comparison"]["differing_rows"] == 0, (
+        "no row differs — edge-01's `m` is the one that used to, and no longer does"
     )
-    assert body["comparison"]["first_differing_index"] == sql_row["i"]
+    assert body["comparison"]["first_differing_index"] is None
     assert body["comparison"]["columns_match"] is True, (
         "the disagreement is about a VALUE, not about the shape of the result"
     )
@@ -814,30 +823,32 @@ def test_ac22_step_11_python_says_123_where_sql_says_1_and_it_is_flagged(
     )
     # The row itself carries the mark, so the screen can point at the cell
     # rather than only announcing the row (D8).
-    assert sql_row.get("diff") == [bi]
-    assert py_row.get("diff") == [bi]
-    # Nine rows agree.  A disagreement everywhere would mean something else
-    # broke; this one is local to the one row that holds the value.
-    assert sum(1 for r in sql_pane["rows"] if r.get("diff")) == 1
+    assert not sql_row.get("diff")
+    assert not py_row.get("diff")
+    # All ten rows agree. The mark's ABSENCE is asserted, not merely unchecked.
+    assert sum(1 for r in sql_pane["rows"] if r.get("diff")) == 0
 
 
-def test_ac22_the_disagreement_is_not_a_pane_that_failed_to_run(ran):
-    """Both panes ANSWERED. A disagreement is two answers, not one absence."""
+def test_ac22_the_agreement_is_not_a_pane_that_failed_to_run(ran):
+    """Both panes ANSWERED. An agreement between two answers is a result; an
+    agreement between one answer and an absence is a bug wearing a green mark —
+    and that distinction matters MORE now than when this asserted a difference."""
     _, body = ran[11]
     for pane in ("sql", "python"):
         assert body["panes"][pane]["state"] == "answered"
         assert body["panes"][pane]["row_count"] == 10
         assert len(body["panes"][pane]["rows"]) == 10
     assert body["sql"]["statement_sent"] is True, (
-        "the statement really ran — the SQL pane's `1` is a database answer"
+        "the statement really ran — the SQL pane's `123` is a database answer"
     )
 
 
-def test_ac22_the_disagreement_is_reproducible(client):
-    """Run step 11 five more times: the same disagreement, every time.
+def test_ac22_the_agreement_is_reproducible(client):
+    """Run step 11 five more times: the same agreement, every time.
 
-    A divergence that appeared intermittently would be a flake dressed as
-    a finding, which is the one thing §5's control must never manufacture.
+    An agreement that appeared intermittently would be a flake dressed as a
+    fix — the same failure the old divergence version of this test guarded
+    against, pointed the other way.
     """
     seen = set()
     for _ in range(5):
@@ -848,7 +859,7 @@ def test_ac22_the_disagreement_is_reproducible(client):
         py_row = next(r for r in body["panes"]["python"]["rows"] if r["c"][ki] == "edge-01")
         seen.add((body["verdict"], sql_row["c"][bi], py_row["c"][bi],
                   body["comparison"]["differing_rows"]))
-    assert seen == {("disagree", "1", "123", 1)}, f"step 11 was not stable: {seen}"
+    assert seen == {("agree", "123", "123", 0)}, f"step 11 was not stable: {seen}"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1155,7 +1166,12 @@ def observed(ran, wconn, client):
     b11 = ran[11][1]
     ki = b11["panes"]["sql"]["columns"].index("key")
     bi = b11["panes"]["sql"]["columns"].index("biggest")
-    sql_row = next(r for r in b11["panes"]["sql"]["rows"] if r.get("diff"))
+    # T-8, 2026-09-01: this used to find the row by its diff mark. Nothing is
+    # marked any more (T-6 closed the last value divergence), so the row is
+    # selected by the key it always was -- edge-01, the only EdgeCase row with
+    # an `m`. Selecting by diff would silently pick nothing and this sweep
+    # would stop reporting on step 11 at all.
+    sql_row = next(r for r in b11["panes"]["sql"]["rows"] if r["c"][ki] == "edge-01")
     py_row = b11["panes"]["python"]["rows"][sql_row["i"]]
     o["steps[10].expect.row"] = sql_row["c"][ki]
     o["steps[10].expect.python_value"] = py_row["c"][bi]

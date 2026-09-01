@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/onboarding.json",
+    "repo": "",
+    "bytes": 11410,
+    "loc": 132,
+    "language": "json",
+    "sha256": "015f312baf89d5c8e413feff6a096f6ca11399f56ee3ecd536993367166b6f42",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/onboarding.json",
+    "score": 0.08421133225333945,
+    "classification": "data",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 132,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.564015029173641,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

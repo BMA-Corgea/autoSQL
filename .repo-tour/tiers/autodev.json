@@ -1,0 +1,34 @@
+{
+  "path": "autodev",
+  "kind": "subsystem",
+  "repo": "",
+  "childTiers": [
+    "autodev/agents",
+    "autodev/instructions"
+  ],
+  "childFiles": [],
+  "fileCount": 2,
+  "loc": 117,
+  "topFiles": [
+    {
+      "path": "autodev/agents/auto-review.md",
+      "score": 0.061079948264624546,
+      "why": "1 commits · 68 loc · data"
+    },
+    {
+      "path": "autodev/instructions/build.md",
+      "score": 0.05885115114502579,
+      "why": "1 commits · 49 loc · data"
+    }
+  ],
+  "score": 0.061079948264624546,
+  "languages": {
+    "markdown": 2
+  },
+  "classifications": {
+    "data": 2
+  },
+  "publicSymbols": 0,
+  "hash": "a9f42c289820fc8a5a306e5a586d159ed279bc71524c0ed4f49046cd0b7fa012",
+  "sourcedFrom": "children"
+}

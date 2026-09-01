@@ -1,0 +1,36 @@
+{
+  "file": {
+    "path": "demo/pyrunner/__init__.py",
+    "repo": "",
+    "bytes": 728,
+    "loc": 14,
+    "language": "python",
+    "sha256": "d7a6460d0b5e077ffd9a48c3f83b8d30fb0fc16f83d4f1ad11cce85158ad8fc3",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/pyrunner/__init__.py",
+    "score": 0.38922453607428903,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 3,
+    "loc": 14,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.6309297535714574,
+      "size": 0.3123255565464585,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/pyrunner/__init__.py",
+    "language": "python",
+    "symbols": [],
+    "imports": [],
+    "parseErrors": 0
+  }
+}

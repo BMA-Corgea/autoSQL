@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/README.md",
+    "repo": "",
+    "bytes": 3660,
+    "loc": 85,
+    "language": "markdown",
+    "sha256": "0634055000f50a46d9a0ee707ae595cf31eb30b9db75cb1ee95242d9bf6c5a0d",
+    "classification": "structural",
+    "signals": [
+      "structural-name:README.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/README.md",
+    "score": 0.37890639542140847,
+    "classification": "structural",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 85,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.513729951456347,
+      "multiplier": 1.4
+    }
+  },
+  "extract": null
+}

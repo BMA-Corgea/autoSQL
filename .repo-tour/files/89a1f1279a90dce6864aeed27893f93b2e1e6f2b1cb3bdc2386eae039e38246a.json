@@ -1,0 +1,970 @@
+{
+  "file": {
+    "path": "demo/tests/test_ui.py",
+    "repo": "",
+    "bytes": 60344,
+    "loc": 1235,
+    "language": "python",
+    "sha256": "89a1f1279a90dce6864aeed27893f93b2e1e6f2b1cb3bdc2386eae039e38246a",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_ui.py",
+    "score": 0.20509794679174093,
+    "classification": "test",
+    "churn": 4,
+    "inDegree": 0,
+    "loc": 1235,
+    "components": {
+      "churn": 0.5466025697329024,
+      "inDegree": 0,
+      "size": 0.8211236860183786,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_ui.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 38,
+        "endLine": 38,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EDGECASE",
+        "kind": "variable",
+        "line": 39,
+        "endLine": 39,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "pick",
+        "kind": "function",
+        "line": 42,
+        "endLine": 45,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "conn",
+        "kind": "function",
+        "line": 49,
+        "endLine": 53,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "client",
+        "kind": "function",
+        "line": 57,
+        "endLine": 60,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "run",
+        "kind": "function",
+        "line": 63,
+        "endLine": 64,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ACCEPTED_PICKS",
+        "kind": "variable",
+        "line": 70,
+        "endLine": 86,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_walk",
+        "kind": "function",
+        "line": 93,
+        "endLine": 101,
+        "exported": false,
+        "doc": "Every (path, key, value) in a JSON body."
+      },
+      {
+        "name": "TestBothPanesAlways",
+        "kind": "class",
+        "line": 115,
+        "endLine": 199,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_both_panes_are_populated_from_the_same_rows",
+        "kind": "method",
+        "line": 117,
+        "endLine": 131,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_no_field_could_suppress_a_pane",
+        "kind": "method",
+        "line": 134,
+        "endLine": 152,
+        "exported": true,
+        "doc": "The strong form: there is no boolean anywhere under ``panes``."
+      },
+      {
+        "name": "test_the_comparison_is_over_the_whole_result_not_the_page",
+        "kind": "method",
+        "line": 154,
+        "endLine": 162,
+        "exported": true,
+        "doc": "B25. The page is 50; the comparison is 8,400."
+      },
+      {
+        "name": "test_a_disagreement_carries_both_panes_the_count_and_the_index",
+        "kind": "method",
+        "line": 164,
+        "endLine": 183,
+        "exported": true,
+        "doc": "The pick response's four required parts, on the pick that has a real disagreement to report (walkthrough step 11)."
+      },
+      {
+        "name": "test_a_disagreement_past_the_page_is_still_on_the_page",
+        "kind": "method",
+        "line": 185,
+        "endLine": 199,
+        "exported": true,
+        "doc": "B25's D8: *a disagreement is never below the fold of a paginator.* Driven with a synthetic pair rather than a real pick, because no seeded pick disagrees past row 50 — and the rule has to hold when one does."
+      },
+      {
+        "name": "TestTheSqlPane",
+        "kind": "class",
+        "line": 206,
+        "endLine": 333,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_it_shows_the_full_statement",
+        "kind": "method",
+        "line": 209,
+        "endLine": 216,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_it_shows_both_probes_including_the_one_that_did_not_run",
+        "kind": "method",
+        "line": 218,
+        "endLine": 228,
+        "exported": true,
+        "doc": "B30: *the statement and both probes open, in full, with the probe that did not run stated in a comment rather than hidden.*"
+      },
+      {
+        "name": "test_a_probe_that_ran_is_shown_with_its_answer",
+        "kind": "method",
+        "line": 230,
+        "endLine": 236,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_it_states_both_pinned_session_values",
+        "kind": "method",
+        "line": 238,
+        "endLine": 245,
+        "exported": true,
+        "doc": "AC-26's second half, and the reason it exists: each of these changes the answer, and neither is visible anywhere else."
+      },
+      {
+        "name": "test_the_pinned_values_are_what_the_connection_actually_ran_at",
+        "kind": "method",
+        "line": 247,
+        "endLine": 256,
+        "exported": true,
+        "doc": "The pane's claim, checked against the database rather than against the constant it was rendered from."
+      },
+      {
+        "name": "test_an_accepted_alias_is_shown_exactly_as_it_was_emitted",
+        "kind": "method",
+        "line": 258,
+        "endLine": 266,
+        "exported": true,
+        "doc": "§9.3: the one piece of user-typed text in the statement that is not a bind parameter, double-quoted, visible."
+      },
+      {
+        "name": "test_a_layer_1_refusal_says_there_is_no_sql_and_shows_none",
+        "kind": "method",
+        "line": 268,
+        "endLine": 285,
+        "exported": true,
+        "doc": "§9.3's refusal half, and AC-16's *both panes empty*."
+      },
+      {
+        "name": "test_a_layer_2_refusal_names_the_probe_and_sends_nothing",
+        "kind": "method",
+        "line": 287,
+        "endLine": 309,
+        "exported": true,
+        "doc": "§4.5: SQL existed, the probe fired, the statement never ran."
+      },
+      {
+        "name": "test_the_reported_fallback_really_does_render_pythons_rows",
+        "kind": "method",
+        "line": 311,
+        "endLine": 333,
+        "exported": true,
+        "doc": "The same refusal with rows behind it, so §4.5's *\"the Python pane shows Python's answer\"* is watched producing some."
+      },
+      {
+        "name": "_Recorder",
+        "kind": "class",
+        "line": 340,
+        "endLine": 362,
+        "exported": false,
+        "doc": "A connection that answers exactly like the real one and remembers every statement text handed to the driver."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 349,
+        "endLine": 351,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "execute",
+        "kind": "method",
+        "line": 353,
+        "endLine": 356,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "cursor",
+        "kind": "method",
+        "line": 358,
+        "endLine": 359,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "__getattr__",
+        "kind": "method",
+        "line": 361,
+        "endLine": 362,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_RecordingCursor",
+        "kind": "class",
+        "line": 365,
+        "endLine": 389,
+        "exported": false,
+        "doc": "The same spy, one level down, on the cursor the SQL pane executes on."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 376,
+        "endLine": 378,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "execute",
+        "kind": "method",
+        "line": 380,
+        "endLine": 383,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "__getattr__",
+        "kind": "method",
+        "line": 385,
+        "endLine": 386,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__iter__",
+        "kind": "method",
+        "line": 388,
+        "endLine": 389,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "recorded",
+        "kind": "function",
+        "line": 393,
+        "endLine": 401,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestWhatActuallyExecutes",
+        "kind": "class",
+        "line": 404,
+        "endLine": 445,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_executed_text_still_carries_its_placeholders",
+        "kind": "method",
+        "line": 405,
+        "endLine": 414,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_display_rendering_never_reaches_the_driver",
+        "kind": "method",
+        "line": 416,
+        "endLine": 435,
+        "exported": true,
+        "doc": "AC-27, at the boundary."
+      },
+      {
+        "name": "test_every_probe_also_executes_parameterised",
+        "kind": "method",
+        "line": 437,
+        "endLine": 445,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "HOSTILE_FIELD",
+        "kind": "variable",
+        "line": 454,
+        "endLine": 454,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestFieldNamesAreBound",
+        "kind": "class",
+        "line": 457,
+        "endLine": 571,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_a_hostile_field_name_in_a_computed_column_is_bound",
+        "kind": "method",
+        "line": 458,
+        "endLine": 466,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_sort_slots_field_name_is_bound_and_not_written",
+        "kind": "method",
+        "line": 468,
+        "endLine": 482,
+        "exported": true,
+        "doc": "The sort slot's half of AC-28, on a name the slot may hold."
+      },
+      {
+        "name": "test_a_hostile_field_name_in_the_sort_slot_is_refused_by_name",
+        "kind": "method",
+        "line": 484,
+        "endLine": 515,
+        "exported": true,
+        "doc": "W13-2, and the reason the test above uses an ordinary name."
+      },
+      {
+        "name": "test_every_slot_spelling_the_two_panes_would_split_on_is_refused",
+        "kind": "method",
+        "line": 522,
+        "endLine": 539,
+        "exported": true,
+        "doc": "The fence, over each slot that holds a field, not just the sort."
+      },
+      {
+        "name": "test_the_row_count_is_unaffected",
+        "kind": "method",
+        "line": 541,
+        "endLine": 554,
+        "exported": true,
+        "doc": "AC-28's second half. The field does not exist on any row, so reading it changes nothing about which rows come back — which is what it means for the name to have stayed out of the SQL."
+      },
+      {
+        "name": "test_the_alias_is_the_one_piece_of_typed_text_that_is_not_bound",
+        "kind": "method",
+        "line": 556,
+        "endLine": 571,
+        "exported": true,
+        "doc": "The criterion's own carve-out, stated as a test so it is not read as an oversight: a column name has no parameter position, so §4.10's allowlist governs it instead — and refuses this one."
+      },
+      {
+        "name": "TestNoOneIsAskedWhoTheyAre",
+        "kind": "class",
+        "line": 594,
+        "endLine": 649,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_no_route_mentions_one",
+        "kind": "method",
+        "line": 595,
+        "endLine": 599,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_page_loads_with_no_login_and_sets_no_cookie",
+        "kind": "method",
+        "line": 601,
+        "endLine": 606,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_api_routes_set_no_cookie_and_ask_for_no_identity",
+        "kind": "method",
+        "line": 612,
+        "endLine": 622,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_pick_route_answers_a_bare_request",
+        "kind": "method",
+        "line": 624,
+        "endLine": 628,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_no_response_field_is_named_for_one",
+        "kind": "method",
+        "line": 631,
+        "endLine": 637,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_visitor_gets_the_same_nine_controls",
+        "kind": "method",
+        "line": 639,
+        "endLine": 649,
+        "exported": true,
+        "doc": "§9.4: no author/viewer split, no permission gate, no saved view."
+      },
+      {
+        "name": "TestABadRequestIsAnswered",
+        "kind": "class",
+        "line": 656,
+        "endLine": 698,
+        "exported": true,
+        "doc": "DR-2's rule for the pick body, applied to the two routes that take a pick in the query string."
+      },
+      {
+        "name": "test_a_malformed_pick_parameter_is_a_422_that_says_why",
+        "kind": "method",
+        "line": 670,
+        "endLine": 675,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_a_well_formed_pick_parameter_still_re_derives_the_contract",
+        "kind": "method",
+        "line": 677,
+        "endLine": 693,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_an_unknown_source_on_the_fields_route_is_a_422",
+        "kind": "method",
+        "line": 695,
+        "endLine": 698,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_sprite_ids",
+        "kind": "function",
+        "line": 745,
+        "endLine": 746,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_bundle_text",
+        "kind": "function",
+        "line": 749,
+        "endLine": 750,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "TestAllNineOperationsAreReachable",
+        "kind": "class",
+        "line": 758,
+        "endLine": 841,
+        "exported": true,
+        "doc": "AC-25, in the one place the nine controls are decided (B22)."
+      },
+      {
+        "name": "test_all_nine_operations_are_present_and_named",
+        "kind": "method",
+        "line": 766,
+        "endLine": 772,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_operation_is_reachable_from_the_initial_pick",
+        "kind": "method",
+        "line": 774,
+        "endLine": 782,
+        "exported": true,
+        "doc": "Reachable means: enabled on the screen's own opening state, or enabled by a pick a person can make from it. Nothing is reachable only by editing JSON."
+      },
+      {
+        "name": "test_operation_7_offers_exactly_two_granularities",
+        "kind": "method",
+        "line": 784,
+        "endLine": 791,
+        "exported": true,
+        "doc": "Q20's own option text, and no week, month or free-text unit."
+      },
+      {
+        "name": "test_operation_8_offers_a_field_and_nothing_else",
+        "kind": "method",
+        "line": 793,
+        "endLine": 804,
+        "exported": true,
+        "doc": "R14: width 3, trailing, arithmetic mean are all FIXED — so there is deliberately no width box, no direction switch and no second aggregate. AC-25 tests exactly this absence."
+      },
+      {
+        "name": "test_operation_9_offers_a_toggle_and_no_picker",
+        "kind": "method",
+        "line": 806,
+        "endLine": 814,
+        "exported": true,
+        "doc": "R13 and AC-40(e): an on/off toggle is the only control, and there must be no picker for what it compares."
+      },
+      {
+        "name": "test_the_screen_renders_no_control_the_contract_did_not_serve",
+        "kind": "method",
+        "line": 816,
+        "endLine": 841,
+        "exported": true,
+        "doc": "B22 point 2, asserted structurally against ``pick.jsx``."
+      },
+      {
+        "name": "TestOperationNineHasNoPicker",
+        "kind": "class",
+        "line": 848,
+        "endLine": 868,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_contract_carries_one_control_for_operation_9",
+        "kind": "method",
+        "line": 849,
+        "endLine": 856,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_ctl_fixed_note_states_the_absence_in_words",
+        "kind": "method",
+        "line": 858,
+        "endLine": 863,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_built_bundle_renders_that_note",
+        "kind": "method",
+        "line": 865,
+        "endLine": 868,
+        "exported": true,
+        "doc": "The absence leaves no trace unless it is drawn, so the note has to survive into the page a person actually loads."
+      },
+      {
+        "name": "TestTheSessionValuesAreOnTheScreen",
+        "kind": "class",
+        "line": 875,
+        "endLine": 889,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_pick_response_carries_both_pinned_values",
+        "kind": "method",
+        "line": 876,
+        "endLine": 880,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_built_bundle_prints_both_of_them_side_by_side",
+        "kind": "method",
+        "line": 882,
+        "endLine": 889,
+        "exported": true,
+        "doc": "They live NOWHERE else on the screen (§9.3), which is the whole reason AC-43(d) is a separate part: the time zone is what makes a day's bucket seven and not eight, and nothing else on the page would tell a reader what it was."
+      },
+      {
+        "name": "TestTheTwoSprites",
+        "kind": "class",
+        "line": 896,
+        "endLine": 931,
+        "exported": true,
+        "doc": "The day GIMS adds an ``i-sort`` of its own, this fails — rather than the demo silently shadowing it."
+      },
+      {
+        "name": "test_the_two_sprites_share_no_id",
+        "kind": "method",
+        "line": 900,
+        "endLine": 905,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_demo_sprite_carries_exactly_the_eighteen",
+        "kind": "method",
+        "line": 907,
+        "endLine": 908,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_vendored_sprite_is_still_fifty_four_symbols",
+        "kind": "method",
+        "line": 910,
+        "endLine": 911,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_resolvers_two_lists_match_the_two_sprite_files",
+        "kind": "method",
+        "line": 913,
+        "endLine": 924,
+        "exported": true,
+        "doc": "The resolver decides from a literal list, so the list has to be the file. Parsed rather than imported: there is no JavaScript runtime in this suite, and there must not need to be (AC-36)."
+      },
+      {
+        "name": "test_the_vendored_sprite_is_checked_first",
+        "kind": "method",
+        "line": 926,
+        "endLine": 931,
+        "exported": true,
+        "doc": "B17: i-play, i-plus and i-search exist in both drawings with different path data, and GIMS's shapes are the ones that render."
+      },
+      {
+        "name": "TestDemoCssIsNotAForkOfWatery",
+        "kind": "class",
+        "line": 938,
+        "endLine": 1019,
+        "exported": true,
+        "doc": "The one assertion that keeps a silent copy of GIMS's stylesheet out of the demo. The approved mock inlines a near-copy of watery's ``:root`` because a mock has to be a single file; copying that block into demo.css would defeat D1's drift check completely, because a fragment cannot be checksummed against its source."
+      },
+      {
+        "name": "test_demo_css_declares_no_custom_property_on_root",
+        "kind": "method",
+        "line": 945,
+        "endLine": 950,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_demo_css_declares_no_custom_property_at_all",
+        "kind": "method",
+        "line": 952,
+        "endLine": 955,
+        "exported": true,
+        "doc": "Stronger than B18's own grep, and for the same reason: moving the fork off ``:root`` would still be a fork."
+      },
+      {
+        "name": "test_demo_css_does_not_redefine_waterys_own_primitives",
+        "kind": "method",
+        "line": 957,
+        "endLine": 966,
+        "exported": true,
+        "doc": "Part 5.1's reused-unchanged list. A rule for any of these here would be a restyle of GIMS's components under another name."
+      },
+      {
+        "name": "test_the_page_links_the_vendored_sheets_before_its_own",
+        "kind": "method",
+        "line": 968,
+        "endLine": 973,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_these_two_files_alone_are_off_host_clean",
+        "kind": "method",
+        "line": 975,
+        "endLine": 1011,
+        "exported": true,
+        "doc": "A NARROW check, and it says so — it is NOT the AC-32 guard."
+      },
+      {
+        "name": "test_inter_is_committed_and_declared",
+        "kind": "method",
+        "line": 1013,
+        "endLine": 1019,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestTheBundlesAreCommitted",
+        "kind": "class",
+        "line": 1031,
+        "endLine": 1060,
+        "exported": true,
+        "doc": "A bundle that exists on the build machine and not in a fresh clone is the worst shape a criterion can have: AC-36 would pass here and fail for everyone else. ``.gitignore`` ignores ``dist/`` and ``build/`` at any depth, which is exactly why the bundles are written to ``demo/static/js/``."
+      },
+      {
+        "name": "test_the_bundle_is_not_git_ignored",
+        "kind": "method",
+        "line": 1039,
+        "endLine": 1050,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_no_bundle_lives_under_a_dist_or_build_directory",
+        "kind": "method",
+        "line": 1052,
+        "endLine": 1055,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_index_html_and_the_static_assets_are_present",
+        "kind": "method",
+        "line": 1057,
+        "endLine": 1060,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestTheBundleIsNotStale",
+        "kind": "class",
+        "line": 1067,
+        "endLine": 1092,
+        "exported": true,
+        "doc": "Someone edits a .jsx and forgets ``./run-demo build-ui``, so the screen a reviewer sees is not the screen the source describes. ``build-ui`` records a sha256 over the concatenated sources in ``demo/manifest.json``; this recomputes it."
+      },
+      {
+        "name": "test_the_manifest_records_the_source_digest",
+        "kind": "method",
+        "line": 1073,
+        "endLine": 1077,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_bundle_was_built_from_these_exact_sources",
+        "kind": "method",
+        "line": 1079,
+        "endLine": 1092,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestTheScreenCannotHideEitherPane",
+        "kind": "class",
+        "line": 1100,
+        "endLine": 1130,
+        "exported": true,
+        "doc": "AC-20 read as a property of the built page rather than of the API: ``.pane-pair`` carries no collapse affordance, and there is nothing on the screen that could suppress one side."
+      },
+      {
+        "name": "test_the_bundle_contains_no_collapse_affordance",
+        "kind": "method",
+        "line": 1105,
+        "endLine": 1108,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_pane_pair_is_one_grid_and_not_two_frames",
+        "kind": "method",
+        "line": 1110,
+        "endLine": 1115,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_frame_goes_coral_only_when_they_differ",
+        "kind": "method",
+        "line": 1117,
+        "endLine": 1122,
+        "exported": true,
+        "doc": "DR-1's second of three independent signals, and D3's one named exception to Watery's role table."
+      },
+      {
+        "name": "test_the_verdict_carries_words_and_an_icon_and_not_only_colour",
+        "kind": "method",
+        "line": 1124,
+        "endLine": 1130,
+        "exported": true,
+        "doc": "DR-1.3: AGREE and DISAGREE differ in WORDS and ICONS, so the banner is legible in greyscale and to a red/green-confused reader."
+      },
+      {
+        "name": "TestTheDataSaysItIsInventedInThreePlaces",
+        "kind": "class",
+        "line": 1133,
+        "endLine": 1149,
+        "exported": true,
+        "doc": "B31. (1) the masthead chip and the standing banner, as drawn; (2) one ``.chip.warn`` reading ``invented`` in EACH answer pane's head — the one addition this build makes to the approved drawing, because a screenshot of the panes alone carries neither of the other two; (3) the seed script's own header and console line, which ``test_data.py`` asserts."
+      },
+      {
+        "name": "test_the_masthead_chip_and_the_standing_banner",
+        "kind": "method",
+        "line": 1141,
+        "endLine": 1144,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_each_answer_pane_head_carries_its_own_chip",
+        "kind": "method",
+        "line": 1146,
+        "endLine": 1149,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SEVEN_STATES",
+        "kind": "variable",
+        "line": 1158,
+        "endLine": 1176,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestTheSevenStatesAreReachable",
+        "kind": "class",
+        "line": 1179,
+        "endLine": 1235,
+        "exported": true,
+        "doc": "The approved mock draws seven artboards. The built screen keeps the mock's own tab strip and makes it real: a tab loads that state's pick INTO the nine controls and runs it against the database. So \"reachable\" is not a claim about a drawing — every one of the seven is a pick this suite runs, and what comes back is what the mock's view says comes back."
+      },
+      {
+        "name": "test_the_bundle_offers_all_seven_by_id",
+        "kind": "method",
+        "line": 1188,
+        "endLine": 1191,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_seven_ids_in_the_source_are_exactly_these_seven",
+        "kind": "method",
+        "line": 1193,
+        "endLine": 1197,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_each_state_reaches_the_outcome_its_view_describes",
+        "kind": "method",
+        "line": 1200,
+        "endLine": 1213,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_disagreement_state_is_located_and_not_merely_announced",
+        "kind": "method",
+        "line": 1215,
+        "endLine": 1224,
+        "exported": true,
+        "doc": "D8, and the one view the whole design is arranged around."
+      },
+      {
+        "name": "test_the_bucketed_state_disables_more_than_the_mock_drew",
+        "kind": "method",
+        "line": 1226,
+        "endLine": 1235,
+        "exported": true,
+        "doc": "B5a greys one more control on the bucketed view than the drawing does — operation 9 as well as 4 and 8. It is one of exactly two places this build exceeds the approved drawing, it comes from the legality matrix rather than from the screen, and it is named here so it cannot become a surprise."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 20
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 21
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 23
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 24
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 26
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 35
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 36
+      },
+      {
+        "raw": "fastapi.testclient",
+        "resolved": null,
+        "line": 58
+      },
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 719
+      },
+      {
+        "raw": "subprocess",
+        "resolved": null,
+        "line": 720
+      }
+    ],
+    "parseErrors": 0
+  }
+}

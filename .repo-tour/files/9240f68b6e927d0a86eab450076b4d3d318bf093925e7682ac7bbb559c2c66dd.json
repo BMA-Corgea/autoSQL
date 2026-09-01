@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "design/t2-demo.md",
+    "repo": "",
+    "bytes": 55440,
+    "loc": 523,
+    "language": "markdown",
+    "sha256": "9240f68b6e927d0a86eab450076b4d3d318bf093925e7682ac7bbb559c2c66dd",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "design/t2-demo.md",
+    "score": 0.10688952674835964,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 523,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.7221520023227885,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

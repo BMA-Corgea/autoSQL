@@ -1,0 +1,84 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_agree.py",
+    "repo": "",
+    "bytes": 2673,
+    "loc": 55,
+    "language": "python",
+    "sha256": "aca7db024e30b6ad9298ccc15f5d8122171a795900208a2b8ea80eb80ca4c95c",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_agree.py",
+    "score": 0.26075201854710084,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 55,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.4642529176868209,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_agree.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "_spike_dsn",
+        "kind": "function",
+        "line": 8,
+        "endLine": 25,
+        "exported": false,
+        "doc": "Fails closed on purpose. The only default that ever existed pointed at port 55433 - the live glp-strong-db container, which holds real data owned by the same role. Point AUTOSQL_SPIKE_DSN at a THROWAWAY Postgres. See proto/REGENERATE-CORPUS.md."
+      },
+      {
+        "name": "CASES",
+        "kind": "variable",
+        "line": 31,
+        "endLine": 43,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 2
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 3
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 3
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 6
+      },
+      {
+        "raw": "psycopg2",
+        "resolved": null,
+        "line": 7
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 12
+      }
+    ],
+    "parseErrors": 0
+  }
+}

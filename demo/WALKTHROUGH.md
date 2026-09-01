@@ -303,9 +303,9 @@ The refusal names the construct: `round`.
 
 ## Step 11 — On `noun:EdgeCase`, computed column `biggest = max($.m)`
 
-This is the one step on this walkthrough where the two panes are *supposed*
-to disagree — the deliberate demonstration this whole screen exists to make
-visible rather than hide.
+This is the step that used to be the one place the two panes were *supposed*
+to disagree. They no longer do, and that is the point of it now: this is the
+exact value that once produced a wrong number, reading the same on both sides.
 
 **What you do.** Switch source to `noun:EdgeCase`. On control
 **`2`<!--#steps[10].pick.operation--> — Computed columns**, add one named
@@ -317,32 +317,39 @@ all where step 10 didn't.)
 `["１２３", 1]` — its first element is a piece of *text*, and the digits in
 it are the wide, full-width kind sometimes typed on a Japanese keyboard,
 not the ordinary `123`. Both calculators try to read that text as a number
-before taking the biggest value, and this is exactly where they part ways.
+before taking the biggest value, and this is exactly where they used to part
+ways.
 
 Python recognises digits from any writing system, so it reads the text as
 the number one-hundred-twenty-three, and the Python pane reports
 `123`<!--#steps[10].expect.python_value-->, the larger of the two elements.
 
-The SQL side's number-reading rule only recognises the ordinary characters
-`0` through `9`, so to it that text is not a number at all — it comes back
-as *missing*, `max` ignores anything missing, and the SQL pane reports the
-only element left standing: `1`<!--#steps[10].expect.sql_value-->.
+**The SQL side now reports the same: `123`<!--#steps[10].expect.sql_value-->.**
+Its plain number-reading rule still only knows the characters `0` through `9`
+— but when that rule fails, the runtime now translates digits from any
+writing system into ordinary ones and tries again, which is precisely what
+Python does. The verdict here reads *agree*, and a run where the panes ever
+differed on this step would be the one that's actually wrong.
 
-Neither side warns you. Each answer looks perfectly plausible on its own —
-which is exactly why the screen has to say so loudly rather than picking one
-side. The verdict here reads *disagree*, and a run where the panes ever
-happened to agree on this particular step would be the one that's actually
-wrong.
+**Why this step reads the way it does — the short history, because it matters.**
+It has been amended twice, and both times because a real defect was found and
+fixed:
 
-(This particular gap is a real, measured finding from this project's
-correctness run, not something staged for the demo: the two engines'
-shared string-to-number routine genuinely differs on non-ASCII digits, and
-until that gap is turned into a loud refusal — already ruled, in a later
-ticket — it is the honest live example of a silent disagreement. An
-earlier version of this step demonstrated a different gap, a number-range
-guard set twelve decades too low; that defect has since been fixed, and
-with the fix adopted both panes now read `[1e300, 1]` identically — so
-this step moved to the divergence that survived.)
+- It first demonstrated a **number-range guard set twelve decades too low**,
+  which silently turned very large numbers into nothing. That was a genuine
+  bug. It was fixed, and both panes then read `[1e300, 1]` identically.
+- It moved to **this** gap, where the two engines' shared text-to-number
+  routine disagreed on non-ASCII digits. That was also genuine, and also a
+  bug. The project's correctness run first proposed making SQL *refuse* such
+  values loudly — then measured that the refusal would break about three
+  times as many working queries as it fixed, and found that SQL could simply
+  be taught the same digits Python knows. It was, so they agree.
+
+So this step no longer has a disagreement to show, because the project ran
+out of disagreements to have — which is what the correctness work was for.
+What it shows instead is the harder thing to demonstrate and the more useful
+thing to see: **the specific value that used to come back wrong, coming back
+right, on both engines, with the screen confirming they match.**
 
 ---
 

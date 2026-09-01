@@ -78,9 +78,15 @@ export const STATES = [
     pick: basePick({ changed: true }),
   },
   {
-    id: "disagree", n: 4, tab: "Disagreement", tabIcon: "neq",
-    ref: "walkthrough step 11 &middot; §5 the correctness control &middot; the eighth row of §5’s divergence table",
-    pick: basePick({ source: EDGECASE, computed: [{ name: "biggest", expr: "max($.l)" }] }),
+    // 2026-09-01, T-8. This artboard was "Disagreement" and it can no longer be
+    // one: T-6 closed the last in-subset value divergence, so both engines now
+    // read the full-width digits in $.m as 123. Its pick still points at the
+    // exact value that used to return a wrong number -- that is the whole point
+    // -- and the claim is now that they MATCH. (It was also still on $.l here,
+    // a third stale copy nobody caught on 2026-08-23.)
+    id: "reconciled", n: 4, tab: "Reconciled", tabIcon: "check",
+    ref: "walkthrough step 11 &middot; §5 the correctness control &middot; the value that used to be wrong",
+    pick: basePick({ source: EDGECASE, computed: [{ name: "biggest", expr: "max($.m)" }] }),
   },
   {
     id: "gate", n: 5, tab: "Refused: the expression", tabIcon: "shield",

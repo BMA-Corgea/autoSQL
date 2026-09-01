@@ -1,0 +1,102 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/F_ecma_num.py",
+    "repo": "",
+    "bytes": 6271,
+    "loc": 142,
+    "language": "python",
+    "sha256": "4f4abc396400d168b71ba30260411aebd2b76d2eb9ccc0db65c63889342abb1c",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/F_ecma_num.py",
+    "score": 0.2204092309033519,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 142,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5723760994418233,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/F_ecma_num.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "rand_double",
+        "kind": "function",
+        "line": 26,
+        "endLine": 49,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ecma_sql",
+        "kind": "function",
+        "line": 52,
+        "endLine": 59,
+        "exported": true,
+        "doc": "One round trip: ask Postgres for xpr.ecma_num of each value."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 62,
+        "endLine": 139,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "math",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "random",
+        "resolved": null,
+        "line": 15
+      },
+      {
+        "raw": "struct",
+        "resolved": null,
+        "line": 16
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 17
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 20
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 21
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 23
+      }
+    ],
+    "parseErrors": 0
+  }
+}

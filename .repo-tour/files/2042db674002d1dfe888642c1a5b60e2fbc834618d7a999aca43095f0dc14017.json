@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/H_sub_ordinary_efd1.txt",
+    "repo": "",
+    "bytes": 3785,
+    "loc": 54,
+    "language": "text",
+    "sha256": "2042db674002d1dfe888642c1a5b60e2fbc834618d7a999aca43095f0dc14017",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/H_sub_ordinary_efd1.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 54,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4621748026810618,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/scrum-master.md",
+    "repo": "",
+    "bytes": 1833,
+    "loc": 43,
+    "language": "markdown",
+    "sha256": "e4f31dee498bb5ccfd7ec3116c3bfc938a081815bd7643ff412795e733e60e90",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/scrum-master.md",
+    "score": 0.05796655242778373,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 43,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.43643915205479283,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

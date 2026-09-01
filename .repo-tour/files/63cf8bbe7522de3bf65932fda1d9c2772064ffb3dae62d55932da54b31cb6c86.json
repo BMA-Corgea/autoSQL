@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/h11-0.16.0-py3-none-any.whl",
+    "repo": "",
+    "bytes": 37515,
+    "loc": 0,
+    "language": null,
+    "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/h11-0.16.0-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

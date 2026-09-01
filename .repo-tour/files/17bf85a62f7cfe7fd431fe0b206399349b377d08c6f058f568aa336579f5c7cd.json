@@ -1,0 +1,215 @@
+{
+  "file": {
+    "path": "demo/tests/test_data.py",
+    "repo": "",
+    "bytes": 16109,
+    "loc": 369,
+    "language": "python",
+    "sha256": "17bf85a62f7cfe7fd431fe0b206399349b377d08c6f058f568aa336579f5c7cd",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_data.py",
+    "score": 0.1521524855748768,
+    "classification": "test",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 369,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.6820176807000848,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_data.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "test_ac7_counts",
+        "kind": "function",
+        "line": 52,
+        "endLine": 61,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac8_adjacent_repeat_band",
+        "kind": "function",
+        "line": 69,
+        "endLine": 93,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac9_seven_buckets_of_1200",
+        "kind": "function",
+        "line": 100,
+        "endLine": 113,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac10_database_digest_matches_manifest",
+        "kind": "function",
+        "line": 120,
+        "endLine": 131,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac10_generator_is_byte_identical_across_runs",
+        "kind": "function",
+        "line": 134,
+        "endLine": 140,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac11_seed_header_and_console_line_say_invented",
+        "kind": "function",
+        "line": 148,
+        "endLine": 162,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac12_the_only_index_is_the_primary_key",
+        "kind": "function",
+        "line": 169,
+        "endLine": 175,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_edge",
+        "kind": "function",
+        "line": 182,
+        "endLine": 185,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "test_ac13_witness_1_value_1e300",
+        "kind": "function",
+        "line": 188,
+        "endLine": 196,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac13_witness_2_list_1e300_1",
+        "kind": "function",
+        "line": 199,
+        "endLine": 205,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac13_witness_3_container_valued_keys",
+        "kind": "function",
+        "line": 208,
+        "endLine": 216,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac13_witness_4_huge_is_a_json_number",
+        "kind": "function",
+        "line": 219,
+        "endLine": 229,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac13_witness_5_guard_boundary_pair",
+        "kind": "function",
+        "line": 232,
+        "endLine": 261,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_b24_all_ten_edge_rows_labelled_and_status_free",
+        "kind": "function",
+        "line": 268,
+        "endLine": 280,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_b26_sample_id_equals_key",
+        "kind": "function",
+        "line": 287,
+        "endLine": 292,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_r16_heartbeat_shape_holds_in_every_row",
+        "kind": "function",
+        "line": 299,
+        "endLine": 318,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_r17_span_is_the_pinned_seven_utc_days",
+        "kind": "function",
+        "line": 321,
+        "endLine": 333,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_r19_key_formats",
+        "kind": "function",
+        "line": 340,
+        "endLine": 350,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_seed_never_reads_the_clock",
+        "kind": "function",
+        "line": 358,
+        "endLine": 369,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 32
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 33
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 36
+      },
+      {
+        "raw": "demo.seed",
+        "resolved": "demo/seed/__init__.py",
+        "line": 42
+      }
+    ],
+    "parseErrors": 0
+  }
+}

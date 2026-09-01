@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/index.md",
+    "repo": "",
+    "bytes": 3289,
+    "loc": 39,
+    "language": "markdown",
+    "sha256": "f75f69192921c3edd98629ad37ae2dc5a98375c6ad90b12e8fa1dbd89bdcee17",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/index.md",
+    "score": 0.08908721541194581,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 39,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.42544681338255813,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

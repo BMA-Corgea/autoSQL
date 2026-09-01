@@ -1,0 +1,98 @@
+{
+  "file": {
+    "path": "demo/server/errors.py",
+    "repo": "",
+    "bytes": 6252,
+    "loc": 150,
+    "language": "python",
+    "sha256": "4866082cc6ad97e508d6a3317fbf03e26dc6370532d92e4077b0ff6d75add5e0",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/server/errors.py",
+    "score": 0.2836322820039871,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 150,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.5786542349712523,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/server/errors.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "LAYER_1_HEADLINE",
+        "kind": "variable",
+        "line": 49,
+        "endLine": 49,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "LAYER_2_HEADLINE",
+        "kind": "variable",
+        "line": 50,
+        "endLine": 50,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "layer_1",
+        "kind": "function",
+        "line": 89,
+        "endLine": 110,
+        "exported": true,
+        "doc": "The JSON for a :class:`demo.gate.Refused`."
+      },
+      {
+        "name": "layer_2",
+        "kind": "function",
+        "line": 113,
+        "endLine": 128,
+        "exported": true,
+        "doc": "The JSON for a :class:`demo.probes.RuntimeRefusal`."
+      },
+      {
+        "name": "illegal_pick",
+        "kind": "function",
+        "line": 131,
+        "endLine": 150,
+        "exported": true,
+        "doc": "A pick the legality matrix forbids, arriving other than through the screen (DR-2). Not a layer at all: the screen cannot offer this, so a request carrying it is a client defect, answered with the matrix's own words rather than silently ignored or silently defaulted."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 27
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 28
+      },
+      {
+        "raw": "gate",
+        "resolved": null,
+        "line": 36
+      },
+      {
+        "raw": "probes",
+        "resolved": null,
+        "line": 37
+      }
+    ],
+    "parseErrors": 0
+  }
+}

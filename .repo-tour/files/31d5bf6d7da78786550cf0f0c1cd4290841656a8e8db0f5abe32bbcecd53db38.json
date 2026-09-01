@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/evidence/T-2/tests/run-demo-test.txt",
+    "repo": "",
+    "bytes": 8589,
+    "loc": 143,
+    "language": "text",
+    "sha256": "31d5bf6d7da78786550cf0f0c1cd4290841656a8e8db0f5abe32bbcecd53db38",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/evidence/T-2/tests/run-demo-test.txt",
+    "score": 0.06617099201491891,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 143,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5731798118403791,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

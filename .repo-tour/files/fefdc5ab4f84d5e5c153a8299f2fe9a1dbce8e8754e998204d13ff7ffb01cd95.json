@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/timestamp_witness.txt",
+    "repo": "",
+    "bytes": 678,
+    "loc": 12,
+    "language": "text",
+    "sha256": "fefdc5ab4f84d5e5c153a8299f2fe9a1dbce8e8754e998204d13ff7ffb01cd95",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/timestamp_witness.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 12,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.29582141248954624,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

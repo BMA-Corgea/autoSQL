@@ -1,0 +1,88 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/N_shortcircuit.py",
+    "repo": "",
+    "bytes": 2492,
+    "loc": 55,
+    "language": "python",
+    "sha256": "d915160151f8e6f33714870fcfb6117ee43c6edf8a7f7474e5d3b1bad90488dc",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/N_shortcircuit.py",
+    "score": 0.19878459455235142,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 55,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4642529176868209,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/N_shortcircuit.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "BOOM_MUL",
+        "kind": "variable",
+        "line": 23,
+        "endLine": 23,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BOOM_UF",
+        "kind": "variable",
+        "line": 24,
+        "endLine": 24,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BOOM_IDX",
+        "kind": "variable",
+        "line": 25,
+        "endLine": 25,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "REC",
+        "kind": "variable",
+        "line": 26,
+        "endLine": 26,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CASES",
+        "kind": "variable",
+        "line": 28,
+        "endLine": 40,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 18
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 21
+      }
+    ],
+    "parseErrors": 0
+  }
+}

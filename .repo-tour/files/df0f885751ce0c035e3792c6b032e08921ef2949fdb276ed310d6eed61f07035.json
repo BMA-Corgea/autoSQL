@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/evidence/T-2/tests/VERIFY.md",
+    "repo": "",
+    "bytes": 26230,
+    "loc": 452,
+    "language": "markdown",
+    "sha256": "df0f885751ce0c035e3792c6b032e08921ef2949fdb276ed310d6eed61f07035",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/evidence/T-2/tests/VERIFY.md",
+    "score": 0.07410178385183175,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 452,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7053596757889263,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,98 @@
+{
+  "file": {
+    "path": "spikes/T-3/differ_injection_test.py",
+    "repo": "",
+    "bytes": 7508,
+    "loc": 158,
+    "language": "python",
+    "sha256": "acd1eaaedf0150979e9c3217c904f7039518e16203def31a1c9a62db5d40553e",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/differ_injection_test.py",
+    "score": 0.11142782449064079,
+    "classification": "test",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 158,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5846081898314717,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "spikes/T-3/differ_injection_test.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "FUZZ",
+        "kind": "variable",
+        "line": 29,
+        "endLine": 29,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PRE_FIX",
+        "kind": "variable",
+        "line": 39,
+        "endLine": 39,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "INJECTIONS",
+        "kind": "variable",
+        "line": 42,
+        "endLine": 83,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "injecting",
+        "kind": "function",
+        "line": 89,
+        "endLine": 96,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 99,
+        "endLine": 154,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 25
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 26
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 33
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 34
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,233 @@
+{
+  "file": {
+    "path": "demo/tests/test_decimal.py",
+    "repo": "",
+    "bytes": 19412,
+    "loc": 422,
+    "language": "python",
+    "sha256": "dc5c2ae6edfafbf45ae95f78195d6e02833f19af3d886c1c86543929d841342e",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_decimal.py",
+    "score": 0.15369642903914688,
+    "classification": "test",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 422,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.6974571153427856,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_decimal.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "TIE_CASES",
+        "kind": "variable",
+        "line": 47,
+        "endLine": 60,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "NEAR_MISS_CASES",
+        "kind": "variable",
+        "line": 64,
+        "endLine": 67,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_q6_rounds_ties_half_up",
+        "kind": "function",
+        "line": 71,
+        "endLine": 77,
+        "exported": true,
+        "doc": "AC-24(b), Python half: ties round half-up (away from zero), exactly."
+      },
+      {
+        "name": "test_the_tie_cases_actually_distinguish_the_modes",
+        "kind": "function",
+        "line": 84,
+        "endLine": 92,
+        "exported": true,
+        "doc": "The test of the test: on these rows the half-even default gives a DIFFERENT number, so mutation M8 (rounding left at ROUND_HALF_EVEN) cannot pass this file."
+      },
+      {
+        "name": "test_q6_reads_the_whole_tail_not_a_truncated_tie",
+        "kind": "function",
+        "line": 96,
+        "endLine": 98,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_q6_ignores_the_ambient_decimal_context",
+        "kind": "function",
+        "line": 101,
+        "endLine": 130,
+        "exported": true,
+        "doc": "Spec §7.2 item 4: no other precision setting or rounding mode is relied on anywhere. A caller that has set the thread's context to banker's rounding and a tiny precision must not change q6's answer."
+      },
+      {
+        "name": "test_q6_accepts_ints_exactly",
+        "kind": "function",
+        "line": 133,
+        "endLine": 136,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_q6_normalises_negative_zero",
+        "kind": "function",
+        "line": 139,
+        "endLine": 142,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_q6_refuses_what_is_not_an_exact_number",
+        "kind": "function",
+        "line": 150,
+        "endLine": 155,
+        "exported": true,
+        "doc": "A float at a rounding site is an upstream bug (plan B7); a bool is the §7.2 item 5 trap; None is a null that should have been handled before rounding. All refuse loudly rather than round quietly."
+      },
+      {
+        "name": "test_is_jsonb_number_matches_jsonb_typeof",
+        "kind": "function",
+        "line": 177,
+        "endLine": 178,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "demo_db",
+        "kind": "function",
+        "line": 187,
+        "endLine": 203,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_postgres_rounds_the_same_tie_the_same_way",
+        "kind": "function",
+        "line": 207,
+        "endLine": 217,
+        "exported": true,
+        "doc": "AC-24(b), SQL half: Postgres's round(numeric, 6) — documented to round half away from zero — agrees with q6 digit for digit on every tie value. Disagreement here is a build failure, not a rounding preference."
+      },
+      {
+        "name": "AGG_HOSTILE_CASES",
+        "kind": "variable",
+        "line": 247,
+        "endLine": 261,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_record_d_values",
+        "kind": "function",
+        "line": 266,
+        "endLine": 268,
+        "exported": false,
+        "doc": "The values exactly as rows.py's exact parse would deliver them."
+      },
+      {
+        "name": "test_aggregate_stays_exact_on_float_hostile_values",
+        "kind": "function",
+        "line": 272,
+        "endLine": 283,
+        "exported": true,
+        "doc": "The aggregate path itself, on values float64 cannot carry: the answer is the exact decimal one, digit for digit, scale included."
+      },
+      {
+        "name": "test_the_hostile_values_actually_expose_float_contamination",
+        "kind": "function",
+        "line": 287,
+        "endLine": 307,
+        "exported": true,
+        "doc": "The test of the test: rerun each case with M9's contamination — every value routed through Decimal(float(v)) — inside evaluate's own arithmetic context, and prove the answer COMES OUT DIFFERENT. A case that cannot tell the two routes apart carries no weight here."
+      },
+      {
+        "name": "test_postgres_agrees_digit_for_digit_on_the_hostile_aggregates",
+        "kind": "function",
+        "line": 311,
+        "endLine": 333,
+        "exported": true,
+        "doc": "The cross-engine half: Postgres's numeric aggregate of the same values equals evaluate.aggregate's answer digit for digit — sum/avg through round(…, 6) exactly as the builder emits them, min/max bare."
+      },
+      {
+        "name": "app_client",
+        "kind": "function",
+        "line": 341,
+        "endLine": 353,
+        "exported": true,
+        "doc": "POST /api/pick in-process. Depends on demo_db so the no-stack case is the same loud skip as the rest of this file's SQL half."
+      },
+      {
+        "name": "_sample_pick",
+        "kind": "function",
+        "line": 356,
+        "endLine": 370,
+        "exported": false,
+        "doc": "The screen's pick shape (legality.default_pick's slots), aimed at noun:Sample's field_1 — a 4-decimal float on the rows where the seed made field_1 numeric (generate.py's t == 1 arm)."
+      },
+      {
+        "name": "test_sample_4_decimal_aggregates_end_to_end",
+        "kind": "function",
+        "line": 373,
+        "endLine": 422,
+        "exported": true,
+        "doc": "Plan §8.2 M9 / B7: sum, avg, min and max of noun:Sample's field_1, driven through the API. Both panes must equal — digit for digit — a third computation made HERE from the JSON text the database stores, parsed with Decimal(text) and accumulated in exact decimal. min/max carry the parse check (no round hides a float's digit tail); sum/avg carry the accumulation and the 6-place half-up round."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 29
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 30
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 31
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 32
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "demo.pyrunner",
+        "resolved": "demo/pyrunner/__init__.py",
+        "line": 40
+      },
+      {
+        "raw": "demo.pyrunner.decimals",
+        "resolved": "demo/pyrunner/decimals.py",
+        "line": 41
+      }
+    ],
+    "parseErrors": 0
+  }
+}

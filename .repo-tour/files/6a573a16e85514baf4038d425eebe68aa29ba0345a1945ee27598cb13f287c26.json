@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/REGENERATE-CORPUS.md",
+    "repo": "",
+    "bytes": 50725,
+    "loc": 814,
+    "language": "markdown",
+    "sha256": "6a573a16e85514baf4038d425eebe68aa29ba0345a1945ee27598cb13f287c26",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/REGENERATE-CORPUS.md",
+    "score": 0.07816583435191424,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 814,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7730938507903012,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,510 @@
+{
+  "file": {
+    "path": "demo/server/app.py",
+    "repo": "",
+    "bytes": 67009,
+    "loc": 1488,
+    "language": "python",
+    "sha256": "a715cf171c94234fb9a4bc6c0411c869ac7ab8ca87f3ff8aa960abd8dd45e321",
+    "classification": "structural",
+    "signals": [
+      "structural-name:app.py"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/server/app.py",
+    "score": 0.6192980071331151,
+    "classification": "structural",
+    "churn": 5,
+    "inDegree": 0,
+    "loc": 1488,
+    "components": {
+      "churn": 0.6085232133882752,
+      "inDegree": 0,
+      "size": 0.8426013667803635,
+      "multiplier": 1.4
+    }
+  },
+  "extract": {
+    "path": "demo/server/app.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "_pinned",
+        "kind": "function",
+        "line": 100,
+        "endLine": 113,
+        "exported": false,
+        "doc": "A single pinned file, under the one module name ``builder`` uses."
+      },
+      {
+        "name": "NOT_A_NUMBER",
+        "kind": "variable",
+        "line": 132,
+        "endLine": 132,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_canon_json",
+        "kind": "function",
+        "line": 135,
+        "endLine": 163,
+        "exported": false,
+        "doc": "One jsonb-shaped value → ``(type, exact value)``."
+      },
+      {
+        "name": "canonical",
+        "kind": "function",
+        "line": 166,
+        "endLine": 191,
+        "exported": true,
+        "doc": "One cell → ``(type, exact value)``, given its column's kind."
+      },
+      {
+        "name": "_number_text",
+        "kind": "function",
+        "line": 208,
+        "endLine": 216,
+        "exported": false,
+        "doc": "A jsonb number's text — one text per value, whatever produced it."
+      },
+      {
+        "name": "_json_text",
+        "kind": "function",
+        "line": 219,
+        "endLine": 236,
+        "exported": false,
+        "doc": "A canonical value as compact JSON text — for a container cell."
+      },
+      {
+        "name": "display_text",
+        "kind": "function",
+        "line": 239,
+        "endLine": 257,
+        "exported": true,
+        "doc": "The one string both panes print for a canonical value."
+      },
+      {
+        "name": "_canon_rows",
+        "kind": "function",
+        "line": 264,
+        "endLine": 268,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "sql_pane",
+        "kind": "function",
+        "line": 271,
+        "endLine": 291,
+        "exported": true,
+        "doc": "Execute the parameterised statement and read the whole result."
+      },
+      {
+        "name": "python_pane",
+        "kind": "function",
+        "line": 294,
+        "endLine": 312,
+        "exported": true,
+        "doc": "The second calculator's answer, in the same shape."
+      },
+      {
+        "name": "compare_panes",
+        "kind": "function",
+        "line": 322,
+        "endLine": 356,
+        "exported": true,
+        "doc": "Compare the two answers **in full**. No tolerance, anywhere."
+      },
+      {
+        "name": "_page_start",
+        "kind": "function",
+        "line": 359,
+        "endLine": 369,
+        "exported": false,
+        "doc": "B25's D8: a disagreement is never below the fold of a paginator."
+      },
+      {
+        "name": "_rendered_pane",
+        "kind": "function",
+        "line": 372,
+        "endLine": 395,
+        "exported": false,
+        "doc": "One pane, as the screen receives it: the true total, and a page."
+      },
+      {
+        "name": "_empty_pane",
+        "kind": "function",
+        "line": 424,
+        "endLine": 428,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_SqlLiteral",
+        "kind": "class",
+        "line": 435,
+        "endLine": 453,
+        "exported": false,
+        "doc": "A value ``render_for_display`` should print as SQL, not as Python."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 449,
+        "endLine": 450,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__str__",
+        "kind": "method",
+        "line": 452,
+        "endLine": 453,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_array_literal",
+        "kind": "function",
+        "line": 456,
+        "endLine": 463,
+        "exported": false,
+        "doc": "A Python list of field-path parts → a Postgres ``text[]`` literal."
+      },
+      {
+        "name": "_display_params",
+        "kind": "function",
+        "line": 466,
+        "endLine": 470,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "render_display_sql",
+        "kind": "function",
+        "line": 473,
+        "endLine": 481,
+        "exported": true,
+        "doc": "The pick's statement with its bind parameters substituted in (§9.3)."
+      },
+      {
+        "name": "_param_rows",
+        "kind": "function",
+        "line": 484,
+        "endLine": 493,
+        "exported": false,
+        "doc": "The bind list the SQL pane prints — AC-28's *\"only here\"*."
+      },
+      {
+        "name": "_probe_display_sql",
+        "kind": "function",
+        "line": 513,
+        "endLine": 520,
+        "exported": false,
+        "doc": "A probe with its bind parameters substituted in, like the pick's own statement — same helper, same rule, and just as never executed."
+      },
+      {
+        "name": "_probe_block",
+        "kind": "function",
+        "line": 523,
+        "endLine": 534,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "sql_pane_text",
+        "kind": "function",
+        "line": 537,
+        "endLine": 560,
+        "exported": true,
+        "doc": "What §9.3 renders: the two pinned values, BOTH probes, the statement."
+      },
+      {
+        "name": "collection_keys",
+        "kind": "function",
+        "line": 585,
+        "endLine": 589,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "numeric_fields",
+        "kind": "function",
+        "line": 592,
+        "endLine": 596,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_as_dollar_path",
+        "kind": "function",
+        "line": 641,
+        "endLine": 706,
+        "exported": false,
+        "doc": "r\"\"\"A field slot in the one spelling both panes read — or a refusal."
+      },
+      {
+        "name": "normalised_pick",
+        "kind": "function",
+        "line": 709,
+        "endLine": 745,
+        "exported": true,
+        "doc": "One pick, with every field slot in the one spelling both panes read."
+      },
+      {
+        "name": "_field_ast",
+        "kind": "function",
+        "line": 748,
+        "endLine": 753,
+        "exported": false,
+        "doc": "The AST a numeric read is fed — a computed column's, or a path's."
+      },
+      {
+        "name": "_ordered_by",
+        "kind": "function",
+        "line": 756,
+        "endLine": 764,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_refused",
+        "kind": "function",
+        "line": 767,
+        "endLine": 795,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_sql_block",
+        "kind": "function",
+        "line": 798,
+        "endLine": 810,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_fallback_python_pane",
+        "kind": "function",
+        "line": 837,
+        "endLine": 850,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "refuse_writes",
+        "kind": "function",
+        "line": 853,
+        "endLine": 881,
+        "exported": true,
+        "doc": "The read-only guard, on the transaction the pick ACTUALLY runs in."
+      },
+      {
+        "name": "_contract_safe_pick",
+        "kind": "function",
+        "line": 884,
+        "endLine": 911,
+        "exported": false,
+        "doc": "The nearest well-formed pick, for rendering the control contract BESIDE a refusal — never for judging the pick."
+      },
+      {
+        "name": "_float8_overflow_refusal",
+        "kind": "function",
+        "line": 929,
+        "endLine": 986,
+        "exported": false,
+        "doc": "The float8-overflow refusal, named (spec §4.3's doctrine: whichever layer refuses, the person sees it, and it names what caused it)."
+      },
+      {
+        "name": "run_pick",
+        "kind": "function",
+        "line": 989,
+        "endLine": 1158,
+        "exported": true,
+        "doc": "One pick → the whole response body. Separated from the route so the suite drives the same code the screen does, with no HTTP in the way."
+      },
+      {
+        "name": "STRIPPED_FROM_VENDORED_CSS",
+        "kind": "variable",
+        "line": 1256,
+        "endLine": 1256,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_points_at_another_host",
+        "kind": "function",
+        "line": 1259,
+        "endLine": 1260,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_url_target",
+        "kind": "function",
+        "line": 1263,
+        "endLine": 1271,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "offline_css",
+        "kind": "function",
+        "line": 1274,
+        "endLine": 1303,
+        "exported": true,
+        "doc": "`text` with every reference that would leave this host removed."
+      },
+      {
+        "name": "_OfflineVendorFiles",
+        "kind": "class",
+        "line": 1306,
+        "endLine": 1347,
+        "exported": false,
+        "doc": "The ``/vendor`` mount, with NO path through it to a raw stylesheet."
+      },
+      {
+        "name": "file_response",
+        "kind": "method",
+        "line": 1333,
+        "endLine": 1347,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "index",
+        "kind": "function",
+        "line": 1372,
+        "endLine": 1378,
+        "exported": true,
+        "doc": "The screen. Says so plainly when the bundles are not built yet, rather than answering 404 as though the route were wrong."
+      },
+      {
+        "name": "_BadQueryPick",
+        "kind": "class",
+        "line": 1381,
+        "endLine": 1382,
+        "exported": false,
+        "doc": "The ``pick`` query parameter is not a JSON object."
+      },
+      {
+        "name": "_pick_from_query",
+        "kind": "function",
+        "line": 1385,
+        "endLine": 1406,
+        "exported": false,
+        "doc": "The ``?pick=`` parameter, or the initial state."
+      },
+      {
+        "name": "api_operations",
+        "kind": "function",
+        "line": 1410,
+        "endLine": 1434,
+        "exported": true,
+        "doc": "B22's contract — the nine controls, and which are enabled right now."
+      },
+      {
+        "name": "api_fields",
+        "kind": "function",
+        "line": 1438,
+        "endLine": 1461,
+        "exported": true,
+        "doc": "§4.4 item 3's vocabulary, read from the data, per collection."
+      },
+      {
+        "name": "api_pick",
+        "kind": "function",
+        "line": 1465,
+        "endLine": 1488,
+        "exported": true,
+        "doc": "One pick: both panes, the verdict, and the whole comparison."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "importlib.util",
+        "resolved": null,
+        "line": 67
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 68
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 69
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 70
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 71
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 72
+      },
+      {
+        "raw": "typing",
+        "resolved": null,
+        "line": 73
+      },
+      {
+        "raw": "fastapi",
+        "resolved": null,
+        "line": 75
+      },
+      {
+        "raw": "fastapi.responses",
+        "resolved": null,
+        "line": 76
+      },
+      {
+        "raw": "fastapi.staticfiles",
+        "resolved": null,
+        "line": 77
+      },
+      {
+        "raw": "builder",
+        "resolved": null,
+        "line": 88
+      },
+      {
+        "raw": "gate",
+        "resolved": null,
+        "line": 89
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 90
+      },
+      {
+        "raw": "probes",
+        "resolved": null,
+        "line": 91
+      },
+      {
+        "raw": "pyrunner",
+        "resolved": null,
+        "line": 92
+      },
+      {
+        "raw": ".",
+        "resolved": "demo/server/__init__.py",
+        "line": 94
+      }
+    ],
+    "parseErrors": 0
+  }
+}

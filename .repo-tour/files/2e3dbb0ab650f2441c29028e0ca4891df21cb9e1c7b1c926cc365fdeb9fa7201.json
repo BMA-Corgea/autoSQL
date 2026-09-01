@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/wiki/hardening-checklist.md",
+    "repo": "",
+    "bytes": 287,
+    "loc": 9,
+    "language": "markdown",
+    "sha256": "2e3dbb0ab650f2441c29028e0ca4891df21cb9e1c7b1c926cc365fdeb9fa7201",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/wiki/hardening-checklist.md",
+    "score": 0.047713944201298715,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 9,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.2655623482800425,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,43 @@
+{
+  "path": ".autodev/outbox",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    ".autodev/outbox/sent"
+  ],
+  "childFiles": [],
+  "fileCount": 4,
+  "loc": 100,
+  "topFiles": [
+    {
+      "path": ".autodev/outbox/sent/T-2_accept_gate.md",
+      "score": 0.02440218825306706,
+      "why": "33 loc · data"
+    },
+    {
+      "path": ".autodev/outbox/sent/T-3_sp_decide_gate.md",
+      "score": 0.02305864110813378,
+      "why": "27 loc · data"
+    },
+    {
+      "path": ".autodev/outbox/sent/winddown.md",
+      "score": 0.0213898151702121,
+      "why": "21 loc · data"
+    },
+    {
+      "path": ".autodev/outbox/sent/T-2_design_look-signoff.md",
+      "score": 0.02073027484987802,
+      "why": "19 loc · data"
+    }
+  ],
+  "score": 0.02440218825306706,
+  "languages": {
+    "markdown": 4
+  },
+  "classifications": {
+    "data": 4
+  },
+  "publicSymbols": 0,
+  "hash": "dadf128570396e665b913497c112ef014a0f8023010ff1107fe88330c1198793",
+  "sourcedFrom": "children"
+}

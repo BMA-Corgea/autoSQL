@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/iniconfig-2.3.0-py3-none-any.whl",
+    "repo": "",
+    "bytes": 7484,
+    "loc": 0,
+    "language": null,
+    "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/iniconfig-2.3.0-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

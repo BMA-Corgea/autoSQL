@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/A_range_before.txt",
+    "repo": "",
+    "bytes": 9492,
+    "loc": 231,
+    "language": "text",
+    "sha256": "a80f05507e30758f73a6629964b37d50893715962f009caafe3c7a0f0ca015e5",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/A_range_before.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 231,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6281845440958529,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

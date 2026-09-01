@@ -1,0 +1,52 @@
+{
+  "path": "spikes/T-1/recon",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "spikes/T-1/recon/baseline.md",
+    "spikes/T-1/recon/fixture.md",
+    "spikes/T-1/recon/query-source.md",
+    "spikes/T-1/recon/semantics.md",
+    "spikes/T-1/recon/storage.md"
+  ],
+  "fileCount": 5,
+  "loc": 2505,
+  "topFiles": [
+    {
+      "path": "spikes/T-1/recon/semantics.md",
+      "score": 0.0775629492872675,
+      "why": "1 commits · 746 loc · data"
+    },
+    {
+      "path": "spikes/T-1/recon/fixture.md",
+      "score": 0.07590674406367322,
+      "why": "1 commits · 587 loc · data"
+    },
+    {
+      "path": "spikes/T-1/recon/baseline.md",
+      "score": 0.07404040929653573,
+      "why": "1 commits · 448 loc · data"
+    },
+    {
+      "path": "spikes/T-1/recon/query-source.md",
+      "score": 0.07281257918616886,
+      "why": "1 commits · 375 loc · data"
+    },
+    {
+      "path": "spikes/T-1/recon/storage.md",
+      "score": 0.07231672434700863,
+      "why": "1 commits · 349 loc · data"
+    }
+  ],
+  "score": 0.0775629492872675,
+  "languages": {
+    "markdown": 5
+  },
+  "classifications": {
+    "data": 5
+  },
+  "publicSymbols": 0,
+  "hash": "41c087a9822c44cbd53884b6e81190682dbb6857e8cb8918546a75c642fb0f20",
+  "sourcedFrom": "children"
+}

@@ -1,0 +1,41 @@
+{
+  "path": ".autodev/evidence/T-2/tests",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    ".autodev/evidence/T-2/tests/VERIFY.md",
+    ".autodev/evidence/T-2/tests/ac19-expr-vectors.md",
+    ".autodev/evidence/T-2/tests/run-demo-test.txt"
+  ],
+  "fileCount": 3,
+  "loc": 779,
+  "topFiles": [
+    {
+      "path": ".autodev/evidence/T-2/tests/VERIFY.md",
+      "score": 0.07410178385183175,
+      "why": "1 commits · 452 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/tests/ac19-expr-vectors.md",
+      "score": 0.06790473019342579,
+      "why": "1 commits · 184 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/tests/run-demo-test.txt",
+      "score": 0.06617099201491891,
+      "why": "1 commits · 143 loc · data"
+    }
+  ],
+  "score": 0.07410178385183175,
+  "languages": {
+    "markdown": 2,
+    "text": 1
+  },
+  "classifications": {
+    "data": 3
+  },
+  "publicSymbols": 0,
+  "hash": "4a6ca209ae8d83af71af27221b969361b1d0438094818362c97a941df670a05e",
+  "sourcedFrom": "children"
+}

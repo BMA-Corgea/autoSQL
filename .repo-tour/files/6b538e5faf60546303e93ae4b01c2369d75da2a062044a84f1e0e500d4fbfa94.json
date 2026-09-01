@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/.parts/f4.md",
+    "repo": "",
+    "bytes": 79031,
+    "loc": 905,
+    "language": "markdown",
+    "sha256": "6b538e5faf60546303e93ae4b01c2369d75da2a062044a84f1e0e500d4fbfa94",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.parts/f4.md",
+    "score": 0.0788983178049072,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 905,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7853019083401841,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/G2b_round_raises.txt",
+    "repo": "",
+    "bytes": 668,
+    "loc": 14,
+    "language": "text",
+    "sha256": "d8e2df316b1a50761c34eba5a790e3ebc959f123350f55143359af5cdd293de3",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/G2b_round_raises.txt",
+    "score": 0.05051973669728368,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 14,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.3123255565464585,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

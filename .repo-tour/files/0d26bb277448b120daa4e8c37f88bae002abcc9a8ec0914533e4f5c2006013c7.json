@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "WRAPUP-FOR-EVAN.md",
+    "repo": "",
+    "bytes": 94543,
+    "loc": 721,
+    "language": "markdown",
+    "sha256": "0d26bb277448b120daa4e8c37f88bae002abcc9a8ec0914533e4f5c2006013c7",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "WRAPUP-FOR-EVAN.md",
+    "score": 0.11933853796388853,
+    "classification": "data",
+    "churn": 4,
+    "inDegree": 0,
+    "loc": 721,
+    "components": {
+      "churn": 0.5466025697329024,
+      "inDegree": 0,
+      "size": 0.759119850832445,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

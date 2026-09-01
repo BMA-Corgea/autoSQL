@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/uvicorn-0.52.4-py3-none-any.whl",
+    "repo": "",
+    "bytes": 79871,
+    "loc": 0,
+    "language": null,
+    "sha256": "f86e41a149d7d05a9969337e3946a9c171c06a5d42680896daaba624aeac8da1",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/uvicorn-0.52.4-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

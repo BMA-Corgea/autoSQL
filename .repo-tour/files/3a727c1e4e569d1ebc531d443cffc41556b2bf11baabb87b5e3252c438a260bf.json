@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/.parts/README.md",
+    "repo": "",
+    "bytes": 4096,
+    "loc": 64,
+    "language": "markdown",
+    "sha256": "3a727c1e4e569d1ebc531d443cffc41556b2bf11baabb87b5e3252c438a260bf",
+    "classification": "structural",
+    "signals": [
+      "structural-name:README.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.parts/README.md",
+    "score": 0.2831112433221147,
+    "classification": "structural",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 64,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4814415282183308,
+      "multiplier": 1.4
+    }
+  },
+  "extract": null
+}

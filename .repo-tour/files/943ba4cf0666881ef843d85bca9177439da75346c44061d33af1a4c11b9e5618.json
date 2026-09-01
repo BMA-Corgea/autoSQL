@@ -1,0 +1,69 @@
+{
+  "file": {
+    "path": "demo/server/operations.py",
+    "repo": "",
+    "bytes": 9383,
+    "loc": 247,
+    "language": "python",
+    "sha256": "943ba4cf0666881ef843d85bca9177439da75346c44061d33af1a4c11b9e5618",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/server/operations.py",
+    "score": 0.23310925325564819,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 247,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6358762112033047,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/server/operations.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "default_pick",
+        "kind": "function",
+        "line": 134,
+        "endLine": 136,
+        "exported": true,
+        "doc": "The screen's initial state — re-exported from legality."
+      },
+      {
+        "name": "contract",
+        "kind": "function",
+        "line": 139,
+        "endLine": 247,
+        "exported": true,
+        "doc": "The whole ``/api/operations`` payload for one pick."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 57
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 58
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 66
+      }
+    ],
+    "parseErrors": 0
+  }
+}

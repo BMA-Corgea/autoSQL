@@ -1,0 +1,124 @@
+{
+  "path": "spikes/T-1/analysis/fuzz",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "spikes/T-1/analysis/fuzz/A2_boundary.py",
+    "spikes/T-1/analysis/fuzz/A2_boundary.txt",
+    "spikes/T-1/analysis/fuzz/A_f8_guard.py",
+    "spikes/T-1/analysis/fuzz/A_f8_guard.txt",
+    "spikes/T-1/analysis/fuzz/A_range.py",
+    "spikes/T-1/analysis/fuzz/A_range.txt",
+    "spikes/T-1/analysis/fuzz/B2_overflow.py",
+    "spikes/T-1/analysis/fuzz/B2_overflow.txt",
+    "spikes/T-1/analysis/fuzz/B_overflow.py",
+    "spikes/T-1/analysis/fuzz/B_overflow.txt",
+    "spikes/T-1/analysis/fuzz/C_numgate.py",
+    "spikes/T-1/analysis/fuzz/C_numgate.txt",
+    "spikes/T-1/analysis/fuzz/D_rawjson.py",
+    "spikes/T-1/analysis/fuzz/D_rawjson.txt",
+    "spikes/T-1/analysis/fuzz/E2_dates_ws.py",
+    "spikes/T-1/analysis/fuzz/E2_dates_ws.txt",
+    "spikes/T-1/analysis/fuzz/E_dates.py",
+    "spikes/T-1/analysis/fuzz/E_dates.txt",
+    "spikes/T-1/analysis/fuzz/F1b_ecma_rate.py",
+    "spikes/T-1/analysis/fuzz/F1b_ecma_rate.txt",
+    "spikes/T-1/analysis/fuzz/F3_immutable_index.py",
+    "spikes/T-1/analysis/fuzz/F3_immutable_index.txt",
+    "spikes/T-1/analysis/fuzz/F_ecma_num.py",
+    "spikes/T-1/analysis/fuzz/F_ecma_num.txt",
+    "spikes/T-1/analysis/fuzz/G2b_round_raises.py",
+    "spikes/T-1/analysis/fuzz/G2b_round_raises.txt",
+    "spikes/T-1/analysis/fuzz/G_fmod_round.py",
+    "spikes/T-1/analysis/fuzz/G_fmod_round.txt",
+    "spikes/T-1/analysis/fuzz/H_ast_fuzz.py",
+    "spikes/T-1/analysis/fuzz/H_extreme.txt",
+    "spikes/T-1/analysis/fuzz/H_ordinary.txt",
+    "spikes/T-1/analysis/fuzz/H_parse_errors.txt",
+    "spikes/T-1/analysis/fuzz/H_unicode.txt",
+    "spikes/T-1/analysis/fuzz/I_case_collate.py",
+    "spikes/T-1/analysis/fuzz/I_case_collate.txt",
+    "spikes/T-1/analysis/fuzz/J_conventions.py",
+    "spikes/T-1/analysis/fuzz/J_conventions.txt",
+    "spikes/T-1/analysis/fuzz/K_sum_neumaier.py",
+    "spikes/T-1/analysis/fuzz/K_sum_neumaier.txt",
+    "spikes/T-1/analysis/fuzz/L_misc.py",
+    "spikes/T-1/analysis/fuzz/L_misc.txt",
+    "spikes/T-1/analysis/fuzz/M_encoding_guc.py",
+    "spikes/T-1/analysis/fuzz/M_encoding_guc.txt",
+    "spikes/T-1/analysis/fuzz/N_shortcircuit.py",
+    "spikes/T-1/analysis/fuzz/N_shortcircuit.txt",
+    "spikes/T-1/analysis/fuzz/O_row_loss.py",
+    "spikes/T-1/analysis/fuzz/O_row_loss.txt",
+    "spikes/T-1/analysis/fuzz/differ.py",
+    "spikes/T-1/analysis/fuzz/run_all.sh"
+  ],
+  "fileCount": 49,
+  "loc": 3439,
+  "topFiles": [
+    {
+      "path": "spikes/T-1/analysis/fuzz/differ.py",
+      "score": 0.3394123353841566,
+      "why": "3 commits · 251 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/H_ast_fuzz.py",
+      "score": 0.3087687883165352,
+      "why": "2 commits · 448 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/run_all.sh",
+      "score": 0.2546589787907545,
+      "why": "2 commits · 42 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/G_fmod_round.py",
+      "score": 0.22181711237386065,
+      "why": "1 commits · 151 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/F_ecma_num.py",
+      "score": 0.2204092309033519,
+      "why": "1 commits · 142 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/J_conventions.py",
+      "score": 0.21942051730145112,
+      "why": "1 commits · 136 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/K_sum_neumaier.py",
+      "score": 0.21767222230645822,
+      "why": "1 commits · 126 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/E_dates.py",
+      "score": 0.2126157266887455,
+      "why": "1 commits · 101 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/G2b_round_raises.py",
+      "score": 0.20972865699806525,
+      "why": "1 commits · 89 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/I_case_collate.py",
+      "score": 0.20947092859064137,
+      "why": "1 commits · 88 loc · source"
+    }
+  ],
+  "score": 0.3394123353841566,
+  "languages": {
+    "python": 23,
+    "text": 25,
+    "shell": 1
+  },
+  "classifications": {
+    "source": 24,
+    "data": 25
+  },
+  "publicSymbols": 88,
+  "hash": "112656bf42ab6ef0a8116afe04ab8499ada33e28c59b52b18fc98c9827e278d4",
+  "sourcedFrom": "children"
+}

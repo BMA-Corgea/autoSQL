@@ -1,0 +1,66 @@
+{
+  "path": "demo/static",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    "demo/static/fonts",
+    "demo/static/js"
+  ],
+  "childFiles": [
+    "demo/static/demo.css",
+    "demo/static/icons-demo.svg",
+    "demo/static/index.html"
+  ],
+  "fileCount": 7,
+  "loc": 749,
+  "topFiles": [
+    {
+      "path": "demo/static/demo.css",
+      "score": 0.3150682283993701,
+      "why": "2 commits · 589 loc · source"
+    },
+    {
+      "path": "demo/static/index.html",
+      "score": 0.27143835258539073,
+      "why": "2 commits · 88 loc · source"
+    },
+    {
+      "path": "demo/static/js/app.js",
+      "score": 0.15904648067099572,
+      "why": "1 commits · 9 loc · source"
+    },
+    {
+      "path": "demo/static/js/vendor.js",
+      "score": 0.15661618734205676,
+      "why": "1 commits · 8 loc · source"
+    },
+    {
+      "path": "demo/static/icons-demo.svg",
+      "score": 0.05963537836570543,
+      "why": "1 commits · 55 loc · data"
+    },
+    {
+      "path": "demo/static/fonts/inter-latin-ext.woff2",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": "demo/static/fonts/inter-latin.woff2",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    }
+  ],
+  "score": 0.3150682283993701,
+  "languages": {
+    "javascript": 2,
+    "css": 1,
+    "html": 1
+  },
+  "classifications": {
+    "data": 3,
+    "source": 4
+  },
+  "publicSymbols": 0,
+  "hash": "4dd6885b945de1ea8f164086ec99fa950d733e12dde6c7ba7db6cde22cb66b1a",
+  "sourcedFrom": "children"
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json",
+    "repo": "",
+    "bytes": 29812,
+    "loc": 246,
+    "language": "json",
+    "sha256": "8ddd93c2580631e43e965d3c92b8fd554c10d490eb832c8c4a2fe5a074409f71",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json",
+    "score": 0.15572533985636478,
+    "classification": "data",
+    "churn": 12,
+    "inDegree": 0,
+    "loc": 246,
+    "components": {
+      "churn": 0.8711164930263436,
+      "inDegree": 0,
+      "size": 0.6354102216301398,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/outbox/sent/T-2_accept_gate.md",
+    "repo": "",
+    "bytes": 1603,
+    "loc": 33,
+    "language": "markdown",
+    "sha256": "60a9a4b101c8c267b6e407d538773a35ca52fb04d915ce7d0077feaa7dbd2599",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/outbox/sent/T-2_accept_gate.md",
+    "score": 0.02440218825306706,
+    "classification": "data",
+    "churn": 0,
+    "inDegree": 0,
+    "loc": 33,
+    "components": {
+      "churn": 0,
+      "inDegree": 0,
+      "size": 0.40670313755111764,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

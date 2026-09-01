@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/notes/issues/gims-3.title",
+    "repo": "",
+    "bytes": 75,
+    "loc": 1,
+    "language": null,
+    "sha256": "025c51fa3900a4881e66ce73d9f764ac3db5a765ea91f33de1c764bce3582c2c",
+    "classification": "data",
+    "signals": [
+      "data-ext:.title"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/notes/issues/gims-3.title",
+    "score": 0.036576737257571636,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 1,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.07994223255125785,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

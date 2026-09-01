@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/manifest.json",
+    "repo": "",
+    "bytes": 1062,
+    "loc": 13,
+    "language": "json",
+    "sha256": "8e0f41c9c60ae9a3dc4e0595bf971f3127f0388b8ef1cb815ceabe56fef8ad21",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/manifest.json",
+    "score": 0.08182251376405064,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 13,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.3043684525843052,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

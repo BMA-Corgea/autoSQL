@@ -1,0 +1,185 @@
+{
+  "file": {
+    "path": "demo/seed/expectations.py",
+    "repo": "",
+    "bytes": 51561,
+    "loc": 924,
+    "language": "python",
+    "sha256": "053b7d27fca988233ae3a062120469776b4bae232cb6c4e2a4526594bd9e6b38",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/seed/expectations.py",
+    "score": 0.3694071348054968,
+    "classification": "source",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 924,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.7876955638776116,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/seed/expectations.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "q6",
+        "kind": "function",
+        "line": 90,
+        "endLine": 99,
+        "exported": true,
+        "doc": "§7.2 item 2 — round half-up to 6 decimal places, ties away from zero."
+      },
+      {
+        "name": "numeric_read",
+        "kind": "function",
+        "line": 102,
+        "endLine": 118,
+        "exported": true,
+        "doc": "§7.2 item 5 — how a number gets out of the JSON, Python side."
+      },
+      {
+        "name": "path_get",
+        "kind": "function",
+        "line": 121,
+        "endLine": 128,
+        "exported": true,
+        "doc": "Read $.a.b out of a parsed record; a missing key reads as None."
+      },
+      {
+        "name": "by_key",
+        "kind": "function",
+        "line": 131,
+        "endLine": 139,
+        "exported": true,
+        "doc": "§7.4 — ORDER BY key, ascending, under the C collation."
+      },
+      {
+        "name": "heartbeats",
+        "kind": "function",
+        "line": 146,
+        "endLine": 148,
+        "exported": true,
+        "doc": "Every noun:Heartbeat row as (key, parsed record), in generator order."
+      },
+      {
+        "name": "per_sender",
+        "kind": "function",
+        "line": 151,
+        "endLine": 164,
+        "exported": true,
+        "doc": "§7.1's window frame: PARTITION BY sender_id ORDER BY ts, key."
+      },
+      {
+        "name": "rolling_average",
+        "kind": "function",
+        "line": 171,
+        "endLine": 207,
+        "exported": true,
+        "doc": "(key, 3-point trailing rolling average) for every heartbeat row."
+      },
+      {
+        "name": "changed_keys",
+        "kind": "function",
+        "line": 214,
+        "endLine": 241,
+        "exported": true,
+        "doc": "The keys operation 9 keeps, in §7.4's total order (ORDER BY key)."
+      },
+      {
+        "name": "day_buckets",
+        "kind": "function",
+        "line": 248,
+        "endLine": 271,
+        "exported": true,
+        "doc": "(bucket label, row count) per UTC day, ordered by label."
+      },
+      {
+        "name": "worked_example_sender",
+        "kind": "function",
+        "line": 278,
+        "endLine": 323,
+        "exported": true,
+        "doc": "Pick the sender whose first five rolling values actually DEMONSTRATE §7.1's window rule, and return it with its loads and its five values."
+      },
+      {
+        "name": "entry",
+        "kind": "function",
+        "line": 330,
+        "endLine": 339,
+        "exported": true,
+        "doc": "One expected value and how it was reached (B8.3)."
+      },
+      {
+        "name": "d6",
+        "kind": "function",
+        "line": 342,
+        "endLine": 350,
+        "exported": true,
+        "doc": "A rounded value as the fixed 6-place STRING both panes compare."
+      },
+      {
+        "name": "build_answers",
+        "kind": "function",
+        "line": 353,
+        "endLine": 912,
+        "exported": true,
+        "doc": "Every walkthrough number, derived here and nowhere else."
+      },
+      {
+        "name": "write",
+        "kind": "function",
+        "line": 915,
+        "endLine": 919,
+        "exported": true,
+        "doc": "Write demo/expected-answers.json and return where it went."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 70
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 71
+      },
+      {
+        "raw": "collections",
+        "resolved": null,
+        "line": 72
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 73
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 74
+      },
+      {
+        "raw": "typing",
+        "resolved": null,
+        "line": 75
+      },
+      {
+        "raw": "demo.seed",
+        "resolved": "demo/seed/__init__.py",
+        "line": 78
+      }
+    ],
+    "parseErrors": 0
+  }
+}

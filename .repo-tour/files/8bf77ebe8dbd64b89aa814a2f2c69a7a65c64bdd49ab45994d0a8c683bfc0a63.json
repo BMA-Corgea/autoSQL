@@ -1,0 +1,703 @@
+{
+  "file": {
+    "path": "demo/tests/test_isolation.py",
+    "repo": "",
+    "bytes": 99858,
+    "loc": 2186,
+    "language": "python",
+    "sha256": "8bf77ebe8dbd64b89aa814a2f2c69a7a65c64bdd49ab45994d0a8c683bfc0a63",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_isolation.py",
+    "score": 0.21167938676227477,
+    "classification": "test",
+    "churn": 4,
+    "inDegree": 0,
+    "loc": 2186,
+    "components": {
+      "churn": 0.5466025697329024,
+      "inDegree": 0,
+      "size": 0.886938085723717,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_isolation.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "DEMO_PORT",
+        "kind": "variable",
+        "line": 55,
+        "endLine": 55,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "OTHER_PORTS",
+        "kind": "variable",
+        "line": 60,
+        "endLine": 60,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "NOWHERE",
+        "kind": "variable",
+        "line": 65,
+        "endLine": 65,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "hostile_home",
+        "kind": "function",
+        "line": 69,
+        "endLine": 82,
+        "exported": true,
+        "doc": "A HOME holding a ``.pgpass`` that hands out the wrong password."
+      },
+      {
+        "name": "poisoned",
+        "kind": "function",
+        "line": 86,
+        "endLine": 122,
+        "exported": true,
+        "doc": "Every name on B13's union list, set to nonsense."
+      },
+      {
+        "name": "TestPoisonedEnvironment",
+        "kind": "class",
+        "line": 129,
+        "endLine": 187,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_connects_to_the_demos_own_database_anyway",
+        "kind": "method",
+        "line": 130,
+        "endLine": 148,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_two_pinned_session_values_survive_the_poisoning",
+        "kind": "method",
+        "line": 150,
+        "endLine": 162,
+        "exported": true,
+        "doc": "B13-EXT-3. ``PGTZ`` beats the ``options`` parameter — measured — so a demo that pinned the time zone through ``options`` alone would put walkthrough step 7 in eight buckets instead of seven while every statement still ran clean."
+      },
+      {
+        "name": "test_the_hostile_pgpass_is_never_consulted",
+        "kind": "method",
+        "line": 164,
+        "endLine": 172,
+        "exported": true,
+        "doc": "The password is passed explicitly, so libpq never opens the file."
+      },
+      {
+        "name": "test_every_libpq_parameter_is_passed_explicitly",
+        "kind": "method",
+        "line": 174,
+        "endLine": 187,
+        "exported": true,
+        "doc": "B13's mechanism, asserted as a set rather than trusted as prose."
+      },
+      {
+        "name": "TestTheFencesAreLoadBearing",
+        "kind": "class",
+        "line": 194,
+        "endLine": 268,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_without_hostaddr_the_poisoned_environment_does_move_it",
+        "kind": "method",
+        "line": 195,
+        "endLine": 219,
+        "exported": true,
+        "doc": "B13-EXT-1, driven backwards."
+      },
+      {
+        "name": "test_any_other_port_raises_and_never_dials",
+        "kind": "method",
+        "line": 222,
+        "endLine": 252,
+        "exported": true,
+        "doc": "AC-2(c)'s second half: *raises rather than dials*."
+      },
+      {
+        "name": "test_the_guard_also_refuses_a_non_loopback_host",
+        "kind": "method",
+        "line": 254,
+        "endLine": 257,
+        "exported": true,
+        "doc": "The host half of the same fence."
+      },
+      {
+        "name": "test_the_factory_takes_no_endpoint_argument",
+        "kind": "method",
+        "line": 259,
+        "endLine": 268,
+        "exported": true,
+        "doc": "There is deliberately nowhere else to go."
+      },
+      {
+        "name": "_python_files",
+        "kind": "function",
+        "line": 275,
+        "endLine": 280,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_imports_the_driver",
+        "kind": "function",
+        "line": 283,
+        "endLine": 299,
+        "exported": false,
+        "doc": "Does this file's own syntax tree import the driver?"
+      },
+      {
+        "name": "test_only_db_py_imports_the_driver",
+        "kind": "function",
+        "line": 302,
+        "endLine": 308,
+        "exported": true,
+        "doc": "Plan §4.5's last row: *\"nothing else imports the driver.\"*"
+      },
+      {
+        "name": "test_the_only_importer_check_would_actually_catch_one",
+        "kind": "function",
+        "line": 311,
+        "endLine": 326,
+        "exported": true,
+        "doc": "The check, watched catching something (plan §8.2)."
+      },
+      {
+        "name": "_demo_tree_files",
+        "kind": "function",
+        "line": 428,
+        "endLine": 443,
+        "exported": false,
+        "doc": "Every file of the demo tree: `demo/` plus `./run-demo`."
+      },
+      {
+        "name": "_occurrences",
+        "kind": "function",
+        "line": 450,
+        "endLine": 466,
+        "exported": false,
+        "doc": "Line numbers of `needle` in `path`, or [-1] for a binary hit."
+      },
+      {
+        "name": "test_ac3_the_live_database_is_named_nowhere_in_the_demo_tree",
+        "kind": "function",
+        "line": 469,
+        "endLine": 491,
+        "exported": true,
+        "doc": "AC-3. The four strings, over every byte of the demo tree."
+      },
+      {
+        "name": "test_ac3s_grep_would_actually_catch_one",
+        "kind": "function",
+        "line": 494,
+        "endLine": 507,
+        "exported": true,
+        "doc": "The check, watched catching something (plan §8.2)."
+      },
+      {
+        "name": "_ac37_swept_files",
+        "kind": "function",
+        "line": 638,
+        "endLine": 649,
+        "exported": false,
+        "doc": "Every file the AC-37 sweep actually reads."
+      },
+      {
+        "name": "_timing_hits",
+        "kind": "function",
+        "line": 652,
+        "endLine": 668,
+        "exported": false,
+        "doc": "(path, line number, the line, the matched word) for every hit."
+      },
+      {
+        "name": "test_ac37_no_speed_claim_anywhere_in_the_demo_tree",
+        "kind": "function",
+        "line": 671,
+        "endLine": 684,
+        "exported": true,
+        "doc": "AC-37: no timing display, no 'faster', no benchmark, anywhere the demo's own words live. A hit here is the build asserting something T-4 has not measured yet — the one thing this demo must never do (plan §6.2's row for W18; spec AC-37)."
+      },
+      {
+        "name": "test_ac37_readme_and_walkthrough_are_actually_in_scope",
+        "kind": "function",
+        "line": 687,
+        "endLine": 696,
+        "exported": true,
+        "doc": "The two files AC-37 names by name (spec §12, AC-37) are really swept, not merely assumed to be — a scope that quietly excluded them would pass this check for the wrong reason."
+      },
+      {
+        "name": "test_ac37_the_vendor_exclusion_is_a_real_finding_not_an_assumption",
+        "kind": "function",
+        "line": 699,
+        "endLine": 722,
+        "exported": true,
+        "doc": "Prove the two false positives the comment above claims are real, so the exclusion can never quietly become load-bearing for nothing (plan §8.2's rule: a guard nobody has watched matter is a guard nobody knows is needed) — and prove `demo/vendor/` is really excluded from the real sweep, not just described as excluded."
+      },
+      {
+        "name": "test_ac37_the_pattern_would_actually_catch_a_real_speed_claim",
+        "kind": "function",
+        "line": 725,
+        "endLine": 752,
+        "exported": true,
+        "doc": "The detector, watched catching something (plan §8.2). Every word in AC-37's own list, exercised once, in a sentence shaped like the ones this demo must never write — and shown NOT to fire on the ordinary, non-claim prose this demo actually needs (unit names and component names, not speed brags)."
+      },
+      {
+        "name": "_python_code_text",
+        "kind": "function",
+        "line": 759,
+        "endLine": 792,
+        "exported": false,
+        "doc": "`source` with its comments and docstrings removed, tokens preserved."
+      },
+      {
+        "name": "_strip_to_end_of_line",
+        "kind": "function",
+        "line": 795,
+        "endLine": 823,
+        "exported": false,
+        "doc": "Remove `marker`-to-end-of-line comments, outside quotes only."
+      },
+      {
+        "name": "_markdown_code_blocks",
+        "kind": "function",
+        "line": 826,
+        "endLine": 841,
+        "exported": false,
+        "doc": "Only what is inside ``` fences."
+      },
+      {
+        "name": "_code_text",
+        "kind": "function",
+        "line": 844,
+        "endLine": 858,
+        "exported": false,
+        "doc": "The file with its prose removed — or None if it is not text at all."
+      },
+      {
+        "name": "_permitted_healthcheck_lines",
+        "kind": "function",
+        "line": 872,
+        "endLine": 893,
+        "exported": false,
+        "doc": "The compose lines B21's parenthesis allows — asserted by POSITION."
+      },
+      {
+        "name": "test_b21_no_postgres_client_binary_is_invoked_from_the_demo_tree",
+        "kind": "function",
+        "line": 896,
+        "endLine": 924,
+        "exported": true,
+        "doc": "B33 part 1 — the three names, over the demo tree's CODE."
+      },
+      {
+        "name": "test_b21_the_healthcheck_exception_is_exactly_one_line_and_is_where_it_says",
+        "kind": "function",
+        "line": 927,
+        "endLine": 947,
+        "exported": true,
+        "doc": "B33 part 2 — the one permitted occurrence, bounded."
+      },
+      {
+        "name": "_process_starting_nodes",
+        "kind": "function",
+        "line": 956,
+        "endLine": 976,
+        "exported": false,
+        "doc": "Every place this file starts, or prepares to start, a process."
+      },
+      {
+        "name": "test_b21_nothing_the_demo_actually_runs_starts_a_process",
+        "kind": "function",
+        "line": 979,
+        "endLine": 999,
+        "exported": true,
+        "doc": "B33 part 3 — the demo's own modules never fork."
+      },
+      {
+        "name": "test_b21s_checker_would_actually_catch_one",
+        "kind": "function",
+        "line": 1002,
+        "endLine": 1051,
+        "exported": true,
+        "doc": "B33 part 4 — the checker, watched catching something (plan §8.2)."
+      },
+      {
+        "name": "_fetching_positions",
+        "kind": "function",
+        "line": 1187,
+        "endLine": 1194,
+        "exported": false,
+        "doc": "Every off-host URL in `text` that something is about to FETCH."
+      },
+      {
+        "name": "_off_host_urls",
+        "kind": "function",
+        "line": 1197,
+        "endLine": 1208,
+        "exported": false,
+        "doc": "Every URL in `text` that names a host other than this machine."
+      },
+      {
+        "name": "_SubresourceCollector",
+        "kind": "class",
+        "line": 1236,
+        "endLine": 1268,
+        "exported": false,
+        "doc": "Every reference an HTML (or SVG) document makes."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 1239,
+        "endLine": 1244,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "handle_starttag",
+        "kind": "method",
+        "line": 1246,
+        "endLine": 1260,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "handle_endtag",
+        "kind": "method",
+        "line": 1262,
+        "endLine": 1264,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "handle_data",
+        "kind": "method",
+        "line": 1266,
+        "endLine": 1268,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_target",
+        "kind": "function",
+        "line": 1294,
+        "endLine": 1302,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_references_in",
+        "kind": "function",
+        "line": 1305,
+        "endLine": 1321,
+        "exported": false,
+        "doc": "Every reference one served asset makes to another."
+      },
+      {
+        "name": "what_the_page_loads",
+        "kind": "function",
+        "line": 1324,
+        "endLine": 1354,
+        "exported": true,
+        "doc": "Walk out from `/`, following every reference, and return what came back: url → (content type, body)."
+      },
+      {
+        "name": "_text_assets",
+        "kind": "function",
+        "line": 1357,
+        "endLine": 1370,
+        "exported": false,
+        "doc": "The served assets that are documents, and can therefore carry an address a browser would follow."
+      },
+      {
+        "name": "served_page",
+        "kind": "function",
+        "line": 1374,
+        "endLine": 1386,
+        "exported": true,
+        "doc": "Everything `GET /` pulls in, as this app actually serves it."
+      },
+      {
+        "name": "test_ac32_the_walk_reaches_everything_the_screen_actually_loads",
+        "kind": "function",
+        "line": 1389,
+        "endLine": 1417,
+        "exported": true,
+        "doc": "The scope, proved rather than assumed."
+      },
+      {
+        "name": "test_ac32_nothing_the_page_loads_names_another_host",
+        "kind": "function",
+        "line": 1420,
+        "endLine": 1439,
+        "exported": true,
+        "doc": "AC-32. Every byte the screen pulls in, over every asset it pulls in, as served — a screen that only looks right online is a screen that is wrong."
+      },
+      {
+        "name": "test_ac32_only_the_fonts_are_left_unscanned",
+        "kind": "function",
+        "line": 1442,
+        "endLine": 1454,
+        "exported": true,
+        "doc": "The binary carve-out, pinned. A stylesheet that started arriving as `application/octet-stream` would otherwise skip the sweep entirely."
+      },
+      {
+        "name": "test_ac32_the_page_uses_no_absolute_url_at_all_not_even_loopback",
+        "kind": "function",
+        "line": 1457,
+        "endLine": 1471,
+        "exported": true,
+        "doc": "The loopback exemption, kept visible. `http://127.0.0.1:8787/…` would not break AC-32 — it cannot leave the machine — but nothing the screen loads uses one, and an exemption nobody watches is how the next absolute URL gets in."
+      },
+      {
+        "name": "test_ac32_nothing_the_page_loads_is_about_to_fetch_an_off_host_url",
+        "kind": "function",
+        "line": 1474,
+        "endLine": 1490,
+        "exported": true,
+        "doc": "The allowlist cannot be used to smuggle a real request in."
+      },
+      {
+        "name": "test_ac32_every_named_inert_literal_is_still_there_and_still_inert",
+        "kind": "function",
+        "line": 1493,
+        "endLine": 1535,
+        "exported": true,
+        "doc": "The allowlist, re-earned rather than trusted (plan §8.2's rule)."
+      },
+      {
+        "name": "test_ac32_the_vendored_sheet_is_still_the_reason_this_exists",
+        "kind": "function",
+        "line": 1538,
+        "endLine": 1571,
+        "exported": true,
+        "doc": "The strip, proved load-bearing from both sides (plan §8.2)."
+      },
+      {
+        "name": "_spellings_of",
+        "kind": "function",
+        "line": 1597,
+        "endLine": 1615,
+        "exported": false,
+        "doc": "Every spelling of `canonical` this generator can derive that a path resolver maps to the same file: a doubled slash, a `.` segment, an `up-and-back` detour and its percent-encoded twin at EVERY boundary, and the trailing-slash forms — derived, not enumerated."
+      },
+      {
+        "name": "_asgi_get_raw",
+        "kind": "function",
+        "line": 1618,
+        "endLine": 1649,
+        "exported": false,
+        "doc": "GET one URL with the path EXACTLY as spelled — no client-side normalisation between this test and the app's router."
+      },
+      {
+        "name": "test_ac32_no_request_spelling_serves_a_vendored_sheet_raw",
+        "kind": "function",
+        "line": 1664,
+        "endLine": 1712,
+        "exported": true,
+        "doc": "Finding 2's guarantee, asserted as stated: for every vendored stylesheet and every derived spelling, whatever the app serves carries no off-host reference — and anything served 200 is byte-identical to the canonical offline sheet, so there is exactly ONE version of each sheet on the wire, whatever the request looked like."
+      },
+      {
+        "name": "test_ac32_the_sweep_would_actually_catch_a_reintroduced_remote_url",
+        "kind": "function",
+        "line": 1715,
+        "endLine": 1789,
+        "exported": true,
+        "doc": "The detector, watched catching something (plan §8.2)."
+      },
+      {
+        "name": "test_ac32_nothing_the_demo_runs_reaches_out_at_run_time",
+        "kind": "function",
+        "line": 1792,
+        "endLine": 1858,
+        "exported": true,
+        "doc": "The other half of the offline promise: no CDN, no telemetry, no package index, in anything `up` or `test` executes."
+      },
+      {
+        "name": "test_ac32_the_page_carries_a_policy_that_names_no_other_host",
+        "kind": "function",
+        "line": 1861,
+        "endLine": 1909,
+        "exported": true,
+        "doc": "The second fence."
+      },
+      {
+        "name": "_tolerance_swept_files",
+        "kind": "function",
+        "line": 2026,
+        "endLine": 2033,
+        "exported": false,
+        "doc": "Every file the no-tolerance sweep actually reads."
+      },
+      {
+        "name": "_tolerance_hits",
+        "kind": "function",
+        "line": 2036,
+        "endLine": 2052,
+        "exported": false,
+        "doc": "(path, line number, the line, which needle) for every hit."
+      },
+      {
+        "name": "test_no_tolerance_anywhere_under_demo",
+        "kind": "function",
+        "line": 2055,
+        "endLine": 2076,
+        "exported": true,
+        "doc": "Plan §8.1 row 3 / §8.3, enforced rather than remembered."
+      },
+      {
+        "name": "test_no_tolerance_the_sweep_actually_covers_the_comparison_path",
+        "kind": "function",
+        "line": 2079,
+        "endLine": 2099,
+        "exported": true,
+        "doc": "The scope, proved rather than assumed."
+      },
+      {
+        "name": "test_no_tolerance_the_wheelhouse_exclusion_is_a_real_finding_not_an_assumption",
+        "kind": "function",
+        "line": 2102,
+        "endLine": 2139,
+        "exported": true,
+        "doc": "The one carve-out, shown to be needed (plan §8.2's rule)."
+      },
+      {
+        "name": "test_no_tolerance_the_grep_would_actually_catch_one",
+        "kind": "function",
+        "line": 2142,
+        "endLine": 2186,
+        "exported": true,
+        "doc": "The detector, watched catching something (plan §8.2)."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "ast",
+        "resolved": null,
+        "line": 38
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 39
+      },
+      {
+        "raw": "subprocess",
+        "resolved": null,
+        "line": 40
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 41
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 42
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 44
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 52
+      },
+      {
+        "raw": "inspect",
+        "resolved": null,
+        "line": 265
+      },
+      {
+        "raw": "io",
+        "resolved": null,
+        "line": 403
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 404
+      },
+      {
+        "raw": "tokenize",
+        "resolved": null,
+        "line": 405
+      },
+      {
+        "raw": "html.parser",
+        "resolved": null,
+        "line": 1115
+      },
+      {
+        "raw": "urllib.parse",
+        "resolved": null,
+        "line": 1116
+      },
+      {
+        "raw": "fastapi.testclient",
+        "resolved": null,
+        "line": 1376
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 1378
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 1560
+      },
+      {
+        "raw": "asyncio",
+        "resolved": null,
+        "line": 1621
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 1670
+      },
+      {
+        "raw": "fastapi.testclient",
+        "resolved": null,
+        "line": 1723
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 1725
+      },
+      {
+        "raw": "zipfile",
+        "resolved": null,
+        "line": 2110
+      }
+    ],
+    "parseErrors": 0
+  }
+}

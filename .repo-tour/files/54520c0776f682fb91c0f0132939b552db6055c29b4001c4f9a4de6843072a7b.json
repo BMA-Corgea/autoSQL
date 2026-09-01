@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/wiki/decision-expr-to-sql.md",
+    "repo": "",
+    "bytes": 16893,
+    "loc": 244,
+    "language": "markdown",
+    "sha256": "54520c0776f682fb91c0f0132939b552db6055c29b4001c4f9a4de6843072a7b",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/wiki/decision-expr-to-sql.md",
+    "score": 0.08843878385061375,
+    "classification": "data",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 244,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.6344725557948794,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

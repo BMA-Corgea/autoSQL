@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "ops/notify-telegram.sh",
+    "repo": "",
+    "bytes": 6953,
+    "loc": 153,
+    "language": "shell",
+    "sha256": "bd50f0d505b6cdbaf3ac6c0a50f52d73ee67b195eab6c79c58763afc45864ed6",
+    "classification": "source",
+    "signals": [
+      "language:shell"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "ops/notify-telegram.sh",
+    "score": 0.2221186389223037,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 153,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5809231395365824,
+      "multiplier": 1
+    }
+  },
+  "extract": null
+}

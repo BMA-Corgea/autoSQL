@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/expr.py",
+    "repo": "",
+    "bytes": 23713,
+    "loc": 646,
+    "language": "python",
+    "sha256": "90cbb56d04b08b825ef38dbd1b805ad2b877a0f5e5154e2dc38d9944f4ad4c49",
+    "classification": "vendored",
+    "signals": [
+      "vendor-path:vendor/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/vendor/expr.py",
+    "score": 0,
+    "classification": "vendored",
+    "churn": 1,
+    "inDegree": 2,
+    "loc": 646,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.4999999999999999,
+      "size": 0.7464703415648037,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

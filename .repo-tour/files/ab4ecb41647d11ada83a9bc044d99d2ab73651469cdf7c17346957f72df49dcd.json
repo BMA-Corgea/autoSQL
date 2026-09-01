@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/H_extreme.txt",
+    "repo": "",
+    "bytes": 2962,
+    "loc": 45,
+    "language": "text",
+    "sha256": "ab4ecb41647d11ada83a9bc044d99d2ab73651469cdf7c17346957f72df49dcd",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/H_extreme.txt",
+    "score": 0.05827415576863959,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 45,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4415658744023904,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

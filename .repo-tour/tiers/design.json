@@ -1,0 +1,36 @@
+{
+  "path": "design",
+  "kind": "subsystem",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "design/t2-demo-mock.html",
+    "design/t2-demo.md"
+  ],
+  "fileCount": 2,
+  "loc": 2513,
+  "topFiles": [
+    {
+      "path": "design/t2-demo-mock.html",
+      "score": 0.38708984422118997,
+      "why": "3 commits · 1990 loc · source"
+    },
+    {
+      "path": "design/t2-demo.md",
+      "score": 0.10688952674835964,
+      "why": "3 commits · 523 loc · data"
+    }
+  ],
+  "score": 0.38708984422118997,
+  "languages": {
+    "html": 1,
+    "markdown": 1
+  },
+  "classifications": {
+    "source": 1,
+    "data": 1
+  },
+  "publicSymbols": 0,
+  "hash": "d9dc67594d8c8b43f54d6f5673eed47152356e8c09963526e270bf52353d8636",
+  "sourcedFrom": "children"
+}

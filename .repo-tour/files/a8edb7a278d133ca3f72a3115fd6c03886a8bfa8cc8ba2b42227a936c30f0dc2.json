@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json",
+    "repo": "",
+    "bytes": 2562,
+    "loc": 42,
+    "language": "json",
+    "sha256": "a8edb7a278d133ca3f72a3115fd6c03886a8bfa8cc8ba2b42227a936c30f0dc2",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json",
+    "score": 0.057807466438801525,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 42,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4337877189050892,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

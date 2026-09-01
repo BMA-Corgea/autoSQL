@@ -1,0 +1,28 @@
+{
+  "path": "autodev/instructions",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "autodev/instructions/build.md"
+  ],
+  "fileCount": 1,
+  "loc": 49,
+  "topFiles": [
+    {
+      "path": "autodev/instructions/build.md",
+      "score": 0.05885115114502579,
+      "why": "1 commits · 49 loc · data"
+    }
+  ],
+  "score": 0.05885115114502579,
+  "languages": {
+    "markdown": 1
+  },
+  "classifications": {
+    "data": 1
+  },
+  "publicSymbols": 0,
+  "hash": "9631b2180e18dda35d28bdde31e8b792ee3ed1dac0cfa0ba767da7c7c47de8f5",
+  "sourcedFrom": "children"
+}

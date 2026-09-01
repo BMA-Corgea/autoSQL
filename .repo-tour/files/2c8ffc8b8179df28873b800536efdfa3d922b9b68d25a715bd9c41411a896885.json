@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/fixture_after_efd1.json",
+    "repo": "",
+    "bytes": 133687,
+    "loc": 4246,
+    "language": "json",
+    "sha256": "2c8ffc8b8179df28873b800536efdfa3d922b9b68d25a715bd9c41411a896885",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/fixture_after_efd1.json",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 4246,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.9634820449818507,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

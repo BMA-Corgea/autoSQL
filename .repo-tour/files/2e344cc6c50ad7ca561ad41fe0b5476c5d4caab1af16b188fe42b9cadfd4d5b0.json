@@ -1,0 +1,528 @@
+{
+  "file": {
+    "path": "demo/tests/test_builder_sql.py",
+    "repo": "",
+    "bytes": 28673,
+    "loc": 624,
+    "language": "python",
+    "sha256": "2e344cc6c50ad7ca561ad41fe0b5476c5d4caab1af16b188fe42b9cadfd4d5b0",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_builder_sql.py",
+    "score": 0.12721505179900747,
+    "classification": "test",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 624,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7424804629151385,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_builder_sql.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 54,
+        "endLine": 54,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "KEYS_SQL",
+        "kind": "variable",
+        "line": 59,
+        "endLine": 62,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "pick",
+        "kind": "function",
+        "line": 65,
+        "endLine": 68,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "hb_keys",
+        "kind": "function",
+        "line": 72,
+        "endLine": 74,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "run",
+        "kind": "function",
+        "line": 77,
+        "endLine": 79,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "q6",
+        "kind": "function",
+        "line": 82,
+        "endLine": 83,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "hb_model",
+        "kind": "function",
+        "line": 87,
+        "endLine": 92,
+        "exported": true,
+        "doc": "The generator's in-memory heartbeat rows (B8's independent path)."
+      },
+      {
+        "name": "TestShapesRun",
+        "kind": "class",
+        "line": 99,
+        "endLine": 233,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_a_default_returns_all_8400",
+        "kind": "method",
+        "line": 100,
+        "endLine": 108,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_a_full_pick_runs_and_caps_last",
+        "kind": "method",
+        "line": 110,
+        "endLine": 125,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_a_filter_count_matches_generator",
+        "kind": "method",
+        "line": 127,
+        "endLine": 138,
+        "exported": true,
+        "doc": "The filter's SQL keeps exactly the rows the generator's own in-memory model says carry status ok (B8's independent path)."
+      },
+      {
+        "name": "test_shape_b_changed_kept_count_in_band",
+        "kind": "method",
+        "line": 140,
+        "endLine": 148,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_b_changed_matches_generator_walk",
+        "kind": "method",
+        "line": 150,
+        "endLine": 168,
+        "exported": true,
+        "doc": "The kept-key SET equals a plain-Python walk of the generator's rows — the identical comparison, on the independent path: group by sender, order by (ts, key), keep when the record minus `ts` differs from the predecessor's, first row always kept."
+      },
+      {
+        "name": "test_shape_c_count_is_8400",
+        "kind": "method",
+        "line": 170,
+        "endLine": 176,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_c_sum_avg_min_max_match_generator",
+        "kind": "method",
+        "line": 178,
+        "endLine": 197,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_d_day_is_7_buckets_of_1200",
+        "kind": "method",
+        "line": 199,
+        "endLine": 215,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_d_hour_is_168_buckets_of_50",
+        "kind": "method",
+        "line": 217,
+        "endLine": 225,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_shape_d_cap_caps_buckets",
+        "kind": "method",
+        "line": 227,
+        "endLine": 233,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_Frag",
+        "kind": "class",
+        "line": 240,
+        "endLine": 245,
+        "exported": false,
+        "doc": "A stand-in with compile.py's Compiled shape (sql, params)."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 243,
+        "endLine": 245,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "TestNamespace",
+        "kind": "class",
+        "line": 248,
+        "endLine": 278,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_rewrites_sql_and_rekeys_params",
+        "kind": "method",
+        "line": 249,
+        "endLine": 260,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_prefix_vocabulary_is_closed",
+        "kind": "method",
+        "line": 262,
+        "endLine": 266,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_unexpected_bind_name_is_refused",
+        "kind": "method",
+        "line": 268,
+        "endLine": 272,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_merge_params_refuses_any_collision",
+        "kind": "method",
+        "line": 274,
+        "endLine": 278,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestB11MergeTest",
+        "kind": "class",
+        "line": 281,
+        "endLine": 349,
+        "exported": true,
+        "doc": "The pinned merge test, exactly as B11 writes it: a pick with two computed columns and a filter whose literals are three DIFFERENT numbers."
+      },
+      {
+        "name": "test_merge",
+        "kind": "method",
+        "line": 294,
+        "endLine": 325,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_merged_statement_runs",
+        "kind": "method",
+        "line": 327,
+        "endLine": 349,
+        "exported": true,
+        "doc": "The regression B11 names is a wrong number that runs clean — so the merged statement is also RUN and its answer checked against the generator's model."
+      },
+      {
+        "name": "TestAC24c",
+        "kind": "class",
+        "line": 356,
+        "endLine": 384,
+        "exported": true,
+        "doc": "Ops 6, 7 and 8 stay in numeric end to end. Ops 2 and 3 are exempt by §7.2's last paragraph (the compiler's float8 world is where §5's defect deliberately lives), so the picks here carry no expression."
+      },
+      {
+        "name": "test_no_float_cast",
+        "kind": "method",
+        "line": 374,
+        "endLine": 377,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_numeric_read_itself_is_numeric",
+        "kind": "method",
+        "line": 379,
+        "endLine": 384,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestAC40c",
+        "kind": "class",
+        "line": 391,
+        "endLine": 433,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "fragment",
+        "kind": "method",
+        "line": 392,
+        "endLine": 393,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_compared_expression_appears_exactly_twice",
+        "kind": "method",
+        "line": 395,
+        "endLine": 397,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_comparison_is_is_distinct_from_never_angle",
+        "kind": "method",
+        "line": 399,
+        "endLine": 402,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_no_arithmetic_outside_the_two_literals",
+        "kind": "method",
+        "line": 404,
+        "endLine": 413,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_fragment_is_emitted_verbatim_in_shape_b",
+        "kind": "method",
+        "line": 415,
+        "endLine": 420,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_compared_value_is_a_builder_constant",
+        "kind": "method",
+        "line": 422,
+        "endLine": 433,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestAC41a",
+        "kind": "class",
+        "line": 452,
+        "endLine": 491,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_rows_statements_end_in_key_asc",
+        "kind": "method",
+        "line": 466,
+        "endLine": 475,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_bucket_statements_end_in_bucket",
+        "kind": "method",
+        "line": 482,
+        "endLine": 484,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_scalar_is_the_stated_exemption",
+        "kind": "method",
+        "line": 486,
+        "endLine": 491,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestAC43a",
+        "kind": "class",
+        "line": 498,
+        "endLine": 530,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_expression_and_cast",
+        "kind": "method",
+        "line": 499,
+        "endLine": 512,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_granularities_are_a_closed_set_of_two",
+        "kind": "method",
+        "line": 514,
+        "endLine": 521,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_label_is_the_fixed_width_utc_form",
+        "kind": "method",
+        "line": 523,
+        "endLine": 530,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestB1OneBucketColumn",
+        "kind": "class",
+        "line": 537,
+        "endLine": 550,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_exactly_one_bucket_column",
+        "kind": "method",
+        "line": 538,
+        "endLine": 550,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestB2InlineReemission",
+        "kind": "class",
+        "line": 553,
+        "endLine": 592,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_aggregate_never_references_the_alias",
+        "kind": "method",
+        "line": 554,
+        "endLine": 571,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_window_field_may_be_a_computed_column",
+        "kind": "method",
+        "line": 573,
+        "endLine": 592,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "TestB3TheCTE",
+        "kind": "class",
+        "line": 595,
+        "endLine": 624,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_cte_iff_operation_9",
+        "kind": "method",
+        "line": 596,
+        "endLine": 600,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_filter_inside_limit_outside_changed_hidden",
+        "kind": "method",
+        "line": 602,
+        "endLine": 618,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_first_beat_convention_is_the_operator",
+        "kind": "method",
+        "line": 620,
+        "endLine": 624,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 35
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 36
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 37
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 38
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 39
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 41
+      },
+      {
+        "raw": "builder",
+        "resolved": null,
+        "line": 49
+      },
+      {
+        "raw": "gate",
+        "resolved": null,
+        "line": 50
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 51
+      },
+      {
+        "raw": "demo.seed",
+        "resolved": "demo/seed/__init__.py",
+        "line": 52
+      }
+    ],
+    "parseErrors": 0
+  }
+}

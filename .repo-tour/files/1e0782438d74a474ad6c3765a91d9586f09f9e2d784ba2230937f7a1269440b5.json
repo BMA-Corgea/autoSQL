@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/data/gates-policy.json",
+    "repo": "",
+    "bytes": 254,
+    "loc": 13,
+    "language": "json",
+    "sha256": "1e0782438d74a474ad6c3765a91d9586f09f9e2d784ba2230937f7a1269440b5",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/data/gates-policy.json",
+    "score": 0.0686325376579793,
+    "classification": "data",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 13,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.3043684525843052,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

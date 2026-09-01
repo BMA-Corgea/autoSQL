@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/recon/semantics.md",
+    "repo": "",
+    "bytes": 52127,
+    "loc": 746,
+    "language": "markdown",
+    "sha256": "3e5dcd2702f385b3db38d530f4e4e002cff960593a21888aa71331b033bb3fa0",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/recon/semantics.md",
+    "score": 0.0775629492872675,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 746,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7630457663795222,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

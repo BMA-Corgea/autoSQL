@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/coverage_probe_results.json",
+    "repo": "",
+    "bytes": 87216,
+    "loc": 5828,
+    "language": "json",
+    "sha256": "30a3abffa13718507468b81d99b37efc3357cce76a490ecf74a20c2eeab5b3e0",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/coverage_probe_results.json",
+    "score": 0.09178020330449617,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 5828,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 1,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/typing_inspection-0.4.4-py3-none-any.whl",
+    "repo": "",
+    "bytes": 14750,
+    "loc": 0,
+    "language": null,
+    "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/typing_inspection-0.4.4-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

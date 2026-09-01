@@ -1,0 +1,54 @@
+{
+  "path": "demo/seed",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "demo/seed/__init__.py",
+    "demo/seed/expectations.py",
+    "demo/seed/generate.py",
+    "demo/seed/load.py",
+    "demo/seed/schema.sql"
+  ],
+  "fileCount": 5,
+  "loc": 1469,
+  "topFiles": [
+    {
+      "path": "demo/seed/load.py",
+      "score": 0.4716928873547164,
+      "why": "2 commits · 2 importers · 265 loc · source"
+    },
+    {
+      "path": "demo/seed/__init__.py",
+      "score": 0.43623196189660174,
+      "why": "1 commits · 5 importers · 6 loc · source"
+    },
+    {
+      "path": "demo/seed/expectations.py",
+      "score": 0.3694071348054968,
+      "why": "3 commits · 924 loc · source"
+    },
+    {
+      "path": "demo/seed/generate.py",
+      "score": 0.29607774550035454,
+      "why": "2 commits · 258 loc · source"
+    },
+    {
+      "path": "demo/seed/schema.sql",
+      "score": 0.05138585760448775,
+      "why": "1 commits · 16 loc · data"
+    }
+  ],
+  "score": 0.4716928873547164,
+  "languages": {
+    "python": 4,
+    "sql": 1
+  },
+  "classifications": {
+    "source": 4,
+    "data": 1
+  },
+  "publicSymbols": 38,
+  "hash": "3bedc80324fa2404b943b76f40e0b84ccabfd1f39a056a59eb97e11a3e58b6e9",
+  "sourcedFrom": "children"
+}

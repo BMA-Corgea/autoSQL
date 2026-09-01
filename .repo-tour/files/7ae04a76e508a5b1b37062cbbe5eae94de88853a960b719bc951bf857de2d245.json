@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/M_encoding_guc.txt",
+    "repo": "",
+    "bytes": 2389,
+    "loc": 19,
+    "language": "text",
+    "sha256": "7ae04a76e508a5b1b37062cbbe5eae94de88853a960b719bc951bf857de2d245",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/M_encoding_guc.txt",
+    "score": 0.05251047815437418,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 19,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.3455045808313003,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

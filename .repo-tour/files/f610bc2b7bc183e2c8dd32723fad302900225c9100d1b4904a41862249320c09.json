@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/tickets/T-3-correctness-run-does-the-restricted-expression-s.json",
+    "repo": "",
+    "bytes": 12261,
+    "loc": 114,
+    "language": "json",
+    "sha256": "f610bc2b7bc183e2c8dd32723fad302900225c9100d1b4904a41862249320c09",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/tickets/T-3-correctness-run-does-the-restricted-expression-s.json",
+    "score": 0.12205293562566366,
+    "classification": "data",
+    "churn": 6,
+    "inDegree": 0,
+    "loc": 114,
+    "components": {
+      "churn": 0.6608763716360639,
+      "inDegree": 0,
+      "size": 0.5472437575799172,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/wheels/psycopg-3.3.4-py3-none-any.whl",
+    "repo": "",
+    "bytes": 213001,
+    "loc": 0,
+    "language": null,
+    "sha256": "b6bbc25ccf05c8fad3b061d9db2ef0909a555171b84b07f29458a447253d679a",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": "demo/vendor/wheels/psycopg-3.3.4-py3-none-any.whl",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

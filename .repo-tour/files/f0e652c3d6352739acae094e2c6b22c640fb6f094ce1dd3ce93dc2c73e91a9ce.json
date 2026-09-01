@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".gitignore",
+    "repo": "",
+    "bytes": 2074,
+    "loc": 54,
+    "language": null,
+    "sha256": "f0e652c3d6352739acae094e2c6b22c640fb6f094ce1dd3ce93dc2c73e91a9ce",
+    "classification": "data",
+    "signals": [
+      "data-no-ext"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".gitignore",
+    "score": 0.09129089476985604,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 54,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.4621748026810618,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

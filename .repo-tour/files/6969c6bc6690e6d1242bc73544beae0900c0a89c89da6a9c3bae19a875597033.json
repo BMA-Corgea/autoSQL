@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/D_rawjson.txt",
+    "repo": "",
+    "bytes": 8091,
+    "loc": 87,
+    "language": "text",
+    "sha256": "6969c6bc6690e6d1242bc73544beae0900c0a89c89da6a9c3bae19a875597033",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/D_rawjson.txt",
+    "score": 0.06276308638085921,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 87,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5163813846060508,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

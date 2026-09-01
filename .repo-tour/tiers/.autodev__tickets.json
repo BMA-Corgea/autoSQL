@@ -1,0 +1,58 @@
+{
+  "path": ".autodev/tickets",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    ".autodev/tickets/T-1-compile-the-gims-dashboard-expression-ast-to-pos.json",
+    ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json",
+    ".autodev/tickets/T-3-correctness-run-does-the-restricted-expression-s.json",
+    ".autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json",
+    ".autodev/tickets/T-5-homework-do-non-ascii-digit-strings-actually-occ.json",
+    ".autodev/tickets/T-6-correctness-re-run-does-the-subset-pass-once-the.json"
+  ],
+  "fileCount": 6,
+  "loc": 615,
+  "topFiles": [
+    {
+      "path": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json",
+      "score": 0.15572533985636478,
+      "why": "12 commits · 246 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-3-correctness-run-does-the-restricted-expression-s.json",
+      "score": 0.12205293562566366,
+      "why": "6 commits · 114 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-1-compile-the-gims-dashboard-expression-ast-to-pos.json",
+      "score": 0.09740130835941078,
+      "why": "3 commits · 132 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json",
+      "score": 0.057807466438801525,
+      "why": "1 commits · 42 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-6-correctness-re-run-does-the-subset-pass-once-the.json",
+      "score": 0.057807466438801525,
+      "why": "1 commits · 42 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-5-homework-do-non-ascii-digit-strings-actually-occ.json",
+      "score": 0.05730701210744965,
+      "why": "1 commits · 39 loc · data"
+    }
+  ],
+  "score": 0.15572533985636478,
+  "languages": {
+    "json": 6
+  },
+  "classifications": {
+    "data": 6
+  },
+  "publicSymbols": 0,
+  "hash": "01a0c439ee5b2c9d4280aea79ba844f97e2665c108c1bca8a00b29676229b95c",
+  "sourcedFrom": "children"
+}

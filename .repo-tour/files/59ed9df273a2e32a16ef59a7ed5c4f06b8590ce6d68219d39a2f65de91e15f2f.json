@@ -1,0 +1,146 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/idxshape_gen_rows.py",
+    "repo": "",
+    "bytes": 5299,
+    "loc": 118,
+    "language": "python",
+    "sha256": "59ed9df273a2e32a16ef59a7ed5c4f06b8590ce6d68219d39a2f65de91e15f2f",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/idxshape_gen_rows.py",
+    "score": 0.21617143602156863,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 118,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5511871250329071,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/idxshape_gen_rows.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "N_LEDGER",
+        "kind": "variable",
+        "line": 18,
+        "endLine": 18,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_SUBMISSION",
+        "kind": "variable",
+        "line": 19,
+        "endLine": 19,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ACTORS",
+        "kind": "variable",
+        "line": 22,
+        "endLine": 22,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EVENTS",
+        "kind": "variable",
+        "line": 23,
+        "endLine": 24,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "RISK",
+        "kind": "variable",
+        "line": 25,
+        "endLine": 25,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STATUS",
+        "kind": "variable",
+        "line": 26,
+        "endLine": 26,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BASE",
+        "kind": "variable",
+        "line": 27,
+        "endLine": 27,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "iso",
+        "kind": "function",
+        "line": 30,
+        "endLine": 31,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ledger_row",
+        "kind": "function",
+        "line": 34,
+        "endLine": 70,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "submission_row",
+        "kind": "function",
+        "line": 73,
+        "endLine": 107,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "emit",
+        "kind": "function",
+        "line": 110,
+        "endLine": 112,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "random",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 15
+      },
+      {
+        "raw": "datetime",
+        "resolved": null,
+        "line": 16
+      }
+    ],
+    "parseErrors": 0
+  }
+}

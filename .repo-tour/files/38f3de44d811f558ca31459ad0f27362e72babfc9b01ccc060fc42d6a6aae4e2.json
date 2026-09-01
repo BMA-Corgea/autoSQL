@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/notes/windows-autostart.md",
+    "repo": "",
+    "bytes": 31903,
+    "loc": 608,
+    "language": "markdown",
+    "sha256": "38f3de44d811f558ca31459ad0f27362e72babfc9b01ccc060fc42d6a6aae4e2",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/notes/windows-autostart.md",
+    "score": 0.0761495737420642,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 608,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7394895072928006,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

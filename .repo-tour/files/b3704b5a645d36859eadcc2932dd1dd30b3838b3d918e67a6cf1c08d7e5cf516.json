@@ -1,0 +1,67 @@
+{
+  "file": {
+    "path": "demo/pyrunner/decimals.py",
+    "repo": "",
+    "bytes": 5398,
+    "loc": 105,
+    "language": "python",
+    "sha256": "b3704b5a645d36859eadcc2932dd1dd30b3838b3d918e67a6cf1c08d7e5cf516",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/pyrunner/decimals.py",
+    "score": 0.3885030073279983,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 2,
+    "loc": 105,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.4999999999999999,
+      "size": 0.5378449815650557,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/pyrunner/decimals.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "SIX_PLACES",
+        "kind": "variable",
+        "line": 39,
+        "endLine": 39,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "q6",
+        "kind": "function",
+        "line": 50,
+        "endLine": 87,
+        "exported": true,
+        "doc": "Round *x* half-up to exactly 6 decimal places. Ties go away from zero."
+      },
+      {
+        "name": "is_jsonb_number",
+        "kind": "function",
+        "line": 90,
+        "endLine": 105,
+        "exported": true,
+        "doc": "True iff Postgres's ``jsonb_typeof`` would call *v* ``'number'``."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 34
+      }
+    ],
+    "parseErrors": 0
+  }
+}

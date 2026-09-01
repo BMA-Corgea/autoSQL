@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/B2_overflow.txt",
+    "repo": "",
+    "bytes": 1893,
+    "loc": 34,
+    "language": "text",
+    "sha256": "ec3f1d302fd001cc7901fabba8f4bbd456695f4f66d56ddbf777b6dddc359a5c",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/B2_overflow.txt",
+    "score": 0.056382983450206085,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 34,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4100463357618319,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,107 @@
+{
+  "path": "demo",
+  "kind": "subsystem",
+  "repo": "",
+  "childTiers": [
+    "demo/frontend",
+    "demo/pyrunner",
+    "demo/seed",
+    "demo/server",
+    "demo/static",
+    "demo/tests",
+    "demo/vendor"
+  ],
+  "childFiles": [
+    "demo/EVIDENCE.md",
+    "demo/README.md",
+    "demo/VERIFY.md",
+    "demo/WALKTHROUGH.md",
+    "demo/ac19-expr-vectors.md",
+    "demo/builder.py",
+    "demo/compose.yaml",
+    "demo/expected-answers.json",
+    "demo/gate.py",
+    "demo/legality.py",
+    "demo/manifest.json",
+    "demo/probes.py",
+    "demo/requirements.txt"
+  ],
+  "fileCount": 98,
+  "loc": 28395,
+  "topFiles": [
+    {
+      "path": "demo/server/app.py",
+      "score": 0.6192980071331151,
+      "why": "5 commits · 1488 loc · structural"
+    },
+    {
+      "path": "demo/pyrunner/rows.py",
+      "score": 0.5356438705726445,
+      "why": "2 commits · 4 importers · 124 loc · source"
+    },
+    {
+      "path": "demo/server/__init__.py",
+      "score": 0.5250349271812472,
+      "why": "1 commits · 8 importers · 19 loc · source"
+    },
+    {
+      "path": "demo/frontend/icons.jsx",
+      "score": 0.5148673459857307,
+      "why": "1 commits · 6 importers · 72 loc · source"
+    },
+    {
+      "path": "demo/gate.py",
+      "score": 0.4806372625537102,
+      "why": "2 commits · 2 importers · 391 loc · source"
+    },
+    {
+      "path": "demo/pyrunner/order.py",
+      "score": 0.4760281074859729,
+      "why": "2 commits · 2 importers · 320 loc · source"
+    },
+    {
+      "path": "demo/seed/load.py",
+      "score": 0.4716928873547164,
+      "why": "2 commits · 2 importers · 265 loc · source"
+    },
+    {
+      "path": "demo/builder.py",
+      "score": 0.4691722160981945,
+      "why": "3 commits · 1 importers · 582 loc · source"
+    },
+    {
+      "path": "demo/legality.py",
+      "score": 0.4665786900440247,
+      "why": "3 commits · 1 importers · 520 loc · source"
+    },
+    {
+      "path": "demo/probes.py",
+      "score": 0.46483178944535025,
+      "why": "3 commits · 1 importers · 482 loc · source"
+    }
+  ],
+  "score": 0.6192980071331151,
+  "languages": {
+    "javascript": 11,
+    "json": 4,
+    "python": 38,
+    "sql": 2,
+    "css": 5,
+    "html": 1,
+    "markdown": 7,
+    "yaml": 1,
+    "text": 1
+  },
+  "classifications": {
+    "source": 31,
+    "lockfile": 1,
+    "structural": 5,
+    "data": 33,
+    "test": 17,
+    "vendored": 10,
+    "generated": 1
+  },
+  "publicSymbols": 701,
+  "hash": "a69030dc570f68a08b6f1bc8cdcae158cdeb4b2bdc3e89384eeff6caae54da05",
+  "sourcedFrom": "children"
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/styles/watery.css",
+    "repo": "",
+    "bytes": 16294,
+    "loc": 242,
+    "language": "css",
+    "sha256": "684dc2cc4eecb6eb69467af22593a5411fe15f322f6c7aaa99065c0ac013132e",
+    "classification": "vendored",
+    "signals": [
+      "vendor-path:vendor/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/vendor/styles/watery.css",
+    "score": 0,
+    "classification": "vendored",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 242,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6335272040883693,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

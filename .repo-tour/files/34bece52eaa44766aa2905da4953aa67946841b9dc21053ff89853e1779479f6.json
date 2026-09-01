@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "QUESTIONS-FOR-EVAN.md",
+    "repo": "",
+    "bytes": 125870,
+    "loc": 1059,
+    "language": "markdown",
+    "sha256": "34bece52eaa44766aa2905da4953aa67946841b9dc21053ff89853e1779479f6",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "QUESTIONS-FOR-EVAN.md",
+    "score": 0.07998464309520205,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 1059,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.8034073298450981,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

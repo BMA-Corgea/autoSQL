@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".claude/settings.json",
+    "repo": "",
+    "bytes": 605,
+    "loc": 23,
+    "language": "json",
+    "sha256": "a8c69322f87d72cf453e1baa7e06b9c1da28fe779652deb3292a31e3dff6d286",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".claude/settings.json",
+    "score": 0.08555233491727918,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 23,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.3665321384714474,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/notify-telegram.json",
+    "repo": "",
+    "bytes": 849,
+    "loc": 12,
+    "language": "json",
+    "sha256": "9e2d76114da4a7e5df566aa93e969e2531f676dac35cfe7a80b0b151d4007c92",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/notify-telegram.json",
+    "score": 0.049529488053868934,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 12,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.29582141248954624,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

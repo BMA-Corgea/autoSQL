@@ -1,0 +1,106 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/conformance_injection_test.py",
+    "repo": "",
+    "bytes": 13603,
+    "loc": 303,
+    "language": "python",
+    "sha256": "742c3ea3a9c8eeceeea3a91f9513ec38fbb7ae76d223628bbe0a0fafa7e57fa7",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/conformance_injection_test.py",
+    "score": 0.1189027794420561,
+    "classification": "test",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 303,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.659357739345625,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/conformance_injection_test.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "PROTO",
+        "kind": "variable",
+        "line": 74,
+        "endLine": 74,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CONF_PATH",
+        "kind": "variable",
+        "line": 75,
+        "endLine": 75,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "INJECTIONS",
+        "kind": "variable",
+        "line": 89,
+        "endLine": 129,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "injecting_compile_ast",
+        "kind": "function",
+        "line": 141,
+        "endLine": 149,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "stray_percent_probe",
+        "kind": "function",
+        "line": 152,
+        "endLine": 187,
+        "exported": true,
+        "doc": "The fifth path in the per-case loop: conformance.py:405-408."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 190,
+        "endLine": 299,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "importlib.util",
+        "resolved": null,
+        "line": 67
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 68
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 69
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 70
+      }
+    ],
+    "parseErrors": 0
+  }
+}

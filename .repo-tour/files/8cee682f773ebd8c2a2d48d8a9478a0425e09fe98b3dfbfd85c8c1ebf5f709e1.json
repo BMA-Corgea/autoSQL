@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/specs/T-2-plan.md",
+    "repo": "",
+    "bytes": 115854,
+    "loc": 1486,
+    "language": "markdown",
+    "sha256": "8cee682f773ebd8c2a2d48d8a9478a0425e09fe98b3dfbfd85c8c1ebf5f709e1",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/specs/T-2-plan.md",
+    "score": 0.08232698432100972,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 1486,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.8424463502752261,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

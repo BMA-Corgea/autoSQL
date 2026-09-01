@@ -151,11 +151,17 @@ AC33_FILES = (
 # the Unicode-digit gap to a named refusal — so this vendored copy will need
 # a second update, and a second decision trail, after that re-run.
 RUNTIME_PINNED = "demo/vendor/runtime.sql"
-RUNTIME_UPSTREAM = "spikes/T-1/proto/runtime.sql"
+RUNTIME_UPSTREAM = "runtime/runtime.sql"
 
 
 def test_runtime_sql_is_adopted_and_matches_the_spike() -> None:
-    """The demo's runtime.sql IS T-3's corrected version, byte for byte.
+    """The demo's runtime.sql IS the shipping runtime, byte for byte.
+
+    2026-09-01, T-8: the upstream moved. It was spikes/T-1/proto/runtime.sql,
+    which is now FROZEN EVIDENCE -- its sha is cited in T-3's and T-6's findings
+    and in 42 battery outputs, so it can never change again. The runtime a
+    product ships lives at runtime/runtime.sql, is GENERATED, and is what the
+    demo now vendors.
 
     Until 2026-08-23 this test asserted the OPPOSITE — the pinned copy and
     the spike's copy deliberately different.  It was correct for the old
@@ -184,11 +190,11 @@ def test_runtime_sql_is_adopted_and_matches_the_spike() -> None:
         )
     upstream = _sha256(upstream_path)
     assert upstream == vendored, (
-        f"{RUNTIME_PINNED} no longer matches {RUNTIME_UPSTREAM}. Evan's q4 "
-        "(GA-7, 2026-08-23) adopted T-3's corrected runtime, so the two "
-        "copies must be byte-identical — one of them was edited without a "
-        "decision. (If T-6's re-run has just changed the spike's copy, the "
-        "demo needs its SECOND update — he was told to expect this.)"
+        f"{RUNTIME_PINNED} no longer matches {RUNTIME_UPSTREAM}. The demo vendors "
+        "the shipping runtime byte-for-byte, so one of them was edited without a "
+        "decision. runtime/runtime.sql is GENERATED — if it is the one that moved, "
+        "re-run `python3 runtime/generate.py` and re-vendor rather than editing "
+        "either copy by hand."
     )
 
 

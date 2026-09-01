@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/CURRENT-WORK.md",
+    "repo": "",
+    "bytes": 20025,
+    "loc": 245,
+    "language": "markdown",
+    "sha256": "f7728a867d7d2cadf7a75ed3e295783d7e3e59f68a2a0ef5707f332d9ea90145",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/CURRENT-WORK.md",
+    "score": 0.15909505397301887,
+    "classification": "data",
+    "churn": 13,
+    "inDegree": 0,
+    "loc": 245,
+    "components": {
+      "churn": 0.8962852850027023,
+      "inDegree": 0,
+      "size": 0.6349423416275681,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,32 @@
+{
+  "path": "spikes/T-1/.recheck/orig",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "spikes/T-1/.recheck/orig/CONFORMANCE.md.orig",
+    "spikes/T-1/.recheck/orig/results.json.orig"
+  ],
+  "fileCount": 2,
+  "loc": 4831,
+  "topFiles": [
+    {
+      "path": "spikes/T-1/.recheck/orig/results.json.orig",
+      "score": 0.0898779306533466,
+      "why": "1 commits · 4427 loc · data"
+    },
+    {
+      "path": "spikes/T-1/.recheck/orig/CONFORMANCE.md.orig",
+      "score": 0.07332671604446496,
+      "why": "1 commits · 404 loc · data"
+    }
+  ],
+  "score": 0.0898779306533466,
+  "languages": {},
+  "classifications": {
+    "data": 2
+  },
+  "publicSymbols": 0,
+  "hash": "519c5332a0f669391899152790b540dd17f99042be6dd8446315bd896f911b5d",
+  "sourcedFrom": "children"
+}

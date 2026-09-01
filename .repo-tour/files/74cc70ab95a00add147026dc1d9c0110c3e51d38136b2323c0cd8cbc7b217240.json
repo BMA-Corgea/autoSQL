@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/A2_boundary_after.txt",
+    "repo": "",
+    "bytes": 896,
+    "loc": 14,
+    "language": "text",
+    "sha256": "74cc70ab95a00add147026dc1d9c0110c3e51d38136b2323c0cd8cbc7b217240",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/A2_boundary_after.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 14,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.3123255565464585,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

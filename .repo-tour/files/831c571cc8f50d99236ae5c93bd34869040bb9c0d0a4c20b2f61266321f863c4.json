@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/FINDINGS.md",
+    "repo": "",
+    "bytes": 41861,
+    "loc": 599,
+    "language": "markdown",
+    "sha256": "831c571cc8f50d99236ae5c93bd34869040bb9c0d0a4c20b2f61266321f863c4",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/FINDINGS.md",
+    "score": 0.07604654550023715,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 599,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7377723699290166,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

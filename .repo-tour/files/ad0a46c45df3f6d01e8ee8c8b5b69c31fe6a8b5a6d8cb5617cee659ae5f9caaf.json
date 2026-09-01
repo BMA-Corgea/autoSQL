@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/measurements.json",
+    "repo": "",
+    "bytes": 77905,
+    "loc": 1107,
+    "language": "json",
+    "sha256": "ad0a46c45df3f6d01e8ee8c8b5b69c31fe6a8b5a6d8cb5617cee659ae5f9caaf",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/measurements.json",
+    "score": 0.08029111099660216,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 1107,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.8085151282017665,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

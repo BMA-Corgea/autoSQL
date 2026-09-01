@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/tickets/T-6-correctness-re-run-does-the-subset-pass-once-the.json",
+    "repo": "",
+    "bytes": 2423,
+    "loc": 42,
+    "language": "json",
+    "sha256": "bf3d5a028ec45255bbca1957941cd83616bee33373e7cb9dd327a8cc8687e861",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/tickets/T-6-correctness-re-run-does-the-subset-pass-once-the.json",
+    "score": 0.057807466438801525,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 42,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4337877189050892,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

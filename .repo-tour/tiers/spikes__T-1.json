@@ -1,0 +1,90 @@
+{
+  "path": "spikes/T-1",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    "spikes/T-1/.parts",
+    "spikes/T-1/.recheck",
+    "spikes/T-1/analysis",
+    "spikes/T-1/proto",
+    "spikes/T-1/recon"
+  ],
+  "childFiles": [
+    "spikes/T-1/EXPERIMENTS.md",
+    "spikes/T-1/FINDINGS.md",
+    "spikes/T-1/FRAMING.md",
+    "spikes/T-1/RECHECK-2026-08-21.md"
+  ],
+  "fileCount": 122,
+  "loc": 57685,
+  "topFiles": [
+    {
+      "path": "spikes/T-1/proto/conformance.py",
+      "score": 0.3736126463335262,
+      "why": "3 commits · 1109 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/differ.py",
+      "score": 0.3394123353841566,
+      "why": "3 commits · 251 loc · source"
+    },
+    {
+      "path": "spikes/T-1/proto/bench.py",
+      "score": 0.3159879430178145,
+      "why": "2 commits · 613 loc · source"
+    },
+    {
+      "path": "spikes/T-1/analysis/fuzz/H_ast_fuzz.py",
+      "score": 0.3087687883165352,
+      "why": "2 commits · 448 loc · source"
+    },
+    {
+      "path": "spikes/T-1/.parts/README.md",
+      "score": 0.2831112433221147,
+      "why": "1 commits · 64 loc · structural"
+    },
+    {
+      "path": "spikes/T-1/proto/idxshape_explain.py",
+      "score": 0.28017818716365434,
+      "why": "2 commits · 129 loc · source"
+    },
+    {
+      "path": "spikes/T-1/proto/idxshape_jsonpath_130.py",
+      "score": 0.27674046505735234,
+      "why": "2 commits · 111 loc · source"
+    },
+    {
+      "path": "spikes/T-1/proto/load_data.py",
+      "score": 0.2655672515434979,
+      "why": "2 commits · 68 loc · source"
+    },
+    {
+      "path": "spikes/T-1/proto/idxshape_writecost.py",
+      "score": 0.263832114071246,
+      "why": "2 commits · 63 loc · source"
+    },
+    {
+      "path": "spikes/T-1/proto/idxshape_jsonpath_agree.py",
+      "score": 0.26075201854710084,
+      "why": "2 commits · 55 loc · source"
+    }
+  ],
+  "score": 0.3736126463335262,
+  "languages": {
+    "markdown": 34,
+    "json": 10,
+    "text": 29,
+    "python": 41,
+    "shell": 1,
+    "sql": 5
+  },
+  "classifications": {
+    "structural": 1,
+    "data": 79,
+    "source": 41,
+    "test": 1
+  },
+  "publicSymbols": 241,
+  "hash": "a071358466d6ff52d833fb865588e903184ef1a960444d8c8c2748149d35d174",
+  "sourcedFrom": "children"
+}

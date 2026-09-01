@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/H_parse_errors.txt",
+    "repo": "",
+    "bytes": 927,
+    "loc": 17,
+    "language": "text",
+    "sha256": "4e6a6a018b565b747d41f680a4c444bf8a1b702ffc73524e4cfc334fcdcd655a",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/H_parse_errors.txt",
+    "score": 0.05178139015569249,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 17,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.3333531141866055,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

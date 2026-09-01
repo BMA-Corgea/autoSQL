@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/.parts/xd-reachability.md",
+    "repo": "",
+    "bytes": 31243,
+    "loc": 386,
+    "language": "markdown",
+    "sha256": "2da5ae818c8ba828bc267e956f8a81a14687728a06efb72836ed91ce1f6fdbd7",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.parts/xd-reachability.md",
+    "score": 0.07301211933692238,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 386,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6871986005404369,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/board.html",
+    "repo": "",
+    "bytes": 213980,
+    "loc": 512,
+    "language": "html",
+    "sha256": "0d04dc321b6699ae2df48d3905752305b1fe1d364956f9bf99627193b976f96e",
+    "classification": "source",
+    "signals": [
+      "language:html"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/board.html",
+    "score": 0.14394102631872305,
+    "classification": "source",
+    "churn": 0,
+    "inDegree": 0,
+    "loc": 512,
+    "components": {
+      "churn": 0,
+      "inDegree": 0,
+      "size": 0.7197051315936152,
+      "multiplier": 1
+    }
+  },
+  "extract": null
+}

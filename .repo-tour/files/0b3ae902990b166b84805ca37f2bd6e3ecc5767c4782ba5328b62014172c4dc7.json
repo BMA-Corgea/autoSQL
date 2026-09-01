@@ -1,0 +1,163 @@
+{
+  "file": {
+    "path": "demo/pyrunner/order.py",
+    "repo": "",
+    "bytes": 13991,
+    "loc": 320,
+    "language": "python",
+    "sha256": "0b3ae902990b166b84805ca37f2bd6e3ecc5767c4782ba5328b62014172c4dc7",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/pyrunner/order.py",
+    "score": 0.4760281074859729,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 2,
+    "loc": 320,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0.4999999999999999,
+      "size": 0.6656333623811818,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/pyrunner/order.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "_Missing",
+        "kind": "class",
+        "line": 95,
+        "endLine": 108,
+        "exported": false,
+        "doc": "The absent-key sentinel: `data #> path` returned SQL NULL (§7.4(1b))."
+      },
+      {
+        "name": "__repr__",
+        "kind": "method",
+        "line": 104,
+        "endLine": 105,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__bool__",
+        "kind": "method",
+        "line": 107,
+        "endLine": 108,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "MISSING",
+        "kind": "variable",
+        "line": 111,
+        "endLine": 111,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_type_rank",
+        "kind": "function",
+        "line": 124,
+        "endLine": 139,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_cmp",
+        "kind": "function",
+        "line": 142,
+        "endLine": 148,
+        "exported": false,
+        "doc": "Three-way compare of two already-comparable primitives."
+      },
+      {
+        "name": "_storage_order_pairs",
+        "kind": "function",
+        "line": 151,
+        "endLine": 154,
+        "exported": false,
+        "doc": "An object's pairs in Postgres's storage order (§7.4(1b)): shorter keys before longer, bytewise within one length."
+      },
+      {
+        "name": "compare_jsonb",
+        "kind": "function",
+        "line": 157,
+        "endLine": 182,
+        "exported": true,
+        "doc": "Three-way compare of two *present* TOP-LEVEL jsonb values."
+      },
+      {
+        "name": "_compare_by_table",
+        "kind": "function",
+        "line": 185,
+        "endLine": 238,
+        "exported": false,
+        "doc": "§7.4(1b)'s table alone — the order every NESTED value follows."
+      },
+      {
+        "name": "_ValueKey",
+        "kind": "class",
+        "line": 241,
+        "endLine": 284,
+        "exported": false,
+        "doc": "One row's sort-field component, direction folded in."
+      },
+      {
+        "name": "__init__",
+        "kind": "method",
+        "line": 262,
+        "endLine": 264,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__eq__",
+        "kind": "method",
+        "line": 266,
+        "endLine": 271,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__lt__",
+        "kind": "method",
+        "line": 273,
+        "endLine": 280,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "__repr__",
+        "kind": "method",
+        "line": 282,
+        "endLine": 284,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "sort_key",
+        "kind": "function",
+        "line": 287,
+        "endLine": 320,
+        "exported": true,
+        "doc": "The total-order sort key for one row — §7.4, both halves, in one place."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 90
+      }
+    ],
+    "parseErrors": 0
+  }
+}

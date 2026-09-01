@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/index-shape.md",
+    "repo": "",
+    "bytes": 71980,
+    "loc": 1280,
+    "language": "markdown",
+    "sha256": "9d1d568b598395d8d44fbaea13ddaebec8734f8895aaee79a06142a720179c62",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/index-shape.md",
+    "score": 0.08129508596193225,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 1280,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.8252480442906012,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

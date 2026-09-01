@@ -1,0 +1,141 @@
+{
+  "file": {
+    "path": "demo/frontend/panes.jsx",
+    "repo": "",
+    "bytes": 14660,
+    "loc": 376,
+    "language": "javascript",
+    "sha256": "d569e9c574bdc2f0bfb116df75b1a0632ca707953788860a4a22496bf8c09606",
+    "classification": "source",
+    "signals": [
+      "language:javascript"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/frontend/panes.jsx",
+    "score": 0.35318256967631745,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 1,
+    "loc": 376,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.3154648767857287,
+      "size": 0.6841792589316257,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/frontend/panes.jsx",
+    "language": "javascript",
+    "symbols": [
+      {
+        "name": "nf",
+        "kind": "function",
+        "line": 31,
+        "endLine": 33,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "InventedChip",
+        "kind": "function",
+        "line": 35,
+        "endLine": 41,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "widthFor",
+        "kind": "function",
+        "line": 44,
+        "endLine": 51,
+        "exported": false,
+        "doc": "── column widths, derived from the answer rather than hand-tuned ─────"
+      },
+      {
+        "name": "narrowFor",
+        "kind": "function",
+        "line": 52,
+        "endLine": 58,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "template",
+        "kind": "function",
+        "line": 59,
+        "endLine": 61,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "toneClass",
+        "kind": "function",
+        "line": 64,
+        "endLine": 82,
+        "exported": false,
+        "doc": "── one cell's tone, from the server's own type tag ───────────────────"
+      },
+      {
+        "name": "Cell",
+        "kind": "function",
+        "line": 84,
+        "endLine": 91,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "PaneHead",
+        "kind": "function",
+        "line": 93,
+        "endLine": 108,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "MobileSep",
+        "kind": "function",
+        "line": 110,
+        "endLine": 116,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "RefusedPane",
+        "kind": "function",
+        "line": 119,
+        "endLine": 130,
+        "exported": false,
+        "doc": "A whole-pane refusal, in GIMS's own state block with D4's amber modifier."
+      },
+      {
+        "name": "Panes",
+        "kind": "function",
+        "line": 132,
+        "endLine": 376,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "react",
+        "resolved": null,
+        "line": 27
+      },
+      {
+        "raw": "../vendor/ui.jsx",
+        "resolved": "demo/vendor/ui.jsx",
+        "line": 28
+      },
+      {
+        "raw": "./icons.jsx",
+        "resolved": "demo/frontend/icons.jsx",
+        "line": 29
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "file": {
+    "path": "spikes/T-1/.recheck/trace_outcome_lines.py",
+    "repo": "",
+    "bytes": 3824,
+    "loc": 97,
+    "language": "python",
+    "sha256": "7ad8be2a7a3153afd4e7c07ba8b18862d425a0cdb31c1c26bd5e36c7ddca249b",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.recheck/trace_outcome_lines.py",
+    "score": 0.21169294553845774,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 97,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5287946726173526,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/.recheck/trace_outcome_lines.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "CONF",
+        "kind": "variable",
+        "line": 18,
+        "endLine": 18,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BRANCHES",
+        "kind": "variable",
+        "line": 20,
+        "endLine": 25,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ASSIGN",
+        "kind": "variable",
+        "line": 27,
+        "endLine": 34,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "tracer",
+        "kind": "function",
+        "line": 39,
+        "endLine": 44,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "INJECT",
+        "kind": "variable",
+        "line": 47,
+        "endLine": 47,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "importlib.util",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 15
+      },
+      {
+        "raw": "collections",
+        "resolved": null,
+        "line": 16
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "file": {
+    "path": "demo/frontend/verdict.jsx",
+    "repo": "",
+    "bytes": 6069,
+    "loc": 162,
+    "language": "javascript",
+    "sha256": "e8c9a9d8c84089b6ce34963ee4b27ef1dc9e983594341dbf962c34bafe055646",
+    "classification": "source",
+    "signals": [
+      "language:javascript"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/frontend/verdict.jsx",
+    "score": 0.3338414649022956,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 1,
+    "loc": 162,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.3154648767857287,
+      "size": 0.5874737350615167,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/frontend/verdict.jsx",
+    "language": "javascript",
+    "symbols": [
+      {
+        "name": "TONE",
+        "kind": "variable",
+        "line": 19,
+        "endLine": 19,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "REFUSAL_ICON",
+        "kind": "variable",
+        "line": 23,
+        "endLine": 23,
+        "exported": false,
+        "doc": ": The refusal icon says WHICH check, not just that one fired — V5, V6 : and V7 are adjacent on purpose and a reader must tell them apart."
+      },
+      {
+        "name": "nf",
+        "kind": "function",
+        "line": 25,
+        "endLine": 27,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "Num",
+        "kind": "function",
+        "line": 29,
+        "endLine": 31,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "DiffDetail",
+        "kind": "function",
+        "line": 34,
+        "endLine": 59,
+        "exported": false,
+        "doc": "The differing cell, in words: \"row 1, column `biggest` — SQL 1, Python 1e+300\"."
+      },
+      {
+        "name": "Verdict",
+        "kind": "function",
+        "line": 61,
+        "endLine": 162,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "./icons.jsx",
+        "resolved": "demo/frontend/icons.jsx",
+        "line": 17
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/VERIFY.md",
+    "repo": "",
+    "bytes": 28155,
+    "loc": 477,
+    "language": "markdown",
+    "sha256": "31c9f90f34f51b4a17dba841f8ef28fa01ddb1ad38a7cf80fe9e8b1f7360ea66",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/VERIFY.md",
+    "score": 0.10625371646527448,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 477,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.7115551642713692,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

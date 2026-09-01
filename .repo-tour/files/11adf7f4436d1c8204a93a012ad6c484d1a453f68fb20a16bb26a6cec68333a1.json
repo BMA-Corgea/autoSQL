@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/idxshape_preds.json",
+    "repo": "",
+    "bytes": 7337,
+    "loc": 140,
+    "language": "json",
+    "sha256": "11adf7f4436d1c8204a93a012ad6c484d1a453f68fb20a16bb26a6cec68333a1",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/idxshape_preds.json",
+    "score": 0.06602530377600287,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 140,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5707516745251119,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

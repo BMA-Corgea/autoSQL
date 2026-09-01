@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/notes/gims-defects.md",
+    "repo": "",
+    "bytes": 33222,
+    "loc": 687,
+    "language": "markdown",
+    "sha256": "82c1b52df877b061623b5c17ed757fad39c276f8c7e702bf374a4b8234096fb2",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/notes/gims-defects.md",
+    "score": 0.0769936022511034,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 687,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7535566491101207,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

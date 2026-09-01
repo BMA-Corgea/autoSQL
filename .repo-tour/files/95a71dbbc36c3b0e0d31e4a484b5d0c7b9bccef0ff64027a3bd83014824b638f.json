@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/.recheck/injected/CONFORMANCE.injected.md",
+    "repo": "",
+    "bytes": 35536,
+    "loc": 391,
+    "language": "markdown",
+    "sha256": "95a71dbbc36c3b0e0d31e4a484b5d0c7b9bccef0ff64027a3bd83014824b638f",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.recheck/injected/CONFORMANCE.injected.md",
+    "score": 0.07310095156768825,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 391,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6886791377198682,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,74 @@
+{
+  "file": {
+    "path": "spikes/T-3/efd_control.py",
+    "repo": "",
+    "bytes": 1670,
+    "loc": 41,
+    "language": "python",
+    "sha256": "532659183acd38bcf3117eae2c152257a149dff1c8a9d0baefd06f3dfef6d13c",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/efd_control.py",
+    "score": 0.19214878969538302,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 41,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.43107389340197905,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-3/efd_control.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "FUZZ",
+        "kind": "variable",
+        "line": 17,
+        "endLine": 17,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 26,
+        "endLine": 37,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 19
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 23
+      }
+    ],
+    "parseErrors": 0
+  }
+}

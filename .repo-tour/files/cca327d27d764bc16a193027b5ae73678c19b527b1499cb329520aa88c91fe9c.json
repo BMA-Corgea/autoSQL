@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/specs/T-2-queue.md",
+    "repo": "",
+    "bytes": 1934,
+    "loc": 27,
+    "language": "markdown",
+    "sha256": "cca327d27d764bc16a193027b5ae73678c19b527b1499cb329520aa88c91fe9c",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/specs/T-2-queue.md",
+    "score": 0.05483884441262994,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 27,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.384310685135563,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

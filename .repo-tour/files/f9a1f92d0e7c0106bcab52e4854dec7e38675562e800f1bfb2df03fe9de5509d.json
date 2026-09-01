@@ -1,0 +1,83 @@
+{
+  "file": {
+    "path": "demo/frontend/rail.jsx",
+    "repo": "",
+    "bytes": 4098,
+    "loc": 96,
+    "language": "javascript",
+    "sha256": "f9a1f92d0e7c0106bcab52e4854dec7e38675562e800f1bfb2df03fe9de5509d",
+    "classification": "source",
+    "signals": [
+      "language:javascript"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/frontend/rail.jsx",
+    "score": 0.32186907133962356,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 1,
+    "loc": 96,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.3154648767857287,
+      "size": 0.5276117672481565,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/frontend/rail.jsx",
+    "language": "javascript",
+    "symbols": [
+      {
+        "name": "STOP_ICON",
+        "kind": "variable",
+        "line": 14,
+        "endLine": 14,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "nf",
+        "kind": "function",
+        "line": 16,
+        "endLine": 18,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "expressionCount",
+        "kind": "function",
+        "line": 21,
+        "endLine": 25,
+        "exported": false,
+        "doc": "How many expressions this pick actually put through the gate."
+      },
+      {
+        "name": "stopsFor",
+        "kind": "function",
+        "line": 27,
+        "endLine": 79,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "Rail",
+        "kind": "function",
+        "line": 81,
+        "endLine": 96,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "./icons.jsx",
+        "resolved": "demo/frontend/icons.jsx",
+        "line": 12
+      }
+    ],
+    "parseErrors": 0
+  }
+}

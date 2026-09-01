@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/requirements.txt",
+    "repo": "",
+    "bytes": 4042,
+    "loc": 75,
+    "language": "text",
+    "sha256": "e0ea23182575ca5ce60314139f982f2df853abda2ef3d6ca0e79c4c56f9260e4",
+    "classification": "structural",
+    "signals": [
+      "structural-name:requirements.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/requirements.txt",
+    "score": 0.28816013220905273,
+    "classification": "structural",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 75,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4994732742431093,
+      "multiplier": 1.4
+    }
+  },
+  "extract": null
+}

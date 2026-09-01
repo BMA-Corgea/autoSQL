@@ -1,0 +1,193 @@
+{
+  "file": {
+    "path": "demo/seed/load.py",
+    "repo": "",
+    "bytes": 9985,
+    "loc": 265,
+    "language": "python",
+    "sha256": "c1a65096a7ae292a5f2e8ebb3f85707e6f944c117bf54a53eb3d113730bd67ba",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/seed/load.py",
+    "score": 0.4716928873547164,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 2,
+    "loc": 265,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0.4999999999999999,
+      "size": 0.6439572617248988,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/seed/load.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "MANIFEST_DIGEST_KEY",
+        "kind": "variable",
+        "line": 49,
+        "endLine": 49,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "DIGEST_SQL",
+        "kind": "variable",
+        "line": 55,
+        "endLine": 59,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "INVENTED_DATA_LINE",
+        "kind": "variable",
+        "line": 63,
+        "endLine": 67,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EXPECTED_COUNTS",
+        "kind": "variable",
+        "line": 69,
+        "endLine": 73,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SeedError",
+        "kind": "class",
+        "line": 78,
+        "endLine": 79,
+        "exported": true,
+        "doc": "A seed-time check failed. Nothing was committed."
+      },
+      {
+        "name": "_compose_config",
+        "kind": "function",
+        "line": 86,
+        "endLine": 106,
+        "exported": false,
+        "doc": "The database name/role/password and host port, read from demo/compose.yaml so there is exactly one place they can drift from (the same rule ./run-demo applies)."
+      },
+      {
+        "name": "demo_connection",
+        "kind": "function",
+        "line": 109,
+        "endLine": 124,
+        "exported": true,
+        "doc": "A connection to the demo's own database — and never anything else."
+      },
+      {
+        "name": "_table_exists",
+        "kind": "function",
+        "line": 132,
+        "endLine": 134,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "install_schema",
+        "kind": "function",
+        "line": 137,
+        "endLine": 138,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "install_runtime_sql",
+        "kind": "function",
+        "line": 141,
+        "endLine": 165,
+        "exported": true,
+        "doc": "Install demo/vendor/runtime.sql UNMODIFIED (spec §9.6)."
+      },
+      {
+        "name": "copy_rows",
+        "kind": "function",
+        "line": 168,
+        "endLine": 177,
+        "exported": true,
+        "doc": "COPY all generated rows in through the driver (B21), returning how many were written."
+      },
+      {
+        "name": "collection_counts",
+        "kind": "function",
+        "line": 180,
+        "endLine": 184,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "records_digest",
+        "kind": "function",
+        "line": 187,
+        "endLine": 189,
+        "exported": true,
+        "doc": "AC-10's md5 over all rows ordered by (collection, key)."
+      },
+      {
+        "name": "run",
+        "kind": "function",
+        "line": 196,
+        "endLine": 247,
+        "exported": true,
+        "doc": "Install schema + runtime.sql, seed if empty, verify counts and the AC-10 digest. One transaction: any failure rolls everything back. Returns the digest."
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 250,
+        "endLine": 261,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 30
+      },
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 31
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 32
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 33
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "demo.seed",
+        "resolved": "demo/seed/__init__.py",
+        "line": 46
+      },
+      {
+        "raw": "demo.server.db",
+        "resolved": "demo/server/db.py",
+        "line": 122
+      }
+    ],
+    "parseErrors": 0
+  }
+}

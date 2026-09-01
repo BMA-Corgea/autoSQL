@@ -1,0 +1,97 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/F1b_ecma_rate.py",
+    "repo": "",
+    "bytes": 2917,
+    "loc": 78,
+    "language": "python",
+    "sha256": "6d0bdd2ec1f756bdf0197ebe658236b3913b63d4e785a256341aaa7e0a89849b",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/F1b_ecma_rate.py",
+    "score": 0.20672167231957045,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 78,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5039383065229162,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/F1b_ecma_rate.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "batch",
+        "kind": "function",
+        "line": 19,
+        "endLine": 28,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "sample",
+        "kind": "function",
+        "line": 31,
+        "endLine": 38,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 41,
+        "endLine": 75,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "math",
+        "resolved": null,
+        "line": 8
+      },
+      {
+        "raw": "random",
+        "resolved": null,
+        "line": 9
+      },
+      {
+        "raw": "struct",
+        "resolved": null,
+        "line": 10
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 11
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 16
+      },
+      {
+        "raw": "collections",
+        "resolved": null,
+        "line": 70
+      }
+    ],
+    "parseErrors": 0
+  }
+}

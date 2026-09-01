@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/evidence/T-2/04-disagree.jpg",
+    "repo": "",
+    "bytes": 194147,
+    "loc": 0,
+    "language": null,
+    "sha256": "99573bff34ea4cd4f64ff0c85102644e2b92fba907891042b00a8283cf7528de",
+    "classification": "data",
+    "signals": [
+      "binary"
+    ],
+    "binary": true
+  },
+  "rank": {
+    "path": ".autodev/evidence/T-2/04-disagree.jpg",
+    "score": 0.031780203304496164,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 0,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

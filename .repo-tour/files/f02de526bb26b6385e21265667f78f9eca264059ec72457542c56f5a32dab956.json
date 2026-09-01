@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/wiki/autosql-architecture.md",
+    "repo": "",
+    "bytes": 8009,
+    "loc": 140,
+    "language": "markdown",
+    "sha256": "f02de526bb26b6385e21265667f78f9eca264059ec72457542c56f5a32dab956",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/wiki/autosql-architecture.md",
+    "score": 0.0846155309744277,
+    "classification": "data",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 140,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.5707516745251119,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,116 @@
+{
+  "file": {
+    "path": "demo/pyrunner/shape.py",
+    "repo": "",
+    "bytes": 9714,
+    "loc": 247,
+    "language": "python",
+    "sha256": "10f0d21f8c72ad6e62f073db50262d9fdc61916ecc68ef0a97cd103e27f7205a",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/pyrunner/shape.py",
+    "score": 0.4081092532556481,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 2,
+    "loc": 247,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0.4999999999999999,
+      "size": 0.6358762112033047,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/pyrunner/shape.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "answer",
+        "kind": "function",
+        "line": 63,
+        "endLine": 88,
+        "exported": true,
+        "doc": "Apply *pick* to *rows* (one collection's source rows), §4.1's way."
+      },
+      {
+        "name": "python_pane",
+        "kind": "function",
+        "line": 91,
+        "endLine": 98,
+        "exported": true,
+        "doc": "Read the pick's source rows and answer it — the pane, end to end."
+      },
+      {
+        "name": "_rows",
+        "kind": "function",
+        "line": 103,
+        "endLine": 172,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_agg_values",
+        "kind": "function",
+        "line": 177,
+        "endLine": 188,
+        "exported": false,
+        "doc": "The numeric read per row for op 6, or None for count-with-no-field (``count(*)``). The field is §4.4 row 6's either: a computed column (B2 — the same AST, re-evaluated, never an alias reference) or a path."
+      },
+      {
+        "name": "_scalar",
+        "kind": "function",
+        "line": 191,
+        "endLine": 204,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_bucket",
+        "kind": "function",
+        "line": 212,
+        "endLine": 247,
+        "exported": false,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 41
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 42
+      },
+      {
+        "raw": "typing",
+        "resolved": null,
+        "line": 43
+      },
+      {
+        "raw": ".",
+        "resolved": "demo/pyrunner/__init__.py",
+        "line": 45
+      },
+      {
+        "raw": ".rows",
+        "resolved": "demo/pyrunner/rows.py",
+        "line": 46
+      },
+      {
+        "raw": "demo.legality",
+        "resolved": "demo/legality.py",
+        "line": 52
+      }
+    ],
+    "parseErrors": 0
+  }
+}

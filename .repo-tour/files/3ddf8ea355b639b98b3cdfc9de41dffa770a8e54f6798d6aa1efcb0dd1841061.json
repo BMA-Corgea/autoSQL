@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/run_all.sh",
+    "repo": "",
+    "bytes": 2521,
+    "loc": 42,
+    "language": "shell",
+    "sha256": "3ddf8ea355b639b98b3cdfc9de41dffa770a8e54f6798d6aa1efcb0dd1841061",
+    "classification": "source",
+    "signals": [
+      "language:shell"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/run_all.sh",
+    "score": 0.2546589787907545,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 42,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.4337877189050892,
+      "multiplier": 1
+    }
+  },
+  "extract": null
+}

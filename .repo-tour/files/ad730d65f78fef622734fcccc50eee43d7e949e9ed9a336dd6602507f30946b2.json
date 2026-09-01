@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "design/t2-demo-mock.html",
+    "repo": "",
+    "bytes": 115922,
+    "loc": 1990,
+    "language": "html",
+    "sha256": "ad730d65f78fef622734fcccc50eee43d7e949e9ed9a336dd6602507f30946b2",
+    "classification": "source",
+    "signals": [
+      "language:html"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "design/t2-demo-mock.html",
+    "score": 0.38708984422118997,
+    "classification": "source",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 1990,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.8761091109560775,
+      "multiplier": 1
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,294 @@
+{
+  "file": {
+    "path": "demo/tests/test_probes.py",
+    "repo": "",
+    "bytes": 14899,
+    "loc": 293,
+    "language": "python",
+    "sha256": "17f11014a510c3f81c281fdd98dac36c292663308da2d8fb98267410386a6b9d",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_probes.py",
+    "score": 0.14950072884837096,
+    "classification": "test",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 293,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.6555001134350263,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_probes.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "EDGE",
+        "kind": "variable",
+        "line": 69,
+        "endLine": 69,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 70,
+        "endLine": 70,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_3",
+        "kind": "variable",
+        "line": 73,
+        "endLine": 73,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_4",
+        "kind": "variable",
+        "line": 74,
+        "endLine": 74,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_11",
+        "kind": "variable",
+        "line": 75,
+        "endLine": 75,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_12",
+        "kind": "variable",
+        "line": 76,
+        "endLine": 76,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_13",
+        "kind": "variable",
+        "line": 77,
+        "endLine": 77,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_gated",
+        "kind": "function",
+        "line": 80,
+        "endLine": 84,
+        "exported": false,
+        "doc": "Parse and gate — layer 2 only ever sees expressions layer 1 accepted."
+      },
+      {
+        "name": "TestAC17",
+        "kind": "class",
+        "line": 90,
+        "endLine": 178,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_1e400_refuses_naming_cause_and_row",
+        "kind": "method",
+        "line": 91,
+        "endLine": 100,
+        "exported": true,
+        "doc": "Walkthrough step 13: edge-03's huge = 1e400 is above the largest double, so the pick is refused before its own query runs."
+      },
+      {
+        "name": "test_1e300_does_NOT_refuse",
+        "kind": "method",
+        "line": 102,
+        "endLine": 111,
+        "exported": true,
+        "doc": "The other side of the boundary: edge-00's a = 1e300 is representable. A probe that refuses both sides is broken. (The adopted runtime — q4/GA-7, 2026-08-23 — reads 1e300 correctly too, so both engines now agree on this row; the probe staying quiet is what lets that agreement be SHOWN rather than refused.)"
+      },
+      {
+        "name": "test_threshold_is_dbl_max_and_the_guard_now_agrees",
+        "kind": "method",
+        "line": 113,
+        "endLine": 132,
+        "exported": true,
+        "doc": "CHANGED 2026-08-23 (q4/GA-7; B15/B24's dated notes): edge-04 and edge-05 now straddle the CORRECTED 309-digit guard — DBL_MAX itself — so the probe's threshold and the adopted runtime's guard bite at the same literal. As signed, this test proved the threshold was NOT the shipped 297-digit guard by showing the probe quiet where that guard nulled; with the guard corrected, the discrimination is t…"
+      },
+      {
+        "name": "test_boundary_exact_from_both_sides",
+        "kind": "method",
+        "line": 134,
+        "endLine": 152,
+        "exported": true,
+        "doc": "The generated condition itself, at the boundary: one step below DBL_MAX does not fire; DBL_MAX exactly, and anything above, does (`>=` — B15's deliberate conservatism, not to be 'fixed' into >)."
+      },
+      {
+        "name": "test_probe_is_never_routed_through_xpr_f8_or_num",
+        "kind": "method",
+        "line": 154,
+        "endLine": 167,
+        "exported": true,
+        "doc": "The one named wrong way: xpr.f8 / xpr.num return NULL for exactly the values that are too big, and NULL >= x is never true. The probe must read the raw jsonb and cast through numeric."
+      },
+      {
+        "name": "test_step_11_array_operand_is_not_refused",
+        "kind": "method",
+        "line": 169,
+        "endLine": 178,
+        "exported": true,
+        "doc": "§4.3's second way to get it wrong: an aggregate over an ARRAY operand must NOT be refused — the operand is an array, not a number, and the probe never looks inside containers. Step 11's `max($.m)` ([\"１２３\", 1] — the shown Unicode-digit disagreement, AC-22 as amended 2026-08-23) and the former vehicle `max($.l)` ([1e300, 1] — both panes now agree on it) both have to run."
+      },
+      {
+        "name": "TestAC18",
+        "kind": "class",
+        "line": 184,
+        "endLine": 225,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_step_12_container_operand_refuses_and_names_the_row",
+        "kind": "method",
+        "line": 185,
+        "endLine": 194,
+        "exported": true,
+        "doc": "edge-02's `where` is {\"code\": \"alpha\", \"n\": 7}: the filter's == operand resolves to an object on that row, and the refusal says so by name."
+      },
+      {
+        "name": "test_steps_3_and_4_are_NOT_refused",
+        "kind": "method",
+        "line": 196,
+        "endLine": 206,
+        "exported": true,
+        "doc": "The half that proves §4.6's reading A: `$.status` beside == / != over all 8,400 noun:Heartbeat rows resolves to a string every time, so nothing fires. Under reading B (refuse any field reference beside ==) both steps would have been refused here — the single most ordinary thing a dashboard does, on data where nothing goes wrong."
+      },
+      {
+        "name": "test_container_under_a_DIFFERENT_key_does_not_fire",
+        "kind": "method",
+        "line": 208,
+        "endLine": 215,
+        "exported": true,
+        "doc": "The probe reads the operand, not the row: edge-02 and edge-09 carry containers under other keys, but `$.label` is a string on every row, so `$.label == \"x\"` is not refused."
+      },
+      {
+        "name": "test_empty_containers_still_refuse",
+        "kind": "method",
+        "line": 217,
+        "endLine": 225,
+        "exported": true,
+        "doc": "Container-ness is a type, not a truthiness: edge-09's obj = {} and arr = [] are containers, so ==/!= over them refuses — and names edge-09."
+      },
+      {
+        "name": "TestMechanics",
+        "kind": "class",
+        "line": 231,
+        "endLine": 293,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_probe_sql_is_the_plan_shape",
+        "kind": "method",
+        "line": 232,
+        "endLine": 242,
+        "exported": true,
+        "doc": "Plan §4.3's statement, shape for shape: EXISTS over demo.records AS r, the collection as a bind parameter, terms OR-ed."
+      },
+      {
+        "name": "test_member_a_precedes_member_b",
+        "kind": "method",
+        "line": 244,
+        "endLine": 248,
+        "exported": true,
+        "doc": "When a pick carries both kinds of operand, the (a) probe is built and answered first — the refusal precedence check() relies on."
+      },
+      {
+        "name": "test_b11_namespacing_keeps_three_literals_distinct",
+        "kind": "method",
+        "line": 250,
+        "endLine": 269,
+        "exported": true,
+        "doc": "The probe compiles operand sub-ASTs separately and ORs them into ONE statement — B11's exact hazard. Two different literals must survive the merge under distinct prefixed keys, and every placeholder must carry its own fragment's prefix."
+      },
+      {
+        "name": "test_numeric_roots_are_probed",
+        "kind": "method",
+        "line": 271,
+        "endLine": 277,
+        "exported": true,
+        "doc": "Ops 6/7/8 feed a whole expression to the builder's numeric_read(); handed to the probes as a numeric root, `$.huge` alone refuses."
+      },
+      {
+        "name": "test_no_operands_builds_no_probe_and_touches_no_database",
+        "kind": "method",
+        "line": 279,
+        "endLine": 283,
+        "exported": true,
+        "doc": "A pick with nothing to ask sends nothing: conn=None would explode on any execute, and does not."
+      },
+      {
+        "name": "test_runtime_refusal_is_named_catchable_and_not_layer_1",
+        "kind": "method",
+        "line": 285,
+        "endLine": 293,
+        "exported": true,
+        "doc": "The 'raises a named error' half of the loud-refusal ruling: a catchable exception carrying member, cause, row and probe — and a different shape from layer 1's Refused, because the screen renders the two differently (spec §4.5: layer 1 empties both panes; layer 2 is the labelled fallback)."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 50
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 51
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 53
+      },
+      {
+        "raw": "demo",
+        "resolved": null,
+        "line": 59
+      },
+      {
+        "raw": "demo.gate",
+        "resolved": "demo/gate.py",
+        "line": 60
+      },
+      {
+        "raw": "demo.probes",
+        "resolved": "demo/probes.py",
+        "line": 61
+      },
+      {
+        "raw": "demo.vendor.expr",
+        "resolved": "demo/vendor/expr.py",
+        "line": 67
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 255
+      }
+    ],
+    "parseErrors": 0
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/domain_gate.txt",
+    "repo": "",
+    "bytes": 21165,
+    "loc": 255,
+    "language": "text",
+    "sha256": "45e2cc1caa13cc202def4e933ed3388a23d22c166ec3462715828b87c01ed1c8",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/domain_gate.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 255,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.6395378604100628,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

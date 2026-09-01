@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/results.json",
+    "repo": "",
+    "bytes": 136877,
+    "loc": 4427,
+    "language": "json",
+    "sha256": "002cda09c2238c1f2bf38c85ae7fe113b33322e7efa843278b4407aff945c212",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/results.json",
+    "score": 0.0898779306533466,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 4427,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.9682954558141736,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

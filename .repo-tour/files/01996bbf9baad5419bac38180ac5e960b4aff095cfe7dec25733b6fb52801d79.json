@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/frontend/package-lock.json",
+    "repo": "",
+    "bytes": 16571,
+    "loc": 555,
+    "language": "json",
+    "sha256": "01996bbf9baad5419bac38180ac5e960b4aff095cfe7dec25733b6fb52801d79",
+    "classification": "lockfile",
+    "signals": [
+      "lockfile-name:package-lock.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/frontend/package-lock.json",
+    "score": 0,
+    "classification": "lockfile",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 555,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7289885078568793,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

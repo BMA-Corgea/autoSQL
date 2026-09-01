@@ -1,0 +1,116 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/gen_data.py",
+    "repo": "",
+    "bytes": 2885,
+    "loc": 65,
+    "language": "python",
+    "sha256": "ea0ac66cae8a76321aceda9a0e036a409bb700db0a64ae1e22f8f296e39337eb",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/gen_data.py",
+    "score": 0.20257448307922898,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 65,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.48320236032120883,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/gen_data.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "SEED",
+        "kind": "variable",
+        "line": 14,
+        "endLine": 14,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BASE_DAY",
+        "kind": "variable",
+        "line": 15,
+        "endLine": 15,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CTX_NOW",
+        "kind": "variable",
+        "line": 16,
+        "endLine": 16,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "COLLECTION",
+        "kind": "variable",
+        "line": 17,
+        "endLine": 17,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "make_row",
+        "kind": "function",
+        "line": 24,
+        "endLine": 47,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "write_csv",
+        "kind": "function",
+        "line": 50,
+        "endLine": 59,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "csv",
+        "resolved": null,
+        "line": 12
+      },
+      {
+        "raw": "io",
+        "resolved": null,
+        "line": 12
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 12
+      },
+      {
+        "raw": "random",
+        "resolved": null,
+        "line": 12
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 12
+      },
+      {
+        "raw": "datetime",
+        "resolved": null,
+        "line": 12
+      }
+    ],
+    "parseErrors": 0
+  }
+}

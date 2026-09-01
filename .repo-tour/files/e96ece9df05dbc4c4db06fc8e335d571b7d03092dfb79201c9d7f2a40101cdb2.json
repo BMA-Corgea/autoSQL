@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/.recheck/harness.md",
+    "repo": "",
+    "bytes": 35516,
+    "loc": 714,
+    "language": "markdown",
+    "sha256": "e96ece9df05dbc4c4db06fc8e335d571b7d03092dfb79201c9d7f2a40101cdb2",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/.recheck/harness.md",
+    "score": 0.07725997621473264,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 714,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.757996215170608,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

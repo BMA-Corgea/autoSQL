@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "demo/vendor/NOTICE.md",
+    "repo": "",
+    "bytes": 4572,
+    "loc": 64,
+    "language": "markdown",
+    "sha256": "79bab02ff96e86f0676f26e4c8470384fdfddf32f55a9023190bf743cc7a849b",
+    "classification": "vendored",
+    "signals": [
+      "vendor-path:vendor/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/vendor/NOTICE.md",
+    "score": 0,
+    "classification": "vendored",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 64,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.4814415282183308,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

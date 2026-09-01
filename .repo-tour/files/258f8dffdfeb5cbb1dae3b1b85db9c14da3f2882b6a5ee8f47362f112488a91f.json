@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/spec-assist.md",
+    "repo": "",
+    "bytes": 1937,
+    "loc": 47,
+    "language": "markdown",
+    "sha256": "258f8dffdfeb5cbb1dae3b1b85db9c14da3f2882b6a5ee8f47362f112488a91f",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/spec-assist.md",
+    "score": 0.05856866556585847,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 47,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4464743710227052,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

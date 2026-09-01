@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "ops/checks/neighbour-ports.sh",
+    "repo": "",
+    "bytes": 4304,
+    "loc": 94,
+    "language": "shell",
+    "sha256": "d42a00caa2de592a934e56aa1fb1d347e555478ca33b97fef4d640d1b4187e3f",
+    "classification": "source",
+    "signals": [
+      "language:shell"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "ops/checks/neighbour-ports.sh",
+    "score": 0.27294321998361226,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 94,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.5252089248693782,
+      "multiplier": 1
+    }
+  },
+  "extract": null
+}

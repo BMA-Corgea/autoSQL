@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/metrics.jsonl",
+    "repo": "",
+    "bytes": 3424,
+    "loc": 31,
+    "language": null,
+    "sha256": "a275511a20a32caa22437f89e0bba067666c7773cf40743d5f12c496c8c1a561",
+    "classification": "data",
+    "signals": [
+      "data-ext:.jsonl"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/metrics.jsonl",
+    "score": 0.15388306985988667,
+    "classification": "data",
+    "churn": 16,
+    "inDegree": 0,
+    "loc": 31,
+    "components": {
+      "churn": 0.9622251858852542,
+      "inDegree": 0,
+      "size": 0.39971116275628926,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

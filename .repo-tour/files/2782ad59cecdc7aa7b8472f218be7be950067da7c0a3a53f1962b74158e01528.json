@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/F1b_ecma_rate.txt",
+    "repo": "",
+    "bytes": 3472,
+    "loc": 40,
+    "language": "text",
+    "sha256": "2782ad59cecdc7aa7b8472f218be7be950067da7c0a3a53f1962b74158e01528",
+    "classification": "data",
+    "signals": [
+      "data-ext:.txt"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/F1b_ecma_rate.txt",
+    "score": 0.057477883400014355,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 40,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.42829466825863655,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

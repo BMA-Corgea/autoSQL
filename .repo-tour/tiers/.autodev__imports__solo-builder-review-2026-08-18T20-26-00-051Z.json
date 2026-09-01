@@ -1,0 +1,56 @@
+{
+  "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas"
+  ],
+  "childFiles": [
+    ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/import-record.json"
+  ],
+  "fileCount": 6,
+  "loc": 320,
+  "topFiles": [
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/import-record.json",
+      "score": 0.06455439225506769,
+      "why": "1 commits · 113 loc · data"
+    },
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/spec-assist.md",
+      "score": 0.05856866556585847,
+      "why": "1 commits · 47 loc · data"
+    },
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/scrum-master.md",
+      "score": 0.05796655242778373,
+      "why": "1 commits · 43 loc · data"
+    },
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/clarifier.md",
+      "score": 0.057477883400014355,
+      "why": "1 commits · 40 loc · data"
+    },
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/triage.md",
+      "score": 0.05730701210744965,
+      "why": "1 commits · 39 loc · data"
+    },
+    {
+      "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/monitor.md",
+      "score": 0.05713181450292937,
+      "why": "1 commits · 38 loc · data"
+    }
+  ],
+  "score": 0.06455439225506769,
+  "languages": {
+    "markdown": 5,
+    "json": 1
+  },
+  "classifications": {
+    "data": 6
+  },
+  "publicSymbols": 0,
+  "hash": "c19fc2b5376b474cdfea2d21238b51128e4c2c8c681ac2b787e1fd393bd1562f",
+  "sourcedFrom": "children"
+}

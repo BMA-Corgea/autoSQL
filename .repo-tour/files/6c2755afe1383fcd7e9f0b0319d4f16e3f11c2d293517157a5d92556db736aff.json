@@ -1,0 +1,87 @@
+{
+  "file": {
+    "path": "spikes/T-3/t3_domain_gate.py",
+    "repo": "",
+    "bytes": 5299,
+    "loc": 105,
+    "language": "python",
+    "sha256": "6c2755afe1383fcd7e9f0b0319d4f16e3f11c2d293517157a5d92556db736aff",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/t3_domain_gate.py",
+    "score": 0.21350300732799837,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 105,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5378449815650557,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-3/t3_domain_gate.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "FUZZ",
+        "kind": "variable",
+        "line": 20,
+        "endLine": 20,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "rc",
+        "kind": "function",
+        "line": 29,
+        "endLine": 41,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 44,
+        "endLine": 101,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 16
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 17
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 25
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 26
+      }
+    ],
+    "parseErrors": 0
+  }
+}

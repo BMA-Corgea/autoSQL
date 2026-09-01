@@ -1,0 +1,64 @@
+{
+  "path": "kb/wiki",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "kb/wiki/.gitkeep",
+    "kb/wiki/autosql-architecture.md",
+    "kb/wiki/decision-expr-to-sql.md",
+    "kb/wiki/decision-t3-correctness-run.md",
+    "kb/wiki/expr-ast-to-postgres-sql.md",
+    "kb/wiki/hardening-checklist.md",
+    "kb/wiki/lessons.md"
+  ],
+  "fileCount": 7,
+  "loc": 849,
+  "topFiles": [
+    {
+      "path": "kb/wiki/expr-ast-to-postgres-sql.md",
+      "score": 0.09094638148543498,
+      "why": "2 commits · 351 loc · data"
+    },
+    {
+      "path": "kb/wiki/decision-expr-to-sql.md",
+      "score": 0.08843878385061375,
+      "why": "2 commits · 244 loc · data"
+    },
+    {
+      "path": "kb/wiki/autosql-architecture.md",
+      "score": 0.0846155309744277,
+      "why": "2 commits · 140 loc · data"
+    },
+    {
+      "path": "kb/wiki/decision-t3-correctness-run.md",
+      "score": 0.06343690933938555,
+      "why": "1 commits · 96 loc · data"
+    },
+    {
+      "path": "kb/wiki/hardening-checklist.md",
+      "score": 0.047713944201298715,
+      "why": "1 commits · 9 loc · data"
+    },
+    {
+      "path": "kb/wiki/lessons.md",
+      "score": 0.047713944201298715,
+      "why": "1 commits · 9 loc · data"
+    },
+    {
+      "path": "kb/wiki/.gitkeep",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    }
+  ],
+  "score": 0.09094638148543498,
+  "languages": {
+    "markdown": 6
+  },
+  "classifications": {
+    "data": 7
+  },
+  "publicSymbols": 0,
+  "hash": "c88f373957f708e9f241816ab2c326c83927bbfa0303afa6852ed539ad815586",
+  "sourcedFrom": "children"
+}

@@ -1,0 +1,124 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_130.py",
+    "repo": "",
+    "bytes": 5491,
+    "loc": 111,
+    "language": "python",
+    "sha256": "89b0f7e6868fac5a3dee9d61f6720f180d30b643a7dcce688ee2ad008bea8e5f",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_130.py",
+    "score": 0.27674046505735234,
+    "classification": "source",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 111,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.5441951502380786,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/idxshape_jsonpath_130.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "LIT",
+        "kind": "variable",
+        "line": 30,
+        "endLine": 30,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "is_path",
+        "kind": "function",
+        "line": 31,
+        "endLine": 31,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "classify",
+        "kind": "function",
+        "line": 32,
+        "endLine": 37,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "jp_path",
+        "kind": "function",
+        "line": 40,
+        "endLine": 41,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "jp_lit",
+        "kind": "function",
+        "line": 42,
+        "endLine": 48,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "to_jsonpath",
+        "kind": "function",
+        "line": 49,
+        "endLine": 53,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_spike_dsn",
+        "kind": "function",
+        "line": 56,
+        "endLine": 73,
+        "exported": false,
+        "doc": "Fails closed on purpose. The only default that ever existed pointed at port 55433 - the live glp-strong-db container, which holds real data owned by the same role. Point AUTOSQL_SPIKE_DSN at a THROWAWAY Postgres. See proto/REGENERATE-CORPUS.md."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 21
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 24
+      },
+      {
+        "raw": "psycopg2",
+        "resolved": null,
+        "line": 25
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 60
+      }
+    ],
+    "parseErrors": 0
+  }
+}

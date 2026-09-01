@@ -1,0 +1,70 @@
+{
+  "path": ".autodev/specs",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    ".autodev/specs/T-2-locate.md",
+    ".autodev/specs/T-2-plan.md",
+    ".autodev/specs/T-2-punchlist.md",
+    ".autodev/specs/T-2-queue.md",
+    ".autodev/specs/T-2-review-round-1.md",
+    ".autodev/specs/T-2-review-round-2.md",
+    ".autodev/specs/T-2-review-round-3.md",
+    ".autodev/specs/T-2.md"
+  ],
+  "fileCount": 8,
+  "loc": 5061,
+  "topFiles": [
+    {
+      "path": ".autodev/specs/T-2.md",
+      "score": 0.11814976964747692,
+      "why": "3 commits · 2666 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-plan.md",
+      "score": 0.08232698432100972,
+      "why": "1 commits · 1486 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-locate.md",
+      "score": 0.07417774439225647,
+      "why": "1 commits · 457 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-review-round-1.md",
+      "score": 0.0680527558536603,
+      "why": "1 commits · 188 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-review-round-2.md",
+      "score": 0.06391908991309535,
+      "why": "1 commits · 103 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-punchlist.md",
+      "score": 0.06192834845600484,
+      "why": "1 commits · 77 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-review-round-3.md",
+      "score": 0.0598782080440964,
+      "why": "1 commits · 57 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2-queue.md",
+      "score": 0.05483884441262994,
+      "why": "1 commits · 27 loc · data"
+    }
+  ],
+  "score": 0.11814976964747692,
+  "languages": {
+    "markdown": 8
+  },
+  "classifications": {
+    "data": 8
+  },
+  "publicSymbols": 0,
+  "hash": "8033714be2df4e67fe2b3f76c3104c28502460241b229613b9b3497894847fcb",
+  "sourcedFrom": "children"
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/B2_overflow_after.txt",
+    "repo": "",
+    "bytes": 8017,
+    "loc": 147,
+    "language": "text",
+    "sha256": "9afb1165cf52324dda115d98aea169ff878bd4d9453995544249381b56a6fc1c",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/B2_overflow_after.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 147,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.576339797522558,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/tickets/T-1-compile-the-gims-dashboard-expression-ast-to-pos.json",
+    "repo": "",
+    "bytes": 9764,
+    "loc": 132,
+    "language": "json",
+    "sha256": "87404014a3a146d33f33acfc0cbc6f013cd77669b0bcf3ac184a7602e7e8ddef",
+    "classification": "data",
+    "signals": [
+      "data-ext:.json"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/tickets/T-1-compile-the-gims-dashboard-expression-ast-to-pos.json",
+    "score": 0.09740130835941078,
+    "classification": "data",
+    "churn": 3,
+    "inDegree": 0,
+    "loc": 132,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0,
+      "size": 0.564015029173641,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

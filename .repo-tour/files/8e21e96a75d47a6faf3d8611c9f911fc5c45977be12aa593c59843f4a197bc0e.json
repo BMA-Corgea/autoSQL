@@ -1,0 +1,595 @@
+{
+  "file": {
+    "path": "demo/tests/test_walkthrough.py",
+    "repo": "",
+    "bytes": 74497,
+    "loc": 1532,
+    "language": "python",
+    "sha256": "8e21e96a75d47a6faf3d8611c9f911fc5c45977be12aa593c59843f4a197bc0e",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_walkthrough.py",
+    "score": 0.2075815837087225,
+    "classification": "test",
+    "churn": 4,
+    "inDegree": 0,
+    "loc": 1532,
+    "components": {
+      "churn": 0.5466025697329024,
+      "inDegree": 0,
+      "size": 0.8459600551881946,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_walkthrough.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "FORBIDDEN_MODULES",
+        "kind": "variable",
+        "line": 50,
+        "endLine": 50,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_forbidden_imports",
+        "kind": "function",
+        "line": 53,
+        "endLine": 71,
+        "exported": false,
+        "doc": "Every import in `tree` that reaches one of B8.1's three modules."
+      },
+      {
+        "name": "test_b8_expectations_imports_no_pane",
+        "kind": "function",
+        "line": 78,
+        "endLine": 88,
+        "exported": true,
+        "doc": "expectations.py imports nothing from pyrunner, builder or probes."
+      },
+      {
+        "name": "test_b8_ast_test_would_actually_catch_an_import",
+        "kind": "function",
+        "line": 91,
+        "endLine": 118,
+        "exported": true,
+        "doc": "The detector is exercised on source that DOES import the panes."
+      },
+      {
+        "name": "test_b8_expectations_uses_no_dynamic_import",
+        "kind": "function",
+        "line": 121,
+        "endLine": 140,
+        "exported": true,
+        "doc": "No importlib / __import__ back door around the AST check."
+      },
+      {
+        "name": "answers",
+        "kind": "function",
+        "line": 148,
+        "endLine": 152,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_walk_entries",
+        "kind": "function",
+        "line": 155,
+        "endLine": 164,
+        "exported": false,
+        "doc": "Yield (path, entry) for every {\"value\": ..., \"derivation\": ...} object."
+      },
+      {
+        "name": "test_b8_every_entry_has_a_nonempty_derivation",
+        "kind": "function",
+        "line": 167,
+        "endLine": 188,
+        "exported": true,
+        "doc": "B8.3 — every number says how it was reached."
+      },
+      {
+        "name": "test_every_step_has_a_derivation",
+        "kind": "function",
+        "line": 191,
+        "endLine": 198,
+        "exported": true,
+        "doc": "The step-level derivations, which say what the step is FOR."
+      },
+      {
+        "name": "test_expectations_regenerate_byte_identically",
+        "kind": "function",
+        "line": 201,
+        "endLine": 214,
+        "exported": true,
+        "doc": "The third path is deterministic — it never reads the clock."
+      },
+      {
+        "name": "test_the_numbers_agree_with_each_other",
+        "kind": "function",
+        "line": 217,
+        "endLine": 260,
+        "exported": true,
+        "doc": "Internal cross-checks — the arithmetic has to close."
+      },
+      {
+        "name": "test_step_8_worked_example_demonstrates_all_three_window_widths",
+        "kind": "function",
+        "line": 263,
+        "endLine": 289,
+        "exported": true,
+        "doc": "W6-R1 — the worked sender must actually exercise ÷1, ÷2 and ÷3."
+      },
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 345,
+        "endLine": 345,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EDGECASE",
+        "kind": "variable",
+        "line": 346,
+        "endLine": 346,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "HOSTILE_ALIAS",
+        "kind": "variable",
+        "line": 350,
+        "endLine": 350,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_pick",
+        "kind": "function",
+        "line": 353,
+        "endLine": 357,
+        "exported": false,
+        "doc": "One pick in the API's own shape, from the screen's initial state."
+      },
+      {
+        "name": "STEP_PICKS",
+        "kind": "variable",
+        "line": 366,
+        "endLine": 380,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "STEP_14_RETYPED",
+        "kind": "variable",
+        "line": 384,
+        "endLine": 384,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "client",
+        "kind": "function",
+        "line": 388,
+        "endLine": 391,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "wconn",
+        "kind": "function",
+        "line": 395,
+        "endLine": 400,
+        "exported": true,
+        "doc": "A read-only session for the checks a 50-row page cannot answer."
+      },
+      {
+        "name": "_post",
+        "kind": "function",
+        "line": 403,
+        "endLine": 406,
+        "exported": false,
+        "doc": "One pick through the route the screen posts to. Returns (status, body)."
+      },
+      {
+        "name": "ran",
+        "kind": "function",
+        "line": 410,
+        "endLine": 418,
+        "exported": true,
+        "doc": "Every step driven once, cached — the fourteen steps of §10."
+      },
+      {
+        "name": "_full_panes",
+        "kind": "function",
+        "line": 421,
+        "endLine": 431,
+        "exported": false,
+        "doc": "``run_pick``'s own steps, with the 50-row page removed. See above."
+      },
+      {
+        "name": "_cells",
+        "kind": "function",
+        "line": 434,
+        "endLine": 440,
+        "exported": false,
+        "doc": "A pane's whole result as the screen's display text, row by row."
+      },
+      {
+        "name": "_column",
+        "kind": "function",
+        "line": 443,
+        "endLine": 445,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_keys_on_page",
+        "kind": "function",
+        "line": 448,
+        "endLine": 451,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_value",
+        "kind": "function",
+        "line": 454,
+        "endLine": 455,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "test_the_two_spellings_of_each_pick_describe_the_same_step",
+        "kind": "function",
+        "line": 464,
+        "endLine": 493,
+        "exported": true,
+        "doc": "STEP_PICKS above and expected-answers.json describe one walkthrough."
+      },
+      {
+        "name": "test_step_1_the_two_ports_and_the_seeded_total",
+        "kind": "function",
+        "line": 496,
+        "endLine": 507,
+        "exported": true,
+        "doc": "§10 step 1 — the demo's own ports, and 10,410 rows once seeded."
+      },
+      {
+        "name": "test_step_2_the_whole_collection_in_key_order",
+        "kind": "function",
+        "line": 510,
+        "endLine": 528,
+        "exported": true,
+        "doc": "§10 step 2 — 8,400 rows, first ``hb-01-0000``, last ``hb-50-0167``."
+      },
+      {
+        "name": "test_step_3_the_computed_column_partitions_the_collection",
+        "kind": "function",
+        "line": 531,
+        "endLine": 548,
+        "exported": true,
+        "doc": "§10 step 3 — 7,543 true and 857 false, summing to step 2's total."
+      },
+      {
+        "name": "test_step_4_the_filter_reaches_857_by_a_different_route",
+        "kind": "function",
+        "line": 551,
+        "endLine": 565,
+        "exported": true,
+        "doc": "§10 step 4 — 857 rows, first ``hb-01-0148``, whose status is ``warn``."
+      },
+      {
+        "name": "test_step_5_the_tiebreak_runs_ascending_under_a_descending_sort",
+        "kind": "function",
+        "line": 568,
+        "endLine": 592,
+        "exported": true,
+        "doc": "§10 step 5 — the ten LOWEST keys inside the winning tie (AC-41(d))."
+      },
+      {
+        "name": "test_step_6_the_sum_on_each_pane_separately",
+        "kind": "function",
+        "line": 595,
+        "endLine": 610,
+        "exported": true,
+        "doc": "§10 step 6 — 400,207, asserted per pane against B8's own number."
+      },
+      {
+        "name": "test_step_7_seven_buckets_of_twelve_hundred",
+        "kind": "function",
+        "line": 613,
+        "endLine": 626,
+        "exported": true,
+        "doc": "§10 step 7 — 7 UTC days, 1,200 rows each, labels compared as text."
+      },
+      {
+        "name": "test_step_8_the_rolling_window_and_its_whole_column",
+        "kind": "function",
+        "line": 629,
+        "endLine": 660,
+        "exported": true,
+        "doc": "§10 step 8 — one value per row, and the frame that grows 1, 2, 3."
+      },
+      {
+        "name": "test_step_9_only_the_rows_that_changed",
+        "kind": "function",
+        "line": 663,
+        "endLine": 679,
+        "exported": true,
+        "doc": "§10 step 9 — 861 kept, inside AC-40's band, first five keys named."
+      },
+      {
+        "name": "test_step_9_negative_control_the_ts_included_comparison_keeps_everything",
+        "kind": "function",
+        "line": 682,
+        "endLine": 709,
+        "exported": true,
+        "doc": "§10 step 9's negative control — put ``ts`` back and 8,400 survive."
+      },
+      {
+        "name": "test_step_10_the_static_gate_refuses_round_before_any_sql",
+        "kind": "function",
+        "line": 712,
+        "endLine": 733,
+        "exported": true,
+        "doc": "§10 step 10 — refused by layer 1; no SQL exists, both panes empty."
+      },
+      {
+        "name": "test_ac22_step_11_python_says_123_where_sql_says_1_and_it_is_flagged",
+        "kind": "function",
+        "line": 762,
+        "endLine": 821,
+        "exported": true,
+        "doc": "§10 step 11 — the deliberate divergence, asserted from both sides."
+      },
+      {
+        "name": "test_ac22_the_disagreement_is_not_a_pane_that_failed_to_run",
+        "kind": "function",
+        "line": 824,
+        "endLine": 833,
+        "exported": true,
+        "doc": "Both panes ANSWERED. A disagreement is two answers, not one absence."
+      },
+      {
+        "name": "test_ac22_the_disagreement_is_reproducible",
+        "kind": "function",
+        "line": 836,
+        "endLine": 851,
+        "exported": true,
+        "doc": "Run step 11 five more times: the same disagreement, every time."
+      },
+      {
+        "name": "test_step_12_a_container_operand_is_refused_at_runtime_by_name",
+        "kind": "function",
+        "line": 858,
+        "endLine": 887,
+        "exported": true,
+        "doc": "§10 step 12 — layer 2 member (b), naming ``edge-02``; Python still answers."
+      },
+      {
+        "name": "test_step_13_an_out_of_range_magnitude_is_refused_at_runtime",
+        "kind": "function",
+        "line": 890,
+        "endLine": 918,
+        "exported": true,
+        "doc": "§10 step 13 — layer 2 member (a), naming ``edge-03``."
+      },
+      {
+        "name": "test_step_14_the_hostile_column_name_never_reaches_sql",
+        "kind": "function",
+        "line": 921,
+        "endLine": 962,
+        "exported": true,
+        "doc": "§10 step 14 — AC-38(b): refused before any SQL, zero statements sent."
+      },
+      {
+        "name": "test_step_14_the_retyped_alias_is_accepted_and_emitted_quoted",
+        "kind": "function",
+        "line": 965,
+        "endLine": 981,
+        "exported": true,
+        "doc": "§10 step 14's second half — AC-38(c): ``AS \"alive\"``, keyed the same."
+      },
+      {
+        "name": "NOT_APP_OBSERVABLE",
+        "kind": "variable",
+        "line": 997,
+        "endLine": 1024,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_agrees",
+        "kind": "function",
+        "line": 1027,
+        "endLine": 1045,
+        "exported": false,
+        "doc": "Equal, or the same number written two ways. NOT a tolerance."
+      },
+      {
+        "name": "observed",
+        "kind": "function",
+        "line": 1049,
+        "endLine": 1204,
+        "exported": true,
+        "doc": "What the running demo returns, keyed by expected-answers.json path."
+      },
+      {
+        "name": "test_ac31_the_sweep_covers_every_entry_in_the_file",
+        "kind": "function",
+        "line": 1207,
+        "endLine": 1221,
+        "exported": true,
+        "doc": "No number escapes AC-31 by being in neither list."
+      },
+      {
+        "name": "test_ac31_all_three_producers_agree",
+        "kind": "function",
+        "line": 1224,
+        "endLine": 1250,
+        "exported": true,
+        "doc": "THE three-way comparison. Every mismatch is reported, not just the first."
+      },
+      {
+        "name": "test_step_13_neither_side_can_read_edge_03s_huge_number",
+        "kind": "function",
+        "line": 1253,
+        "endLine": 1376,
+        "exported": true,
+        "doc": "§10 step 13's Python-side claim, checked where it is made."
+      },
+      {
+        "name": "HOSTILE_ZONE",
+        "kind": "variable",
+        "line": 1386,
+        "endLine": 1386,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BUCKET_LABEL",
+        "kind": "variable",
+        "line": 1387,
+        "endLine": 1387,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_step_7_on_both_panes",
+        "kind": "function",
+        "line": 1390,
+        "endLine": 1399,
+        "exported": false,
+        "doc": "Step 7's seven (label, count) pairs, from each pane's full result."
+      },
+      {
+        "name": "test_ac43c_the_bucket_labels_are_fixed_width_utc_strings",
+        "kind": "function",
+        "line": 1402,
+        "endLine": 1412,
+        "exported": true,
+        "doc": "AC-43(c) — the label is text, and both panes key their rows by it."
+      },
+      {
+        "name": "test_ac43b_a_hostile_client_zone_does_not_move_the_day_boundary",
+        "kind": "function",
+        "line": 1415,
+        "endLine": 1474,
+        "exported": true,
+        "doc": "AC-43(b), the client half — ``PGTZ`` and ``TZ`` set to New York."
+      },
+      {
+        "name": "test_ac43b_a_hostile_database_default_does_not_move_it_either",
+        "kind": "function",
+        "line": 1477,
+        "endLine": 1523,
+        "exported": true,
+        "doc": "AC-43(b), the inherited-default half — the container's ``TZ`` analogue."
+      },
+      {
+        "name": "test_ac43_the_pinned_zone_is_on_the_screen",
+        "kind": "function",
+        "line": 1526,
+        "endLine": 1532,
+        "exported": true,
+        "doc": "AC-43(d)'s walkthrough half — the zone the answer depends on is shown."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "ast",
+        "resolved": null,
+        "line": 33
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 34
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 35
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 36
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 38
+      },
+      {
+        "raw": "demo.seed",
+        "resolved": "demo/seed/__init__.py",
+        "line": 208
+      },
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 331
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 332
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 333
+      },
+      {
+        "raw": "decimal",
+        "resolved": null,
+        "line": 334
+      },
+      {
+        "raw": "builder",
+        "resolved": null,
+        "line": 340
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 341
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 342
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 343
+      },
+      {
+        "raw": "fastapi.testclient",
+        "resolved": null,
+        "line": 389
+      },
+      {
+        "raw": "demo.pyrunner.rows",
+        "resolved": "demo/pyrunner/rows.py",
+        "line": 1288
+      },
+      {
+        "raw": "demo.pyrunner.shape",
+        "resolved": "demo/pyrunner/shape.py",
+        "line": 1289
+      }
+    ],
+    "parseErrors": 0
+  }
+}

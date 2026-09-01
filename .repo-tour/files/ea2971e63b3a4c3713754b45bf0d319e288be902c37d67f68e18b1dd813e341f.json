@@ -1,0 +1,61 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/B_overflow.py",
+    "repo": "",
+    "bytes": 3189,
+    "loc": 66,
+    "language": "python",
+    "sha256": "ea2971e63b3a4c3713754b45bf0d319e288be902c37d67f68e18b1dd813e341f",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/B_overflow.py",
+    "score": 0.20292135356303653,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 66,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.48493671274024663,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/B_overflow.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "CASES",
+        "kind": "variable",
+        "line": 21,
+        "endLine": 35,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 15
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 18
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 19
+      }
+    ],
+    "parseErrors": 0
+  }
+}

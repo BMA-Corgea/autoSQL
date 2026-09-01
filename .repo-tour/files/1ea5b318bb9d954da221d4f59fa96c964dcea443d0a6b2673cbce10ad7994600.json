@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/monitor.md",
+    "repo": "",
+    "bytes": 1577,
+    "loc": 38,
+    "language": "markdown",
+    "sha256": "1ea5b318bb9d954da221d4f59fa96c964dcea443d0a6b2673cbce10ad7994600",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": ".autodev/imports/solo-builder-review-2026-08-18T20-26-00-051Z/personas/monitor.md",
+    "score": 0.05713181450292937,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 38,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.42252685330722006,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

@@ -1,0 +1,400 @@
+{
+  "file": {
+    "path": "demo/tests/test_alias.py",
+    "repo": "",
+    "bytes": 21000,
+    "loc": 481,
+    "language": "python",
+    "sha256": "82f689b061da161cfdf9e85fd0028f13de02d1f7af53baee6d02a801d81b6870",
+    "classification": "test",
+    "signals": [
+      "test-path-or-name"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/tests/test_alias.py",
+    "score": 0.1552023447069205,
+    "classification": "test",
+    "churn": 2,
+    "inDegree": 0,
+    "loc": 481,
+    "components": {
+      "churn": 0.3731143000216369,
+      "inDegree": 0,
+      "size": 0.7125162720205218,
+      "multiplier": 0.5
+    }
+  },
+  "extract": {
+    "path": "demo/tests/test_alias.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "DEMO_DIR",
+        "kind": "variable",
+        "line": 24,
+        "endLine": 24,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "HEARTBEAT_KEYS",
+        "kind": "variable",
+        "line": 40,
+        "endLine": 40,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_refusal",
+        "kind": "function",
+        "line": 43,
+        "endLine": 48,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "ACCEPTED",
+        "kind": "variable",
+        "line": 56,
+        "endLine": 56,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_63_char_row_really_is_63_chars",
+        "kind": "function",
+        "line": 59,
+        "endLine": 60,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_accepted",
+        "kind": "function",
+        "line": 64,
+        "endLine": 65,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "HOSTILE",
+        "kind": "variable",
+        "line": 73,
+        "endLine": 89,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_hostile_table_is_exactly_13_names",
+        "kind": "function",
+        "line": 92,
+        "endLine": 98,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_hostile_name_refused_naming_alias_and_rule",
+        "kind": "function",
+        "line": 104,
+        "endLine": 109,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_injection_name_is_refused_at_the_pattern",
+        "kind": "function",
+        "line": 112,
+        "endLine": 120,
+        "exported": true,
+        "doc": "The M13 mutant: re.match instead of re.fullmatch accepts this name, because match anchors only the start."
+      },
+      {
+        "name": "test_in_pick_duplicate_refused",
+        "kind": "function",
+        "line": 127,
+        "endLine": 131,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_table_column_refused",
+        "kind": "function",
+        "line": 139,
+        "endLine": 143,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_builder_emitted_name_refused",
+        "kind": "function",
+        "line": 147,
+        "endLine": 151,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_every_heartbeat_top_level_key_refused",
+        "kind": "function",
+        "line": 155,
+        "endLine": 158,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_collection_keys_only_bind_when_supplied",
+        "kind": "function",
+        "line": 161,
+        "endLine": 164,
+        "exported": true,
+        "doc": "`status` is a fine alias on a collection that has no `status` field -- the vocabulary is per-collection, handed over by the caller."
+      },
+      {
+        "name": "test_pattern_runs_before_the_lists",
+        "kind": "function",
+        "line": 167,
+        "endLine": 171,
+        "exported": true,
+        "doc": "§4.10: a key that could never be an alias is refused by the pattern before any list is consulted -- even if that very string is in the list."
+      },
+      {
+        "name": "test_anchor_and_unicode_hostiles_refused",
+        "kind": "function",
+        "line": 193,
+        "endLine": 195,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_non_string_names_are_refused_not_crashed",
+        "kind": "function",
+        "line": 200,
+        "endLine": 202,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_case_variants_are_not_collisions",
+        "kind": "function",
+        "line": 213,
+        "endLine": 214,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_emit_alias_quotes_after_the_check",
+        "kind": "function",
+        "line": 221,
+        "endLine": 222,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_emit_alias_refuses_before_quoting",
+        "kind": "function",
+        "line": 225,
+        "endLine": 229,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_the_pattern_is_the_pinned_one",
+        "kind": "function",
+        "line": 232,
+        "endLine": 235,
+        "exported": true,
+        "doc": "R10 pins the pattern as a literal, so assert the literal -- here, not read back from the module under test."
+      },
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 273,
+        "endLine": 273,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SAMPLE",
+        "kind": "variable",
+        "line": 274,
+        "endLine": 274,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "EDGECASE",
+        "kind": "variable",
+        "line": 275,
+        "endLine": 275,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SCRATCH",
+        "kind": "variable",
+        "line": 278,
+        "endLine": 278,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SCRATCH_FIELD",
+        "kind": "variable",
+        "line": 279,
+        "endLine": 279,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "COLLISION_PHRASE",
+        "kind": "variable",
+        "line": 283,
+        "endLine": 283,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "aconn",
+        "kind": "function",
+        "line": 287,
+        "endLine": 290,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "aclient",
+        "kind": "function",
+        "line": 294,
+        "endLine": 297,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_alias_pick",
+        "kind": "function",
+        "line": 300,
+        "endLine": 304,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_try_alias",
+        "kind": "function",
+        "line": 307,
+        "endLine": 309,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "test_ac45a_status_is_refused_on_the_heartbeat_naming_the_collision",
+        "kind": "function",
+        "line": 314,
+        "endLine": 324,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "test_ac45a_the_same_name_is_accepted_on_edgecase",
+        "kind": "function",
+        "line": 327,
+        "endLine": 342,
+        "exported": true,
+        "doc": "The half a hard-coded list fails."
+      },
+      {
+        "name": "test_ac45a_the_pair_really_is_about_the_data_and_not_the_collection_name",
+        "kind": "function",
+        "line": 345,
+        "endLine": 353,
+        "exported": true,
+        "doc": "Why the pair proves anything: one collection HAS the key, one has not."
+      },
+      {
+        "name": "test_ac45b_a_key_no_seeded_row_carries_is_refused_on_a_scratch_collection",
+        "kind": "function",
+        "line": 359,
+        "endLine": 401,
+        "exported": true,
+        "doc": "A hard-coded list cannot pass this; only reading the data can."
+      },
+      {
+        "name": "test_ac45c_the_sample_rows_really_do_carry_different_subsets",
+        "kind": "function",
+        "line": 406,
+        "endLine": 461,
+        "exported": true,
+        "doc": "The premise of (c), measured rather than assumed."
+      },
+      {
+        "name": "test_ac45c_every_field_n_is_refused_on_noun_sample",
+        "kind": "function",
+        "line": 465,
+        "endLine": 471,
+        "exported": true,
+        "doc": "All fifteen, one test each, through the screen's own route."
+      },
+      {
+        "name": "test_ac45c_a_name_no_sample_row_carries_is_still_accepted",
+        "kind": "function",
+        "line": 474,
+        "endLine": 481,
+        "exported": true,
+        "doc": "The negative control: (c) is not \"noun:Sample refuses everything\"."
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 19
+      },
+      {
+        "raw": "pathlib",
+        "resolved": null,
+        "line": 20
+      },
+      {
+        "raw": "pytest",
+        "resolved": null,
+        "line": 22
+      },
+      {
+        "raw": "gate",
+        "resolved": null,
+        "line": 28
+      },
+      {
+        "raw": "re",
+        "resolved": null,
+        "line": 115
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 263
+      },
+      {
+        "raw": "legality",
+        "resolved": null,
+        "line": 269
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 270
+      },
+      {
+        "raw": "demo.server",
+        "resolved": "demo/server/__init__.py",
+        "line": 271
+      },
+      {
+        "raw": "fastapi.testclient",
+        "resolved": null,
+        "line": 295
+      }
+    ],
+    "parseErrors": 0
+  }
+}

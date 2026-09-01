@@ -1,0 +1,100 @@
+{
+  "path": ".autodev",
+  "kind": "subsystem",
+  "repo": "",
+  "childTiers": [
+    ".autodev/data",
+    ".autodev/evidence",
+    ".autodev/handoffs",
+    ".autodev/imports",
+    ".autodev/logs",
+    ".autodev/notes",
+    ".autodev/outbox",
+    ".autodev/roster",
+    ".autodev/specs",
+    ".autodev/tickets"
+  ],
+  "childFiles": [
+    ".autodev/access-verified.json",
+    ".autodev/board.html",
+    ".autodev/conformance-history.jsonl",
+    ".autodev/connect.json",
+    ".autodev/envelope.json",
+    ".autodev/events.jsonl",
+    ".autodev/lean-log.jsonl",
+    ".autodev/metrics.jsonl",
+    ".autodev/notify-telegram.json",
+    ".autodev/notify.json",
+    ".autodev/onboarding.json",
+    ".autodev/shop.json",
+    ".autodev/time.json"
+  ],
+  "fileCount": 80,
+  "loc": 11920,
+  "topFiles": [
+    {
+      "path": ".autodev/events.jsonl",
+      "score": 0.1694386777302518,
+      "why": "18 commits · 144 loc · data"
+    },
+    {
+      "path": ".autodev/conformance-history.jsonl",
+      "score": 0.16478385389827802,
+      "why": "18 commits · 73 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json",
+      "score": 0.15572533985636478,
+      "why": "12 commits · 246 loc · data"
+    },
+    {
+      "path": ".autodev/metrics.jsonl",
+      "score": 0.15388306985988667,
+      "why": "16 commits · 31 loc · data"
+    },
+    {
+      "path": ".autodev/board.html",
+      "score": 0.14394102631872305,
+      "why": "512 loc · source"
+    },
+    {
+      "path": ".autodev/tickets/T-3-correctness-run-does-the-restricted-expression-s.json",
+      "score": 0.12205293562566366,
+      "why": "6 commits · 114 loc · data"
+    },
+    {
+      "path": ".autodev/specs/T-2.md",
+      "score": 0.11814976964747692,
+      "why": "3 commits · 2666 loc · data"
+    },
+    {
+      "path": ".autodev/handoffs/T-3.md",
+      "score": 0.11307411848034116,
+      "why": "4 commits · 291 loc · data"
+    },
+    {
+      "path": ".autodev/tickets/T-1-compile-the-gims-dashboard-expression-ast-to-pos.json",
+      "score": 0.09740130835941078,
+      "why": "3 commits · 132 loc · data"
+    },
+    {
+      "path": ".autodev/notes/upstream-bugs.md",
+      "score": 0.09469419988092131,
+      "why": "2 commits · 604 loc · data"
+    }
+  ],
+  "score": 0.1694386777302518,
+  "languages": {
+    "json": 18,
+    "markdown": 34,
+    "text": 1,
+    "html": 1
+  },
+  "classifications": {
+    "data": 79,
+    "source": 1
+  },
+  "publicSymbols": 0,
+  "hash": "53a1150a941ba546718e0ba284363a053fa00cac9475f5c9396a424d534e32c4",
+  "sourcedFrom": "children"
+}

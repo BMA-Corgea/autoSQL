@@ -1,0 +1,87 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/I_case_collate.py",
+    "repo": "",
+    "bytes": 3748,
+    "loc": 88,
+    "language": "python",
+    "sha256": "26606bca12866ec28bc4dab56794c5283eece5d7f5c3c074ce13caa6b535fdf2",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/I_case_collate.py",
+    "score": 0.20947092859064137,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 88,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5176845878782707,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/I_case_collate.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "BATCH",
+        "kind": "variable",
+        "line": 20,
+        "endLine": 20,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "sweep",
+        "kind": "function",
+        "line": 23,
+        "endLine": 40,
+        "exported": true,
+        "doc": "Compare Postgres <fn_name>() with Python's for every assigned code point."
+      },
+      {
+        "name": "summarize",
+        "kind": "function",
+        "line": 43,
+        "endLine": 55,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 14
+      },
+      {
+        "raw": "unicodedata",
+        "resolved": null,
+        "line": 15
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 18
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 64
+      },
+      {
+        "raw": "random",
+        "resolved": null,
+        "line": 74
+      }
+    ],
+    "parseErrors": 0
+  }
+}

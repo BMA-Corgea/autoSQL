@@ -1,0 +1,255 @@
+{
+  "file": {
+    "path": "spikes/T-1/proto/closure_subset_coverage.py",
+    "repo": "",
+    "bytes": 24856,
+    "loc": 485,
+    "language": "python",
+    "sha256": "31706ab475559aa1c0db25914910886fd445890c6fcd61bc76fc45b7d81b6d50",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/proto/closure_subset_coverage.py",
+    "score": 0.24862789834291266,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 485,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7134694366396271,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/proto/closure_subset_coverage.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "GIMS",
+        "kind": "variable",
+        "line": 43,
+        "endLine": 43,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "FIXTURE",
+        "kind": "variable",
+        "line": 44,
+        "endLine": 44,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PARSER",
+        "kind": "variable",
+        "line": 45,
+        "endLine": 45,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "OUT",
+        "kind": "variable",
+        "line": 46,
+        "endLine": 47,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "ALL_FUNCTIONS",
+        "kind": "variable",
+        "line": 85,
+        "endLine": 85,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PANEL_FUNCTIONS",
+        "kind": "variable",
+        "line": 86,
+        "endLine": 87,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CLOSURE_REMOVES_FUNCTIONS",
+        "kind": "variable",
+        "line": 88,
+        "endLine": 88,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CLOSURE_REMOVES_OPERATORS",
+        "kind": "variable",
+        "line": 89,
+        "endLine": 89,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "CORRECTED_FUNCTIONS",
+        "kind": "variable",
+        "line": 90,
+        "endLine": 90,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "INDEX_LIMIT",
+        "kind": "variable",
+        "line": 91,
+        "endLine": 91,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_NODE_TYPES",
+        "kind": "variable",
+        "line": 96,
+        "endLine": 96,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_ARITH_TOTAL",
+        "kind": "variable",
+        "line": 97,
+        "endLine": 97,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_COMPARISONS",
+        "kind": "variable",
+        "line": 98,
+        "endLine": 98,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_PATH_FORMS",
+        "kind": "variable",
+        "line": 99,
+        "endLine": 99,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_ARITH_CORRECTED",
+        "kind": "variable",
+        "line": 100,
+        "endLine": 100,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "N_CONSTRUCTS_TOTAL",
+        "kind": "variable",
+        "line": 101,
+        "endLine": 102,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PASSTHROUGH_FUNCTIONS",
+        "kind": "variable",
+        "line": 111,
+        "endLine": 111,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "walk",
+        "kind": "function",
+        "line": 117,
+        "endLine": 159,
+        "exported": true,
+        "doc": "Collect every construct used, at the granularity of `f2` section 2.1's census (operators counted through the `cmp`/`bin` tags, not as tags)."
+      },
+      {
+        "name": "new_acc",
+        "kind": "function",
+        "line": 162,
+        "endLine": 164,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "could_be_container",
+        "kind": "function",
+        "line": 167,
+        "endLine": 176,
+        "exported": true,
+        "doc": "Static over-approximation (reading B): can this operand evaluate to a list/dict?"
+      },
+      {
+        "name": "_kind",
+        "kind": "function",
+        "line": 185,
+        "endLine": 198,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "eq_scan",
+        "kind": "function",
+        "line": 201,
+        "endLine": 232,
+        "exported": true,
+        "doc": "Evaluate every case through the real evaluator with `_eq` wrapped, and record the operand kinds every `==`/`!=` actually saw. Restores `_eq` unconditionally."
+      },
+      {
+        "name": "sha256",
+        "kind": "function",
+        "line": 235,
+        "endLine": 237,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "line": 241,
+        "endLine": 481,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "hashlib",
+        "resolved": null,
+        "line": 38
+      },
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 39
+      },
+      {
+        "raw": "os",
+        "resolved": null,
+        "line": 40
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 41
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 51
+      }
+    ],
+    "parseErrors": 0
+  }
+}

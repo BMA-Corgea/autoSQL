@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/coverage.md",
+    "repo": "",
+    "bytes": 45381,
+    "loc": 769,
+    "language": "markdown",
+    "sha256": "8fcdcb76f6ddfe070fcf9838ccb23d1eb7b21c328dac0015e8cf56e254f51d5a",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/coverage.md",
+    "score": 0.07777279862041818,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 769,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.7665432552653669,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

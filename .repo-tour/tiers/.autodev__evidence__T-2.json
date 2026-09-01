@@ -1,0 +1,92 @@
+{
+  "path": ".autodev/evidence/T-2",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [
+    ".autodev/evidence/T-2/tests"
+  ],
+  "childFiles": [
+    ".autodev/evidence/T-2/01-agree.jpg",
+    ".autodev/evidence/T-2/01-agree.png",
+    ".autodev/evidence/T-2/02-buckets.jpg",
+    ".autodev/evidence/T-2/02-buckets.png",
+    ".autodev/evidence/T-2/03-changed.jpg",
+    ".autodev/evidence/T-2/03-changed.png",
+    ".autodev/evidence/T-2/04-disagree.jpg",
+    ".autodev/evidence/T-2/04-disagree.png",
+    ".autodev/evidence/T-2/05-gate.jpg",
+    ".autodev/evidence/T-2/05-gate.png",
+    ".autodev/evidence/T-2/06-alias.jpg",
+    ".autodev/evidence/T-2/06-alias.png",
+    ".autodev/evidence/T-2/07-probe.jpg",
+    ".autodev/evidence/T-2/07-probe.png",
+    ".autodev/evidence/T-2/08-disagree-1920.jpg",
+    ".autodev/evidence/T-2/08-disagree-1920.png",
+    ".autodev/evidence/T-2/live-feedback.md"
+  ],
+  "fileCount": 20,
+  "loc": 877,
+  "topFiles": [
+    {
+      "path": ".autodev/evidence/T-2/tests/VERIFY.md",
+      "score": 0.07410178385183175,
+      "why": "1 commits · 452 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/tests/ac19-expr-vectors.md",
+      "score": 0.06790473019342579,
+      "why": "1 commits · 184 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/tests/run-demo-test.txt",
+      "score": 0.06617099201491891,
+      "why": "1 commits · 143 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/live-feedback.md",
+      "score": 0.06357813741975366,
+      "why": "1 commits · 98 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/01-agree.jpg",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/01-agree.png",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/02-buckets.jpg",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/02-buckets.png",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/03-changed.jpg",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    },
+    {
+      "path": ".autodev/evidence/T-2/03-changed.png",
+      "score": 0.031780203304496164,
+      "why": "1 commits · 0 loc · data"
+    }
+  ],
+  "score": 0.07410178385183175,
+  "languages": {
+    "markdown": 3,
+    "text": 1
+  },
+  "classifications": {
+    "data": 20
+  },
+  "publicSymbols": 0,
+  "hash": "a81f63777a09060897134960b925009aa62a8933fc060223bc5745cbe4a00a47",
+  "sourcedFrom": "children"
+}

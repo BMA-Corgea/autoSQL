@@ -1,0 +1,28 @@
+{
+  "path": "autodev/agents",
+  "kind": "directory",
+  "repo": "",
+  "childTiers": [],
+  "childFiles": [
+    "autodev/agents/auto-review.md"
+  ],
+  "fileCount": 1,
+  "loc": 68,
+  "topFiles": [
+    {
+      "path": "autodev/agents/auto-review.md",
+      "score": 0.061079948264624546,
+      "why": "1 commits · 68 loc · data"
+    }
+  ],
+  "score": 0.061079948264624546,
+  "languages": {
+    "markdown": 1
+  },
+  "classifications": {
+    "data": 1
+  },
+  "publicSymbols": 0,
+  "hash": "342cae2d1b11821c857083b60a0b607eac6d92e167359209f27c44591e2f4019",
+  "sourcedFrom": "children"
+}

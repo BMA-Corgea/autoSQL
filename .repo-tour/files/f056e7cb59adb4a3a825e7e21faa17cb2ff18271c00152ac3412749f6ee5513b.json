@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "spikes/T-3/out/negctl_postfix.txt",
+    "repo": "",
+    "bytes": 4878,
+    "loc": 57,
+    "language": "text",
+    "sha256": "f056e7cb59adb4a3a825e7e21faa17cb2ff18271c00152ac3412749f6ee5513b",
+    "classification": "generated",
+    "signals": [
+      "generated-path:out/"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-3/out/negctl_postfix.txt",
+    "score": 0,
+    "classification": "generated",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 57,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.4683000789933372,
+      "multiplier": 0
+    }
+  },
+  "extract": null
+}

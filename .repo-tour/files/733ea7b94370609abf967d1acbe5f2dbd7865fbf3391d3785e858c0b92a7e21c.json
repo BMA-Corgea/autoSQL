@@ -1,0 +1,79 @@
+{
+  "file": {
+    "path": "spikes/T-1/analysis/fuzz/O_row_loss.py",
+    "repo": "",
+    "bytes": 3089,
+    "loc": 78,
+    "language": "python",
+    "sha256": "733ea7b94370609abf967d1acbe5f2dbd7865fbf3391d3785e858c0b92a7e21c",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "spikes/T-1/analysis/fuzz/O_row_loss.py",
+    "score": 0.20672167231957045,
+    "classification": "source",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 78,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.5039383065229162,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "spikes/T-1/analysis/fuzz/O_row_loss.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "ROWS",
+        "kind": "variable",
+        "line": 19,
+        "endLine": 28,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "PREDICATES",
+        "kind": "variable",
+        "line": 30,
+        "endLine": 35,
+        "exported": true,
+        "doc": null
+      }
+    ],
+    "imports": [
+      {
+        "raw": "json",
+        "resolved": null,
+        "line": 9
+      },
+      {
+        "raw": "sys",
+        "resolved": null,
+        "line": 10
+      },
+      {
+        "raw": "differ",
+        "resolved": null,
+        "line": 13
+      },
+      {
+        "raw": "compile",
+        "resolved": null,
+        "line": 16
+      },
+      {
+        "raw": "core.dashboard",
+        "resolved": null,
+        "line": 17
+      }
+    ],
+    "parseErrors": 0
+  }
+}

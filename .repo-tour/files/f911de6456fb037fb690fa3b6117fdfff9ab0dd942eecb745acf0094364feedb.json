@@ -1,0 +1,30 @@
+{
+  "file": {
+    "path": "kb/CODE-MAP.md",
+    "repo": "",
+    "bytes": 432,
+    "loc": 9,
+    "language": "markdown",
+    "sha256": "f911de6456fb037fb690fa3b6117fdfff9ab0dd942eecb745acf0094364feedb",
+    "classification": "data",
+    "signals": [
+      "data-ext:.md"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "kb/CODE-MAP.md",
+    "score": 0.047713944201298715,
+    "classification": "data",
+    "churn": 1,
+    "inDegree": 0,
+    "loc": 9,
+    "components": {
+      "churn": 0.23540891336663824,
+      "inDegree": 0,
+      "size": 0.2655623482800425,
+      "multiplier": 0.3
+    }
+  },
+  "extract": null
+}

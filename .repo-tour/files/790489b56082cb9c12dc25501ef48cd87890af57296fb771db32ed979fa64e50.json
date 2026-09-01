@@ -1,0 +1,213 @@
+{
+  "file": {
+    "path": "demo/legality.py",
+    "repo": "",
+    "bytes": 22167,
+    "loc": 520,
+    "language": "python",
+    "sha256": "790489b56082cb9c12dc25501ef48cd87890af57296fb771db32ed979fa64e50",
+    "classification": "source",
+    "signals": [
+      "language:python"
+    ],
+    "binary": false
+  },
+  "rank": {
+    "path": "demo/legality.py",
+    "score": 0.4665786900440247,
+    "classification": "source",
+    "churn": 3,
+    "inDegree": 1,
+    "loc": 520,
+    "components": {
+      "churn": 0.4708178267332765,
+      "inDegree": 0.3154648767857287,
+      "size": 0.7214898056952259,
+      "multiplier": 1
+    }
+  },
+  "extract": {
+    "path": "demo/legality.py",
+    "language": "python",
+    "symbols": [
+      {
+        "name": "HEARTBEAT",
+        "kind": "variable",
+        "line": 53,
+        "endLine": 53,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SOURCES",
+        "kind": "variable",
+        "line": 66,
+        "endLine": 73,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "AGG_FNS",
+        "kind": "variable",
+        "line": 76,
+        "endLine": 76,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "AGG_FNS_WITH_FIELD",
+        "kind": "variable",
+        "line": 80,
+        "endLine": 80,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "BUCKETS",
+        "kind": "variable",
+        "line": 83,
+        "endLine": 83,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "SORT_DIRS",
+        "kind": "variable",
+        "line": 86,
+        "endLine": 86,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "_why_x1",
+        "kind": "function",
+        "line": 99,
+        "endLine": 112,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "WHY_COUNT_TAKES_NO_FIELD",
+        "kind": "variable",
+        "line": 149,
+        "endLine": 149,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "WHY_NO_FN_NO_FIELD",
+        "kind": "variable",
+        "line": 150,
+        "endLine": 150,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "WHY_BUCKET_NEEDS_AGG",
+        "kind": "variable",
+        "line": 153,
+        "endLine": 153,
+        "exported": true,
+        "doc": null
+      },
+      {
+        "name": "default_pick",
+        "kind": "function",
+        "line": 172,
+        "endLine": 184,
+        "exported": true,
+        "doc": "The screen's initial state: the heartbeat, nothing set."
+      },
+      {
+        "name": "shape_of",
+        "kind": "function",
+        "line": 187,
+        "endLine": 193,
+        "exported": true,
+        "doc": "B5a: the pick's one shape. Op 7 decides first, then op 6."
+      },
+      {
+        "name": "_bucket",
+        "kind": "function",
+        "line": 205,
+        "endLine": 206,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_agg",
+        "kind": "function",
+        "line": 209,
+        "endLine": 211,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_agg_fn",
+        "kind": "function",
+        "line": 214,
+        "endLine": 215,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_agg_field",
+        "kind": "function",
+        "line": 218,
+        "endLine": 219,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_sort",
+        "kind": "function",
+        "line": 222,
+        "endLine": 224,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_window",
+        "kind": "function",
+        "line": 227,
+        "endLine": 229,
+        "exported": false,
+        "doc": null
+      },
+      {
+        "name": "_carries_value",
+        "kind": "function",
+        "line": 232,
+        "endLine": 248,
+        "exported": false,
+        "doc": "Does operation *n* carry a value in this pick? Mirrors the mock's ``isOn`` — derived from the controls, not stored beside them."
+      },
+      {
+        "name": "_slot_kind",
+        "kind": "function",
+        "line": 253,
+        "endLine": 268,
+        "exported": false,
+        "doc": "The JSON name for what the slot actually held, for a refusal that names what it found rather than what it is not."
+      },
+      {
+        "name": "shape_violations",
+        "kind": "function",
+        "line": 271,
+        "endLine": 390,
+        "exported": true,
+        "doc": "Every slot of this pick whose JSON TYPE is not the pinned shape's."
+      },
+      {
+        "name": "evaluate",
+        "kind": "function",
+        "line": 395,
+        "endLine": 520,
+        "exported": true,
+        "doc": "The legality of one pick — B5a's whole matrix, in one place."
+      }
+    ],
+    "imports": [],
+    "parseErrors": 0
+  }
+}
