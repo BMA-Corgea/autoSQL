@@ -2,30 +2,39 @@
 
 ---
 
-> # START HERE — 2026-08-23
+> # START HERE — 2026-09-01
 >
-> **Everything is committed and pushed. The tree is clean at `28a9c9a`. Nothing is running.**
+> **Two things are waiting on Evan, and nothing else is running.** Work sits on branch
+> `spike/T-5-nonascii-digit-homework` (3 commits, not yet merged to `main`); `main` is clean at
+> `f8cac7c`.
 >
-> **One thing is blocking, and it is Evan's call.** His own q4 answer — adopt T-3's corrected
-> runtime — was applied, and **it deletes the demo's centrepiece disagreement.** Verified live:
-> `xpr.f8(1e300)` now returns `1e+300` where the old 297-digit guard returned `NULL`, so the
-> `edge-01` pick that answered SQL **1** vs Python **1e+300** now **agrees**, `differing_rows` 0.
-> The showcase divergence was itself an artifact of the bug T-3 found and fixed. Suite is
-> **1144 passed / 2 failed**, and both failures are exactly that.
+> **1 — T-5 is at `sp-decide`, his gate, uncleared.** The homework T-3 ordered is DONE: framed,
+> investigated and synthesised in one session, all read-only. Read
+> `kb/wiki/nonascii-digits-in-real-data.md` — four options, an honest case for each, and a
+> recommendation (**take A**: proceed exactly as T-3 was ruled). The findings in one line:
+> **stored data is clean — 0 of 144 coercible strings, four independent instruments agreeing —
+> but the earlier "0 of 1,096,202" headline was the wrong denominator by ~7,600×, and GIMS's own
+> CSV import path admits 8 of 10 non-ASCII digit forms into number-declared fields because the
+> check meant to enforce "this is a number" is bare `float()`.** It has not happened; nothing
+> stops it happening. Full detail: `spikes/T-5/FINDINGS.md`, three re-runnable probes in
+> `spikes/T-5/probes/`.
 >
-> **Read `.autodev/handoffs/T-2.md` — 73 lines, it has everything**, including his three options
-> and the exact ordered next steps. The question is in the form:
-> `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
+> **2 — T-2 is still BLOCKED at build**, unchanged since 2026-08-23. Adopting T-3's corrected
+> runtime deleted the demo's centrepiece disagreement (`differing_rows` 0 where the showcase
+> expected a divergence); the gap was itself an artifact of the bug T-3 fixed. Suite **1144
+> passed / 2 failed**, both that. Read `.autodev/handoffs/T-2.md` (73 lines) for his three
+> options. Form: `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
 >
-> **T-5 is the thing that can start with no input from him at all** — a read-only sweep asking
-> whether non-ASCII digit strings actually occur in his data. It touches nothing, and it answers
-> the single biggest open question on the whole project: T-3 proved the failure *can* happen and
-> never measured whether it *will*.
+> **Two rulings Evan gave on 2026-09-01, recorded because they re-point work:** `glp_strong` is
+> **out of scope** — the wrong corpus, and autoSQL must stand as its own project, so the
+> fail-closed fence on port 55433 stays shut. And GIMS ingests **CSV/XLSX digested by a Python
+> process** — so the row *format* is trustworthy (T-3's M4 class prices low) while the row
+> *content* is arbitrary, which is what re-pointed T-5 from counting rows to auditing the door.
 >
-> **Also done and needing nothing:** T-3 is COMPLETE (his ruling is an ADR at
-> `kb/wiki/decision-t3-correctness-run.md`, and it spawned T-5 and T-6). AC-35 is re-scoped and its
-> two failures are gone. The accept gate is back to `human`. Still NOT started: his q8 layout fix,
-> which GA-8 requires before acceptance.
+> **Also done and needing nothing:** T-3 is COMPLETE (ADR at
+> `kb/wiki/decision-t3-correctness-run.md`; it spawned T-5 and T-6). AC-35 is re-scoped and its
+> two failures are gone. The accept gate is back to `human`. Still NOT started: his q8 layout
+> fix, which GA-8 requires before acceptance; and **T-6**, which T-5's ruling releases or redirects.
 
 ---
 
@@ -143,7 +152,7 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-5** (spike) — Homework: do non-ASCII digit strings actually occur in the real data? — sp-frame
+- **T-5** (spike) — Homework: do non-ASCII digit strings actually occur in the real data? — sp-decide
 - **T-6** (spike) — Correctness re-run: does the subset pass once the two mechanisms are fixed? — sp-frame
 
 ## Waiting on
