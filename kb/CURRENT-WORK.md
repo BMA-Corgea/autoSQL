@@ -2,39 +2,39 @@
 
 ---
 
-> # START HERE — 2026-09-01
+> # START HERE — 2026-09-01 (second update: Evan ruled, T-5 is COMPLETE)
 >
-> **Two things are waiting on Evan, and nothing else is running.** Work sits on branch
-> `spike/T-5-nonascii-digit-homework` (3 commits, not yet merged to `main`); `main` is clean at
-> `f8cac7c`.
+> **T-5 is done and merged. Evan answered all six form questions (GA-9) and took every
+> recommendation.** The ruling is an ADR at `kb/wiki/decision-t5-homework.md`.
 >
-> **1 — T-5 is at `sp-decide`, his gate, uncleared.** The homework T-3 ordered is DONE: framed,
-> investigated and synthesised in one session, all read-only. Read
-> `kb/wiki/nonascii-digits-in-real-data.md` — four options, an honest case for each, and a
-> recommendation (**take A**: proceed exactly as T-3 was ruled). The findings in one line:
-> **stored data is clean — 0 of 144 coercible strings, four independent instruments agreeing —
-> but the earlier "0 of 1,096,202" headline was the wrong denominator by ~7,600×, and GIMS's own
-> CSV import path admits 8 of 10 non-ASCII digit forms into number-declared fields because the
-> check meant to enforce "this is a number" is bare `float()`.** It has not happened; nothing
-> stops it happening. Full detail: `spikes/T-5/FINDINGS.md`, three re-runnable probes in
-> `spikes/T-5/probes/`.
+> **What T-5 found:** stored data is clean — **0 of 144** coercible strings, four independent
+> instruments agreeing over 38,457 rows — so the trigger that would have overturned T-3 **did not
+> fire**. But the old headline "0 of 1,096,202" overstated the guarantee by ~7,600×, and **GIMS's
+> own CSV import admits 8 of 10 non-ASCII digit forms** into number-declared fields, because the
+> check meant to enforce *"this field is a number"* is bare `float()`
+> (`GIMS-Project/core/words/validation.py:88-97`). It has not happened; nothing stops it happening.
 >
-> **2 — T-2 is still BLOCKED at build**, unchanged since 2026-08-23. Adopting T-3's corrected
-> runtime deleted the demo's centrepiece disagreement (`differing_rows` 0 where the showcase
-> expected a divergence); the gap was itself an artifact of the bug T-3 fixed. Suite **1144
-> passed / 2 failed**, both that. Read `.autodev/handoffs/T-2.md` (73 lines) for his three
-> options. Form: `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
+> **What is now unblocked and ready to work:**
 >
-> **Two rulings Evan gave on 2026-09-01, recorded because they re-point work:** `glp_strong` is
-> **out of scope** — the wrong corpus, and autoSQL must stand as its own project, so the
-> fail-closed fence on port 55433 stays shut. And GIMS ingests **CSV/XLSX digested by a Python
-> process** — so the row *format* is trustworthy (T-3's M4 class prices low) while the row
-> *content* is arbitrary, which is what re-pointed T-5 from counting rows to auditing the door.
+> - **T-6 (spike, `sp-frame`) — RELEASED, and it is the next thing.** Fix-and-re-run. **Q2 added
+>   scope that is NOT in the ticket file:** the compiled runtime must **record every refusal**, so a
+>   first real occurrence is seen rather than inferred. `respec` correctly refuses to rewrite a
+>   spike's charter, so **T-6's `sp-frame` must read the ADR's "Consequences applied" section** and
+>   carry that scope itself. Q3 parked the GIMS-side fix — **do not change GIMS in T-6.**
+> - **T-2 (feature, `build`) — its blocker is SETTLED** (Q4): seed a new disagreement using T-5's
+>   witness, a non-ASCII digit row. Strictly better than the original, which displayed a defect T-3
+>   has since fixed. **Two things still stand between T-2 and acceptance:** AC-22's amendment note
+>   is unfinished, and the **q8 layout fix has not started** — GA-8 requires it before the accept
+>   gate clears.
+> - **T-7 (spike, `sp-frame`) — opened, deliberately not to be worked yet** (Q6: *"log it as a
+>   ticket, do not chase now"*). `Glove.size` is declared `float` and holds `'lmao im a changling'`,
+>   so some write path skips the schema check.
+> - **T-4 (spike, `sp-frame`) — held until T-6 reports** (Q5). His own ordering: correctness before
+>   speed.
 >
-> **Also done and needing nothing:** T-3 is COMPLETE (ADR at
-> `kb/wiki/decision-t3-correctness-run.md`; it spawned T-5 and T-6). AC-35 is re-scoped and its
-> two failures are gone. The accept gate is back to `human`. Still NOT started: his q8 layout
-> fix, which GA-8 requires before acceptance; and **T-6**, which T-5's ruling releases or redirects.
+> **Standing constraints, re-affirmed 2026-09-01:** never connect to port **55433** — and `glp_strong`
+> is now out of scope on **relevance** too, not just safety (*"autoSQL should be its own project"*).
+> The GIMS checkouts stay read-only. The `design` gate on T-2 stays `human:strict`.
 
 ---
 
@@ -152,8 +152,8 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-5** (spike) — Homework: do non-ASCII digit strings actually occur in the real data? — sp-decide
 - **T-6** (spike) — Correctness re-run: does the subset pass once the two mechanisms are fixed? — sp-frame
+- **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
 
 ## Waiting on
 
@@ -202,6 +202,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-5 COMPLETE** — Homework: do non-ASCII digit strings actually occur in the real data?
 - 2026-08-23 **T-3 COMPLETE** — Correctness run: does the restricted expression subset ever return a wrong numb…
 - **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
   block was recorded in its place rather than inventing a gate or building past him.
