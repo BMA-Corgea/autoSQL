@@ -63,3 +63,5 @@
 {"ts":"2026-09-01T22:21:24.824Z","kind":"stage.advanced","ticket":"T-9","from":"queue","to":"locate"}
 {"ts":"2026-09-01T22:21:24.866Z","kind":"stage.advanced","ticket":"T-9","from":"locate","to":"plan"}
 {"ts":"2026-09-01T22:21:24.908Z","kind":"stage.advanced","ticket":"T-9","from":"plan","to":"build"}
+{"ts":"2026-09-01T22:23:59.654Z","kind":"stage.advanced","ticket":"T-9","from":"build","to":"auto-review"}
+{"ts":"2026-09-01T22:23:59.699Z","kind":"stage.advanced","ticket":"T-9","from":"auto-review","to":"gate"}
