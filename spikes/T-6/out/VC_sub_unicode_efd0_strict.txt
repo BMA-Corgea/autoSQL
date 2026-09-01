@@ -1,0 +1,35 @@
+=== H. broad AST fuzz -- profile=sub_unicode  N=4000  seed=2026 ===
+    SUBSET battery: every counted expression mechanically verified inside
+    the corrected 32-construct subset (closure_subset_coverage walker);
+    ==/!= draws whose operands reached _eq as containers: DISCARDED, counted.
+
+    AGREE                      3799   94.975%
+    PARSE_ERROR                 133    3.325%
+    DISCARDED_container_eq       68    1.700%
+    ran =                      3799   (agree+diverge+refusal+raise+nullness; refusals stay IN)
+
+    divergence classes (auto-clustered):
+
+    ALL wrong-answer cases (classes 1-4), in full -- 0 found:
+
+    domain-gate witnesses (framing 5.3 half two; py-mode rows):
+      UNTESTED  old guard boundary, below (1.79769313486231551e296) (not reached by this battery)
+      UNTESTED  old guard boundary, above (1.79769313486231587e296) (not reached by this battery)
+      UNTESTED  real limit DBL_MAX (1.7976931348623157e308)    (not reached by this battery)
+      UNTESTED  real limit, just below (1.7976931348623155e308) (not reached by this battery)
+      UNTESTED  1e200 (infinity composable: 1e200*1e200)       (not reached by this battery)
+      UNTESTED  subnormal 5e-324                               (not reached by this battery)
+      UNTESTED  subnormal 1e-320                               (not reached by this battery)
+      UNTESTED  2**53                                          (not reached by this battery)
+      UNTESTED  2**53 + 2                                      (not reached by this battery)
+      UNTESTED  0.0                                            (not reached by this battery)
+      UNTESTED  -0.0                                           (not reached by this battery)
+      REACHED   coercing string ' 7 '                          e.g. 0
+      REACHED   coercing string '1e3'                          e.g. $.o
+      REACHED   coercing string '１２３' (full-width)             e.g. $.o
+
+    fingerprints (inadmissibility item 5):
+      expr.py     sha256=90cbb56d04b08b82
+      compile.py  sha256=b71b153802d0df94
+      runtime.sql sha256=1c58d548a6045aa6
+      efd requested=0 read-back=0  seed=2026  N=4000  wall=3.0s

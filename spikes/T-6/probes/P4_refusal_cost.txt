@@ -1,0 +1,17 @@
+P4 - the price of the loud refusal, at the pinned setting (efd=1)
+============================================================================================
+battery        T-3 diverge   refusals   bugs fixed answers lost        ran
+--------------------------------------------------------------------------------------------
+sub_ordinary            2         14            2           12       3801
+sub_unicode            17         49           17           32       3799
+sub_extreme            36         23            7           16       3767
+--------------------------------------------------------------------------------------------
+TOTAL                             86           26           60
+
+Of 86 coercion refusals at the pinned setting, 26 (30%) replaced a SILENT WRONG
+NUMBER -- a straight win -- and 60 (70%) replaced an answer that was already
+CORRECT, because the bad NULL was absorbed downstream and never reached the result.
+
+This is inherent to the design, not a defect in it: xpr.num refuses where the
+coercion happens, and at that point nothing knows whether the value will matter.
+Refusing only values that change the answer is not expressible in the compiled SQL.

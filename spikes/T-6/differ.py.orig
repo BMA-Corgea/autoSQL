@@ -72,22 +72,12 @@ _EPS = 1e-9   # expr_vectors.json float_epsilon
 # code is xpr.f8/xpr.num refusing on purpose.
 GUARD_REFUSAL_SQLSTATE = "XPR01"
 
-# T-6: the SQLSTATE the re-run's runtime raises for its NAMED coercion refusal -- a
-# numeric string the Python evaluator coerces (Unicode digits, or whitespace outside
-# btrim's six ASCII characters) and the ASCII gate cannot. Before T-6 that case returned
-# NULL, i.e. a silent wrong number (T-3 M1 / D10). It is a DELIBERATE refusal and must be
-# named as one; left unlisted it would be counted as an unexplained raise, which is a
-# harsher verdict than the defect it replaced.
-COERCION_REFUSAL_SQLSTATE = "XPR02"
-
 
 def refusal_kind(pgcode, message):
     """framing 4.5/C4: a refusal must be IDENTIFIABLE.  Returns the named kind for a
     deliberate refusal, or None for an unexplained raise (which stays a defect)."""
     if pgcode == GUARD_REFUSAL_SQLSTATE:
         return "guard"                       # xpr.f8/xpr.num named refusal (step zero)
-    if pgcode == COERCION_REFUSAL_SQLSTATE:
-        return "coercion"                    # xpr.num named refusal (T-6)
     if pgcode == "22003":
         m = (message or "").lower()
         if "underflow" in m:
@@ -98,51 +88,13 @@ def refusal_kind(pgcode, message):
     return None
 
 
-def _matches_strict(actual, expected) -> bool:
+def matches(actual, expected) -> bool:
     """Mirrored UNCHANGED from tests/test_dashboard_expr.py:20-25."""
     if isinstance(expected, bool) or isinstance(actual, bool):
         return actual is expected or actual == expected and type(actual) is type(expected)
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
         return math.isclose(float(actual), float(expected), rel_tol=0, abs_tol=_EPS)
     return actual == expected
-
-
-def _matches_recursive(actual, expected) -> bool:
-    """T-6 FRAMING section 4: the SAME rule, applied at every depth.
-
-    The strict rule above stops at depth 0: a container falls through to
-    `actual == expected`, so jsonb's exact 10**181 and Python's double 1e181
-    compare unequal INSIDE a list while the identical pair passes as a scalar
-    (both go through float() first). The epsilon is NOT touched -- rel_tol=0,
-    abs_tol=1e-9, same as above, at every depth. Lengths and keys must still
-    match exactly; strings, booleans and nulls compare exactly as before.
-
-    Note this is NOT merely more permissive: the bool branch now applies inside
-    containers too, so [True] vs [1] -- which `==` calls equal -- is unequal
-    here. That is the tightening the suite already asserts at top level
-    (test_dashboard_expr.py test_bool_and_int_are_not_conflated).
-    """
-    if isinstance(expected, bool) or isinstance(actual, bool):
-        return actual is expected or actual == expected and type(actual) is type(expected)
-    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
-        return math.isclose(float(actual), float(expected), rel_tol=0, abs_tol=_EPS)
-    if isinstance(expected, list) and isinstance(actual, list):
-        return len(actual) == len(expected) and all(
-            _matches_recursive(a, e) for a, e in zip(actual, expected))
-    if isinstance(expected, dict) and isinstance(actual, dict):
-        return actual.keys() == expected.keys() and all(
-            _matches_recursive(actual[k], expected[k]) for k in expected)
-    return actual == expected
-
-
-# T-6: which rule decides the verdict. Default is STRICT, so an unset environment
-# reproduces T-3 byte-for-byte. The re-run publishes BOTH numbers side by side
-# (FRAMING section 4's guard) by running every battery twice.
-MATCH_MODE = os.environ.get("AUTOSQL_MATCH_MODE", "strict")
-if MATCH_MODE not in ("strict", "recursive"):
-    raise SystemExit("AUTOSQL_MATCH_MODE must be strict or recursive; got %r" % MATCH_MODE)
-
-matches = _matches_strict if MATCH_MODE == "strict" else _matches_recursive
 
 
 _conn = None

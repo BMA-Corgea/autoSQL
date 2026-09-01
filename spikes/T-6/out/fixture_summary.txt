@@ -1,0 +1,9 @@
+FIXTURE tag=t6 efd=1 totals={"cases": 130, "compiled_agrees": 130, "compiled_diverges": 0, "did_not_compile": 0, "sql_error": 0, "pass_rate_denominator": 130, "pass_rate": 1.0}
+  meta: pg=PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)  runtime_sql_sha256=1c58d548a6045aa6  compile_py_sha256=b71b153802d0df94  fixture_sha256=0091df64283d91cb
+  written: /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-3/out/fixture_t6_efd1.json
+FIXTURE tag=t6 efd=0 totals={"cases": 130, "compiled_agrees": 130, "compiled_diverges": 0, "did_not_compile": 0, "sql_error": 0, "pass_rate_denominator": 130, "pass_rate": 1.0}
+  meta: pg=PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)  runtime_sql_sha256=1c58d548a6045aa6  compile_py_sha256=b71b153802d0df94  fixture_sha256=0091df64283d91cb
+  written: /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-3/out/fixture_t6_efd0.json
+FIXTURE tag=t6 efd=-3 totals={"cases": 130, "compiled_agrees": 130, "compiled_diverges": 0, "did_not_compile": 0, "sql_error": 0, "pass_rate_denominator": 130, "pass_rate": 1.0}
+  meta: pg=PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)  runtime_sql_sha256=1c58d548a6045aa6  compile_py_sha256=b71b153802d0df94  fixture_sha256=0091df64283d91cb
+  written: /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-3/out/fixture_t6_efd-3.json

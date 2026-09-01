@@ -1,0 +1,13 @@
+non-ASCII Nd code points (Python):      670
+contiguous ranges emitted:             63
+class length (characters):             1035
+
+Postgres cannot do this natively -- shown, not assumed:
+  Arabic-Indic ONE, digit_class = false
+  Arabic-Indic ONE, alpha_class = true
+
+Verification against Postgres:
+  probed             21436
+  nd_expected        670
+  false_negatives    0
+  false_positives    0

@@ -1,0 +1,17 @@
+P3 - which runtime the batteries actually ran against
+==============================================================================
+functions installed in schema xpr:        21
+sha256 of the INSTALLED definitions:      799a9e62a798ec37
+
+file hashes, for comparison:
+  spikes/T-1/proto/runtime.sql           1c58d548a6045aa6
+  spikes/T-6/runtime.sql                 871b1b4c2df95719
+
+What the battery outputs PRINT as `runtime.sql sha256` is the first of those
+two -- the file the harness expects, hashed off disk. It is NOT evidence about
+what is installed. The checks below are.
+
+installed xpr.num carries the XPR02 refusal:      True
+installed xpr.num carries the RAISE LOG record:   True
+
+CONFIRMED: the batteries ran against T-6's patched runtime.

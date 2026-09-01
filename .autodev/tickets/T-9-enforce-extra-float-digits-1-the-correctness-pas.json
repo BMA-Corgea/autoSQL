@@ -1,0 +1,48 @@
+{
+  "id": "T-9",
+  "slug": "enforce-extra-float-digits-1-the-correctness-pas",
+  "type": "feature",
+  "title": "Enforce extra_float_digits = 1; the correctness pass depends on it and nothing checks it",
+  "stage": "intake",
+  "status": "triage",
+  "spec": "Spawned by T-6. T-6 passes ONLY at extra_float_digits = 1. Measured at the other two settings on the same batteries: 62 wrong numbers at efd 0 and 66 at efd -3 (spikes/T-6/out/VC_sub_extreme_efd{0,-3}_recursive.txt) - the M3 value-channel truncation, where Postgres prints fewer digits than a double carries. T-6's fix 2.1 declares efd != 1 a CONFIGURATION DEFECT rather than a compiler defect, which is only legitimate if the configuration is actually guaranteed. Today nothing guarantees it: the setting is a session GUC any connection can change and the compiled path does not assert it. Required: the generated query (or its session setup) pins it, AND a check that fails loudly rather than returning a short number if the session reports anything else. Reading it back once per session is enough; T-3's efd_control.py already shows the read-back pattern.",
+  "pipeline_version": "feature@v1",
+  "modifiers": [],
+  "pipeline": [
+    "intake",
+    "refine",
+    "queue",
+    "locate",
+    "plan",
+    "build",
+    "auto-review",
+    "gate",
+    "verify",
+    "uat",
+    "release",
+    "monitor"
+  ],
+  "passport": [
+    "2026-09-01 created as feature \"Enforce extra_float_digits = 1; the correctness pass depends on it and nothing checks it\" on feature@v1 by agent:claude(on-behalf:evan,GA-10)"
+  ],
+  "assignees": {},
+  "links": {
+    "intent": "T-6"
+  },
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}
