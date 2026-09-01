@@ -3,8 +3,8 @@
   "slug": "enforce-extra-float-digits-1-the-correctness-pas",
   "type": "feature",
   "title": "Enforce extra_float_digits = 1; the correctness pass depends on it and nothing checks it",
-  "stage": "gate",
-  "status": "awaiting_approval",
+  "stage": "monitor",
+  "status": "complete",
   "spec": "Spawned by T-6. T-6 passes ONLY at extra_float_digits = 1. Measured at the other two settings on the same batteries: 62 wrong numbers at efd 0 and 66 at efd -3 (spikes/T-6/out/VC_sub_extreme_efd{0,-3}_recursive.txt) - the M3 value-channel truncation, where Postgres prints fewer digits than a double carries. T-6's fix 2.1 declares efd != 1 a CONFIGURATION DEFECT rather than a compiler defect, which is only legitimate if the configuration is actually guaranteed. Today nothing guarantees it: the setting is a session GUC any connection can change and the compiled path does not assert it. Required: the generated query (or its session setup) pins it, AND a check that fails loudly rather than returning a short number if the session reports anything else. Reading it back once per session is enough; T-3's efd_control.py already shows the read-back pattern.",
   "pipeline_version": "feature@v1",
   "modifiers": [],
@@ -23,11 +23,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 advanced locate → plan · locate on claude-opus-5[1m]",
-    "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]",
-    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
-    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
-    "2026-09-01 gate merge cleared by policy:unattended"
+    "2026-09-01 gate accept cleared by agent:claude(on-behalf:evan,GA-13) on go-ahead GA-13 (\"keep going with T-9\")",
+    "2026-09-01 advanced uat → release · uat on claude-opus-5[1m]",
+    "2026-09-01 gate deploy cleared by policy:unattended",
+    "2026-09-01 advanced release → monitor · release on claude-opus-5[1m]",
+    "2026-09-01 pipeline complete at monitor"
   ],
   "assignees": {},
   "links": {
@@ -36,8 +36,8 @@
   "gates": {
     "spec_ready": true,
     "merge": true,
-    "accept": false,
-    "deploy": false,
+    "accept": true,
+    "deploy": true,
     "sp_decide": false,
     "ex_decide": false,
     "compliance": false,
@@ -45,8 +45,9 @@
   },
   "overrides": {},
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "live probes after the change: /api/pick over 8,400 rows, sub-second, error-free. No rollout telemetry because there is no production rollout. Follow-up filed through triage: T-11, without which xpr.j is available but uncalled."
   },
   "history": [
     {
@@ -90,6 +91,30 @@
       "to": "gate",
       "by": "agent:claude(on-behalf:evan,GA-13)",
       "at": "2026-09-01T22:23:59.699Z"
+    },
+    {
+      "from": "gate",
+      "to": "verify",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:24:31.181Z"
+    },
+    {
+      "from": "verify",
+      "to": "uat",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:34.070Z"
+    },
+    {
+      "from": "uat",
+      "to": "release",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:47.400Z"
+    },
+    {
+      "from": "release",
+      "to": "monitor",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:47.485Z"
     }
   ],
   "receipts": {
@@ -148,6 +173,47 @@
       "by": "agent:claude(on-behalf:evan,GA-13)",
       "at": "2026-09-01T22:23:59.698Z",
       "model": "claude-opus-5[1m]"
+    },
+    "gate": {
+      "evidence": "merged to main at 9e4f639 — verified on the branch this time before recording it",
+      "kind": "other",
+      "fingerprint": "merged to main at 9e4f639 — verified on the branch this time before recording it",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:24:31.180Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "verify": {
+      "evidence": "on main at 9e4f639: ./run-demo test 1155 passed/0 failed with B10 guard verified; runtime/tests 58 passed including the three-setting immunity proof and its bare-to_jsonb control; ops/verify-seven-states.py all seven states live over HTTP",
+      "kind": "other",
+      "fingerprint": "on main at 9e4f639: ./run-demo test 1155 passed/0 failed with B10 guard verified; runtime/tests 58 passed including the three-setting immunity proof and its bare-to_jsonb control; ops/verify-seven-states.py all seven states live over HTTP",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:34.069Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "uat": {
+      "evidence": "against the INTENT (T-6 §9 item 2, 'the pass depends entirely on the pin holding and nothing enforces it'): AC-1 xpr.j identical at efd 1/0/-3; AC-2 bare to_jsonb demonstrably moves, so AC-1 measures something; AC-3 the guard raises XPR03 at 0 and -3 and is quiet at 1; AC-4 23 functions and every T-8 test still passing unmodified; AC-5 demo green at 1155/0. The honest limit is in the spec, not hidden: nothing generates xpr.j calls yet because the emission lives in a frozen spike compiler — T-11 spawned for exactly that.",
+      "kind": "other",
+      "fingerprint": "against the INTENT (T-6 §9 item 2, 'the pass depends entirely on the pin holding and nothing enforces it'): AC-1 xpr.j identical at efd 1/0/-3; AC-2 bare to_jsonb demonstrably moves, so AC-1 measures something; AC-3 the guard raises XPR03 at 0 and -3 and is quiet at 1; AC-4 23 functions and every T-8 test still passing unmodified; AC-5 demo green at 1155/0. The honest limit is in the spec, not hidden: nothing generates xpr.j calls yet because the emission lives in a frozen spike compiler — T-11 spawned for exactly that.",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:47.399Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "release": {
+      "evidence": "merged to main at 9e4f639; target is the local demo stack, running and answering. Rollback: revert the merge — the change is purely additive (two new functions), so nothing existing depends on it yet.",
+      "kind": "other",
+      "fingerprint": "merged to main at 9e4f639; target is the local demo stack, running and answering. Rollback: revert the merge — the change is purely additive (two new functions), so nothing existing depends on it yet.",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:47.484Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "monitor": {
+      "evidence": "live probes after the change: /api/pick over 8,400 rows, sub-second, error-free. No rollout telemetry because there is no production rollout. Follow-up filed through triage: T-11, without which xpr.j is available but uncalled.",
+      "kind": "other",
+      "fingerprint": "live probes after the change: /api/pick over 8,400 rows, sub-second, error-free. No rollout telemetry because there is no production rollout. Follow-up filed through triage: T-11, without which xpr.j is available but uncalled.",
+      "by": "agent:claude(on-behalf:evan,GA-13)",
+      "at": "2026-09-01T22:25:48.203Z",
+      "model": "claude-opus-5[1m]"
     }
-  }
+  },
+  "completed": true
 }

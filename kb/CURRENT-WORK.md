@@ -2,50 +2,51 @@
 
 ---
 
-> # START HERE — 2026-09-01 (fifth update: T-2, T-5, T-6 and T-8 all COMPLETE)
+> # START HERE — 2026-09-01 (sixth update: T-9 complete; five tickets done today)
 >
-> **Four tickets finished today. Nothing is blocked. Nothing is running.** Everything is on `main`.
+> **Everything is on `main`. Nothing is blocked. Nothing is running.**
+> Done today: **T-2, T-5, T-6, T-8, T-9**.
 >
-> **The headline: autoSQL's compiled SQL and its Python evaluator now agree, and the runtime that
-> makes that true ships from `runtime/`.** T-6 measured it — 0 wrong numbers at the pinned float
-> setting over 11,367 expressions, contract fixture 130/130 — and T-8 put it where a product can
-> ship from.
+> **The state of the correctness work.** autoSQL's compiled SQL and its Python evaluator agree —
+> 0 wrong numbers over 11,367 expressions at the pinned float setting, fixture 130/130 (T-6). The
+> runtime that makes that true ships from **`runtime/`** and is **generated** (T-8). T-9 added the
+> two functions that let a caller stop depending on a session setting at all.
 >
-> **Two things a resuming session must not miss:**
+> **Three things a resuming session must not miss:**
 >
-> 1. **`runtime/runtime.sql` is GENERATED. Never hand-edit it.** Edit `runtime/runtime.sql.in` and
->    run `python3 runtime/generate.py`. Its 670-code-point digit mapping comes from the **running
->    Python's** `unicodedata` — freeze it as a literal and a Python upgrade splits the two engines
->    silently, reopening the exact divergence T-6 closed, with no code change at all.
->    `runtime/tests/test_runtime.py::test_the_generated_runtime_is_not_stale` is the guard.
-> 2. **The demo no longer shows a disagreement, and that is not a regression.** There is no
->    in-subset value divergence left — that is what T-6 passing means. Step 11's artboard is renamed
->    `disagree` → **`reconciled`** and asserts the opposite on the *same pick*: the value that used
->    to come back wrong now reads `123` on both engines. Every assertion was **inverted, not
->    deleted**. Reversible in one line by pinning `demo/vendor/runtime.sql` to its pre-T-8 bytes.
+> 1. **`runtime/runtime.sql` is GENERATED.** Edit `runtime/runtime.sql.in`, run
+>    `python3 runtime/generate.py`. Its 670-code-point digit mapping comes from the **running
+>    Python's** `unicodedata` — freeze it and a Python upgrade splits the two engines silently.
+> 2. **`xpr.j()` is immune to `extra_float_digits`; nothing calls it yet.** That is **T-11**, and
+>    until it lands the demo is protected only by `demo/server/db.py` pinning and verifying the GUC
+>    per connection — real protection, but by convention at the edge rather than by construction.
+>    At efd 0 or −3 an unprotected path returns **short numbers** (62–66 wrong across T-6's
+>    batteries).
+> 3. **The demo shows no disagreement, and that is not a regression.** Step 11's artboard is
+>    `reconciled`: the value that used to come back wrong now reads `123` on both engines. Every
+>    assertion was inverted, not deleted. Revert by pinning `demo/vendor/runtime.sql` to pre-T-8.
 >
-> **The spike runtimes under `spikes/` are FROZEN EVIDENCE.** `spikes/T-1/proto/runtime.sql`
-> (`1c58d548a6045aa6`) and `spikes/T-6/runtime.sql` (`871b1b4c2df95719`) have their digests cited in
-> T-3's and T-6's findings and in 42 battery outputs. A test asserts they have not moved.
+> **FROZEN EVIDENCE — never edit:** `spikes/T-1/proto/runtime.sql` (`1c58d548a6045aa6`),
+> `spikes/T-6/runtime.sql` (`871b1b4c2df95719`), and **`spikes/T-1/proto/compile.py`**
+> (`b71b153802d0df94`, which the demo loads directly at `demo/builder.py:92`). Their digests are
+> cited in T-3's and T-6's findings and in 42 battery outputs. Tests assert the first two.
 >
-> **What is open, none started:**
+> **Open, none started:**
 >
-> - **T-9 (feature, `intake`) — the most important one.** T-6's pass depends **entirely** on
->   `extra_float_digits = 1`, and *nothing enforces it*. At the other two settings there are still
->   **62 and 66** wrong numbers. Calling that "a configuration defect" is only honest if the
->   configuration is actually guaranteed. It is not, yet.
-> - **T-10 (techdebt, `intake`)** — the correctness harness fingerprints the file it expects rather
->   than what is installed, so all 42 of T-6's battery outputs named the wrong runtime.
-> - **T-4 (spike, `sp-frame`)** — the speed run. Released by T-6, needs a quiet machine; Evan asked
->   to be told before it starts.
-> - **T-7 (spike, `sp-frame`)** — parked by Evan's own Q6 (*"log it as a ticket, do not chase now"*).
+> - **T-11 (feature, `intake`)** — promote the compiler out of the frozen spike and route its
+>   `to_jsonb(<float8>)` emission through `xpr.j`. The thing that makes T-9's immunity reach real
+>   queries.
+> - **T-10 (techdebt, `intake`)** — the harness fingerprints the file it expects rather than what is
+>   installed; all 42 of T-6's battery outputs named the wrong runtime.
+> - **T-4 (spike, `sp-frame`)** — the speed run. Released by T-6; needs a quiet machine, and Evan
+>   asked to be told before it starts.
+> - **T-7 (spike, `sp-frame`)** — parked by Evan's own Q6.
 >
-> **Decisions of record:** `kb/wiki/decision-t5-homework.md` · `decision-t6-correctness-rerun.md`
-> (both ADRs) · `runtime/README.md` for why the runtime is generated.
+> **Decisions of record:** `kb/wiki/decision-t5-homework.md` · `decision-t6-correctness-rerun.md` ·
+> `runtime/README.md`.
 >
-> **Standing:** never port **55433**; `glp_strong` is out of scope on relevance too. Nothing in
-> either GIMS checkout was changed (Evan's Q3 park). Plan §8.2's mutation pass has **still never
-> run** — 9 of 16 mutants never watched failing, disclosed above every suite summary.
+> **Standing:** never port **55433**. Nothing in either GIMS checkout has been changed (Q3 park).
+> Plan §8.2's mutation pass has **still never run** — 9 of 16 mutants never watched failing.
 
 ---
 
@@ -164,7 +165,6 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
-- **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — gate
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
 - **T-11** (feature) — Promote the compiler out of the frozen spike, and route its output through xpr.j — intake
 
@@ -214,6 +214,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-9 COMPLETE** — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing …
 - 2026-09-01 **T-8 COMPLETE** — Adopt variant C as the shipping runtime, with a regenerable digit mapping
 - 2026-09-01 **T-2 COMPLETE** — Demo the autoSQL UI end-to-end against a seeded fake-data database
 - 2026-09-01 **T-6 COMPLETE** — Correctness re-run: does the subset pass once the two mechanisms are fixed?
