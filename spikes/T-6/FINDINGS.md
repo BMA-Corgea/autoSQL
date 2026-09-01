@@ -229,3 +229,83 @@ and `spikes/T-1/analysis/fuzz/differ.py` (the recursive rule behind `AUTOSQL_MAT
 to **strict** so an unset environment reproduces T-3 byte-for-byte; and `XPR02` registered as a
 named refusal kind so a deliberate refusal is not counted as an unexplained raise). The original
 `differ.py` is preserved at `spikes/T-6/differ.py.orig`. Seeds and N unchanged: `N=4000 seed=2026`.
+
+---
+
+# ADDENDUM — produced at `sp-synth`, not `sp-investigate`
+
+**Stated plainly because the stage boundary matters:** everything above was produced and recorded
+before `sp-investigate` passed. What follows was produced *afterwards*, while weighing the options
+for `sp-decide`. It is evidence, so it belongs in the findings rather than only in the synthesis —
+but it did not exist when the pass was recorded, and the §6 verdict does not depend on it.
+
+## A. T-3's premise was wrong — SQL *can* cheaply match Python
+
+T-3's ruling, and this ticket's own charter, both rest on one sentence:
+
+> *"It cannot cheaply be made to match Python — Postgres regexes have no equivalent of Python's
+> any-Unicode-digit class — so the generated SQL raises a named error."*
+
+The first clause is true and §2.2 confirmed it independently. **The conclusion does not follow.**
+Matching Python does not need a Unicode-digit *class*; it needs a Unicode-digit *mapping*. Python's
+`float()` accepts a non-ASCII digit by its **numeric value**, so mapping the 670 `Nd` code points
+onto `'0'`–`'9'` with a single `translate()` reproduces Python's behaviour exactly — and then there
+is nothing to refuse.
+
+Two variants were built and measured against the same batteries, seeds and fixture:
+
+| | **A — refuse** (§2–§6) | **B — translate, hoisted** | **C — translate, nested** |
+| --- | --- | --- | --- |
+| `sub_ordinary` efd 1 | 3787 agree, **14 refusals** | 3801 agree, 0 refusals | **3801 agree, 0 refusals** |
+| `sub_unicode` efd 1 | 3750 agree, **49 refusals** | 3799 agree, 0 refusals | **3799 agree, 0 refusals** |
+| `sub_extreme` efd 1 (recursive) | 3735 agree, **32 refusals** | 3758 agree, 9 refusals | **3758 agree, 9 refusals** |
+| divergences at efd 1 | **0** | **0** | **0** |
+| coercion refusals | **86** | **0** | **0** |
+| correct answers lost (§5) | **60** | **0** | **0** |
+| contract fixture | 130/130 | 130/130 | **130/130** |
+| P1 predicate contract | holds | holds | **holds** |
+| **300k ASCII coercions** | **853 ms** | **4553 ms** | **812 ms** |
+
+Baseline, for the timing column: **852 ms**.
+
+**The 9 refusals remaining under B and C are the magnitude guard (`XPR01`, overflow/underflow) —
+legitimate, unchanged, and nothing to do with coercion.**
+
+## B. Why C and not B — the nesting is load-bearing
+
+B hoists `translate()` above the ASCII gate, so **every ordinary numeric string pays it**: 852 ms →
+4553 ms, a **5.3× tax on the common path**. That matters more here than it looks, because T-5 found
+that in the one tenant project **every number-declared field is stored as a string** — so the
+coercion path is not an edge case, it is how every number is read.
+
+C runs `translate()` **only after the ASCII gate has already failed**. Ordinary strings never touch
+it, and the measured cost is **812 ms against an 852 ms baseline — no measurable cost at all**.
+The runtime carries that measurement in a comment, so the next reader does not "tidy" the nesting
+away.
+
+## C. What C changes about the answer
+
+- **The 26 real wrong numbers are fixed** — not refused, *fixed*. Both engines now agree.
+- **The 60 collateral losses of §5 do not happen.** There is nothing to lose, because nothing
+  refuses.
+- **§5's finding stands as a finding about variant A**, and it is the reason C was looked for.
+- **Q2's refusal record still applies** — to `XPR01`, the magnitude guard, which still refuses.
+  There is simply no `XPR02` any more.
+- **efd 0 and −3 are unchanged** (62 / 66 divergences, M3). C fixes coercion, not truncation; the
+  pin is still what the pass depends on.
+
+## D. What C does NOT change
+
+- It does not touch GIMS (Q3 stayed parked).
+- It does not alter the container comparison rule; the 29 M2 cases are still absorbed by §4's
+  recursive rule, identically under A, B and C.
+- It does not buy admission to GIMS. T-4 still has not run.
+- **The `translate()` mapping is generated, not hand-written.** Regenerating it is part of any
+  Unicode-version bump, and nothing in the build enforces that today.
+
+## E. Evidence
+
+`spikes/T-6/runtime-variantB.sql` · `spikes/T-6/runtime-variantC.sql` ·
+`out/VB_*.txt` (6 runs) · `out/VC_*.txt` (18 runs) ·
+`probes/P1_variantB_predicate.txt` · `probes/P1_variantC_predicate.txt` ·
+fixture tags `t6vb` and `t6vc` in `out/fixture_*.json`.
