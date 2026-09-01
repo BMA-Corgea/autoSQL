@@ -100,6 +100,24 @@ stated preference ordering — a correct answer beats a refusal, a refusal beats
 before any evidence existed: a pass is a factual verdict against a fixed bar with both numbers
 published. A *failure* would have gone back to you, and did not need to.
 
+## THE RULING — recorded 2026-09-01 at `sp-decide`
+
+> **The re-run PASSES. Variant C is adopted. T-4 is released.**
+
+| | |
+| --- | --- |
+| **Verdict against the bar** | **PASS** — 0 wrong numbers at efd 1, three batteries, 11,367 expressions, both comparison rules published, fixture 130/130 |
+| **Fix adopted** | **C** — guarded `translate()`; SQL matches Python instead of refusing |
+| **Deviates from** | T-3's ruled mechanism (named refusal), re-confirmed by Evan at GA-9 Q1 |
+| **Why the deviation is legitimate** | the refusal was ruled *because matching was believed impossible*; it is not. C follows Evan's own preference ordering — correct answer > refusal > silent wrong number |
+| **Recorded by** | `agent:claude(on-behalf:evan,GA-10)`, per T-6 FRAMING §7, which reserved this seat's authority to a **pass** only |
+| **Reversible by** | one line from Evan — variant A is built, measured and committed at `spikes/T-6/runtime.sql` |
+
+**What it releases:** **T-4, the speed run**, held since 2026-08-21 and gated on this result by
+Evan's GA-9 Q5 (*"after T-6 reports"*). It reports now.
+
+**What it does not release:** GIMS. Unchanged.
+
 ## What this does NOT settle
 
 - **The GIMS gate stays shut.** A passed re-run buys admission to **T-4, the speed run**, and
