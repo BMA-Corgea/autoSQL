@@ -1,0 +1,84 @@
+=== T-3 domain gate  (efd requested=1) ===
+
+-- HALF ONE (a): infinity composed from permitted arithmetic; Python must not raise --
+  [SQL_REFUSAL:overflow] $.a * $.b                          rec={"a": 1e+200, "b": 1e+200}
+      py=inf  sql=None RAISED 22003 value out of range: overflow
+  [SQL_REFUSAL:overflow] abs(($.a * $.b))                   rec={"a": 1e+200, "b": 1e+200}
+      py=inf  sql=None RAISED 22003 value out of range: overflow
+  [SQL_REFUSAL:overflow] (($.a * $.b) > 0)                  rec={"a": 1e+200, "b": 1e+200}
+      py=True  sql=None RAISED 22003 value out of range: overflow
+  [SQL_REFUSAL:overflow] min(($.a * $.b), 1)                rec={"a": 1e+200, "b": 1e+200}
+      py=1.0  sql=None RAISED 22003 value out of range: overflow
+  [SQL_REFUSAL:overflow] if(($.a * $.b), 1, 2)              rec={"a": 1e+200, "b": 1e+200}
+      py=1.0  sql=None RAISED 22003 value out of range: overflow
+  => Python raised in 0 of 5 composed-infinity cases -- NO ninth raise site on this path
+
+-- HALF ONE (b): hunting an uncatalogued raise site in RAW JSON (non-Python writers) --
+  [PY_RAISE] $.a == 1                           raw={"a": 100000000000000000000000000000000000000000000000000000
+      py=None RAISED OverflowError: int too large to convert to float  sql=False
+  [BOTH_RAISE:guard] $.a > 1                            raw={"a": 100000000000000000000000000000000000000000000000000000
+      py=None RAISED OverflowError: int too large to convert to float  sql=None RAISED XPR01 xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)
+  [PY_RAISE] $.a != 3                           raw={"a": 100000000000000000000000000000000000000000000000000000
+      py=None RAISED OverflowError: int too large to convert to float  sql=True
+  [AGREE] count($.a)                         raw={"a": 100000000000000000000000000000000000000000000000000000
+      py=1.0  sql=1
+
+-- HALF TWO: the 5.3 magnitude rows, one direct witness each --
+row: old guard boundary, both sides (py mode)
+  [AGREE] $.a + 0                            rec={"a": 1.7976931348623155e+296}
+      py=1.7976931348623155e+296  sql=179769313486231550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  [AGREE] $.a + 0                            rec={"a": 1.797693134862316e+296}
+      py=1.797693134862316e+296  sql=179769313486231600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+row: real limit, below and AT (py mode)
+  [AGREE] $.a + 0                            rec={"a": 1.7976931348623155e+308}
+      py=1.7976931348623155e+308  sql=179769313486231550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  [AGREE] $.a + 0                            rec={"a": 1.7976931348623157e+308}
+      py=1.7976931348623157e+308  sql=179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+row: real limit, ABOVE (raw mode only -- no Python float can carry it)
+  [SQL_REFUSAL:guard] $.a + 0                            raw={"a": 1e309}
+      py=inf  sql=None RAISED XPR01 xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)
+  [DIVERGE] $.a                                raw={"a": 1e309}
+      py=inf  sql=1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  [SQL_REFUSAL:guard] $.a > 1                            raw={"a": 1e309}
+      py=True  sql=None RAISED XPR01 xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)
+  [SQL_REFUSAL:guard] abs($.a)                           raw={"a": 1e400}
+      py=inf  sql=None RAISED XPR01 xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)
+row: infinity composed by arithmetic -- half one (a) above
+row: subnormals (py mode, then raw where Python underflows at parse)
+  [AGREE] $.a + 0                            rec={"a": 5e-324}
+      py=5e-324  sql=5e-324
+  [AGREE] $.a + 0                            rec={"a": 1e-320}
+      py=1e-320  sql=1e-320
+  [SQL_REFUSAL:out_of_range] $.a + 0                            raw={"a": 1e-400}
+      py=0.0  sql=None RAISED 22003 "0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001" is out of range for type double precision
+  [DIVERGE] if($.a, 1, 2)                      raw={"a": 1e-400}
+      py=2.0  sql=1
+  [DIVERGE] $.a == 0                           raw={"a": 1e-400}
+      py=True  sql=False
+row: 2**53 boundary (py mode, then raw exact-integer text)
+  [AGREE] $.a + 0                            rec={"a": 9007199254740992.0}
+      py=9007199254740992.0  sql=9007199254740992
+  [AGREE] $.a + 0                            rec={"a": 9007199254740994.0}
+      py=9007199254740994.0  sql=9007199254740994
+  [DIVERGE] $.a == 9007199254740992            raw={"a": 9007199254740993}
+      py=True  sql=False
+row: 0.0 and -0.0 (py mode)
+  [AGREE] $.a + 0                            rec={"a": 0.0}
+      py=0.0  sql=0
+  [AGREE] $.a + 0                            rec={"a": -0.0}
+      py=0.0  sql=0
+  [AGREE] $.a == 0                           rec={"a": -0.0}
+      py=True  sql=True
+  [AGREE] if($.a, 1, 2)                      rec={"a": -0.0}
+      py=2.0  sql=2
+row: numeric strings that coerce (py mode; D.6's tolerant-coercion class)
+  [AGREE] $.a + 0                            rec={"a": " 7 "}
+      py=7.0  sql=7
+  [AGREE] $.a + 0                            rec={"a": "1e3"}
+      py=1000.0  sql=1000
+  [SQL_REFUSAL:coercion] $.a + 0                            rec={"a": "１２３"}
+      py=123.0  sql=None RAISED XPR02 xpr.num refusal: numeric string the Python evaluator coerces but SQL cannot (non-ASCII digit or whitespace)
+  [SQL_REFUSAL:coercion] max($.a, 1)                        rec={"a": "١٢٣"}
+      py=123.0  sql=None RAISED XPR02 xpr.num refusal: numeric string the Python evaluator coerces but SQL cannot (non-ASCII digit or whitespace)
+
+  extra_float_digits read-back: 1

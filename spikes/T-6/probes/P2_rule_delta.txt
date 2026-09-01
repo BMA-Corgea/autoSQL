@@ -1,0 +1,23 @@
+P2 - the strict/recursive delta, per setting
+================================================================================================
+battery        efd     A(str)   D(str)   A(rec)   D(rec)    moved   verdict
+------------------------------------------------------------------------------------------------
+sub_ordinary   1         3787        0     3787        0        0   rule made no difference
+sub_unicode    1         3750        0     3750        0        0   rule made no difference
+sub_extreme    1         3706       29     3735        0       29   29 moved DIVERGE->AGREE
+sub_ordinary   0         3787        0     3787        0        0   rule made no difference
+sub_unicode    0         3750        0     3750        0        0   rule made no difference
+sub_extreme    0         3609       91     3638       62       29   29 moved DIVERGE->AGREE
+sub_ordinary   -3        3787        0     3787        0        0   rule made no difference
+sub_unicode    -3        3750        0     3750        0        0   rule made no difference
+sub_extreme    -3        3640       95     3669       66       29   29 moved DIVERGE->AGREE
+------------------------------------------------------------------------------------------------
+
+SHAPE of every reclassified case (strict witnesses, efd=1 sub_extreme):
+------------------------------------------------------------------------------------------------
+  container/leaves-equal-as-floats             29
+
+================================================================================================
+CLEAN: the rule change only ever moved DIVERGE -> AGREE, it created no new
+divergence anywhere, and every case it absorbed is M2's container shape --
+both engines returned a container whose leaves are equal as floats.
