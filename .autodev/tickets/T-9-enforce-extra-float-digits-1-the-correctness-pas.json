@@ -23,11 +23,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 advanced queue → locate · queue on claude-opus-5[1m]",
     "2026-09-01 advanced locate → plan · locate on claude-opus-5[1m]",
     "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]",
     "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
-    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]"
+    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
+    "2026-09-01 gate merge cleared by policy:unattended"
   ],
   "assignees": {},
   "links": {
@@ -35,7 +35,7 @@
   },
   "gates": {
     "spec_ready": true,
-    "merge": false,
+    "merge": true,
     "accept": false,
     "deploy": false,
     "sp_decide": false,
