@@ -34,3 +34,8 @@
 {"ts":"2026-09-01T19:55:31.554Z","kind":"stage.advanced","ticket":"T-5","from":"sp-synth","to":"sp-decide"}
 {"ts":"2026-09-01T20:14:01.935Z","kind":"stage.advanced","ticket":"T-5","from":"sp-decide","to":"sp-spawn"}
 {"ts":"2026-09-01T20:15:13.333Z","kind":"pipeline.complete","ticket":"T-5","at":"sp-spawn"}
+{"ts":"2026-09-01T20:27:09.940Z","kind":"stage.advanced","ticket":"T-6","from":"sp-frame","to":"sp-investigate"}
+{"ts":"2026-09-01T20:39:50.555Z","kind":"stage.advanced","ticket":"T-6","from":"sp-investigate","to":"sp-synth"}
+{"ts":"2026-09-01T20:45:11.215Z","kind":"stage.advanced","ticket":"T-6","from":"sp-synth","to":"sp-decide"}
+{"ts":"2026-09-01T20:45:34.503Z","kind":"stage.advanced","ticket":"T-6","from":"sp-decide","to":"sp-spawn"}
+{"ts":"2026-09-01T20:46:18.956Z","kind":"pipeline.complete","ticket":"T-6","at":"sp-spawn"}
