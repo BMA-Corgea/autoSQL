@@ -54,3 +54,7 @@
 {"ts":"2026-09-01T21:50:08.934Z","kind":"stage.advanced","ticket":"T-8","from":"build","to":"auto-review"}
 {"ts":"2026-09-01T21:50:46.998Z","kind":"stage.advanced","ticket":"T-8","from":"auto-review","to":"gate"}
 {"ts":"2026-09-01T21:50:58.281Z","kind":"stage.advanced","ticket":"T-8","from":"gate","to":"verify"}
+{"ts":"2026-09-01T21:53:03.354Z","kind":"stage.advanced","ticket":"T-8","from":"verify","to":"uat"}
+{"ts":"2026-09-01T21:53:19.051Z","kind":"stage.advanced","ticket":"T-8","from":"uat","to":"release"}
+{"ts":"2026-09-01T21:53:19.137Z","kind":"stage.advanced","ticket":"T-8","from":"release","to":"monitor"}
+{"ts":"2026-09-01T21:53:27.914Z","kind":"pipeline.complete","ticket":"T-8","at":"monitor"}

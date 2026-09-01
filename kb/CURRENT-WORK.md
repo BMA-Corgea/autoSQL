@@ -2,43 +2,50 @@
 
 ---
 
-> # START HERE — 2026-09-01 (fourth update: T-2 is at Evan's accept gate)
+> # START HERE — 2026-09-01 (fifth update: T-2, T-5, T-6 and T-8 all COMPLETE)
 >
-> **One thing is waiting, and it is a five-minute look at a screen.**
+> **Four tickets finished today. Nothing is blocked. Nothing is running.** Everything is on `main`.
 >
-> **T-2 is at `uat`, `accept` gate UNCLEARED — Evan's.** Everything outstanding is done: the two
-> standing failures are fixed, **q8's layout fix has landed and is verified live**, AC-22's
-> amendment note is finished. Suite **1152 passed, 0 failed** (was 1144/2). **The stack is UP** at
-> `http://127.0.0.1:8787`.
+> **The headline: autoSQL's compiled SQL and its Python evaluator now agree, and the runtime that
+> makes that true ships from `runtime/`.** T-6 measured it — 0 wrong numbers at the pinned float
+> setting over 11,367 expressions, contract fixture 130/130 — and T-8 put it where a product can
+> ship from.
 >
-> **The gate was deliberately NOT cleared on-behalf, though GA-8 authorises it.** This ticket exists
-> so that *Evan sees the SQL UI over fake data before autoSQL goes into GIMS* — accepting it for him
-> would defeat its own purpose, and the gate asks *"would you show it to someone?"*. Read
-> `.autodev/handoffs/T-2.md`, open the `disagree` tab, then
-> `tracker.mjs approve T-2 accept --by human:evan --i-am-human`.
+> **Two things a resuming session must not miss:**
 >
-> **The two failures were real, not flaky.** `SEVEN_STATES["disagree"]` was a second definition that
-> got missed on 2026-08-23 and stayed on `$.l`, which *agrees* now the corrected guard reads `1e300`.
-> Both definitions now point at `$.m` (`["１２３", 1]`): Python **123**, SQL **1**.
+> 1. **`runtime/runtime.sql` is GENERATED. Never hand-edit it.** Edit `runtime/runtime.sql.in` and
+>    run `python3 runtime/generate.py`. Its 670-code-point digit mapping comes from the **running
+>    Python's** `unicodedata` — freeze it as a literal and a Python upgrade splits the two engines
+>    silently, reopening the exact divergence T-6 closed, with no code change at all.
+>    `runtime/tests/test_runtime.py::test_the_generated_runtime_is_not_stale` is the guard.
+> 2. **The demo no longer shows a disagreement, and that is not a regression.** There is no
+>    in-subset value divergence left — that is what T-6 passing means. Step 11's artboard is renamed
+>    `disagree` → **`reconciled`** and asserts the opposite on the *same pick*: the value that used
+>    to come back wrong now reads `123` on both engines. Every assertion was **inverted, not
+>    deleted**. Reversible in one line by pinning `demo/vendor/runtime.sql` to its pre-T-8 bytes.
 >
-> **Known and written down in three places: T-8 will kill this demo's disagreement, and that is not
-> a bug.** Variant C makes `１２３` agree too, and on present evidence **no in-subset value
-> disagreement survives T-8** — that is what T-6 passing means. Step 11's claim then has to become
-> *"the tool refuses rather than guessing"*. **Evan's call, not T-8's.**
+> **The spike runtimes under `spikes/` are FROZEN EVIDENCE.** `spikes/T-1/proto/runtime.sql`
+> (`1c58d548a6045aa6`) and `spikes/T-6/runtime.sql` (`871b1b4c2df95719`) have their digests cited in
+> T-3's and T-6's findings and in 42 battery outputs. A test asserts they have not moved.
 >
-> **T-5 and T-6 are COMPLETE and merged.** T-6 passed — 0 wrong numbers at the pinned setting over
-> 11,367 expressions, fixture 130/130 — and found that T-3's premise was false: SQL *can* match
-> Python, via a digit mapping rather than a digit class, for no measurable cost. ADRs at
-> `kb/wiki/decision-t5-homework.md` and `kb/wiki/decision-t6-correctness-rerun.md`.
+> **What is open, none started:**
 >
-> **The queue, none started:** **T-8** adopt variant C as the shipping runtime · **T-9** enforce the
-> `extra_float_digits = 1` pin (the correctness pass depends on it and nothing checks it) · **T-10**
-> fix the harness fingerprint · **T-4** the speed run, released by T-6, needs a quiet machine ·
-> **T-7** parked by Evan's own Q6.
+> - **T-9 (feature, `intake`) — the most important one.** T-6's pass depends **entirely** on
+>   `extra_float_digits = 1`, and *nothing enforces it*. At the other two settings there are still
+>   **62 and 66** wrong numbers. Calling that "a configuration defect" is only honest if the
+>   configuration is actually guaranteed. It is not, yet.
+> - **T-10 (techdebt, `intake`)** — the correctness harness fingerprints the file it expects rather
+>   than what is installed, so all 42 of T-6's battery outputs named the wrong runtime.
+> - **T-4 (spike, `sp-frame`)** — the speed run. Released by T-6, needs a quiet machine; Evan asked
+>   to be told before it starts.
+> - **T-7 (spike, `sp-frame`)** — parked by Evan's own Q6 (*"log it as a ticket, do not chase now"*).
 >
-> **Standing:** never port **55433**. Plan §8.2's mutation pass has still never run — 9 of 16
-> mutants never watched failing, disclosed above every suite summary. T-2's `design` gate stays
-> `human:strict`.
+> **Decisions of record:** `kb/wiki/decision-t5-homework.md` · `decision-t6-correctness-rerun.md`
+> (both ADRs) · `runtime/README.md` for why the runtime is generated.
+>
+> **Standing:** never port **55433**; `glp_strong` is out of scope on relevance too. Nothing in
+> either GIMS checkout was changed (Evan's Q3 park). Plan §8.2's mutation pass has **still never
+> run** — 9 of 16 mutants never watched failing, disclosed above every suite summary.
 
 ---
 
@@ -157,7 +164,6 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
-- **T-8** (feature) — Adopt variant C as the shipping runtime, with a regenerable digit mapping — verify
 - **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — intake
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
 
@@ -207,6 +213,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-8 COMPLETE** — Adopt variant C as the shipping runtime, with a regenerable digit mapping
 - 2026-09-01 **T-2 COMPLETE** — Demo the autoSQL UI end-to-end against a seeded fake-data database
 - 2026-09-01 **T-6 COMPLETE** — Correctness re-run: does the subset pass once the two mechanisms are fixed?
 - 2026-09-01 **T-5 COMPLETE** — Homework: do non-ASCII digit strings actually occur in the real data?
