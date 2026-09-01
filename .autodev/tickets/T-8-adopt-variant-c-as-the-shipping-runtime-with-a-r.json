@@ -3,8 +3,8 @@
   "slug": "adopt-variant-c-as-the-shipping-runtime-with-a-r",
   "type": "feature",
   "title": "Adopt variant C as the shipping runtime, with a regenerable digit mapping",
-  "stage": "intake",
-  "status": "triage",
+  "stage": "verify",
+  "status": "testing",
   "spec": "Spawned by T-6's ruling (kb/wiki/decision-t6-correctness-rerun.md). Replace the xpr runtime's string-coercion branch with variant C, proven at spikes/T-6/runtime-variantC.sql: after the ASCII numeric gate fails, btrim with Python's full 29-code-point isspace set and translate the 670 non-ASCII Nd code points onto 0-9, then re-test. Measured: 0 wrong numbers at efd 1 over 11,367 expressions, 0 refusals, fixture 130/130, 812ms vs an 852ms baseline per 300k ordinary coercions. THE NESTING IS LOAD-BEARING: hoisting translate() above the ASCII gate costs 5.3x (4553ms) because every ordinary numeric string then pays it, and T-5 found every number-declared field in the tenant project is stored as text. Keep the comment that says so. ALSO IN SCOPE: the 670-character mapping is generated from Python's unicodedata, not hand-written, so add the generator to the build and a test that fails when the installed mapping disagrees with the running Python's Nd set - a Unicode version bump must not silently desync the two engines. Variant A (the named refusal, spikes/T-6/runtime.sql) stays committed as the one-line reversal if Evan overturns the deviation.",
   "pipeline_version": "feature@v1",
   "modifiers": [],
@@ -23,15 +23,19 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 created as feature \"Adopt variant C as the shipping runtime, with a regenerable digit mapping\" on feature@v1 by agent:claude(on-behalf:evan,GA-10)"
+    "2026-09-01 advanced plan → build · plan on claude-opus-5[1m]",
+    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
+    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
+    "2026-09-01 gate merge cleared by policy:unattended",
+    "2026-09-01 advanced gate → verify · gate on claude-opus-5[1m]"
   ],
   "assignees": {},
   "links": {
     "intent": "T-6"
   },
   "gates": {
-    "spec_ready": false,
-    "merge": false,
+    "spec_ready": true,
+    "merge": true,
     "accept": false,
     "deploy": false,
     "sp_decide": false,
@@ -44,5 +48,120 @@
     "validator_passed": false,
     "attempts": 0
   },
-  "history": []
+  "history": [
+    {
+      "from": "intake",
+      "to": "refine",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:32:31.004Z"
+    },
+    {
+      "from": "refine",
+      "to": "queue",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:33:41.956Z"
+    },
+    {
+      "from": "queue",
+      "to": "locate",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:33:41.998Z"
+    },
+    {
+      "from": "locate",
+      "to": "plan",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:34:06.085Z"
+    },
+    {
+      "from": "plan",
+      "to": "build",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:34:30.156Z"
+    },
+    {
+      "from": "build",
+      "to": "auto-review",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:08.934Z"
+    },
+    {
+      "from": "auto-review",
+      "to": "gate",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:46.998Z"
+    },
+    {
+      "from": "gate",
+      "to": "verify",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:58.281Z"
+    }
+  ],
+  "receipts": {
+    "intake": {
+      "evidence": ".autodev/tickets/T-8-adopt-variant-c-as-the-shipping-runtime-with-a-r.json — type feature, source T-6's sp-spawn (links.intent=T-6), no open duplicate (T-9 enforces the float pin, T-10 fixes the harness fingerprint; neither touches the coercion path), routed to refine on feature@v1",
+      "kind": "other",
+      "fingerprint": ".autodev/tickets/T-8-adopt-variant-c-as-the-shipping-runtime-with-a-r.json — type feature, source T-6's sp-spawn (links.intent=T-6), no open duplicate (T-9 enforces the float pin, T-10 fixes the harness fingerprint; neither touches the coercion path), routed to refine on feature@v1",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:32:31.003Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "refine": {
+      "evidence": ".autodev/specs/T-8.md @ 789e077 — 8 acceptance criteria, each with its test; scope and out-of-scope both named; the frozen-spike-runtime constraint and the step-11 deviation stated up front",
+      "kind": "other",
+      "fingerprint": ".autodev/specs/T-8.md @ 789e077 — 8 acceptance criteria, each with its test; scope and out-of-scope both named; the frozen-spike-runtime constraint and the step-11 deviation stated up front",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:33:41.956Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "queue": {
+      "evidence": ".autodev/specs/T-8.md is approved and the ticket is dispatchable: no blocker, no dependency on T-9 or T-10 (both explicitly out of scope), branch feat/T-8-variant-c-runtime cut from main at b371c06",
+      "kind": "other",
+      "fingerprint": ".autodev/specs/T-8.md is approved and the ticket is dispatchable: no blocker, no dependency on T-9 or T-10 (both explicitly out of scope), branch feat/T-8-variant-c-runtime cut from main at b371c06",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:33:41.997Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "locate": {
+      "evidence": ".autodev/notes/T-8-locate.md @ bb3d623 — the 3 frozen spike runtimes with their digests, the single function that changes (xpr.num's string branch), and all four places step 11 is asserted (test_ui SEVEN_STATES + ACCEPTED_PICKS, test_walkthrough test_ac22_*, expected-answers.json)",
+      "kind": "other",
+      "fingerprint": ".autodev/notes/T-8-locate.md @ bb3d623 — the 3 frozen spike runtimes with their digests, the single function that changes (xpr.num's string branch), and all four places step 11 is asserted (test_ui SEVEN_STATES + ACCEPTED_PICKS, test_walkthrough test_ac22_*, expected-answers.json)",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:34:06.084Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "plan": {
+      "evidence": ".autodev/notes/T-8-plan.md @ 6de2eb0 — six ordered steps, each with its failure mode named, plus the rollback",
+      "kind": "other",
+      "fingerprint": ".autodev/notes/T-8-plan.md @ 6de2eb0 — six ordered steps, each with its failure mode named, plus the rollback",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:34:30.156Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "build": {
+      "evidence": "9da3a51 on feat/T-8-variant-c-runtime — runtime/ created (generated, 21 xpr functions installed), 51 runtime tests pass, demo 1155 passed/0 failed with B10 guard verified. AC-1..AC-8 all met; §3.4's named successor corrected during build and the correction recorded in the spec.",
+      "kind": "other",
+      "fingerprint": "9da3a51 on feat/T-8-variant-c-runtime — runtime/ created (generated, 21 xpr functions installed), 51 runtime tests pass, demo 1155 passed/0 failed with B10 guard verified. AC-1..AC-8 all met; §3.4's named successor corrected during build and the correction recorded in the spec.",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:08.933Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "auto-review": {
+      "evidence": "./run-demo test — 1155 passed, 0 failed, B10 checksum guard verified; runtime/tests — 51 passed. Review: translate() can only ever turn a string Python ALSO coerces into a number (Python's _NUM_RE uses Unicode \\d, so SQL's post-translation acceptance is a subset of Python's), verified case-by-case over 40 strings; no untrusted input reaches the generator; no new routes, SQL or network surface. Frozen evidence verified untouched: spikes/T-1/proto/runtime.sql still 1c58d548a6045aa6, spikes/T-6/runtime.sql still 871b1b4c2df95719, and git shows no diff under spikes/ at all. Caught in review and fixed: a broad 'git add -A' had swept 420 files of generated .repo-tour output into the branch — untracked and gitignored. WAIVED, pre-existing: plan §8.2's mutation pass has still never run.",
+      "kind": "other",
+      "fingerprint": "./run-demo test — 1155 passed, 0 failed, B10 checksum guard verified; runtime/tests — 51 passed. Review: translate() can only ever turn a string Python ALSO coerces into a number (Python's _NUM_RE uses Unicode \\d, so SQL's post-translation acceptance is a subset of Python's), verified case-by-case over 40 strings; no untrusted input reaches the generator; no new routes, SQL or network surface. Frozen evidence verified untouched: spikes/T-1/proto/runtime.sql still 1c58d548a6045aa6, spikes/T-6/runtime.sql still 871b1b4c2df95719, and git shows no diff under spikes/ at all. Caught in review and fixed: a broad 'git add -A' had swept 420 files of generated .repo-tour output into the branch — untracked and gitignored. WAIVED, pre-existing: plan §8.2's mutation pass has still never run.",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:46.997Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "gate": {
+      "evidence": "merged to main at 01331e9 — merge gate cleared by unattended policy after ./run-demo test green (1155/0) and runtime/tests green (51)",
+      "kind": "other",
+      "fingerprint": "merged to main at 01331e9 — merge gate cleared by unattended policy after ./run-demo test green (1155/0) and runtime/tests green (51)",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:50:58.280Z",
+      "model": "claude-opus-5[1m]"
+    }
+  }
 }

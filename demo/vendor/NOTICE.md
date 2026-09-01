@@ -1,7 +1,15 @@
 # `demo/vendor/` — what is here, where it came from, and under what ruling
 
-Everything under this directory except `NOTICE.md` itself and `wheels/` is a **byte-identical
-copy** of a file that lives in one of the two GIMS checkouts. Nothing here is edited, fragmented,
+Everything under this directory except `NOTICE.md` itself, `wheels/` and **`runtime.sql`** is a
+**byte-identical copy** of a file that lives in one of the two GIMS checkouts.
+
+> **`runtime.sql` is the exception, and always was.** It is **autoSQL's own** artifact — GIMS has
+> no such file — so it is vendored from **`runtime/runtime.sql`** in this repository, not from a
+> GIMS checkout. The table below never listed it and this paragraph is the correction (T-8,
+> 2026-09-01). Its digest is recorded in `demo/manifest.json` like the rest, and
+> `demo/tests/test_vendor.py` asserts the vendored copy is byte-identical to `runtime/runtime.sql`.
+> **`runtime/runtime.sql` is GENERATED** — if it needs to change, edit `runtime/runtime.sql.in` and
+> run `python3 runtime/generate.py`, then re-vendor. Never hand-edit either copy. Nothing here is edited, fragmented,
 or recoloured — see `T-2-plan.md` rulings **D1**, **D2** and **R4**, and `T-2.md` §9.5 and §9.7.
 
 Both source checkouts carry identical bytes for every file below (re-verified at vendoring time,

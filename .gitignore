@@ -52,3 +52,7 @@ Thumbs.db
 # Track them instead if that ever annoys you — delete these two lines.
 .autodev/outbox/
 .autodev/notify/
+
+# Generated repo map (.repo-tour) — regenerable output, never committed.
+# It was swept into the T-8 branch once by a broad `git add -A`; this stops that.
+.repo-tour/

@@ -398,7 +398,7 @@
         "alias": "biggest",
         "expression": "max($.m)"
       },
-      "derivation": "\u00a75's control, demonstrated: the two panes disagree, visibly and deliberately, and the screen flags it. Note max IS in the safe subset (\u00a74.2 allows abs, coalesce, count, if, length, max, min) \u2014 it is sum and avg that are refused, which is why this step runs at all where step 10 does not.",
+      "derivation": "The value that used to be wrong, reading the same on both engines. Note max IS in the safe subset (\u00a74.2 allows abs, coalesce, count, if, length, max, min) \u2014 it is sum and avg that are refused, which is why this step runs at all where step 10 does not.",
       "expect": {
         "row": {
           "value": "edge-01",
@@ -406,19 +406,19 @@
         },
         "python_value": {
           "value": "123",
-          "derivation": "Python's max over the parsed array [\"\uff11\uff12\uff13\", 1]. Python's string-to-number coercion is float(), and float() accepts any Unicode decimal digit \u2014 float(\"\uff11\uff12\uff13\") is 123.0 \u2014 so the string converts, 123.0 > 1, and the ECMA shortest rendering of 123.0 is 123. (T-3's finding 1: the Unicode-digit gap, the divergence that SURVIVES the corrected runtime.)"
+          "derivation": "Python's max over the parsed array [\"\uff11\uff12\uff13\", 1]. Python's string-to-number coercion is float(), and float() accepts any Unicode decimal digit \u2014 float(\"\uff11\uff12\uff13\") is 123.0 \u2014 so the string converts, 123.0 > 1, and the ECMA shortest rendering of 123.0 is 123."
         },
         "sql_value": {
-          "value": "1",
-          "derivation": "Derived from the corrected runtime's string gate, not from running anything: its string-to-number regex admits ASCII digits [0-9] only, so \"\uff11\uff12\uff13\" reads as missing on the SQL side. max ignores anything missing, and the only element left of [\"\uff11\uff12\uff13\", 1] is 1."
+          "value": "123",
+          "derivation": "Derived from the adopted runtime's string branch, not from running anything: when the ASCII-only gate misses, the runtime translates the 670 non-ASCII decimal digits onto '0'-'9' and re-tests, so \"\uff11\uff12\uff13\" reads as 123 exactly as Python reads it. max over [123.0, 1] is 123. (T-6 variant C \u2014 the fix that closed T-3's finding 1 by MATCHING Python rather than refusing.)"
         },
         "panes_agree": {
-          "value": false,
-          "derivation": "The asserted disagreement of AC-22 (as amended 2026-08-23, q4/GA-7). This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."
+          "value": true,
+          "derivation": "AC-22 as amended 2026-09-01 (T-8). It asserted a disagreement for as long as one existed; T-6 closed the last in-subset value divergence, so the assertion is INVERTED rather than dropped \u2014 a run where the panes differ here means the runtime, the compiler or the comparison has changed."
         },
         "flagged": {
-          "value": true,
-          "derivation": "\u00a75 requires the screen to flag the disagreement rather than silently show two numbers."
+          "value": false,
+          "derivation": "Nothing to flag: the screen marks a disagreement, and there is none. The mark's absence is asserted, not merely unchecked."
         }
       }
     },

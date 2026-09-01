@@ -78,10 +78,9 @@ ACCEPTED_PICKS = {
     "scalar, sum": pick(aggregate={"fn": "sum", "field": "$.payload.load"}),
     "bucket, count per day": pick(
         bucket="day", aggregate={"fn": "count", "field": None}),
-    # 2026-08-23, q4/GA-7: max($.l) agrees under the adopted runtime (the
-    # corrected guard reads 1e300); the shown disagreement rides the
-    # Unicode-digit gap in edge-01's `m` — see AC-22's dated note.
-    "the disagreement": pick(
+    # 2026-09-01, T-8: both engines now agree here. The pick is kept because it
+    # is the value that used to be wrong — see AC-22's second dated note.
+    "the reconciled case": pick(
         source=EDGECASE, computed=[{"name": "biggest", "expr": "max($.m)"}]),
 }
 
@@ -161,25 +160,34 @@ class TestBothPanesAlways:
             "start": 0, "size": 50, "total": 8400, "ordered_by": "key",
         }
 
-    def test_a_disagreement_carries_both_panes_the_count_and_the_index(
+    def test_the_reconciled_case_carries_both_panes_and_reports_no_difference(
         self, conn
     ):
-        """The pick response's four required parts, on the pick that has a
-        real disagreement to report (walkthrough step 11)."""
-        body = run(conn, ACCEPTED_PICKS["the disagreement"])
+        """The pick response's four required parts, on the exact value that used
+        to report a disagreement (walkthrough step 11).
+
+        T-8, 2026-09-01: this asserted `verdict == "disagree"`, 1 differing row,
+        SQL "1" beside Python "123". T-6's variant C closed that divergence, so
+        it now asserts the opposite -- **on the same pick**, deliberately. The
+        response shape is what is under test here; that both panes answer, that
+        the counts match, and that the column carries no diff mark is exactly as
+        strong a check of it as a difference was.
+        """
+        body = run(conn, ACCEPTED_PICKS["the reconciled case"])
         c = body["comparison"]
-        assert body["verdict"] == "disagree"
-        assert c["differing_rows"] == 1
-        assert c["first_differing_index"] == 1
+        assert body["verdict"] == "agree"
+        assert c["differing_rows"] == 0
+        assert c["first_differing_index"] is None
         assert c["sql_row_count"] == c["python_row_count"] == 10
 
         column = body["panes"]["sql"]["columns"].index("biggest")
         sql_row = body["panes"]["sql"]["rows"][1]
         py_row = body["panes"]["python"]["rows"][1]
-        assert sql_row["diff"] == [column]
-        assert py_row["diff"] == [column]
-        # §5's control, firing: the same row, read two ways.
-        assert sql_row["c"][column] == "1"
+        assert not sql_row.get("diff")
+        assert not py_row.get("diff")
+        # The value that used to be wrong. Both engines now read the full-width
+        # digits in edge-01's `m`, so max() is 123 on each side.
+        assert sql_row["c"][column] == "123"
         assert py_row["c"][column] == "123"
 
     def test_a_disagreement_past_the_page_is_still_on_the_page(self, conn):
@@ -1161,22 +1169,20 @@ SEVEN_STATES = {
     "buckets": (pick(bucket="day", aggregate={"fn": "count", "field": None}),
                 "agree", None),
     "changed": (pick(changed=True), "agree", None),
-    # 2026-09-01 (GA-11): was max($.l).  Under the adopted corrected runtime the
-    # guard reads 1e300 properly, so [1e300, 1] AGREES on both engines and this
-    # state stopped being a disagreement at all -- the two failing tests were
-    # telling the truth.  ACCEPTED_PICKS above had already been moved to $.m on
-    # 2026-08-23; this second definition was missed.  $.m is ["\uff11\uff12\uff13", 1]:
-    # Python coerces the full-width digits to 123, the ASCII gate in the vendored
-    # runtime returns NULL, so max() answers 123 against 1.  That divergence is
-    # real, in-subset, and survives the corrected guard.
+    # 2026-09-01 (GA-11) moved this from max($.l) to max($.m), and 2026-09-01
+    # (T-8) changed what it CLAIMS. Both edits have the same cause: a divergence
+    # that stops being one because the defect behind it was fixed.
     #
-    # IT DOES NOT SURVIVE T-8.  T-6 adopted variant C, which maps non-ASCII digits
-    # onto ASCII and makes both engines agree here too.  When T-8 lands variant C
-    # in demo/vendor/, this state needs a new witness -- see the note in
-    # demo/EVIDENCE.md.
-    "disagree": (pick(source=EDGECASE,
-                      computed=[{"name": "biggest", "expr": "max($.m)"}]),
-                 "disagree", None),
+    #   $.l  stopped diverging when T-3's corrected guard let SQL read 1e300.
+    #   $.m  stopped diverging when T-6's variant C let SQL read full-width digits.
+    #
+    # There is no in-subset value disagreement left to point at -- that is what
+    # T-6 passing MEANS, not a regression. So the state is renamed and asserts
+    # the opposite: the exact value that used to return a wrong number now reads
+    # identically on both engines. The pick is deliberately unchanged.
+    "reconciled": (pick(source=EDGECASE,
+                        computed=[{"name": "biggest", "expr": "max($.m)"}]),
+                   "agree", None),
     "gate": (pick(computed=[{"name": "hot",
                              "expr": "round($.payload.load, 1)"}]),
              "no-compare", ("expression", 1)),
@@ -1206,7 +1212,7 @@ class TestTheSevenStatesAreReachable:
     def test_the_seven_ids_in_the_source_are_exactly_these_seven(self):
         source = (_FRONTEND / "app.jsx").read_text()
         ids = re.findall(r'id: "([a-z]+)", n: \d', source)
-        assert ids == ["agree", "buckets", "changed", "disagree", "gate",
+        assert ids == ["agree", "buckets", "changed", "reconciled", "gate",
                        "alias", "probe"]
 
     @pytest.mark.parametrize("state", sorted(SEVEN_STATES))
@@ -1225,16 +1231,27 @@ class TestTheSevenStatesAreReachable:
             assert answer["refusal"]["kind"] == kind
             assert answer["refusal"]["layer"] == layer
 
-    def test_the_disagreement_state_is_located_and_not_merely_announced(self, conn):
-        """D8, and the one view the whole design is arranged around."""
-        p, _, _ = SEVEN_STATES["disagree"]
+    def test_the_reconciled_state_shows_the_same_number_on_both_engines(self, conn):
+        """D8's view, now that there is nothing left for it to locate.
+
+        T-8, 2026-09-01: this asserted a located differing row -- the one view
+        the whole design was arranged around. T-6 closed the last in-subset
+        value divergence, so the assertion is inverted rather than deleted: the
+        row that used to differ must now carry the SAME number on both sides,
+        and must not be marked. Deleting it would have quietly removed the only
+        end-to-end check on the value this demo exists to talk about.
+        """
+        p, _, _ = SEVEN_STATES["reconciled"]
         answer = run(conn, p)
         c = answer["comparison"]
-        assert c["differing_rows"] >= 1
-        assert c["first_differing_index"] is not None
-        row = next(r for r in answer["panes"]["sql"]["rows"]
-                   if r["i"] == c["first_differing_index"])
-        assert row["diff"], "the differing COLUMN is not marked, only the row"
+        assert c["differing_rows"] == 0
+        assert c["first_differing_index"] is None
+        col = answer["panes"]["sql"]["columns"].index("biggest")
+        sql_rows = answer["panes"]["sql"]["rows"]
+        py_rows = answer["panes"]["python"]["rows"]
+        assert not any(r.get("diff") for r in sql_rows), "a row is marked as differing"
+        # edge-01 is the row that used to be wrong; both engines read 123.
+        assert sql_rows[1]["c"][col] == py_rows[1]["c"][col] == "123"
 
     def test_the_bucketed_state_disables_more_than_the_mock_drew(self, client):
         """B5a greys one more control on the bucketed view than the drawing
@@ -1294,41 +1311,53 @@ class TestTheDifferingColumnSitsBesideTheMarker:
             assert s == list(range(width)), state
             assert y == list(range(width)), state
 
-    def test_the_differing_column_is_adjacent_to_the_spine_on_both_sides(self, conn):
-        """The whole of q8, stated once."""
-        p, _, _ = SEVEN_STATES["disagree"]
-        answer = run(conn, p)
-        rows = answer["panes"]["sql"]["rows"]
-        diffs = sorted({j for r in rows if r.get("diff") for j in r["diff"]})
-        assert diffs, "this state must actually differ, or the test proves nothing"
+    # ── T-8, 2026-09-01: these three used to drive a LIVE disagreement.
+    #
+    # There is no longer one to drive. T-6 closed the last in-subset value
+    # divergence, so no pick this demo can make produces a differing row. That
+    # does not make q8 untestable and it must not make it untested — the
+    # reordering is a pure function of (width, differing columns), so it is
+    # tested directly, over cases a live pick can no longer reach. The
+    # end-to-end half that survives (an agreeing pick is left alone, and the
+    # screen follows the published order) is still asserted above and below.
 
-        s, y = self._order(answer)
-        # SQL is LEFT of the spine: its differing columns are the last ones.
-        assert s[-len(diffs):] == diffs
-        # Python is RIGHT of the spine: its differing columns are the first ones.
-        assert y[:len(diffs)] == diffs
+    def test_the_differing_column_is_moved_adjacent_to_the_spine(self):
+        """The whole of q8, stated once, against the function itself."""
+        # four columns, the third differs on one row
+        o = server_app.column_order(4, {7: [2]})
+        assert o["sql"] == [0, 1, 3, 2], "SQL is LEFT of the spine: the differing column goes last"
+        assert o["python"] == [2, 0, 1, 3], "Python is RIGHT of it: the differing column goes first"
 
-    def test_the_two_orders_mirror_each_other_about_the_spine(self, conn):
+    def test_the_two_orders_mirror_each_other_about_the_spine(self):
         """Not merely 'both moved' — the same block, flipped across the marker,
         so the eye travels the shortest distance between the two values."""
-        p, _, _ = SEVEN_STATES["disagree"]
-        answer = run(conn, p)
-        s, y = self._order(answer)
-        rows = answer["panes"]["sql"]["rows"]
-        diffs = sorted({j for r in rows if r.get("diff") for j in r["diff"]})
-        k = len(diffs)
-        assert s[-k:] == y[:k], "the differing block is not mirrored"
-        assert s[:-k] == y[k:], "the untouched columns are not in the same relative order"
+        for width, per_row in [(4, {0: [1]}), (6, {3: [0, 4]}), (5, {2: [4]}), (3, {1: [1]})]:
+            o = server_app.column_order(width, per_row)
+            k = len({j for cols in per_row.values() for j in cols})
+            assert o["sql"][-k:] == o["python"][:k], (width, per_row)
+            assert o["sql"][:-k] == o["python"][k:], (width, per_row)
 
-    def test_the_untouched_columns_keep_their_relative_order(self, conn):
-        """Moving the differing column must not shuffle everything else."""
-        p, _, _ = SEVEN_STATES["disagree"]
-        answer = run(conn, p)
-        s, _ = self._order(answer)
-        rows = answer["panes"]["sql"]["rows"]
-        diffs = {j for r in rows if r.get("diff") for j in r["diff"]}
-        rest = [j for j in s if j not in diffs]
-        assert rest == sorted(rest)
+    def test_the_untouched_columns_keep_their_relative_order(self):
+        for width, per_row in [(6, {0: [1, 3]}), (5, {2: [0]}), (4, {1: [3]})]:
+            o = server_app.column_order(width, per_row)
+            diffs = {j for cols in per_row.values() for j in cols}
+            rest = [j for j in o["sql"] if j not in diffs]
+            assert rest == sorted(rest), (width, per_row)
+
+    def test_several_rows_differing_on_different_columns_are_all_moved(self):
+        """`differing` is a union across rows, not the first row's list."""
+        o = server_app.column_order(5, {0: [1], 4: [3], 9: [1, 3]})
+        assert o["sql"] == [0, 2, 4, 1, 3]
+        assert o["python"] == [1, 3, 0, 2, 4]
+
+    def test_nothing_is_reordered_when_everything_differs(self):
+        """Moving every column is not 'beside the marker', it is churn."""
+        o = server_app.column_order(3, {0: [0, 1, 2]})
+        assert o["sql"] == [0, 1, 2] and o["python"] == [0, 1, 2]
+
+    def test_an_empty_pane_does_not_crash_the_reorder(self):
+        o = server_app.column_order(0, {})
+        assert o == {"sql": [], "python": []}
 
     def test_the_screen_actually_follows_the_published_order(self):
         """A server-side order nothing renders is not a layout fix."""

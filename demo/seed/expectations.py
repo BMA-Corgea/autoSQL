@@ -754,22 +754,28 @@ def build_answers() -> Dict[str, Any]:
     })
 
     # -- step 11 -------------------------------------------------------------
-    # 2026-08-23, q4/GA-7 (the dated note beside AC-22 in T-2.md): the demo
-    # adopted T-3's corrected runtime.sql, whose 309-digit guard reads 1e300
-    # correctly — so max($.l) over [1e300, 1] now AGREES (both panes 1e+300)
-    # and can no longer carry §5's shown disagreement. The step moved to the
-    # divergence T-3 measured as SURVIVING the fix: the Unicode-digit gap.
-    # T-6 will convert that gap to a named refusal, at which point this step
-    # moves again (Evan was told this in the q4 form and chose adopt).
+    # This step has now been amended TWICE, and both times for the same reason:
+    # a divergence stopped being one because the defect behind it was fixed.
+    #
+    #   2026-08-23 (q4/GA-7) — the demo adopted T-3's corrected runtime, whose
+    #   309-digit guard reads 1e300 properly, so max($.l) over [1e300, 1] began
+    #   to AGREE. The step moved to the Unicode-digit gap in $.m.
+    #
+    #   2026-09-01 (T-8) — the demo adopted T-6's variant C, which maps the 670
+    #   non-ASCII decimal digits onto ASCII, so max($.m) now agrees too. There is
+    #   no in-subset value disagreement left to move to; that is what T-6 passing
+    #   MEANS. The step keeps the SAME pick and asserts the opposite outcome.
+    #
+    # The pick is deliberately unchanged: this is the exact value that used to
+    # return a wrong number, and the claim is now that it does not.
     steps.append({
         "step": 11,
         "title": "Source noun:EdgeCase, computed column biggest = max($.m)",
         "pick": {"operation": 2, "source": "noun:EdgeCase", "alias": "biggest", "expression": "max($.m)"},
         "derivation": (
-            "§5's control, demonstrated: the two panes disagree, visibly and deliberately, and "
-            "the screen flags it. Note max IS in the safe subset (§4.2 allows abs, coalesce, "
-            "count, if, length, max, min) — it is sum and avg that are refused, which is why "
-            "this step runs at all where step 10 does not."
+            "The value that used to be wrong, reading the same on both engines. Note max IS in "
+            "the safe subset (§4.2 allows abs, coalesce, count, if, length, max, min) — it is sum "
+            "and avg that are refused, which is why this step runs at all where step 10 does not."
         ),
         "expect": {
             "row": entry("edge-01", 'The only seeded EdgeCase row carrying an `m` key; its value is the array ["１２３", 1] (B24 as amended 2026-08-23) — a string of FULLWIDTH digits (U+FF11 U+FF12 U+FF13) beside a plain number.'),
@@ -778,18 +784,18 @@ def build_answers() -> Dict[str, Any]:
                 "Python's max over the parsed array [\"１２３\", 1]. Python's string-to-number "
                 "coercion is float(), and float() accepts any Unicode decimal digit — "
                 "float(\"１２３\") is 123.0 — so the string converts, 123.0 > 1, and the ECMA "
-                "shortest rendering of 123.0 is 123. (T-3's finding 1: the Unicode-digit gap, "
-                "the divergence that SURVIVES the corrected runtime.)",
+                "shortest rendering of 123.0 is 123.",
             ),
             "sql_value": entry(
-                "1",
-                "Derived from the corrected runtime's string gate, not from running anything: "
-                "its string-to-number regex admits ASCII digits [0-9] only, so \"１２３\" reads "
-                "as missing on the SQL side. max ignores anything missing, and the only element "
-                "left of [\"１２３\", 1] is 1.",
+                "123",
+                "Derived from the adopted runtime's string branch, not from running anything: "
+                "when the ASCII-only gate misses, the runtime translates the 670 non-ASCII "
+                "decimal digits onto '0'-'9' and re-tests, so \"１２３\" reads as 123 exactly as "
+                "Python reads it. max over [123.0, 1] is 123. (T-6 variant C — the fix that "
+                "closed T-3's finding 1 by MATCHING Python rather than refusing.)",
             ),
-            "panes_agree": entry(False, "The asserted disagreement of AC-22 (as amended 2026-08-23, q4/GA-7). This one is SUPPOSED to differ; a run where the panes agree here is a FAILING run."),
-            "flagged": entry(True, "§5 requires the screen to flag the disagreement rather than silently show two numbers."),
+            "panes_agree": entry(True, "AC-22 as amended 2026-09-01 (T-8). It asserted a disagreement for as long as one existed; T-6 closed the last in-subset value divergence, so the assertion is INVERTED rather than dropped — a run where the panes differ here means the runtime, the compiler or the comparison has changed."),
+            "flagged": entry(False, "Nothing to flag: the screen marks a disagreement, and there is none. The mark's absence is asserted, not merely unchecked."),
         },
     })
 
