@@ -214,7 +214,7 @@ def test_the_installed_schema_is_complete(conn):
     with conn.cursor() as cur:
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
-        assert cur.fetchone()[0] == 21
+        assert cur.fetchone()[0] == 23
 
 
 @needs_db
@@ -250,3 +250,107 @@ def test_the_ascii_path_skips_the_translate(conn):
         "by several times, because only the fallback runs translate(). A ratio near 1 "
         "means translate() has been hoisted above the ASCII gate — see T-6 FINDINGS §B."
         % (ascii_path, fallback, fallback / ascii_path))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# T-9 · the float-digit setting
+#
+# T-6's correctness pass holds ONLY at extra_float_digits = 1; at 0 and -3 the
+# same batteries produce 62 and 66 wrong numbers. Calling that "a configuration
+# defect" is only honest if the configuration is guaranteed, so:
+#
+#   * xpr.j() is immune -- it carries its own SET, and these prove it at all
+#     three settings;
+#   * bare to_jsonb() is NOT -- asserted too, as the control, because an
+#     immunity test that would pass on an unprotected path measures nothing;
+#   * xpr.assert_float_digits() refuses by name where nothing can be immune.
+# ══════════════════════════════════════════════════════════════════════════
+
+#: A double with digits to lose. This is T-3's own M3 witness: the largest real
+#: stored value in the GIMS data, a millisecond epoch. At efd -3 it comes back
+#: as ...040 — three milliseconds late, with no error.
+M3_WITNESS = "1787169706037.0"
+SETTINGS = ("1", "0", "-3")
+
+
+def _at_each_setting(conn, sql):
+    out = {}
+    for efd in SETTINGS:
+        with conn.cursor() as cur:
+            cur.execute("SET extra_float_digits = %s" % efd)
+            cur.execute(sql)
+            out[efd] = str(cur.fetchone()[0])
+    with conn.cursor() as cur:                      # leave the session pinned
+        cur.execute("SET extra_float_digits = 1")
+    return out
+
+
+@needs_db
+def test_xpr_j_is_immune_to_the_session_setting(conn):
+    """AC-1 — the whole point of xpr.j."""
+    got = _at_each_setting(conn, "select xpr.j(%s::float8)" % M3_WITNESS)
+    assert len(set(got.values())) == 1, (
+        "xpr.j moved with the session setting: %r — it carries its own "
+        "SET extra_float_digits = 1 and must not" % got)
+    assert got["1"] == "1787169706037"
+
+
+@needs_db
+def test_bare_to_jsonb_is_not_immune(conn):
+    """AC-2 — the control.
+
+    If this ever passes, the test above has stopped measuring anything: it
+    would mean the platform protects every path and xpr.j is redundant. Assert
+    the exposure so the immunity claim keeps its teeth.
+    """
+    got = _at_each_setting(conn, "select to_jsonb(%s::float8)" % M3_WITNESS)
+    assert len(set(got.values())) > 1, (
+        "bare to_jsonb no longer moves with the setting (%r) — if that is real, "
+        "xpr.j's immunity test is now vacuous and this pair needs rethinking" % got)
+    assert got["-3"] != got["1"], "efd -3 must truncate where efd 1 does not"
+
+
+@needs_db
+def test_a_float8_return_cannot_be_made_immune(conn):
+    """The limit, asserted so nobody 'fixes' it by adding a SET clause.
+
+    A float8 return is rendered by the CLIENT PROTOCOL after the function has
+    returned, under the session's setting. No SET clause on the function can
+    reach that. This is why xpr.assert_float_digits() exists.
+    """
+    got = _at_each_setting(conn, "select xpr.num('\"%s\"'::jsonb)" % M3_WITNESS)
+    assert len(set(got.values())) > 1, (
+        "a float8 return stopped moving with the setting — if the protocol has "
+        "changed, xpr.assert_float_digits() may no longer be needed: %r" % got)
+
+
+@needs_db
+@pytest.mark.parametrize("efd", ["0", "-3"])
+def test_the_guard_refuses_an_unpinned_session(conn, efd):
+    """AC-3, the refusing direction."""
+    import psycopg
+    with conn.cursor() as cur:
+        cur.execute("SET extra_float_digits = %s" % efd)
+        with pytest.raises(psycopg.Error) as e:
+            cur.execute("select xpr.assert_float_digits()")
+        assert e.value.sqlstate == "XPR03"
+    with conn.cursor() as cur:
+        cur.execute("SET extra_float_digits = 1")
+
+
+@needs_db
+def test_the_guard_is_quiet_when_the_session_is_pinned(conn):
+    """AC-3, the other direction — a guard that always fires guards nothing."""
+    with conn.cursor() as cur:
+        cur.execute("SET extra_float_digits = 1")
+        cur.execute("select xpr.assert_float_digits()")
+        cur.fetchone()          # RETURNS void; the point is that it did not raise
+
+
+@needs_db
+def test_the_schema_gained_exactly_the_two_new_functions(conn):
+    """AC-4 — 21 before T-9, 23 after. A third would be unrecorded scope."""
+    with conn.cursor() as cur:
+        cur.execute("select count(*) from pg_proc p join pg_namespace n "
+                    "on n.oid = p.pronamespace where n.nspname = 'xpr'")
+        assert cur.fetchone()[0] == 23

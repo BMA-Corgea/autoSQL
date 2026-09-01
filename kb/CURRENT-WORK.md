@@ -164,7 +164,7 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
-- **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — intake
+- **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — build
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
 
 ## Waiting on
