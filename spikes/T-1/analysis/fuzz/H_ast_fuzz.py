@@ -418,8 +418,21 @@ def main():
         gims = "/home/corgea/Desktop/Coding Projects/GIMS-Project/core/dashboard/expr.py"
         proto = "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/proto"
         print("      expr.py     sha256=%s" % sha(gims)[:16])
-        print("      compile.py  sha256=%s" % sha(proto + "/compile.py")[:16])
-        print("      runtime.sql sha256=%s" % sha(proto + "/runtime.sql")[:16])
+        print("      compile.py  sha256=%s  (file)" % sha(proto + "/compile.py")[:16])
+        # T-10: the FILE and what is INSTALLED are different claims. Print both.
+        # A battery that names the runtime it hoped for is how 42 outputs came to
+        # carry the wrong provenance during T-6.
+        file_sha = sha(proto + "/runtime.sql")[:16]
+        try:
+            inst_sha = differ.installed_runtime_sha()[:16]
+        except Exception as exc:                       # never fail a battery over a label
+            inst_sha = "unavailable (%s)" % type(exc).__name__
+        print("      runtime.sql sha256=%s  (file on disk)" % file_sha)
+        print("      xpr schema  sha256=%s  (INSTALLED -- this is what ran)" % inst_sha)
+        if inst_sha != file_sha and not inst_sha.startswith("unavailable"):
+            print("      NOTE: installed runtime differs from %s/runtime.sql." % proto)
+            print("            That is EXPECTED when a ticket installs its own build;")
+            print("            it is a DEFECT if you believed they were the same.")
         print("      efd requested=%s read-back=%s  seed=%d  N=%d  wall=%.1fs"
               % (differ.EFD, differ.EFD_READBACK, SEED, N, wall))
 
