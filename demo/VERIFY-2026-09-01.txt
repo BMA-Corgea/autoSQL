@@ -1,0 +1,24 @@
+T-2 VERIFY - the seven states, live over HTTP, 2026-09-01
+============================================================================================
+state     http  verdict     accepted  refusal                beside the marker
+--------------------------------------------------------------------------------------------
+agree     200   agree       True      -                      rolling_avg | collection
+alias     422   no-compare  False     alias/1                -
+buckets   200   agree       True      -                      agg | bucket
+changed   200   agree       True      -                      data | collection
+disagree  200   disagree    True      -                      biggest | biggest
+gate      422   no-compare  False     expression/1           -
+probe     422   no-compare  False     probe/2                -
+--------------------------------------------------------------------------------------------
+
+The disagreement, located rather than announced:
+  differing rows   : 1   first at index 1
+  differing column : biggest
+  SQL   order      : collection / key / data / biggest
+  Python order     : biggest / collection / key / data
+  at the marker    : SQL '1'  [marker]  '123' Python
+
+page /           : HTTP 200
+static/js/app.js : HTTP 200
+
+RESULT: all seven states reach the outcome their view describes, and the differing column sits beside the marker on both sides
