@@ -2,39 +2,45 @@
 
 ---
 
-> # START HERE — 2026-09-01 (second update: Evan ruled, T-5 is COMPLETE)
+> # START HERE — 2026-09-01 (third update: T-5 AND T-6 are both COMPLETE)
 >
-> **T-5 is done and merged. Evan answered all six form questions (GA-9) and took every
-> recommendation.** The ruling is an ADR at `kb/wiki/decision-t5-homework.md`.
+> **Two spikes finished today and both are merged. One thing is left in motion: T-2.**
 >
-> **What T-5 found:** stored data is clean — **0 of 144** coercible strings, four independent
-> instruments agreeing over 38,457 rows — so the trigger that would have overturned T-3 **did not
-> fire**. But the old headline "0 of 1,096,202" overstated the guarantee by ~7,600×, and **GIMS's
-> own CSV import admits 8 of 10 non-ASCII digit forms** into number-declared fields, because the
-> check meant to enforce *"this field is a number"* is bare `float()`
-> (`GIMS-Project/core/words/validation.py:88-97`). It has not happened; nothing stops it happening.
+> **T-6 PASSED.** Zero wrong numbers at `extra_float_digits = 1` across 11,367 expressions in three
+> batteries; contract fixture **130/130** at all three settings; zero unexplained raises. T-3's 55
+> divergences at that setting are gone. Ruling recorded under **GA-10** at
+> `kb/wiki/decision-t6-correctness-rerun.md`. **This releases T-4, the speed run.** It does NOT
+> release GIMS.
 >
-> **What is now unblocked and ready to work:**
+> **Two things about T-6 that a resuming session must not miss:**
 >
-> - **T-6 (spike, `sp-frame`) — RELEASED, and it is the next thing.** Fix-and-re-run. **Q2 added
->   scope that is NOT in the ticket file:** the compiled runtime must **record every refusal**, so a
->   first real occurrence is seen rather than inferred. `respec` correctly refuses to rewrite a
->   spike's charter, so **T-6's `sp-frame` must read the ADR's "Consequences applied" section** and
->   carry that scope itself. Q3 parked the GIMS-side fix — **do not change GIMS in T-6.**
-> - **T-2 (feature, `build`) — its blocker is SETTLED** (Q4): seed a new disagreement using T-5's
->   witness, a non-ASCII digit row. Strictly better than the original, which displayed a defect T-3
->   has since fixed. **Two things still stand between T-2 and acceptance:** AC-22's amendment note
->   is unfinished, and the **q8 layout fix has not started** — GA-8 requires it before the accept
->   gate clears.
-> - **T-7 (spike, `sp-frame`) — opened, deliberately not to be worked yet** (Q6: *"log it as a
->   ticket, do not chase now"*). `Glove.size` is declared `float` and holds `'lmao im a changling'`,
->   so some write path skips the schema check.
-> - **T-4 (spike, `sp-frame`) — held until T-6 reports** (Q5). His own ordering: correctness before
->   speed.
+> 1. **The adopted fix is NOT the one Evan signed.** T-3 ruled a *named refusal* for the
+>    Unicode-digit gap, on the premise that SQL "cannot cheaply be made to match Python". **That
+>    premise is false** — matching needs a digit *mapping*, not a digit *class*, and one guarded
+>    `translate()` over the 670 `Nd` code points does it. The refusal was built and measured first:
+>    it costs **60 correct answers to fix 26 wrong ones**. Variant C (translate, guarded) has zero
+>    divergences, zero refusals and no measurable cost. Adopted, **flagged as a deviation**, and
+>    variant A stays committed at `spikes/T-6/runtime.sql` so reversing is one line.
+> 2. **The pass depends entirely on the float setting being pinned to 1**, and *nothing enforces
+>    that today* — at efd 0 and −3 there are still **62 and 66** wrong numbers. That is **T-9**.
 >
-> **Standing constraints, re-affirmed 2026-09-01:** never connect to port **55433** — and `glp_strong`
-> is now out of scope on **relevance** too, not just safety (*"autoSQL should be its own project"*).
-> The GIMS checkouts stay read-only. The `design` gate on T-2 stays `human:strict`.
+> **The queue T-6 spawned:** **T-8** adopt variant C as the shipping runtime (with the digit mapping
+> generated at build time, not hand-written) · **T-9** enforce the efd pin · **T-10** fix the
+> harness's runtime fingerprint, which named the wrong runtime on all 42 battery outputs.
+>
+> **STILL OPEN — T-2 (feature, `build`), the only ticket in motion.** Its blocker is settled (GA-9
+> Q4: seed a new disagreement using T-5's witness, a non-ASCII digit row). **Note the interaction
+> with T-6:** under variant C a non-ASCII digit no longer diverges — it *agrees* — so the demo's
+> disagreement must come from somewhere else, or pin variant A for the demo. **Read
+> `.autodev/handoffs/T-2.md` before touching it.** Two things also stand between T-2 and acceptance:
+> AC-22's amendment note is unfinished, and the **q8 layout fix has not started** (GA-8 requires it).
+>
+> **Also open, deliberately parked:** **T-4** (released, not started) · **T-7** (Evan's Q6: *"log it
+> as a ticket, do not chase now"*).
+>
+> **Standing constraints:** never connect to port **55433**; `glp_strong` is out of scope on
+> relevance as well as safety. GIMS checkouts stay read-only and **nothing in GIMS was changed**
+> (Q3 park). T-2's `design` gate stays `human:strict`.
 
 ---
 
@@ -152,8 +158,10 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-6** (spike) — Correctness re-run: does the subset pass once the two mechanisms are fixed? — sp-decide
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
+- **T-8** (feature) — Adopt variant C as the shipping runtime, with a regenerable digit mapping — intake
+- **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — intake
+- **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
 
 ## Waiting on
 
@@ -202,6 +210,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-01 **T-6 COMPLETE** — Correctness re-run: does the subset pass once the two mechanisms are fixed?
 - 2026-09-01 **T-5 COMPLETE** — Homework: do non-ASCII digit strings actually occur in the real data?
 - 2026-08-23 **T-3 COMPLETE** — Correctness run: does the restricted expression subset ever return a wrong numb…
 - **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
