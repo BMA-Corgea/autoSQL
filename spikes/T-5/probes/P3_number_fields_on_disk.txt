@@ -1,0 +1,21 @@
+============================================================================================
+P3 - number-declared fields, and what is physically stored in them
+============================================================================================
+noun               field                    required  rows    stored JSON types (count)
+--------------------------------------------------------------------------------------------
+Elbows             Force                    True      1       str x1
+                                                              samples: ['12']
+Glove              size                     False     9       str x9
+                                                              samples: ['lmao im a changling', '3 more boss', 'oh okay', 'ok I pull up']
+Potency Sample     Dilution Weight (g)      True      17      null x7, str x10
+                                                              samples: ['24', '24', '24', '24']
+Potency Sample     Sample Weight (g)        True      17      null x7, str x10
+                                                              samples: ['1', '1', '1', '1']
+Terpene Sample     Dilution Weight (g)      True      17      null x7, str x10
+                                                              samples: ['24', '24', '24', '24']
+Terpene Sample     Sample Weight (g)        True      17      null x7, str x10
+                                                              samples: ['1', '1', '1', '1']
+
+Declared number-typed fields in the schema, total: 14 across 10 nouns
+Of those, fields that actually appear on a stored row: 6
+Of THOSE, fields physically stored as a STRING on at least one row: 6

@@ -366,3 +366,63 @@ connection was opened. `docker ps` was run to confirm container state and nothin
 
 **Open and blocking the most valuable half of this spike: §6 — Evan's ruling on read-only access to
 `glp_strong`.**
+
+---
+
+# AMENDMENT — 2026-09-01, after Evan answered §6 and §7
+
+The two open questions were put to Evan the same day this was framed. **Both answers change the
+spike, and one of them retires a section above.** Recorded verbatim, because a paraphrase would
+lose the ruling.
+
+## A1 — on `glp_strong` (retires §5 item 1 and all of §6)
+
+> **"There's nothing important inside any database for this app. I'm not worried about it at all.
+> The autoSQL should be its own project. If it's not we have a much bigger problem on our hands.
+> This doesn't have anything to do with glp_strong"**
+
+**Ruling: `glp_strong` is out of scope, and the fence is not opened.** Not for safety — because it
+is **the wrong corpus**. It holds AutoDev's and GUTS's own bookkeeping, not the GIMS data autoSQL is
+built to read, and autoSQL must stand as its own project rather than inherit a dependency on
+another system's tables.
+
+**§5 called it "the largest real corpus … and the most valuable half of this spike." That was
+wrong, and Evan corrected it.** The framing had inherited T-3's assumption that "biggest" meant
+"most relevant". T-1 §D.8 had already said the quiet part — 60.2 % of its rows were `LedgerRecord`
+written by AutoDev itself and 36.5 % were code-embedding vectors — and this framing quoted that
+sentence without letting it change the plan. `sp-investigate` proceeds under **§6(c)** by Evan's
+own ruling, and §5 items 2–5 lose most of their point for the same reason.
+
+## A2 — on non-Python writers (§7), and it re-points the whole spike
+
+> **"In the GIMS there's a method of adding rows and data for a run or noun via CSV. That gets
+> digested by a python process."**
+
+Read carefully, this is **two** answers, and they pull in opposite directions:
+
+- **The writer is Python.** The CSV is digested by a Python process, so rows still land through
+  `json.dumps()`. T-1 §D.5's finding holds, and T-3's **M4 class — raw-JSON rows a Python float
+  cannot represent — stays contingent and prices low.** Good news, and the direct answer to §7.
+- **The *content* is not Python's.** A CSV is written by a person, an instrument, or Excel — and
+  its cells arrive as text the system did not generate. **That is precisely where a non-ASCII digit
+  would come from**, and no amount of sweeping today's rows can see it, because it measures what
+  one operator happened to type rather than what the product accepts.
+
+**Consequence — the question moves from the data to the door.** §1's Q1 asked "do such strings
+occur in the real data?" The better question, and the one `sp-investigate` will answer, is:
+
+> **Can such a string get IN? Is there a supported, non-adversarial path by which a non-ASCII digit
+> reaches a field the dashboard treats as a number — and does anything on that path stop it?**
+
+A row count is evidence about the past on one machine. **The import path is evidence about the
+product.** The §9 bands still apply to whatever rows are found, but they are no longer where the
+answer lives, and `sp-investigate` should say so if the two point different ways.
+
+## What this amendment does NOT change
+
+- **The §9 bands stand as written.** They were fixed before evidence and they stay fixed; a band is
+  not renegotiated because the corpus got smaller.
+- **§10's unusable-result rules stand**, in particular: read-only, no compiler run, no pooled rates.
+- **§4.3's denominator is still the highest-value number in the sweep** — arguably more so now,
+  since the relevant corpus is the small tenant-shaped one rather than the large bookkeeping one.
+- **The timebox stands** (§8), and A1 removes roughly two hours from it.

@@ -1,0 +1,51 @@
+==============================================================================
+P1 - the CSV import path, end to end
+==============================================================================
+
+Step 1: what csv.DictReader produces from a UTF-8 CSV cell
+------------------------------------------------------------------------------
+  cell for 'full-width'      -> '１２３'   type=str
+  every cell is a str, verbatim: True
+
+Step 2: does GIMS accept it as a NUMBER field, and what do the two engines do?
+------------------------------------------------------------------------------
+case                   stored value   GIMS      Python dash  compiled SQL verdict
+------------------------------------------------------------------------------
+ASCII control          '123'          ACCEPTS   123.0        123.0        agree
+full-width             '１２３'          ACCEPTS   123.0        None         *** SILENT WRONG NUMBER ***
+Arabic-Indic           '١٢٣'          ACCEPTS   123.0        None         *** SILENT WRONG NUMBER ***
+Persian                '۱۲۳'          ACCEPTS   123.0        None         *** SILENT WRONG NUMBER ***
+Thai                   '๑๒๓'          ACCEPTS   123.0        None         *** SILENT WRONG NUMBER ***
+Devanagari             '१२३'          ACCEPTS   123.0        None         *** SILENT WRONG NUMBER ***
+full-width decimal     '１.５'          ACCEPTS   1.5          None         *** SILENT WRONG NUMBER ***
+Arabic-Indic decimal   '٣.٥'          ACCEPTS   3.5          None         *** SILENT WRONG NUMBER ***
+NBSP-wrapped ASCII     '\xa07\xa0'    ACCEPTS   7.0          None         *** SILENT WRONG NUMBER ***
+non-numeric text       'n/a'          rejects   None         None         rejected at import
+
+==============================================================================
+RESULT: 8 of 10 cases are admitted by GIMS's own number validator AND
+        produce a different answer on the compiled-SQL path, silently.
+==============================================================================
+  - full-width             '１２３'
+  - Arabic-Indic           '١٢٣'
+  - Persian                '۱۲۳'
+  - Thai                   '๑๒๓'
+  - Devanagari             '१२३'
+  - full-width decimal     '１.５'
+  - Arabic-Indic decimal   '٣.٥'
+  - NBSP-wrapped ASCII     '\xa07\xa0'
+
+The gate that lets them through, verbatim from
+GIMS-Project/core/words/validation.py:88-97 :
+
+def is_number(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, (int, float)):
+        return True
+    try:
+        float(str(value))
+        return True
+    except (ValueError, TypeError):
+        return False
+

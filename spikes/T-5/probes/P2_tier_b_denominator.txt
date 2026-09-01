@@ -1,0 +1,30 @@
+====================================================================================================
+P2 - tier-A (contains) vs tier-B (coerces), per corpus, never pooled
+====================================================================================================
+corpus                            rows   strings   coercible non-ASCII    tierA    tierB
+----------------------------------------------------------------------------------------------------
+GIMS-Project · LIMS-System         249      2597         137         0        0        0
+GIMS-Project · LIMS archive          0         0           0         0        0        0
+GIMS-Project · DurationDemo          0         0           0         0        0        0
+GIMS-Project · RunlogTest            0         0           0         0        0        0
+GIMS-Project · Sterility             0         0           0         0        0        0
+gims-ledger · guts-ledger        18823    564703           4     24914        0        0
+gims-ledger · guts               12479    371446           3     15188        0        0
+gims-ledger · guts-code           6906    203183           0      8195        0        0
+----------------------------------------------------------------------------------------------------
+TOTAL (shown, not pooled as a rate)   38457   1141929         144     48297        0        0
+
+====================================================================================================
+THE DENOMINATOR
+====================================================================================================
+  T-1 §D.4 published:      0 of 1,096,202  (every string value + object key)
+  the decision-relevant :  0 of 144  (strings the dashboard would coerce)
+  ratio of denominators :  the honest base is 0.01% the size of the published one
+
+  Unicode-tolerance control (FRAMING §9 rule 1):
+    strings carrying ANY non-ASCII character: 48,297 of 1,141,929 (4.23%)
+    -> a zero below is LOAD-BEARING: this corpus does carry non-ASCII, just not digits
+
+  non-ASCII whitespace anywhere in a string: 0
+
+  WITNESSES: none. Tier A = 0 and tier B = 0 on every corpus above.
