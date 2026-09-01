@@ -166,6 +166,7 @@ always showing its derivation, always overturnable by one line from him.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
 - **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — build
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
+- **T-11** (feature) — Promote the compiler out of the frozen spike, and route its output through xpr.j — intake
 
 ## Waiting on
 
