@@ -3,8 +3,8 @@
   "slug": "audit-which-write-path-stores-rows-that-skip-the",
   "type": "spike",
   "title": "Audit: which write path stores rows that skip the schema type check?",
-  "stage": "sp-decide",
-  "status": "spike_review",
+  "stage": "sp-spawn",
+  "status": "complete",
   "spec": "Q6 of Evan's 2026-09-01 form (GA-9): 'log it as a ticket, do not chase now'. LOW PRIORITY - opened so it is on the record, NOT to be worked before T-6. T-5 found, on the way past, that GIMS's LIMS-System project has Glove.size declared type:float in noun_types.json while the stored rows contain 'lmao im a changling', '3 more boss', 'oh okay', 'ok I pull up' (spikes/T-5/probes/P3_number_fields_on_disk.txt). core/words/validation.py:88-97 is_number() rejects all four, so either some write path reaches store.put_record without validate_item_against_schema, or those rows predate the check. The question: WHICH. Why it matters to autoSQL specifically - a declared field type is then not a guarantee about stored content, so any design that trusts declared types (per-path expression indexes per assumed scalar type, the f3 section 3.6 H3 hazard) inherits an assumption that does not hold. Read-only audit of INSERT/put_record paths in both trees; no fix in scope.",
   "pipeline_version": "spike@v2",
   "modifiers": [],
@@ -16,11 +16,11 @@
     "sp-spawn"
   ],
   "passport": [
-    "2026-09-01 relinked intent null → \"T-5\" by agent:claude(on-behalf:evan,GA-9): T-7 was spawned by T-5's sp-spawn from Evan's Q6 ruling (GA-9); links.intent is the hierarchy edge the stage validator requires",
-    "2026-09-01 advanced sp-frame → sp-investigate · sp-frame on claude-opus-5[1m]",
     "2026-09-01 advanced sp-investigate → sp-synth · sp-investigate on claude-opus-5[1m]",
     "2026-09-01 advanced sp-synth → sp-decide · sp-synth on claude-opus-5[1m]",
-    "2026-09-01 gate sp_decide cleared by agent:claude(on-behalf:evan,GA-15) on go-ahead GA-15 (\"Loop until everything is closed\")"
+    "2026-09-01 gate sp_decide cleared by agent:claude(on-behalf:evan,GA-15) on go-ahead GA-15 (\"Loop until everything is closed\")",
+    "2026-09-01 advanced sp-decide → sp-spawn · sp-decide on claude-opus-5[1m]",
+    "2026-09-01 pipeline complete at sp-spawn"
   ],
   "assignees": {},
   "links": {
@@ -38,8 +38,9 @@
   },
   "overrides": {},
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": "ZERO tickets spawned, deliberately, with the reason recorded in the ADR's ruling: the GIMS-side fix is Evan's parked Q3 call, and guarding an expression index is work on a feature nobody has built. The deliverable is kb/wiki/declared-types-are-not-a-guarantee.md @ cb8b861, indexed from kb/index.md — a constraint on the record so the design that would inherit the bad assumption cannot be built by accident."
   },
   "history": [
     {
@@ -59,6 +60,12 @@
       "to": "sp-decide",
       "by": "agent:claude(on-behalf:evan,GA-15)",
       "at": "2026-09-01T23:08:49.544Z"
+    },
+    {
+      "from": "sp-decide",
+      "to": "sp-spawn",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:09:08.759Z"
     }
   ],
   "receipts": {
@@ -85,6 +92,23 @@
       "by": "agent:claude(on-behalf:evan,GA-15)",
       "at": "2026-09-01T23:08:49.544Z",
       "model": "claude-opus-5[1m]"
+    },
+    "sp-decide": {
+      "evidence": "kb/wiki/declared-types-are-not-a-guarantee.md THE RULING section @ cb8b861 — finding accepted, no GIMS change (Q3 park), no autoSQL change (no index exists to guard), and the reason no ticket is spawned stated rather than left implicit",
+      "kind": "other",
+      "fingerprint": "kb/wiki/declared-types-are-not-a-guarantee.md THE RULING section @ cb8b861 — finding accepted, no GIMS change (Q3 park), no autoSQL change (no index exists to guard), and the reason no ticket is spawned stated rather than left implicit",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:09:08.758Z",
+      "model": "claude-opus-5[1m]"
+    },
+    "sp-spawn": {
+      "evidence": "ZERO tickets spawned, deliberately, with the reason recorded in the ADR's ruling: the GIMS-side fix is Evan's parked Q3 call, and guarding an expression index is work on a feature nobody has built. The deliverable is kb/wiki/declared-types-are-not-a-guarantee.md @ cb8b861, indexed from kb/index.md — a constraint on the record so the design that would inherit the bad assumption cannot be built by accident.",
+      "kind": "other",
+      "fingerprint": "ZERO tickets spawned, deliberately, with the reason recorded in the ADR's ruling: the GIMS-side fix is Evan's parked Q3 call, and guarding an expression index is work on a feature nobody has built. The deliverable is kb/wiki/declared-types-are-not-a-guarantee.md @ cb8b861, indexed from kb/index.md — a constraint on the record so the design that would inherit the bad assumption cannot be built by accident.",
+      "by": "agent:claude(on-behalf:evan,GA-15)",
+      "at": "2026-09-01T23:09:19.772Z",
+      "model": "claude-opus-5[1m]"
     }
-  }
+  },
+  "completed": true
 }
