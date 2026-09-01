@@ -3,8 +3,8 @@
   "slug": "adopt-variant-c-as-the-shipping-runtime-with-a-r",
   "type": "feature",
   "title": "Adopt variant C as the shipping runtime, with a regenerable digit mapping",
-  "stage": "intake",
-  "status": "triage",
+  "stage": "refine",
+  "status": "spec",
   "spec": "Spawned by T-6's ruling (kb/wiki/decision-t6-correctness-rerun.md). Replace the xpr runtime's string-coercion branch with variant C, proven at spikes/T-6/runtime-variantC.sql: after the ASCII numeric gate fails, btrim with Python's full 29-code-point isspace set and translate the 670 non-ASCII Nd code points onto 0-9, then re-test. Measured: 0 wrong numbers at efd 1 over 11,367 expressions, 0 refusals, fixture 130/130, 812ms vs an 852ms baseline per 300k ordinary coercions. THE NESTING IS LOAD-BEARING: hoisting translate() above the ASCII gate costs 5.3x (4553ms) because every ordinary numeric string then pays it, and T-5 found every number-declared field in the tenant project is stored as text. Keep the comment that says so. ALSO IN SCOPE: the 670-character mapping is generated from Python's unicodedata, not hand-written, so add the generator to the build and a test that fails when the installed mapping disagrees with the running Python's Nd set - a Unicode version bump must not silently desync the two engines. Variant A (the named refusal, spikes/T-6/runtime.sql) stays committed as the one-line reversal if Evan overturns the deviation.",
   "pipeline_version": "feature@v1",
   "modifiers": [],
@@ -23,7 +23,8 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-01 created as feature \"Adopt variant C as the shipping runtime, with a regenerable digit mapping\" on feature@v1 by agent:claude(on-behalf:evan,GA-10)"
+    "2026-09-01 created as feature \"Adopt variant C as the shipping runtime, with a regenerable digit mapping\" on feature@v1 by agent:claude(on-behalf:evan,GA-10)",
+    "2026-09-01 advanced intake → refine · intake on claude-opus-5[1m]"
   ],
   "assignees": {},
   "links": {
@@ -44,5 +45,22 @@
     "validator_passed": false,
     "attempts": 0
   },
-  "history": []
+  "history": [
+    {
+      "from": "intake",
+      "to": "refine",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:32:31.004Z"
+    }
+  ],
+  "receipts": {
+    "intake": {
+      "evidence": ".autodev/tickets/T-8-adopt-variant-c-as-the-shipping-runtime-with-a-r.json — type feature, source T-6's sp-spawn (links.intent=T-6), no open duplicate (T-9 enforces the float pin, T-10 fixes the harness fingerprint; neither touches the coercion path), routed to refine on feature@v1",
+      "kind": "other",
+      "fingerprint": ".autodev/tickets/T-8-adopt-variant-c-as-the-shipping-runtime-with-a-r.json — type feature, source T-6's sp-spawn (links.intent=T-6), no open duplicate (T-9 enforces the float pin, T-10 fixes the harness fingerprint; neither touches the coercion path), routed to refine on feature@v1",
+      "by": "agent:claude(on-behalf:evan,GA-12)",
+      "at": "2026-09-01T21:32:31.003Z",
+      "model": "claude-opus-5[1m]"
+    }
+  }
 }
