@@ -6,19 +6,19 @@ agree     200   agree       True      -                      rolling_avg | colle
 alias     422   no-compare  False     alias/1                -
 buckets   200   agree       True      -                      agg | bucket
 changed   200   agree       True      -                      data | collection
-disagree  200   disagree    True      -                      biggest | biggest
 gate      422   no-compare  False     expression/1           -
 probe     422   no-compare  False     probe/2                -
+reconciled 200   agree       True      -                      biggest | collection
 --------------------------------------------------------------------------------------------
 
-The disagreement, located rather than announced:
-  differing rows   : 1   first at index 1
-  differing column : biggest
-  SQL   order      : collection / key / data / biggest
-  Python order     : biggest / collection / key / data
-  at the marker    : SQL '1'  [marker]  '123' Python
+The value that used to come back wrong (edge-01, max($.m) over [FULLWIDTH 123, 1]):
+  differing rows   : 0   first at index None
+  SQL              : '123'
+  Python           : '123'
+  marked as differing: False
+  column order     : natural on both panes (nothing differs, so nothing is moved)
 
 page /           : HTTP 200
 static/js/app.js : HTTP 200
 
-RESULT: all seven states reach the outcome their view describes, and the differing column sits beside the marker on both sides
+RESULT: all seven states reach the outcome their view describes, and the value that used to be wrong now reads 123 on both engines

@@ -45,26 +45,27 @@ for name in sorted(SEVEN_STATES):
     print("%-9s %-5s %-11s %-9s %-22s %s%s" % (name, code, got, acc, refs, beside, "" if good else "  <-- MISMATCH"))
 
 print("-" * 92)
-p, _, _ = SEVEN_STATES["disagree"]
+p, _, _ = SEVEN_STATES["reconciled"]
 _, a = post("/api/pick", p)
 c = a["comparison"]; cols = a["panes"]["sql"]["columns"]; o = a["column_order"]
-i = c["first_differing_index"]
-srow = next(r for r in a["panes"]["sql"]["rows"] if r["i"] == i)
-prow = next(r for r in a["panes"]["python"]["rows"] if r["i"] == i)
+col = cols.index("biggest")
+srow = next(r for r in a["panes"]["sql"]["rows"] if r["c"][cols.index("key")] == "edge-01")
+prow = a["panes"]["python"]["rows"][srow["i"]]
 print()
-print("The disagreement, located rather than announced:")
-print("  differing rows   : %s   first at index %s" % (c["differing_rows"], i))
-print("  differing column : %s" % ", ".join(cols[j] for j in srow["diff"]))
-print("  SQL   order      : %s" % " / ".join(cols[j] for j in o["sql"]))
-print("  Python order     : %s" % " / ".join(cols[j] for j in o["python"]))
-print("  at the marker    : SQL %r  [marker]  %r Python"
-      % (srow["c"][o["sql"][-1]], prow["c"][o["python"][0]]))
-assert c["differing_rows"] >= 1 and srow.get("diff"), "the disagreement is not located"
-assert o["sql"][-1] == o["python"][0], "the differing column is not beside the marker on both sides"
+print("The value that used to come back wrong (edge-01, max($.m) over [FULLWIDTH 123, 1]):")
+print("  differing rows   : %s   first at index %s" % (c["differing_rows"], c["first_differing_index"]))
+print("  SQL              : %r" % srow["c"][col])
+print("  Python           : %r" % prow["c"][col])
+print("  marked as differing: %s" % bool(srow.get("diff")))
+print("  column order     : natural on both panes (nothing differs, so nothing is moved)")
+assert c["differing_rows"] == 0 and c["first_differing_index"] is None
+assert srow["c"][col] == prow["c"][col] == "123", "the two engines no longer read this the same"
+assert not srow.get("diff")
+assert o["sql"] == list(range(len(cols))) and o["python"] == list(range(len(cols)))
 print()
 print("page /           : HTTP %s" % urllib.request.urlopen(BASE + "/", timeout=20).status)
 print("static/js/app.js : HTTP %s" % urllib.request.urlopen(BASE + "/static/js/app.js", timeout=20).status)
 print()
-print("RESULT: %s" % ("all seven states reach the outcome their view describes, and the differing "
-                      "column sits beside the marker on both sides" if ok else "MISMATCH - see above"))
+print("RESULT: %s" % ("all seven states reach the outcome their view describes, and the value that "
+                      "used to be wrong now reads 123 on both engines" if ok else "MISMATCH - see above"))
 sys.exit(0 if ok else 1)
