@@ -1,0 +1,48 @@
+{
+  "id": "T-11",
+  "slug": "promote-the-compiler-out-of-the-frozen-spike-and",
+  "type": "feature",
+  "title": "Promote the compiler out of the frozen spike, and route its output through xpr.j",
+  "stage": "intake",
+  "status": "triage",
+  "spec": "Spawned by T-9 (spec section 6). T-9 added xpr.j(float8)->jsonb, which is IMMUNE to the extra_float_digits session setting because it carries its own SET clause. Nothing generates calls to it yet, and that is the gap this ticket closes. The demo's queries emit bare to_jsonb(<float8>) at the projection, so they still read the session GUC -- at efd 0 or -3 they return SHORT numbers (T-3 mechanism M3, 62-66 wrong answers across T-6's batteries). That emission comes from spikes/T-1/proto/compile.py, which the demo loads DIRECTLY (demo/builder.py:92) and which is FROZEN EVIDENCE: sha b71b153802d0df94 is cited in T-6's attestation and in all 42 battery outputs, so it can never be edited. It needs exactly the promotion T-8 gave runtime.sql -- a canonical home outside spikes/, with the spike copy left byte-identical -- and then its to_jsonb(<float8>) emission routed through xpr.j. ALSO IN SCOPE: a test that the same pick returns identical values at efd 1, 0 and -3, which is the real proof the pin no longer matters. Until this lands the demo is protected only by demo/server/db.py pinning and verifying the GUC per connection -- real protection, but by convention at the edge rather than by construction.",
+  "pipeline_version": "feature@v1",
+  "modifiers": [],
+  "pipeline": [
+    "intake",
+    "refine",
+    "queue",
+    "locate",
+    "plan",
+    "build",
+    "auto-review",
+    "gate",
+    "verify",
+    "uat",
+    "release",
+    "monitor"
+  ],
+  "passport": [
+    "2026-09-01 created as feature \"Promote the compiler out of the frozen spike, and route its output through xpr.j\" on feature@v1 by agent:claude(on-behalf:evan,GA-13)"
+  ],
+  "assignees": {},
+  "links": {
+    "intent": "T-9"
+  },
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}

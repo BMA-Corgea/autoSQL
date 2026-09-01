@@ -145,6 +145,54 @@ END
 $fn$;
 
 -- ----------------------------------------------------------------------------
+-- j : the IMMUNE float8 -> jsonb conversion  (T-9)
+--
+-- Every number this runtime hands back becomes jsonb somewhere, and that
+-- conversion reads `extra_float_digits` -- a session GUC any connection can
+-- change. At 0 or -3 Postgres prints fewer digits than a double carries, and
+-- the number that comes back is SHORT. Measured on this project's own data:
+-- to_jsonb(1787169706037.0::float8) is 1787169706037 at efd 1 and
+-- 1787169706040 at efd -3. That is T-3's M3 -- 62 to 66 wrong numbers across
+-- T-6's batteries, and a wrong number is the one failure this project exists
+-- to prevent.
+--
+-- A function carrying its OWN `SET extra_float_digits` is immune: the setting
+-- applies for the duration of the call, whatever the session says. So route
+-- the conversion through here and the session stops mattering.
+--
+-- THIS ONLY WORKS FOR A jsonb RETURN. A float8 return cannot be protected by
+-- anything: its text conversion happens in the CLIENT PROTOCOL, after this
+-- function has returned, under the session's setting. Verified, not assumed --
+-- a float8-returning function with the same SET clause still truncates. That
+-- is why xpr.assert_float_digits() below exists as well: where a caller hands
+-- back float8, the honest move is to refuse rather than return a short number.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.j(x float8) RETURNS jsonb
+LANGUAGE sql IMMUTABLE
+SET extra_float_digits = 1
+AS $$ SELECT to_jsonb(x) $$;
+
+-- ----------------------------------------------------------------------------
+-- assert_float_digits : the named refusal for the paths j() cannot cover
+--
+-- Call once per session (or inside a generated query) where float8 is handed
+-- back directly. Raises XPR03 rather than letting a short number through.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.assert_float_digits() RETURNS void
+LANGUAGE plpgsql STABLE AS $fn$
+DECLARE got text;
+BEGIN
+  got := current_setting('extra_float_digits');
+  IF got <> '1' THEN
+    RAISE EXCEPTION 'xpr refusal: extra_float_digits is %, must be 1', got
+      USING ERRCODE = 'XPR03',
+            DETAIL  = 'At 0 or -3 Postgres prints fewer digits than a double carries, so float8 values come back SHORT (T-3 mechanism M3).',
+            HINT    = 'SET extra_float_digits = 1 on this session, or render numbers through xpr.j(float8), which is immune to the setting.';
+  END IF;
+END
+$fn$;
+
+-- ----------------------------------------------------------------------------
 -- truthy : implements _truthy (expr.py:282-293). Never NULL.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.truthy(j jsonb) RETURNS boolean
