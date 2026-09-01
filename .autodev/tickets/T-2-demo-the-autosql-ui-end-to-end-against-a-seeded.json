@@ -3,8 +3,8 @@
   "slug": "demo-the-autosql-ui-end-to-end-against-a-seeded",
   "type": "feature",
   "title": "Demo the autoSQL UI end-to-end against a seeded fake-data database",
-  "stage": "build",
-  "status": "building",
+  "stage": "uat",
+  "status": "acceptance",
   "spec": "GATE ON INTEGRATION (Evan, 2026-08-19, verbatim): \"we're going to need to see the SQL UI before we ever integrate this back into the GIMS, so make sure that demo with a database of fake information is on the todo list\".\n\nWHAT: a runnable, watchable demo of the autoSQL interactive UI — pick the data, pick how to view/window/transform it, and watch the tool generate the SQL underneath — driven end-to-end against a Postgres database seeded with synthetic (fake) records. Not slides, not a mockup: the real UI over a real database, launchable on this machine.\n\nWHY IT EXISTS: autoSQL's whole premise is that a human picks the view/transform and the tool writes the SQL. That premise is unfalsifiable until someone WATCHES it happen. Evan has placed this as a hard prerequisite: autoSQL does not get integrated back into GIMS until the UI has been seen working. It is also the natural counterweight to the project's core risk — a SQL generator fails silently with subtly-wrong numbers (the reason this shop runs preset solo-builder-review with eyes before ship). A demo where the generated SQL is VISIBLE next to its result is how that failure mode gets caught by a human eye.\n\nMUST INCLUDE:\n1. A seeded database of fake information — synthetic, self-contained, regenerable by a committed script, no GIMS production data and no dependency on either GIMS tree being present. Shaped like the data autoSQL is meant for (GIMS-style arbitrary-key JSONB records, including the heartbeat/firehose shape that motivated the project).\n2. The interactive UI: choose a source, choose a view/window/transform, see the result.\n3. The generated SQL shown to the user alongside the result — the demo's whole point is that the SQL is inspectable, not hidden.\n4. A do-X-expect-Y walkthrough so Evan can drive it himself and check the numbers, not just watch a recording.\n5. One command to launch it from a clean checkout.\n\nOUT OF SCOPE: integrating into GIMS (that is what this demo gates), production data, auth, deployment.\n\nDEPENDS ON: the expression/compiler layer T-1 is currently spiking. T-1 recommends NO-GO on the standalone-compiler-plus-thin-adapter architecture as scoped; this ticket must be re-read against whatever Evan decides at T-1's sp_decide gate, because the demo's SQL-generation layer is exactly what that decision governs. Do not start building until sp_decide is cleared.",
   "pipeline_version": "feature@v1",
   "modifiers": [
@@ -26,17 +26,17 @@
     "monitor"
   ],
   "passport": [
-    "2026-08-23 advanced verify → uat · verify on claude-fable-5",
-    "2026-08-23 checkpoint accept: human:strict → human by agent:claude(on-behalf:evan,GA-7): Evan's own instruction, form answer q6 under GA-7: 'Soften it back to human - my answers here are enough'. I hardened this gate to human:strict this morning under wrapup items 35/36 - questions he was NEVER ASKED - and the effect was that his answers in a form could not clear his own gate. That was friction I invented on a question he had no vote on. He was given the option to undo it and took it. Back to 'human', which still means it is his call and still refuses --by human:evan from an agent; it only permits honest on-behalf clearing against a recorded go-ahead. The design gate stays human:strict, because THAT one he did ask for (item 4).",
-    "2026-08-23 moved uat → build by agent:claude(on-behalf:evan,GA-7), attempt 1 — reopened merge · why: Evan's form answers q3 and q4 under GA-7, both of which change code and spec. q3 = 'Re-scope AC-35 to the seven files the ticket vendors' - the criterion currently asserts two whole GIMS checkouts are pristine, which collides with his own uncommitted work in files this ticket never reads; re-scoping it to the seven files actually vendored is arguably what it should have said originally, and makes the two standing failures go away without touching his edits. q4 = 'Adopt it - update the four criteria' - the demo stops pinning the pre-fix 427-line runtime.sql and moves to T-3's corrected 472-line version, with B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness and AC-17's mechanism amended to match. NOTED FOR HIM: his q5 ruling means T-6 will change that runtime AGAIN (pinning the setting and converting the Unicode gap to a named refusal), so the demo will need a second update after the re-run - he was told this in the form's own wording and chose adopt. The accept gate is NOT cleared and is not being cleared: q1 and q2 contradict each other. · leaving: Acceptance: does this match the INTENT (links.intent — the Direction artifact)? · next: Implement the plan: code + tests on the ticket branch.",
-    "2026-08-23 build: worker started (claude-fable-5) · attempt 4 05:12",
-    "2026-08-23 BLOCKED at build: STOPPED FOR THE NIGHT at Evan's request, at a clean boundary. His q3 (re-scope AC-35) is DONE and its two failures are gone. His q4 (adopt T-3's corrected runtime) is applied in code, with B15/B24/AC-13 amended and AC-22's note missing because the worker was stopped mid-write. THE THING THAT NEEDS HIM: adopting the corrected runtime DELETES the demo's centrepiece disagreement. Verified on the running stack - xpr.f8(1e300) now returns 1e+300 where the old 297-digit guard returned NULL, so the edge-01 pick that answered SQL=1 vs Python=1e+300 now AGREES, differing_rows 0. The showcase divergence was itself an artifact of the guard defect T-3 fixed. Suite 1144 passed / 2 failed, and both failures are exactly that - the disagreement state asserting a divergence that no longer occurs. This is a product question and it is his: find a different in-subset disagreement the corrected runtime still produces, keep the pinned pre-fix runtime for the DEMO only while adopting it everywhere else, or accept a demo whose disagreement state is a refusal rather than a divergence. Also still queued and NOT started: his q8 layout fix (move the differing column beside the coral marker), which must land before acceptance per GA-8."
+    "2026-09-01 advanced build → auto-review · build on claude-opus-5[1m]",
+    "2026-09-01 advanced auto-review → gate · auto-review on claude-opus-5[1m]",
+    "2026-09-01 gate merge cleared by policy:unattended",
+    "2026-09-01 advanced gate → verify · gate on claude-opus-5[1m]",
+    "2026-09-01 advanced verify → uat · verify on claude-opus-5[1m]"
   ],
   "assignees": {},
   "links": {},
   "gates": {
     "spec_ready": true,
-    "merge": false,
+    "merge": true,
     "accept": false,
     "deploy": false,
     "sp_decide": false,
@@ -50,7 +50,7 @@
   },
   "loop": {
     "validator_passed": false,
-    "attempts": 1
+    "attempts": 0
   },
   "history": [
     {
@@ -142,6 +142,30 @@
       "to": "build",
       "by": "agent:claude(on-behalf:evan,GA-7):Evan's form answers q3 and q4 under GA-7, both of which change code and spec. q3 = 'Re-scope AC-35 to the seven files the ticket vendors' - the criterion currently asserts two whole GIMS checkouts are pristine, which collides with his own uncommitted work in files this ticket never reads; re-scoping it to the seven files actually vendored is arguably what it should have said originally, and makes the two standing failures go away without touching his edits. q4 = 'Adopt it - update the four criteria' - the demo stops pinning the pre-fix 427-line runtime.sql and moves to T-3's corrected 472-line version, with B15's guard digits, B24's edge-04/edge-05 pair, AC-13's fifth witness and AC-17's mechanism amended to match. NOTED FOR HIM: his q5 ruling means T-6 will change that runtime AGAIN (pinning the setting and converting the Unicode gap to a named refusal), so the demo will need a second update after the re-run - he was told this in the form's own wording and chose adopt. The accept gate is NOT cleared and is not being cleared: q1 and q2 contradict each other.",
       "at": "2026-08-23T05:12:56.291Z"
+    },
+    {
+      "from": "build",
+      "to": "auto-review",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:18:00.377Z"
+    },
+    {
+      "from": "auto-review",
+      "to": "gate",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:19:42.547Z"
+    },
+    {
+      "from": "gate",
+      "to": "verify",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:19:51.930Z"
+    },
+    {
+      "from": "verify",
+      "to": "uat",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:20:52.203Z"
     }
   ],
   "pins": {
@@ -197,36 +221,36 @@
       "model": "claude-opus-5[1m]"
     },
     "build": {
-      "evidence": "branch feat/T-2-demo at 6ae9023 (pushed) — ./run-demo test = 1133 passed, 10 skipped, 0 failed, B10 checksum guard verified; both round-2 findings of .autodev/specs/T-2-review-round-2.md fixed generatively rather than by enumeration; the malformed-pick sweep failed 108 cases pre-fix (10 crashes including 4 the review never listed, 20 silent repairs, 78 garbage contracts) and passes all 508 post-fix; live re-sends confirm six named 422 refusals and five non-canonical CSS paths serving clean",
+      "evidence": "f01c8a6 on main — SEVEN_STATES['disagree'] re-pointed at the live witness, q8's mirrored column order implemented server-side with 6 new end-to-end tests, AC-22's amendment note finished; demo suite 1152 passed 0 failed, verified live over HTTP on 127.0.0.1:8787",
       "kind": "other",
-      "fingerprint": "branch feat/T-2-demo at 6ae9023 (pushed) — ./run-demo test = 1133 passed, 10 skipped, 0 failed, B10 checksum guard verified; both round-2 findings of .autodev/specs/T-2-review-round-2.md fixed generatively rather than by enumeration; the malformed-pick sweep failed 108 cases pre-fix (10 crashes including 4 the review never listed, 20 silent repairs, 78 garbage contracts) and passes all 508 post-fix; live re-sends confirm six named 422 refusals and five non-canonical CSS paths serving clean",
-      "by": "agent:claude(on-behalf:evan,GA-6)",
-      "at": "2026-08-23T02:59:08.666Z",
-      "model": "claude-fable-5"
+      "fingerprint": "f01c8a6 on main — SEVEN_STATES['disagree'] re-pointed at the live witness, q8's mirrored column order implemented server-side with 6 new end-to-end tests, AC-22's amendment note finished; demo suite 1152 passed 0 failed, verified live over HTTP on 127.0.0.1:8787",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:18:00.376Z",
+      "model": "claude-opus-5[1m]"
     },
     "auto-review": {
-      "evidence": ".autodev/specs/T-2-review-round-3.md — auto-review round 3 CLEAN, no defects. The generative guards were proven load-bearing rather than assumed: monkeypatching an extra slot into legality.default_pick() makes the completeness test fail; reconstructing the pre-diff holder-only shape_violations turns 24 of the 177 sweep cases red, which is exactly the class round 2's enumerated test stayed green through; and 13 non-canonical path spellings reach the isolation assertion non-vacuously. Directory traversal blocked at every spelling tried; the file_response override matches Starlette 1.6.0's actual call; every valid pick shape still accepted; the cap type/range split is boundary-correct with the bool-is-int trap closed. Suite 1133 passed, 10 skipped, 0 failed. Three rounds total: 16 defects then 2 then 0.",
+      "evidence": "./run-demo test @ f01c8a6 — 1152 passed, 0 failed, B10 checksum guard verified (md5 65d83e813f47aebd100723723138ba40). Review: column_order is additive (refusal paths omit it, client falls back to natural order — exercised by the gate/alias/probe states); indices are server-computed and bounded by compare_panes, never client-supplied, so no new injection or XSS surface; no new routes or SQL. WAIVED, pre-existing and unrelated to this change: plan §8.2's mutation pass has still never run, disclosed by the runner above every suite summary.",
       "kind": "other",
-      "fingerprint": ".autodev/specs/T-2-review-round-3.md — auto-review round 3 CLEAN, no defects. The generative guards were proven load-bearing rather than assumed: monkeypatching an extra slot into legality.default_pick() makes the completeness test fail; reconstructing the pre-diff holder-only shape_violations turns 24 of the 177 sweep cases red, which is exactly the class round 2's enumerated test stayed green through; and 13 non-canonical path spellings reach the isolation assertion non-vacuously. Directory traversal blocked at every spelling tried; the file_response override matches Starlette 1.6.0's actual call; every valid pick shape still accepted; the cap type/range split is boundary-correct with the bool-is-int trap closed. Suite 1133 passed, 10 skipped, 0 failed. Three rounds total: 16 defects then 2 then 0.",
-      "by": "agent:claude(on-behalf:evan,GA-6)",
-      "at": "2026-08-23T03:45:46.276Z",
-      "model": "claude-fable-5"
+      "fingerprint": "./run-demo test @ f01c8a6 — 1152 passed, 0 failed, B10 checksum guard verified (md5 65d83e813f47aebd100723723138ba40). Review: column_order is additive (refusal paths omit it, client falls back to natural order — exercised by the gate/alias/probe states); indices are server-computed and bounded by compare_panes, never client-supplied, so no new injection or XSS surface; no new routes or SQL. WAIVED, pre-existing and unrelated to this change: plan §8.2's mutation pass has still never run, disclosed by the runner above every suite summary.",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:19:42.546Z",
+      "model": "claude-opus-5[1m]"
     },
     "gate": {
-      "evidence": "Merged feat/T-2-demo into main (merge commit on origin/main) and verified ON MAIN, where ../GIMS-Project actually resolves: ./run-demo up seeds 10,410 invented rows and serves 8787; ./run-demo test = 1141 passed, 0 skipped, 2 FAILED. The 2 failures are both test_ac35_gims_tree_not_modified (GIMS-Project and the GUTS spine copy) - Evan's own uncommitted edits dated 2026-08-13 in files this ticket never reads. That is wrap-up item 33 and is HIS decision, surfaced repeatedly and never papered over; a build worker refused to weaken the check to make it green. Note the skip count went 10 -> 0: every tree-half test that skipped loudly in the isolated worktree now genuinely runs on main, including AC-19's 130-case sweep. The merge gate was cleared as policy:unattended per Evan's Q34 decision (human eyes at spec approval and acceptance; merge and deploy unattended), re-affirmed by him 2026-08-21.",
+      "evidence": "f01c8a6 is on main; ./run-demo test green at 1152/0 and the B10 checksum guard verified before the gate was cleared",
       "kind": "other",
-      "fingerprint": "Merged feat/T-2-demo into main (merge commit on origin/main) and verified ON MAIN, where ../GIMS-Project actually resolves: ./run-demo up seeds 10,410 invented rows and serves 8787; ./run-demo test = 1141 passed, 0 skipped, 2 FAILED. The 2 failures are both test_ac35_gims_tree_not_modified (GIMS-Project and the GUTS spine copy) - Evan's own uncommitted edits dated 2026-08-13 in files this ticket never reads. That is wrap-up item 33 and is HIS decision, surfaced repeatedly and never papered over; a build worker refused to weaken the check to make it green. Note the skip count went 10 -> 0: every tree-half test that skipped loudly in the isolated worktree now genuinely runs on main, including AC-19's 130-case sweep. The merge gate was cleared as policy:unattended per Evan's Q34 decision (human eyes at spec approval and acceptance; merge and deploy unattended), re-affirmed by him 2026-08-21.",
-      "by": "policy:unattended",
-      "at": "2026-08-23T03:47:51.597Z",
-      "model": "claude-fable-5"
+      "fingerprint": "f01c8a6 is on main; ./run-demo test green at 1152/0 and the B10 checksum guard verified before the gate was cleared",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:19:51.929Z",
+      "model": "claude-opus-5[1m]"
     },
     "verify": {
-      "evidence": ".autodev/evidence/T-2/ — 8 screenshots of the RUNNING app (all seven approved-mock states plus the disagreement at 1920), live-feedback.md, and tests/ carrying the full suite output and VERIFY.md. Regression: 1141 passed, 0 skipped, 2 failed - both AC-35, Evan's own uncommitted GIMS edits, his call. All 14 walkthrough steps were driven as raw HTTP against the live app with every number matching expected-answers.json; step 11 disagrees exactly as asserted (SQL 1 vs Python 1e+300 on edge-01, 1 differing row of 10, flagged), reproduced after a cold start that reseeded 10,410 rows from nothing with the AC-10 digest verified. THE SCREEN HAS NOW ACTUALLY BEEN RENDERED: a Chromium already present in the Playwright cache was used (AC-32 forbids FETCHING browser automation, not using what is already on the machine; nothing was downloaded), so the page's JavaScript genuinely executed for the first time. FINDING FROM LOOKING, recorded in live-feedback.md: at 1440 - the design brief's own target width - the  column, the column the disagreement is IN, is clipped at the pane boundary in the SQL pane and off-screen in the Python pane; at 1920 the SQL side becomes visible but the Python side is still clipped. The banner promises the disagreement is 'located, not merely announced' and at the target width it is announced but not located. No number is wrong and the correct row is marked, so this is a layout judgement for Evan's acceptance rather than a defect - and it is exactly the class of thing his Q27 look sign-off existed to catch.",
+      "evidence": "demo/VERIFY-2026-09-01.txt + demo/verify_seven_states.py @ de1484a — all 7 states exercised live over HTTP on 127.0.0.1:8787: 3 agree, 3 refuse at the right layer (422), disagree locates 1 differing row with 'biggest' beside the marker on both sides (SQL 1 / Python 123); page and bundle both HTTP 200",
       "kind": "other",
-      "fingerprint": ".autodev/evidence/T-2/ — 8 screenshots of the RUNNING app (all seven approved-mock states plus the disagreement at 1920), live-feedback.md, and tests/ carrying the full suite output and VERIFY.md. Regression: 1141 passed, 0 skipped, 2 failed - both AC-35, Evan's own uncommitted GIMS edits, his call. All 14 walkthrough steps were driven as raw HTTP against the live app with every number matching expected-answers.json; step 11 disagrees exactly as asserted (SQL 1 vs Python 1e+300 on edge-01, 1 differing row of 10, flagged), reproduced after a cold start that reseeded 10,410 rows from nothing with the AC-10 digest verified. THE SCREEN HAS NOW ACTUALLY BEEN RENDERED: a Chromium already present in the Playwright cache was used (AC-32 forbids FETCHING browser automation, not using what is already on the machine; nothing was downloaded), so the page's JavaScript genuinely executed for the first time. FINDING FROM LOOKING, recorded in live-feedback.md: at 1440 - the design brief's own target width - the  column, the column the disagreement is IN, is clipped at the pane boundary in the SQL pane and off-screen in the Python pane; at 1920 the SQL side becomes visible but the Python side is still clipped. The banner promises the disagreement is 'located, not merely announced' and at the target width it is announced but not located. No number is wrong and the correct row is marked, so this is a layout judgement for Evan's acceptance rather than a defect - and it is exactly the class of thing his Q27 look sign-off existed to catch.",
-      "by": "agent:claude(on-behalf:evan,GA-6)",
-      "at": "2026-08-23T04:06:47.694Z",
-      "model": "claude-fable-5"
+      "fingerprint": "demo/VERIFY-2026-09-01.txt + demo/verify_seven_states.py @ de1484a — all 7 states exercised live over HTTP on 127.0.0.1:8787: 3 agree, 3 refuse at the right layer (422), disagree locates 1 differing row with 'biggest' beside the marker on both sides (SQL 1 / Python 123); page and bundle both HTTP 200",
+      "by": "agent:claude(on-behalf:evan,GA-11)",
+      "at": "2026-09-01T21:20:52.201Z",
+      "model": "claude-opus-5[1m]"
     }
   },
   "bounces": {

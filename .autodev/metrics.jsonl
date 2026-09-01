@@ -39,3 +39,7 @@
 {"ts":"2026-09-01T20:45:11.215Z","kind":"stage.advanced","ticket":"T-6","from":"sp-synth","to":"sp-decide"}
 {"ts":"2026-09-01T20:45:34.503Z","kind":"stage.advanced","ticket":"T-6","from":"sp-decide","to":"sp-spawn"}
 {"ts":"2026-09-01T20:46:18.956Z","kind":"pipeline.complete","ticket":"T-6","at":"sp-spawn"}
+{"ts":"2026-09-01T21:18:00.378Z","kind":"stage.advanced","ticket":"T-2","from":"build","to":"auto-review"}
+{"ts":"2026-09-01T21:19:42.554Z","kind":"stage.advanced","ticket":"T-2","from":"auto-review","to":"gate"}
+{"ts":"2026-09-01T21:19:51.931Z","kind":"stage.advanced","ticket":"T-2","from":"gate","to":"verify"}
+{"ts":"2026-09-01T21:20:52.203Z","kind":"stage.advanced","ticket":"T-2","from":"verify","to":"uat"}

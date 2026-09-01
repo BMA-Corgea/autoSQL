@@ -2,45 +2,43 @@
 
 ---
 
-> # START HERE — 2026-09-01 (third update: T-5 AND T-6 are both COMPLETE)
+> # START HERE — 2026-09-01 (fourth update: T-2 is at Evan's accept gate)
 >
-> **Two spikes finished today and both are merged. One thing is left in motion: T-2.**
+> **One thing is waiting, and it is a five-minute look at a screen.**
 >
-> **T-6 PASSED.** Zero wrong numbers at `extra_float_digits = 1` across 11,367 expressions in three
-> batteries; contract fixture **130/130** at all three settings; zero unexplained raises. T-3's 55
-> divergences at that setting are gone. Ruling recorded under **GA-10** at
-> `kb/wiki/decision-t6-correctness-rerun.md`. **This releases T-4, the speed run.** It does NOT
-> release GIMS.
+> **T-2 is at `uat`, `accept` gate UNCLEARED — Evan's.** Everything outstanding is done: the two
+> standing failures are fixed, **q8's layout fix has landed and is verified live**, AC-22's
+> amendment note is finished. Suite **1152 passed, 0 failed** (was 1144/2). **The stack is UP** at
+> `http://127.0.0.1:8787`.
 >
-> **Two things about T-6 that a resuming session must not miss:**
+> **The gate was deliberately NOT cleared on-behalf, though GA-8 authorises it.** This ticket exists
+> so that *Evan sees the SQL UI over fake data before autoSQL goes into GIMS* — accepting it for him
+> would defeat its own purpose, and the gate asks *"would you show it to someone?"*. Read
+> `.autodev/handoffs/T-2.md`, open the `disagree` tab, then
+> `tracker.mjs approve T-2 accept --by human:evan --i-am-human`.
 >
-> 1. **The adopted fix is NOT the one Evan signed.** T-3 ruled a *named refusal* for the
->    Unicode-digit gap, on the premise that SQL "cannot cheaply be made to match Python". **That
->    premise is false** — matching needs a digit *mapping*, not a digit *class*, and one guarded
->    `translate()` over the 670 `Nd` code points does it. The refusal was built and measured first:
->    it costs **60 correct answers to fix 26 wrong ones**. Variant C (translate, guarded) has zero
->    divergences, zero refusals and no measurable cost. Adopted, **flagged as a deviation**, and
->    variant A stays committed at `spikes/T-6/runtime.sql` so reversing is one line.
-> 2. **The pass depends entirely on the float setting being pinned to 1**, and *nothing enforces
->    that today* — at efd 0 and −3 there are still **62 and 66** wrong numbers. That is **T-9**.
+> **The two failures were real, not flaky.** `SEVEN_STATES["disagree"]` was a second definition that
+> got missed on 2026-08-23 and stayed on `$.l`, which *agrees* now the corrected guard reads `1e300`.
+> Both definitions now point at `$.m` (`["１２３", 1]`): Python **123**, SQL **1**.
 >
-> **The queue T-6 spawned:** **T-8** adopt variant C as the shipping runtime (with the digit mapping
-> generated at build time, not hand-written) · **T-9** enforce the efd pin · **T-10** fix the
-> harness's runtime fingerprint, which named the wrong runtime on all 42 battery outputs.
+> **Known and written down in three places: T-8 will kill this demo's disagreement, and that is not
+> a bug.** Variant C makes `１２３` agree too, and on present evidence **no in-subset value
+> disagreement survives T-8** — that is what T-6 passing means. Step 11's claim then has to become
+> *"the tool refuses rather than guessing"*. **Evan's call, not T-8's.**
 >
-> **STILL OPEN — T-2 (feature, `build`), the only ticket in motion.** Its blocker is settled (GA-9
-> Q4: seed a new disagreement using T-5's witness, a non-ASCII digit row). **Note the interaction
-> with T-6:** under variant C a non-ASCII digit no longer diverges — it *agrees* — so the demo's
-> disagreement must come from somewhere else, or pin variant A for the demo. **Read
-> `.autodev/handoffs/T-2.md` before touching it.** Two things also stand between T-2 and acceptance:
-> AC-22's amendment note is unfinished, and the **q8 layout fix has not started** (GA-8 requires it).
+> **T-5 and T-6 are COMPLETE and merged.** T-6 passed — 0 wrong numbers at the pinned setting over
+> 11,367 expressions, fixture 130/130 — and found that T-3's premise was false: SQL *can* match
+> Python, via a digit mapping rather than a digit class, for no measurable cost. ADRs at
+> `kb/wiki/decision-t5-homework.md` and `kb/wiki/decision-t6-correctness-rerun.md`.
 >
-> **Also open, deliberately parked:** **T-4** (released, not started) · **T-7** (Evan's Q6: *"log it
-> as a ticket, do not chase now"*).
+> **The queue, none started:** **T-8** adopt variant C as the shipping runtime · **T-9** enforce the
+> `extra_float_digits = 1` pin (the correctness pass depends on it and nothing checks it) · **T-10**
+> fix the harness fingerprint · **T-4** the speed run, released by T-6, needs a quiet machine ·
+> **T-7** parked by Evan's own Q6.
 >
-> **Standing constraints:** never connect to port **55433**; `glp_strong` is out of scope on
-> relevance as well as safety. GIMS checkouts stay read-only and **nothing in GIMS was changed**
-> (Q3 park). T-2's `design` gate stays `human:strict`.
+> **Standing:** never port **55433**. Plan §8.2's mutation pass has still never run — 9 of 16
+> mutants never watched failing, disclosed above every suite summary. T-2's `design` gate stays
+> `human:strict`.
 
 ---
 
@@ -162,6 +160,7 @@ always showing its derivation, always overturnable by one line from him.
 - **T-8** (feature) — Adopt variant C as the shipping runtime, with a regenerable digit mapping — intake
 - **T-9** (feature) — Enforce extra_float_digits = 1; the correctness pass depends on it and nothing … — intake
 - **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
+- **T-2** (feature) — Demo the autoSQL UI end-to-end against a seeded fake-data database — uat
 
 ## Waiting on
 
