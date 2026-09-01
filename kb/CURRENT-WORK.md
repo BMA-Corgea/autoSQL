@@ -168,7 +168,7 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-7** (spike) — Audit: which write path stores rows that skip the schema type check? — sp-frame
-- **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — intake
+- **T-10** (techdebt) — The correctness harness fingerprints the wrong runtime — gate
 
 ## Waiting on
 
@@ -210,6 +210,7 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
+- **T-10** — waiting at spec_ready on human:owner since 2026-09-01
 
 ## Recent past (~15 items / ~30 days)
 

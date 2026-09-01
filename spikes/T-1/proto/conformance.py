@@ -349,6 +349,24 @@ def out_of_fixture_probes(cur, conn) -> List[Dict[str, Any]]:
     return out
 
 
+def _installed_runtime_sha256(cur) -> str:
+    """T-10: sha256 of the xpr schema as installed, not as hoped for.
+
+    Returns a marker rather than raising: a provenance line must never be the
+    reason a conformance run fails.
+    """
+    import hashlib
+    try:
+        cur.execute(
+            "select p.proname, pg_get_functiondef(p.oid) "
+            "from pg_proc p join pg_namespace n on n.oid = p.pronamespace "
+            "where n.nspname = 'xpr' order by p.proname, p.oid")
+        return hashlib.sha256(
+            "\n".join(d for _, d in cur.fetchall()).encode()).hexdigest()
+    except Exception as exc:
+        return "unavailable:%s" % type(exc).__name__
+
+
 def sha256(path: str) -> str:
     import hashlib
     return hashlib.sha256(open(path, "rb").read()).hexdigest()
@@ -557,6 +575,9 @@ def run() -> Dict[str, Any]:
             "expr_py_sha256": sha256(os.path.join(GIMS, "core", "dashboard", "expr.py")),
             "compile_py_sha256": sha256(os.path.join(PROTO, "compile.py")),
             "runtime_sql_sha256": sha256(os.path.join(PROTO, "runtime.sql")),
+            # T-10: the file above is what the harness EXPECTS; this is what is
+            # actually installed and therefore what produced these results.
+            "runtime_installed_sha256": _installed_runtime_sha256(cur),
             "comparison_rule_source": "GIMS-Project/tests/test_dashboard_expr.py:20-25",
         },
         "outcome_definitions": OUTCOME_DEFINITIONS,

@@ -165,6 +165,29 @@ def conn():
     return _conn
 
 
+def installed_runtime_sha() -> str:
+    """T-10: the sha256 of the runtime ACTUALLY INSTALLED in the database.
+
+    Every battery used to print `runtime.sql sha256=...` by hashing the FILE the
+    harness expects. During T-6 that made all 42 outputs claim T-3's runtime
+    while the database held T-6's patched one -- the results were right and the
+    provenance line on every single one of them was wrong. It was caught only
+    because a probe was written specifically to check it.
+
+    A fingerprint that reports what you hoped is installed is not a fingerprint.
+    This reads pg_proc.
+    """
+    with conn().cursor() as cur:
+        cur.execute("""
+            select p.proname, pg_get_functiondef(p.oid)
+              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+             where n.nspname = 'xpr'
+             order by p.proname, p.oid""")
+        body = "\n".join(d for _, d in cur.fetchall())
+    import hashlib
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
 class Outcome(dict):
     pass
 
