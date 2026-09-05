@@ -221,7 +221,7 @@ always showing its derivation, always overturnable by one line from him.
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-15** (bug) — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene… — intake
 - **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — intake
-- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — build
+- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — verify
 
 ## Waiting on
 
