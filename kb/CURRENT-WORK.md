@@ -226,6 +226,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-05 **T-14 COMPLETE** — The owner's name leaves the public repo
 - 2026-09-05 **T-12 COMPLETE** — README and AGPL-3.0 license for autoSQL
 - 2026-09-01 **T-7 COMPLETE** — Audit: which write path stores rows that skip the schema type check?
 - 2026-09-01 **T-10 COMPLETE** — The correctness harness fingerprints the wrong runtime

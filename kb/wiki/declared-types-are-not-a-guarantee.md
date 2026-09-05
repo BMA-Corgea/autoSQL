@@ -64,7 +64,7 @@ an ISO date on 9). The hazard is not an edge case.
 | **Action in GIMS** | **None.** the owner's GA-9 Q3 parked GIMS changes, and this is a sandbox project's junk data, not a production incident |
 | **Action in autoSQL** | **None yet, deliberately.** No expression index exists to guard — H3 is a hazard for a design that has not been built |
 | **What it changes** | The **constraint** is now on the record, so the design that would have inherited the bad assumption cannot be built by accident |
-| **Recorded by** | `agent:claude(on-behalf:evan,GA-15)` |
+| **Recorded by** | `agent:claude(on-behalf:owner,GA-15)` |
 
 **Why no ticket is spawned.** The obvious follow-ups both fail a cost test right now: fixing GIMS's
 six unvalidated write paths is the owner's parked call and touches a system autoSQL must not depend on;
