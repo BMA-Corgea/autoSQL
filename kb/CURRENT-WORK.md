@@ -221,7 +221,6 @@ always showing its derivation, always overturnable by one line from him.
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-15** (bug) — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene… — intake
 - **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — intake
-- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — verify
 
 ## Waiting on
 
@@ -263,17 +262,23 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
-- **T-16** — waiting at spec_ready on human:owner since 2026-09-05
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-05 **T-16 COMPLETE** — `main` had been red since `adf23bf` the same day: T-14 reworded a
+  comment in two `.jsx` sources without re-running `./run-demo build-ui`, so `demo/manifest.json`'s
+  source digest was stale and the bundle-staleness guard failed. Regenerated; **both bundles came
+  back byte-identical**, which was the check that proved the rebuild touched nothing executable.
+  Suite back to **1155/0**. Merged `ef5830e`, pushed. Its merge gate was passed once against false
+  evidence (a `git checkout` aborted mid-chain while the tracker pass ran anyway) — caught, rewound
+  by loopback, re-passed against the real merge.
 - 2026-09-05 **T-13 COMPLETE** — `demo/README.md`'s step-11 paragraph rewritten to mirror the
   walkthrough (used to disagree, no longer does); the now-invalid caveat about it removed from the
-  top-level README. Merged `35ac969`, pushed. Filed T-15/T-16/T-17 rather than fixing them, per
-  the owner's bounded grant.
+  top-level README. Merged `35ac969`, pushed. Spawned T-15/T-16/T-17, filed rather than fixed per
+  the owner's bounded grant; **T-16 was fixed later the same day** on their follow-up ask (GA-21).
 - 2026-09-05 **T-14 COMPLETE** — The owner's name leaves the public repo
 - 2026-09-05 **T-12 COMPLETE** — README and AGPL-3.0 license for autoSQL
 - 2026-09-01 **T-7 COMPLETE** — Audit: which write path stores rows that skip the schema type check?
@@ -350,4 +355,5 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
   while this bug was open, so fixing one file alone would have traded one contradiction for
   another in the more prominent file. Auto-review caught and fixed a second-order slip before
   merge — the first draft implied the SQL *rule* changed, when the rule is unchanged and T-8
-  added a fallback. Spawned **T-15**, **T-16**, **T-17** (filed, not fixed, per their Q1 = A).
+  added a fallback. Spawned **T-15**, **T-16**, **T-17** — filed, not fixed, per their Q1 = A.
+  **T-16 was then fixed the same day** under GA-21 when they asked why it was still open.
