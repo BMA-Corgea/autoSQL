@@ -385,3 +385,9 @@
 {"ts":"2026-09-05T06:04:05.279Z","type":"gate_waiting","ticket":"T-12","stage":"uat","gate":"accept","reason":"awaiting human clearance","at":"2026-09-05T06:04:05.279Z"}
 {"ts":"2026-09-05T06:04:05.328Z","type":"gate.cleared","ticket":"T-12","gate":"accept","by":"agent:pm(on-behalf:evan,GA-17)","goAhead":"GA-17"}
 {"ts":"2026-09-05T06:04:05.329Z","type":"stage.advanced","ticket":"T-12","from":"uat","to":"release","by":"agent:pm(on-behalf:evan,GA-17)"}
+{"ts":"2026-09-05T06:05:26.134Z","type":"loop.validator.passed","ticket":"T-12","stage":"release","by":"agent:pm","evidence":".autodev/evidence/T-12/release.md","fingerprint":"sha256:dfc90f79bdae11f9","model":"claude-fable-5-1"}
+{"ts":"2026-09-05T06:05:26.135Z","type":"gate.cleared","ticket":"T-12","gate":"deploy","by":"policy:unattended"}
+{"ts":"2026-09-05T06:05:26.142Z","type":"stage.advanced","ticket":"T-12","from":"release","to":"monitor","by":"agent:pm"}
+{"ts":"2026-09-05T06:05:26.219Z","type":"gate.cleared","ticket":"T-12","gate":"deploy","by":"policy:unattended"}
+{"ts":"2026-09-05T06:06:32.910Z","type":"loop.validator.passed","ticket":"T-12","stage":"monitor","by":"agent:pm","evidence":".autodev/evidence/T-12/monitor.md","fingerprint":"sha256:c0b1b26d367bcf1e","model":"claude-fable-5-1"}
+{"ts":"2026-09-05T06:06:32.912Z","type":"pipeline.complete","ticket":"T-12","at":"monitor"}

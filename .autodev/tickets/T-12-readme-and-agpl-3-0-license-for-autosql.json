@@ -3,8 +3,8 @@
   "slug": "readme-and-agpl-3-0-license-for-autosql",
   "type": "feature",
   "title": "README and AGPL-3.0 license for autoSQL",
-  "stage": "release",
-  "status": "releasing",
+  "stage": "monitor",
+  "status": "complete",
   "spec": "Evan 2026-09-04: 'Give autosql a readme and an agpl license.' He wants the repo public; the 2026-09-04 pre-flight found no secrets in history (only a fake test DSN). Deliver two files on a branch: README.md that says what autoSQL is, why it exists, how it plugs into GIMS, what is in the tree, how to run the demo, and what is proven so far (from kb/CURRENT-WORK.md and kb/wiki: 0 wrong numbers over 11,367 expressions, contract fixture 130/130, the timing question T-4 still open), written plainly in Evan's voice with no marketing language; LICENSE = the GNU AGPL-3.0 text verbatim. Not in scope: flipping visibility (Evan's explicit go), the GitHub description, deleting stray files.",
   "pipeline_version": "feature@v1",
   "modifiers": [],
@@ -23,11 +23,11 @@
     "monitor"
   ],
   "passport": [
-    "2026-09-05 advanced gate → verify · gate on claude-fable-5-1",
-    "2026-09-05 advanced verify → uat · verify on claude-fable-5-1",
-    "2026-09-05 waiting at gate accept (keyholder human:owner) since 2026-09-05",
-    "2026-09-05 gate accept cleared by agent:pm(on-behalf:evan,GA-17) on go-ahead GA-17 (\"I don't need my name and the autodev stuff in the readme. I \")",
-    "2026-09-05 advanced uat → release · uat on claude-fable-5-1"
+    "2026-09-05 advanced uat → release · uat on claude-fable-5-1",
+    "2026-09-05 gate deploy cleared by policy:unattended",
+    "2026-09-05 advanced release → monitor · release on claude-fable-5-1",
+    "2026-09-05 gate deploy cleared by policy:unattended",
+    "2026-09-05 pipeline complete at monitor"
   ],
   "assignees": {},
   "links": {},
@@ -35,7 +35,7 @@
     "spec_ready": true,
     "merge": true,
     "accept": true,
-    "deploy": false,
+    "deploy": true,
     "sp_decide": false,
     "ex_decide": false,
     "compliance": false,
@@ -44,8 +44,9 @@
   "overrides": {},
   "lean": true,
   "loop": {
-    "validator_passed": false,
-    "attempts": 0
+    "validator_passed": true,
+    "attempts": 0,
+    "evidence": ".autodev/evidence/T-12/monitor.md"
   },
   "history": [
     {
@@ -143,6 +144,12 @@
       "to": "release",
       "by": "agent:pm(on-behalf:evan,GA-17)",
       "at": "2026-09-05T06:04:05.328Z"
+    },
+    {
+      "from": "release",
+      "to": "monitor",
+      "by": "agent:pm",
+      "at": "2026-09-05T06:05:26.135Z"
     }
   ],
   "receipts": {
@@ -225,7 +232,24 @@
       "by": "agent:pm",
       "at": "2026-09-05T06:04:05.278Z",
       "model": "claude-fable-5-1"
+    },
+    "release": {
+      "evidence": ".autodev/evidence/T-12/release.md",
+      "kind": "file",
+      "fingerprint": "sha256:dfc90f79bdae11f9",
+      "by": "agent:pm",
+      "at": "2026-09-05T06:05:26.134Z",
+      "model": "claude-fable-5-1"
+    },
+    "monitor": {
+      "evidence": ".autodev/evidence/T-12/monitor.md",
+      "kind": "file",
+      "fingerprint": "sha256:c0b1b26d367bcf1e",
+      "by": "agent:pm",
+      "at": "2026-09-05T06:06:32.910Z",
+      "model": "claude-fable-5-1"
     }
   },
-  "bounces": {}
+  "bounces": {},
+  "completed": true
 }

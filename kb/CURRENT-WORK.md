@@ -179,7 +179,6 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-13** (bug) — demo/README.md still describes walkthrough step 11 as a live SQL/Python disagre… — intake
-- **T-12** (feature) — README and AGPL-3.0 license for autoSQL — release
 
 ## Waiting on
 
@@ -221,13 +220,13 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
-- **T-12** — waiting at accept on human:owner since 2026-09-05
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-05 **T-12 COMPLETE** — README and AGPL-3.0 license for autoSQL
 - 2026-09-01 **T-7 COMPLETE** — Audit: which write path stores rows that skip the schema type check?
 - 2026-09-01 **T-10 COMPLETE** — The correctness harness fingerprints the wrong runtime
 - 2026-09-01 **T-11 COMPLETE** — Promote the compiler out of the frozen spike, and route its output through xpr.j
@@ -292,6 +291,8 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 - **T-12** (feature, lean) — Evan: "Give autosql a readme and an agpl license." Built on branch
   `t-12-readme-license` (worktree `../autoSQL-T-12`, commit `f25f401`): `README.md` in his voice with
   every number cited to its KB page, `LICENSE` = AGPL-3.0 verbatim from the GitHub licenses API.
-  In review. Evan reads it at accept; the visibility flip stays his explicit go.
+  **SHIPPED 2026-09-05.** Accepted on Evan's words (GA-17: no name / no factory talk in the README, the
+  owner-facing notes moved to `.autodev/notes/`), pushed to origin main (24d5114), and the repo is now
+  **PUBLIC** on his "besides that it looks fine to publish".
 - **T-13** (bug, lean) — `demo/README.md` still calls step 11 a live disagreement (T-8 fixed it).
   Filed from T-12's finding; waiting on Evan's go. Recommended before the repo goes public.

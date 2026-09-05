@@ -116,3 +116,5 @@
 {"ts":"2026-09-05T05:36:46.184Z","kind":"stage.advanced","ticket":"T-12","from":"gate","to":"verify"}
 {"ts":"2026-09-05T05:37:05.401Z","kind":"stage.advanced","ticket":"T-12","from":"verify","to":"uat"}
 {"ts":"2026-09-05T06:04:05.329Z","kind":"stage.advanced","ticket":"T-12","from":"uat","to":"release"}
+{"ts":"2026-09-05T06:05:26.142Z","kind":"stage.advanced","ticket":"T-12","from":"release","to":"monitor"}
+{"ts":"2026-09-05T06:06:32.912Z","kind":"pipeline.complete","ticket":"T-12","at":"monitor"}
