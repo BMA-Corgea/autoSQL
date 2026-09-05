@@ -86,12 +86,13 @@ One step in it (step 11) is worth calling out here too, because of what it
 used to do. One collection carries a piece of text whose digits are the
 wide, full-width kind rather than the ordinary `0`–`9`. Python's
 number-reading recognises digits from any writing system and reads it as
-`123`; the SQL side's rule knew only the ordinary characters, so the text
-was not a number to it at all and dropped out of the calculation — two
-plausible answers, silently different, and a genuine bug. Both panes now
-report `123`, because the runtime learned to translate digits from any
-writing system before giving up, and that agreement is the point of the
-step now. The reporting behind it has not changed: whenever the two sides
+`123`; the SQL side's plain rule recognises only the ordinary characters,
+so the text used to drop out of the calculation entirely — two plausible
+answers, silently different, and a genuine bug. Both panes now report
+`123`: the plain rule is unchanged, but where it fails the runtime now
+translates digits from any writing system into ordinary ones and tries
+again, which is what Python does. That agreement is the point of the step
+now. The reporting behind it has not changed: whenever the two sides
 differ on any step, the screen says so out loud — a marked, visible
 disagreement, never two quiet numbers sitting side by side as if they
 matched.
