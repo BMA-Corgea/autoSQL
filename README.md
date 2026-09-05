@@ -80,7 +80,8 @@ needs Node.
 `./run-demo test` runs the demo's own suite (`demo/tests/`). The compiler and runtime suites are
 pytest with setup of their own: `compiler/tests` wants `AUTOSQL_COMPILER_DSN` pointing at a Postgres
 it may use, and `runtime/tests` wants a throwaway Postgres of its own with `runtime/runtime.sql`
-loaded and `AUTOSQL_RUNTIME_DSN` set. Without those, most of their tests skip rather than run.
+loaded and `AUTOSQL_RUNTIME_DSN` set. Without those, `runtime/tests` skips most of its cases and
+`compiler/tests` skips the ones that touch a database, rather than failing.
 `compiler/README.md` and `runtime/README.md` give the exact steps.
 
 What you get is a picking panel and two answer panes: the SQL pane, which is what Postgres
