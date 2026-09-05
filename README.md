@@ -78,9 +78,10 @@ matching wheel and fails outright rather than half-installing. `build-ui` is the
 needs Node.
 
 `./run-demo test` runs the demo's own suite (`demo/tests/`). The compiler and runtime suites are
-plain pytest, run with the interpreter `up` created:
-`demo/.venv/bin/python -m pytest compiler/tests runtime/tests -q` (`compiler/README.md`,
-`runtime/README.md`).
+pytest with setup of their own: `compiler/tests` wants `AUTOSQL_COMPILER_DSN` pointing at a Postgres
+it may use, and `runtime/tests` wants a throwaway Postgres of its own with `runtime/runtime.sql`
+loaded and `AUTOSQL_RUNTIME_DSN` set. Without those, most of their tests skip rather than run.
+`compiler/README.md` and `runtime/README.md` give the exact steps.
 
 What you get is a picking panel and two answer panes: the SQL pane, which is what Postgres
 computed, and the Python pane, a separate program that reads the same rows and works the answer out
