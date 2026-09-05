@@ -148,11 +148,11 @@ Paste this whole block into PowerShell in one go:
 ```powershell
 $json = @'
 {
-  "id": "evan-evanscience-art-1a442f",
+  "id": "<telemetry-id>",
   "operator": "the owner",
   "host": "evanscience-art",
   "created": "2026-08-18T20:34:17.985Z",
-  "_changed": "2026-08-21 - identity unified under one the owner identity, matching the Linux box (evan-corgea-ms-7c79-6a45ef). Was <telemetry-id>: install-id.mjs fell back to the Windows account name (owner) on first run because the caller passed no repo root, so shop.json's operator (human:owner) was never read. The id and its 6-char hash are exactly what installId() would now generate for who=the owner on this machine (sha256('the owner|evanscience-art|owner')[0:6] = 1a442f), so deleting this cache regenerates the same id rather than a third one.",
+  "_changed": "2026-08-21 - identity unified under one the owner identity, matching the Linux box (<telemetry-id>). Was <telemetry-id>: install-id.mjs fell back to the Windows account name (owner) on first run because the caller passed no repo root, so shop.json's operator (human:owner) was never read. The id and its 6-char hash are exactly what installId() would now generate for who=the owner on this machine (sha256('the owner|evanscience-art|owner')[0:6] = 1a442f), so deleting this cache regenerates the same id rather than a third one.",
   "_previous_id": "<telemetry-id>",
   "_created_note": "The 'created' value above is the Windows setup timestamp recorded in .autodev/onboarding.json, not the original value of this field - the original file could not be read from the Linux box where this replacement was written. Nothing reads this field."
 }
@@ -170,7 +170,7 @@ That line writes it plain.
 Get-Content C:\Users\<you>\autodev-reports\install.json | ConvertFrom-Json | Select-Object id, operator
 ```
 
-Should print `evan-evanscience-art-1a442f` and `the owner`. If `ConvertFrom-Json` complains, the
+Should print `<telemetry-id>` and `the owner`. If `ConvertFrom-Json` complains, the
 paste got mangled — redo it.
 
 Stronger check — ask the tool who it now thinks it is:
@@ -192,7 +192,7 @@ No restart needed — the file is re-read on every upload. Within about 15 minut
 Get-Content C:\Users\<you>\autodev-reports\telemetry-status.json
 ```
 
-**Verify:** `"install": "evan-evanscience-art-1a442f"` and a recent `lastSuccess`.
+**Verify:** `"install": "<telemetry-id>"` and a recent `lastSuccess`.
 
 ### Why that exact text, and one honest limit
 

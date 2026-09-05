@@ -665,7 +665,7 @@ Answers of yours are on record that the repo does not actually honour. Most are 
 
 **ANSWER:** **Make acceptance strict — on T-2, not shop-wide.** Ruled under GA-6. Two things changed today that this item said had never happened. First, a checkpoint *did* genuinely stop for him: T-2's block held from 05:41 until his own answer cleared it. Second, `design` is now `human:strict`, which refuses on-behalf clearing outright. Added to those: `override T-2 --gate accept --policy human:strict`, so **T-2 physically cannot ship until he clears it himself** with `--i-am-human`. **Per-ticket on purpose** — he did not answer 35 or 36, and a per-ticket override is the reversible version; changing his shop's policy on a question he was not asked would be the same over-reach item 1 was about. **Recommended:** make it shop-wide, one line, whenever he agrees.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/events.jsonl — the only two gate.cleared events (T-1 sp_decide 18:43:30, T-2 spec_ready 22:19:23), both by agent:claude(on-behalf:evan,GA-…) + /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/data/gates-policy.json + plugin data/gates.json "_policy_values" (documents human:strict as the flavour that truly holds)
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/events.jsonl — the only two gate.cleared events (T-1 sp_decide 18:43:30, T-2 spec_ready 22:19:23), both by agent:claude(on-behalf:the owner,GA-…) + /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/data/gates-policy.json + plugin data/gates.json "_policy_values" (documents human:strict as the flavour that truly holds)
 
 ---
 
