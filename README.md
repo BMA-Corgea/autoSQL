@@ -91,8 +91,7 @@ Step 11 is the one to look at. It is the value that used to come back wrong — 
 engines returned different numbers with nothing anywhere saying so. They now both report `123`,
 because the runtime learned the same digits Python knows. If the panes ever disagree on any step,
 the screen says so loudly instead of showing two quiet numbers side by side as though they
-matched. Note that `demo/README.md` still describes step 11 as a live disagreement; that text
-predates the fix and `demo/WALKTHROUGH.md` is the current account.
+matched.
 
 Every row behind the screen is invented, and there is no performance information anywhere in the
 demo — that question belongs to work that has not run yet (see below).
