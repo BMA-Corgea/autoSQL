@@ -2,6 +2,46 @@
 
 ---
 
+> # START HERE — 2026-09-05 (T-13 shipped; the suite is NOT green, and that is new)
+>
+> **T-13 shipped** — `demo/README.md`'s step-11 paragraph no longer claims the two engines
+> disagree. Merged `35ac969`, pushed to the public remote. It was run under the owner's decision
+> form `autosql-loop-2026-09-05` (**GA-19**) and their "get after it" (**GA-20**), with both their
+> gates cleared `on-behalf`. Its scope was widened once, mid-flight and on the record: fixing
+> `demo/README.md` alone would have invalidated a caveat at `README.md:94-95` that existed only
+> while the bug was open, so the ticket went back to `refine` and the spec gate was re-cleared
+> rather than amended behind it.
+>
+> **Read this before trusting any "all green" line below.** The demo suite is **1154 passed /
+> 1 failed**, and has been since `adf23bf` (T-14) on 2026-09-05 — *before* T-13 ran. T-14
+> reworded a comment in `demo/frontend/panes.jsx` and `sqlpane.jsx` and never re-ran
+> `./run-demo build-ui`, so `demo/manifest.json`'s source digest is stale and the bundle-staleness
+> guard fires. Proven by recomputing the guard's own digest over committed blobs: `main` FAILs,
+> `adf23bf^` PASSes. No privacy leak and no behavioural drift — both edits were comments, which
+> esbuild strips. Ticket **T-16**. **`README.md:136` still tells the public the suite is 1155 and
+> all green; that is currently false and was deliberately left for T-16 rather than fixed here.**
+>
+> **Three tickets were filed, not fixed** — the owner's Q1 chose a bounded grant (T-13 only) over
+> the wider one, so unrelated findings are parked for them:
+>
+> | | what | why it matters |
+> |---|---|---|
+> | **T-15** | `demo/EVIDENCE.md` documents step 11 as the *old* `1e300` case — five values, all contradicting the shipped data, including "a run where the panes agree here is a FAILING run" | worse than the bug T-13 fixed: two generations stale, in the file that exists to be the evidence of record |
+> | **T-16** | `main` is red (above) | the board and the public README both overstate the suite by one |
+> | **T-17** | nothing tests the demo's three *prose* files against `expected-answers.json` | root cause of T-13 **and** T-15 — `WALKTHROUGH.md` stayed correct precisely because a test reads it |
+>
+> **T-4 is still blocked and still the last thing before GIMS.** The owner ruled on it in the same
+> form: leave it blocked and tell them when the host is genuinely quiet (Q2 = A), the three
+> latency bars stand including the must-beat-Python kill condition (Q5 = A), and the run keeps its
+> invented widget, labelled (Q6 = A). Measured at 18:20 UTC: 1-minute load **1.68** — under the
+> 2.00 bar for the first time — but the host is not exclusive (a Python process at 85% of a core,
+> plus a browser), so the framing's quiet-window requirement is still unmet.
+>
+> **Ceremony:** shop `settings.lean` was flipped back **true** (their Q4 = A), discharging the
+> 2026-08-22 note that said to flip it once T-2 shipped.
+
+---
+
 > # START HERE — 2026-09-01 (final: everything closed except T-4, which is BLOCKED on a quiet machine)
 >
 > **Eight tickets finished today: T-2, T-5, T-6, T-7, T-8, T-9, T-10, T-11.** One remains, and it is
@@ -44,6 +84,8 @@
 > (`871b1b4c2df95719`), `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Tests assert all three.
 >
 > **Suites:** demo **1155** · runtime **58** · compiler **34** — all green, B10 checksum guard verified.
+> *(True on 2026-09-01. **No longer true** — see the 2026-09-05 block above: the demo suite is
+> 1154 passed / 1 failed since `adf23bf`. Ticket **T-16**.)*
 >
 > ## Three things a resuming session must not miss
 >
@@ -178,7 +220,9 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-13** (bug) — demo/README.md still describes walkthrough step 11 as a live SQL/Python disagre… — intake
+- **T-15** (bug) — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene… — intake
+- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — intake
+- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — intake
 
 ## Waiting on
 
@@ -226,6 +270,10 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-05 **T-13 COMPLETE** — `demo/README.md`'s step-11 paragraph rewritten to mirror the
+  walkthrough (used to disagree, no longer does); the now-invalid caveat about it removed from the
+  top-level README. Merged `35ac969`, pushed. Filed T-15/T-16/T-17 rather than fixing them, per
+  the owner's bounded grant.
 - 2026-09-05 **T-14 COMPLETE** — The owner's name leaves the public repo
 - 2026-09-05 **T-12 COMPLETE** — README and AGPL-3.0 license for autoSQL
 - 2026-09-01 **T-7 COMPLETE** — Audit: which write path stores rows that skip the schema type check?
@@ -295,5 +343,11 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
   **SHIPPED 2026-09-05.** Accepted on the owner's words (GA-17: no name / no factory talk in the README, the
   owner-facing notes moved to `.autodev/notes/`), pushed to origin main (24d5114), and the repo is now
   **PUBLIC** on his "besides that it looks fine to publish".
-- **T-13** (bug, lean) — `demo/README.md` still calls step 11 a live disagreement (T-8 fixed it).
-  Filed from T-12's finding; waiting on the owner's go. Recommended before the repo goes public.
+- **T-13** (bug, lean) — `demo/README.md` called step 11 a live disagreement (T-8 had fixed it).
+  Filed from T-12's finding. **SHIPPED 2026-09-05** — merged `35ac969`, pushed to origin main.
+  Run under GA-19/GA-20 with both the owner's gates cleared `on-behalf`. Scope widened once at
+  `locate`, via a recorded loopback to `refine`: the caveat at `README.md:94-95` existed only
+  while this bug was open, so fixing one file alone would have traded one contradiction for
+  another in the more prominent file. Auto-review caught and fixed a second-order slip before
+  merge — the first draft implied the SQL *rule* changed, when the rule is unchanged and T-8
+  added a fallback. Spawned **T-15**, **T-16**, **T-17** (filed, not fixed, per their Q1 = A).
