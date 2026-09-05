@@ -78,7 +78,9 @@ matching wheel and fails outright rather than half-installing. `build-ui` is the
 needs Node.
 
 `./run-demo test` runs the demo's own suite (`demo/tests/`). The compiler and runtime suites are
-plain pytest: `python3 -m pytest compiler/tests runtime/tests`.
+plain pytest, run with the interpreter `up` created:
+`demo/.venv/bin/python -m pytest compiler/tests runtime/tests -q` (`compiler/README.md`,
+`runtime/README.md`).
 
 What you get is a picking panel and two answer panes: the SQL pane, which is what Postgres
 computed, and the Python pane, a separate program that reads the same rows and works the answer out
