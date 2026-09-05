@@ -1,10 +1,10 @@
 # Decision — don't build the expression-to-SQL compiler yet; fund two experiments first
 
-**Decided by:** `human:evan` · **Date:** 2026-08-21 · **Status:** SIGNED · both open parts closed
+**Decided by:** `human:owner` · **Date:** 2026-08-21 · **Status:** SIGNED · both open parts closed
 2026-08-21 by **rulings on delegated authority** (§3's number, §6's ambiguity) — his delegation, not his
 decisions; either is overturnable in one line
 **Ticket:** T-1, gate `sp_decide` cleared 2026-08-21, logged as go-ahead **GA-3** in `.autodev/events.jsonl`
-**Decisions:** `.autodev/notes/ANSWERS-FROM-EVAN.md` (Q1; item 1 of the follow-up round) · **Evidence:**
+**Decisions:** `kb/notes/owner-answers.md` (Q1; item 1 of the follow-up round) · **Evidence:**
 `spikes/T-1/RECHECK-2026-08-21.md`, distilled in [`expr-ast-to-postgres-sql.md`](expr-ast-to-postgres-sql.md)
 
 The research recommends; this records what was decided.
@@ -31,7 +31,7 @@ follow-up runs and let a build be *earned* from their results:
   value from Python, zero where a value becomes NULL or a NULL becomes a value, zero where Python
   raises but SQL quietly returns something. It also closes a loose end: the whole 130-case run pinned
   one Postgres output setting (`extra_float_digits = 1`), and 68 of the 130 pass a number through a
-  float conversion where it could matter. Evan ruled (Q10) that E1 tests **all three** settings.
+  float conversion where it could matter. The owner ruled (Q10) that E1 tests **all three** settings.
 - **The like-for-like speed run** (**E2**). The spike never compared the two paths on equal footing —
   same widget, same table, same corpus. E2 does, at 20 000 / 100 000 / 1 000 000 rows. See §3: he
   changed how its bar is set.
@@ -51,7 +51,7 @@ away". It is: *this evidence does not fund this build.*
 > **"Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
 > intrinsically fatal."**
 
-The research set E2's bar as a *ratio* — beat the current path's 13.4–15.0 microseconds per row. Evan
+The research set E2's bar as a *ratio* — beat the current path's 13.4–15.0 microseconds per row. The owner
 rejected that framing. A path can be several times slower per row and still be the better product if
 the wait a person actually experiences is acceptable — and the current path is answering the wrong
 question anyway once it truncates. **E2 must be designed around a wall-clock target for a real widget
@@ -90,7 +90,7 @@ silently wrong number, the stated disqualifier.
 
 ## 5. What the re-check changed — the argument this decision lost
 
-Evan made the ruling conditional on two checks running first (Q4, Q5). Both ran, and **one removed an
+The owner made the ruling conditional on two checks running first (Q4, Q5). Both ran, and **one removed an
 argument the write-up had been using to support the very ruling recorded here.** That is stated
 plainly rather than quietly dropped.
 
@@ -117,7 +117,7 @@ restricted build instead — the build shape §6 now routes into the demo rather
 
 ## 6. The ambiguity — RESOLVED 2026-08-21, on delegated authority
 
-**Status: closed.** This is a **ruling on delegated authority** — a decision *I* made because Evan
+**Status: closed.** This is a **ruling on delegated authority** — a decision *I* made because the owner
 handed me the decision, not one he made himself. It is labelled that way deliberately, and he can
 overturn it in one line (end of this section).
 
@@ -217,7 +217,7 @@ T-2. Either costs one line and re-runs nothing.
 
 ## 8. What happens next
 
-1. ~~Get the one line that closes §6~~ — **closed 2026-08-21** by the ruling in §6. Evan may still
+1. ~~Get the one line that closes §6~~ — **closed 2026-08-21** by the ruling in §6. The owner may still
    overturn it in one line; until he does, the demo proceeds and GIMS stays untouched.
 2. ~~Set E2's absolute wall-clock target~~ — **set 2026-08-21** by the ruling in `EXPERIMENTS.md` §2.2,
    summarised in §3. Three bars, one per collection size, plus a kill condition.
@@ -237,7 +237,7 @@ T-2. Either costs one line and re-runs nothing.
 
 | For | Read |
 | --- | --- |
-| Every decision quoted here, verbatim | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
+| Every decision quoted here, verbatim | `kb/notes/owner-answers.md` |
 | The ruling as logged, in his words | `.autodev/events.jsonl` — go-ahead `GA-3`, 2026-08-21 |
 | The evidence, and what the re-check moved | `spikes/T-1/RECHECK-2026-08-21.md` (§4 what changed, §5 what is still open) |
 | The research distilled, and the full working | [`expr-ast-to-postgres-sql.md`](expr-ast-to-postgres-sql.md) → `spikes/T-1/FINDINGS.md` |

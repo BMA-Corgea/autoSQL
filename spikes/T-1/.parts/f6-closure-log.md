@@ -230,7 +230,7 @@ those in-place statements, not a substitute for reading them.
 
 `f5`'s own summary of where this leaves a reader who wants to rule the other way, stated in §5.5 so the
 gate does not have to find it: **attack reason 3 and leg (b) first, because those are the two the evidence
-now supports least.** `human:evan` decides at the `sp_decide` gate.
+now supports least.** `human:owner` decides at the `sp_decide` gate.
 
 ### Assembly
 
@@ -419,7 +419,7 @@ None is decision-blocking and none touches a measurement.
 
 ### Amendment round — three corrections a dead closure seat never applied
 
-**Date: 2026-08-21. Authority: Evan, 2026-08-21 — the ruling recorded as go-ahead `GA-3`** in this ticket's
+**Date: 2026-08-21. Authority: the owner, 2026-08-21 — the ruling recorded as go-ahead `GA-3`** in this ticket's
 event log (`.autodev/events.jsonl`), whose item 2 reads *"Fix them — re-fingerprint the document."* Nothing
 in this round is discretionary: it applies **three named corrections and nothing else**.
 

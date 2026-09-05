@@ -1,6 +1,6 @@
 # T-1 — specifications for the two follow-up runs
 
-**Written 2026-08-21.** Evan funded two runs and put the correctness one first (Q6, re-confirmed as
+**Written 2026-08-21.** the owner funded two runs and put the correctness one first (Q6, re-confirmed as
 item 6 of the second form). This document is the specification for both: what each one asks, the
 exact number it has to beat, what it measures, what it has to build first, what would make its
 answer worthless, and what it costs to run.
@@ -33,8 +33,8 @@ real data is anywhere near it, and fixing it is twelve characters.
 
 ## The correction this document is built around
 
-Evan's words, verbatim, from his re-confirmation of the ruling (GA-3, recorded in
-`.autodev/notes/ANSWERS-FROM-EVAN.md` under Q1):
+The owner's words, verbatim, from his re-confirmation of the ruling (GA-3, recorded in
+`kb/notes/owner-answers.md` under Q1):
 
 > "Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
 > intrinsically fatal."
@@ -76,7 +76,7 @@ Five decisions on the record constrain these runs. None of them is negotiable in
 | **Q10** — "Make the correctness run test all three settings" | the Postgres float-digit setting must be tested at all three values | Run 1 runs everything three times and **reports the three separately**. A pooled pass rate is forbidden: it would hide which setting broke. |
 | **Q7** — "Let them edit the existing code in place" | the throwaway prototype and test generators may be modified | Both runs edit `spikes/T-1/proto/` and `spikes/T-1/analysis/fuzz/` directly. No rebuild from scratch. Both GIMS checkouts stay read-only. |
 | **Q31** — "Leave it gone" | the 1,000-to-1,000,000-row test tables were dropped and stay dropped | **Run 2 must rebuild the corpus from nothing.** Confirmed still gone **[measured 2026-08-21]**: `autosql_spike` holds zero `measure_instances_*` tables. The 21 `xpr` runtime functions and PostgreSQL 16.14 are still there, so Run 1 needs no rebuild at all. |
-| **item 7 of the second form** — "TAKE THE DEFAULT" | no real widget was named (Q8 superseded) | Run 2 uses an **invented** widget, labelled as invented everywhere it appears. If Evan names a real one before the run starts, it replaces the invented one and nothing else in this spec changes. |
+| **item 7 of the second form** — "TAKE THE DEFAULT" | no real widget was named (Q8 superseded) | Run 2 uses an **invented** widget, labelled as invented everywhere it appears. If the owner names a real one before the run starts, it replaces the invented one and nothing else in this spec changes. |
 
 ---
 
@@ -96,7 +96,7 @@ the run can generate, at every Postgres float-digit setting?**
 
 That is the whole question. It is not "does it pass the 130 cases" — it already does, and the
 investigation ruled that the 130 cases cannot serve as the acceptance test (`FINDINGS.md` §5.2, and
-Evan's own Q2, "Not good enough — build a real one"). Run 1 *is* the real one.
+The owner's own Q2, "Not good enough — build a real one"). Run 1 *is* the real one.
 
 ### Why the float-digit setting is in the question at all
 
@@ -218,7 +218,7 @@ So every finite number of magnitude 1.8e296 or larger is treated as out of range
 null — about **12 of the float8 exponent's 632 decades**, bisected in `A_f8_guard.txt` §A3 to a
 boundary of `1.79769313486231587e+296`.
 
-**Is it reachable in Evan's real data? Measured: no, with a very wide margin.** The read-only sweep in
+**Is it reachable in the owner's real data? Measured: no, with a very wide margin.** The read-only sweep in
 `FINDINGS.md` §D.3 examined **5,235,942 numeric values** across every GIMS database on this machine
 and found **0** at or above the guard, and 0 above even a tripwire set a decade early. The largest
 number any GIMS writer here has ever stored is **1,787,169,706,037** — an epoch timestamp in
@@ -267,7 +267,7 @@ catchable error instead of returning a number or a null — and the caller repor
 to the Python path. **The pass bar stays at zero wrong answers, because a reported refusal is not a
 wrong answer.**
 
-**Whose decision this is.** Evan's, delegated to me. Logged as **GA-4** in `.autodev/events.jsonl`,
+**Whose decision this is.** the owner's, delegated to me. Logged as **GA-4** in `.autodev/events.jsonl`,
 2026-08-21T19:43:01Z, verbatim:
 
 > "I feel like these questions can be answered with your best judgement. I give them to you to fulfill
@@ -283,13 +283,13 @@ those expressions"* — and only the reporting changes, nothing needs re-running
 | source | what it says | what it forces |
 |---|---|---|
 | `FRAMING.md` §5 — the bar set *before* any evidence was collected | "A fallback to in-memory evaluation must be **reported, never silent**", and NO-GO "if any case diverges *silently* — i.e. produces a number rather than an error or an explicit fallback" | a null returned where Python has a value is precisely the silent form the spike exists to refuse. An **error** is the form the same sentence names as acceptable. The spike's own non-negotiable therefore picks the option |
-| Evan's note (Q1, re-confirmed as GA-3) | "Build the bounded SQL path with **explicit fallback, instrument which path ran**" | a refusal that is caught and named *is* that instrument. A null is not — nothing downstream can tell it from a legitimately absent value |
-| Evan's Q11 — "Not acceptable — index work stays off" | the generated query can never use an index | there is no performance argument for guessing instead of refusing. The corner being cut by substituting a null buys nothing that is still available to buy |
+| The owner's note (Q1, re-confirmed as GA-3) | "Build the bounded SQL path with **explicit fallback, instrument which path ran**" | a refusal that is caught and named *is* that instrument. A null is not — nothing downstream can tell it from a legitimately absent value |
+| The owner's Q11 — "Not acceptable — index work stays off" | the generated query can never use an index | there is no performance argument for guessing instead of refusing. The corner being cut by substituting a null buys nothing that is still available to buy |
 
 The three offered options each fail one of those. *Excluding the expressions* cannot be done — the
 spec says so two paragraphs up, it depends on the row, not on the SQL. *A carve-out* writes the silent
 null into the bar, which is the thing `FRAMING.md` §5 forbids by name. *Refusing the subset* throws
-away a subset over a case that is 284 orders of magnitude from anything in Evan's data, without first
+away a subset over a case that is 284 orders of magnitude from anything in the owner's data, without first
 asking whether the engine could simply say so.
 
 #### Why this is implementable — measured, not asserted
@@ -329,7 +329,7 @@ scan is wasted work. That is a cost for Run 2 to be aware of, not a correctness 
 1. **Refusals get their own line**, per battery and per float-digit setting, never pooled into the
    agree count. A subset that passes at zero wrong answers while refusing a large share of its inputs
    has passed the correctness bar and failed as a product, and only the count makes that visible.
-   No threshold is set here: there is no measurement to set one from. Run 1 produces the rate; Evan
+   No threshold is set here: there is no measurement to set one from. Run 1 produces the rate; the owner
    draws a line across it afterwards if he wants one.
 2. **Underflow is counted separately from overflow.** The witnesses above show Postgres refusing on
    underflow too, where Python returns `0.0`. Underflow is reachable at far less extreme magnitudes
@@ -455,7 +455,7 @@ generator, not of the compiler.**
 
 ### Why item 6 is not optional
 
-Evan asked (Q4) for proof that the test rig can actually report a failure, and got it: the
+The owner asked (Q4) for proof that the test rig can actually report a failure, and got it: the
 re-check drove `proto/conformance.py` with deliberately wrong compilations and it correctly emitted
 "diverges", "did not compile" and "SQL error" through the real loop
 (`RECHECK-2026-08-21.md` §2.1–§2.5). That is what makes Run 1 believable at all.
@@ -481,8 +481,8 @@ Any one of these voids the run:
 5. **Input fingerprints not recorded.** The existing harness records hashes for the fixture, `expr.py`, `compile.py` and `runtime.sql`. Keep that, add the float-digit value, or the run cannot be re-derived later.
 6. **Results quoted as a fraction of production traffic**, or the 130-case fixture presented as the acceptance test (§1.2).
 7. **The guard-literal fix applied without a before-and-after.** The fix changes what `xpr.f8` returns, and therefore moves conformance results for the 130 cases as well as the fuzz batteries. Both states have to be recorded, or nobody can tell which zeros the fix bought.
-8. **The above-DBL_MAX divergence quietly folded into a pass or a fail** instead of reported as its own line for Evan to rule on (§1.2).
-9. **Anything written into either GIMS checkout.** Both are read-only. Import the parser with bytecode writing disabled so no `__pycache__` lands in Evan's tree — the investigation's own passes did this and it is the reason those trees are still clean.
+8. **The above-DBL_MAX divergence quietly folded into a pass or a fail** instead of reported as its own line for the owner to rule on (§1.2).
+9. **Anything written into either GIMS checkout.** Both are read-only. Import the parser with bytecode writing disabled so no `__pycache__` lands in the owner's tree — the investigation's own passes did this and it is the reason those trees are still clean.
 
 ## 1.6 What it costs
 
@@ -512,7 +512,7 @@ and produced 2.1 MB and about 117,000 words. Run 1 is a fraction of that scope.
 # RUN 2 — the timing run
 
 *The investigation calls this **E2**, defined in `FINDINGS.md` §5.7 condition 4 and §5.11. This spec
-re-writes its bar per Evan's correction, and changes its shape in three other places, all noted.*
+re-writes its bar per the owner's correction, and changes its shape in three other places, all noted.*
 
 ## 2.1 The question
 
@@ -560,7 +560,7 @@ start today.
 
 ## 2.2 THE BAR — ruled on delegated authority, 2026-08-21
 
-> **This section used to be a proposal waiting on Evan.** He delegated it. Logged as **GA-4** in
+> **This section used to be a proposal waiting on the owner.** He delegated it. Logged as **GA-4** in
 > `.autodev/events.jsonl`, 2026-08-21T19:43:01Z, verbatim:
 >
 > > "I feel like these questions can be answered with your best judgement. I give them to you to fulfill
@@ -623,10 +623,10 @@ exactly right — row-for-row identical to the compiled arm (§4.7) — so the c
 correctness there and cannot be justified by winning a race it does not need to win. The test at that
 size is **no perceptible regression: within +100 ms of the Python path measured in the same session.**
 100 ms is roughly the point at which a person starts to notice a page got slower. Note this is an
-absolute increment, not a ratio; it is consistent with Evan's correction rather than a smuggled-back
+absolute increment, not a ratio; it is consistent with the owner's correction rather than a smuggled-back
 multiple.
 
-*(This split is the one place the ruling interprets rather than applies, so it is flagged. If Evan
+*(This split is the one place the ruling interprets rather than applies, so it is flagged. If the owner
 wants the strict form everywhere — compiled must beat Python at 20,000 too — that clause simply
 becomes "< the same-session Python median" and nothing else in the spec changes. Worth knowing what he
 would be choosing: the compiled arm measured **1,138.61 ms** at 20,000 rows against Python's 300.10
@@ -656,13 +656,13 @@ The reason is in this document's own arithmetic. Every figure here is measured o
 **2.5 µs/row is below the cheapest compiled predicate that has ever been measured.** A bar set below
 every measurement in the record is a bar the run cannot inform — it decides the answer before the run
 starts, and Run 2 is the expensive one (§2.6: an exclusive quiet host, a full corpus rebuild, 2–3
-hours). Evan's instruction was to stop treating a *multiple* as fatal and start measuring the *wait*.
+hours). The owner's instruction was to stop treating a *multiple* as fatal and start measuring the *wait*.
 It was not an instruction to set the wait so low that only an encoding nobody has written could reach
 it.
 
 **5.5 µs/row is not invented for this ruling.** It is the gate the earlier panel set *before* the
 evidence was collected (`panel.json[2]`'s C-0, restated in `FINDINGS.md` §5.7 condition 4). All the
-ruling does is convert it out of the unit the record used and into the unit Evan asked for. A
+ruling does is convert it out of the unit the record used and into the unit the owner asked for. A
 pre-registered line, restated in milliseconds, is the most defensible number available here.
 
 **And it still delivers everything the bar exists to test:**
@@ -670,9 +670,9 @@ pre-registered line, restated in milliseconds, is the most defensible number ava
 - **1.5× faster than the 8,331 ms a person waits today** — nobody waits longer than they do now, while
   the answer stops being 96% wrong. That is the user-facing claim Run 2 exists to test.
 - Comfortably inside the ten-second conventional limit of held attention. *(General human-factors, not
-  measured on this machine or on Evan's users — flagged as the softest input to this ruling, exactly as
+  measured on this machine or on the owner's users — flagged as the softest input to this ruling, exactly as
   it was flagged for 2,500.)*
-- **~3× better than the correctness-matched alternative** — the 20,000-row cap lift Evan already
+- **~3× better than the correctness-matched alternative** — the 20,000-row cap lift the owner already
   approved under Q16, which costs about **16.7 s** at 1M. *(INFERENCE, by `FINDINGS.md` §5.5's method;
   Run 2 converts it into a measurement, §2.3.)*
 - **Achievable in principle, measured:** the unsafe native-operator arm ran this exact widget over
@@ -684,7 +684,7 @@ pre-registered line, restated in milliseconds, is the most defensible number ava
 **What loosening the line gives up, stated so it can be argued with.** At 5,500 ms the widget is
 correct and moderately faster; it does not feel *fast*. A person waits five and a half seconds and
 watches a spinner. 2,500 ms was the line at which the compiled path would win on both axes a person
-can feel, and the ruling trades that for a bar the run can actually decide. If Evan wants the ambitious
+can feel, and the ruling trades that for a bar the run can actually decide. If the owner wants the ambitious
 line back, one word restores it — and this document's own closing note applies: Run 2 reports the
 milliseconds either way, so the line can be redrawn afterwards without re-running anything.
 
@@ -697,11 +697,11 @@ bar. The +50 ms of headroom sits below the threshold at which a change in page s
 **100,000 rows → 1,000 ms.** Four anchors:
 
 - One second is the conventional threshold below which a person keeps their train of thought. **This
-  is a general human-factors number, not something measured on this machine or on Evan's users** — the
+  is a general human-factors number, not something measured on this machine or on the owner's users** — the
   softest input at this size, flagged as such.
 - Today's Python answers in **899.26 ms** but 62% of the displayed rows are wrong (§4.4, §4.7).
   Spending ~100 ms more to be right is a good trade.
-- The correctness-matched Python alternative — the cap lift Evan approved under Q16 — costs about
+- The correctness-matched Python alternative — the cap lift the owner approved under Q16 — costs about
   **1.6 s** at this size. *(INFERENCE, my arithmetic, by `FINDINGS.md` §5.5's method at 1M: the
   already-paid 728 ms acquisition plus derive at 7.27 µs/row and filter at 1.23 µs/row over 100,000
   rows.)* So 1,000 ms also beats the cheap alternative.
@@ -711,7 +711,7 @@ bar. The +50 ms of headroom sits below the threshold at which a change in page s
 
 **Per-row budget across the three: 17.5 → 10.0 → 5.5 µs/row.** It tightens with size because a
 person's patience does not scale with the row count. **The 1,000,000-row bar is still the binding
-one** — if it passes, the other two almost certainly follow. If Evan only wants to argue about one
+one** — if it passes, the other two almost certainly follow. If the owner only wants to argue about one
 number, that is still the one.
 
 ### The three lines side by side, so the choice stays visible
@@ -723,7 +723,7 @@ number, that is still the one.
 | 8,331 ms | 8.3 µs | correct instead of 96% wrong, but no faster than today | **the kill line** |
 
 **The 8,331 ms line is not a bar, it is a floor.** At or above it the compiled path is not faster than
-what a person waits today, and its only remaining argument is correctness — which the cap lift Evan
+what a person waits today, and its only remaining argument is correctness — which the cap lift the owner
 already approved under Q16 also delivers, for one line of code. A result at or above 8,331 ms means
 **build nothing**.
 
@@ -756,7 +756,7 @@ milliseconds — but nobody should book the exclusive quiet host believing the a
 
 **Required: 20,000 · 100,000 · 1,000,000.** These are the three bar sizes. 20,000 is the current
 `MAX_SCAN` cap and just above the largest real collection on this machine (17,148 rows, 85.7% of the
-cap — `FINDINGS.md` §D.8). 1,000,000 is the "high-volume data GIMS does not have yet" that Evan named
+cap — `FINDINGS.md` §D.8). 1,000,000 is the "high-volume data GIMS does not have yet" that the owner named
 as autoSQL's target in Q15.
 
 **Optional if the window allows: 1,000 · 10,000 · 25,000**, purely to keep the curve comparable with
@@ -769,7 +769,7 @@ An "arm" is one way of answering the widget. Five, per widget:
 | arm | what runs where | why it is in the run |
 |---|---|---|
 | **A — today** | everything in Python, with the 20,000-row cap in place | what a person waits today. The baseline. |
-| **A-uncapped** | everything in Python, cap lifted | **the correctness-matched baseline, and currently only an inference.** `FINDINGS.md` §5.5 quotes ≈16.7 s at 1M as arithmetic, never measured. Evan approved the cap lift in Q16; this is the number he approved, and it should be a measurement. |
+| **A-uncapped** | everything in Python, cap lifted | **the correctness-matched baseline, and currently only an inference.** `FINDINGS.md` §5.5 quotes ≈16.7 s at 1M as arithmetic, never measured. The owner approved the cap lift in Q16; this is the number he approved, and it should be a measurement. |
 | **C — the shippable compiled path** | Postgres evaluates the derive and the `where` predicate; Python does the sort and the limit | **the arm the bar applies to.** See below. |
 | **B2 — fully compiled** | Postgres does everything including sort and limit | the ceiling if the sort obligations are ever discharged. Reported, not gated. |
 | **B4 — native operators** | the same answer using raw Postgres date/number operators | the physics ceiling. **Not a candidate** — it raises an error on a malformed value where the language must return null, which is the whole reason the safe runtime exists. Reported so the headroom is visible. |
@@ -785,12 +785,12 @@ honest, shippable architecture today is: SQL evaluates the derive and the `where
 does the sort and the limit. That is arm C, and its Python tail is a real part of what a person waits — at 1M with ~5% selectivity it
 means about 52,000 rows come back and get decoded in Python, roughly 310 ms of the budget by the
 sweep's own measured decode rate. **A ratio hides that tail. An absolute bar cannot.** This is one of
-the concrete reasons Evan's correction improves the experiment.
+the concrete reasons the owner's correction improves the experiment.
 
 ### The widget
 
 **INVENTED. Labelled as invented here and required to be labelled as invented everywhere it appears
-in the run's output.** Q8 asked Evan to name a real one; item 7 of the second form took the default.
+in the run's output.** Q8 asked the owner to name a real one; item 7 of the second form took the default.
 If he names one before the run starts, it replaces this and nothing else changes.
 
 ```json
@@ -898,7 +898,7 @@ Any one of these voids the run, or the affected cell:
 6. **Corpus selectivity outside 4.5%–6.0%**, or mean record size not reported. Both silently move every number in the run.
 7. **Cache state not stated.** Report buffer hits and reads from the plans and state the warm-up policy. The original document claimed everything was warm-cache at every size; that was false at 100,000 and 1,000,000 rows.
 8. **`synchronize_seqscans` unrecorded** (§2.4 item 9).
-9. **A ratio quoted as the verdict.** Ratios are reported; the bar is milliseconds. This is Evan's correction and it applies to the write-up as much as to the design.
+9. **A ratio quoted as the verdict.** Ratios are reported; the bar is milliseconds. This is the owner's correction and it applies to the write-up as much as to the design.
 10. **Anything written into either GIMS checkout.** Read-only, both.
 
 ## 2.6 What it costs
@@ -919,13 +919,13 @@ Any one of these voids the run, or the affected cell:
 ## What happens after each run
 
 **Run 1 fails after the guard is fixed** → the restricted subset does not exist as a safe set, and
-the NO-GO stops being provisional. Cheapest possible ending, which is why Evan put it first. *(Run 1
+the NO-GO stops being provisional. Cheapest possible ending, which is why the owner put it first. *(Run 1
 fails **before** the guard is fixed — that is already known, §1.2 — so "Run 1 failed" only means
 something once step zero is done and recorded.)*
 
 **Run 1 passes, Run 2 fails** → there is a provably-agreeing subset that is too slow to be worth
 shipping for speed. That is not nothing: it makes the correctness argument on its own merits, against
-the cap lift Evan already approved, and it says so with a number rather than a multiple.
+the cap lift the owner already approved, and it says so with a number rather than a multiple.
 
 **Both pass** → the ticket's premise is established on evidence, and the remaining work is the one
 the investigation says was always the hard half: the GIMS-side changes that let a fallback be
@@ -934,7 +934,7 @@ the investigation says was always the hard half: the GIMS-side changes that let 
 **A note on moving the bar.** Run 2 produces milliseconds. If the 1M number lands at, say, 6,500 ms,
 that is a FAIL under §2.2's ruled bar — but a FAIL that still beats the 8,331 ms a person waits today,
 which is a very different decision from a FAIL at 23,000 ms. The spec requires the number to be
-reported either way, and Evan can redraw any line afterwards without re-running anything. **What he
+reported either way, and the owner can redraw any line afterwards without re-running anything. **What he
 cannot redraw away is the kill condition** (§2.2): at or above the same-session Python median, the
 compiled path has no argument left.
 
@@ -942,7 +942,7 @@ compiled path has no argument left.
 
 ## Words used above that are worth pinning down
 
-Written because Evan asked for the database reasoning explained and the coding basics skipped (Q41).
+Written because the owner asked for the database reasoning explained and the coding basics skipped (Q41).
 
 **Sequential scan** — Postgres reading every row of a table in order, because nothing lets it skip
 any. Under Q11 this is what every autoSQL query does, always. Its cost is proportional to the row
@@ -984,12 +984,12 @@ times per scanned row; this is the first and most obvious thing an implementatio
 **Battery** — one file of related test cases in `analysis/fuzz/`, each printing its own evidence.
 
 **Fixture** — the 130 hand-authored expression test cases GIMS ships (`expr_vectors.json`). It is the
-contract between the Python and JavaScript versions of the language. Evan ruled (Q2) that it is not
+contract between the Python and JavaScript versions of the language. The owner ruled (Q2) that it is not
 adequate as the acceptance test for a third, SQL version — Run 1 is what replaces it.
 
 **Negative control** — a deliberately broken input, used to prove the test rig can report a failure
 at all. A rig that has only ever printed "pass" has not been shown to be capable of printing anything
-else. This is what Evan asked for in Q4, and §1.4 item 6 extends it to the one instrument the Q4 run
+else. This is what the owner asked for in Q4, and §1.4 item 6 extends it to the one instrument the Q4 run
 did not cover.
 
 **Inadmissible** — the run produced a number, but something about how it was produced means the

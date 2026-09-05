@@ -1,6 +1,6 @@
 # Decision — the homework reported, and the ruling stands
 
-**Status:** decided · **Ruled by:** Evan, 2026-09-01 · **Recorded as:** GA-9 · **Ticket:** T-5 ·
+**Status:** decided · **Ruled by:** the owner, 2026-09-01 · **Recorded as:** GA-9 · **Ticket:** T-5 ·
 **Extends [decision-t3-correctness-run.md](decision-t3-correctness-run.md); supersedes nothing**
 
 ## The question
@@ -36,7 +36,7 @@ denominator of *coercible* strings — was fixed in writing before any evidence 
 
 > **"A - proceed as ruled."**
 
-Evan took the synthesis recommendation from a form listing four options with the honest case for
+The owner took the synthesis recommendation from a form listing four options with the honest case for
 each, answering all six questions and accepting every recommendation. In full:
 
 | | question | ruling |
@@ -55,7 +55,7 @@ refusal that fires on a value occurring zero times regresses nothing that exists
 whole case for A, and it is the case T-3 said it wanted evidence for.
 
 **Option C — fix GIMS's validator *instead* of hardening autoSQL — was argued against on two
-independent grounds**, and Evan agreed:
+independent grounds**, and the owner agreed:
 
 1. **His own architecture ruling, this same day:** *"The autoSQL should be its own project. If it's
    not we have a much bigger problem on our hands."* C makes autoSQL's correctness depend on
@@ -92,7 +92,7 @@ unanswerable question ("will this ever happen?") into one that answers itself la
 - **Production data was never examined and cannot be from here.** *n* = 1 machine, 1 operator, and
   the tenant project is a sandbox whose noun list includes `Soup Ladel` and `LL Cool J`. The 144 is
   a sandbox's denominator.
-- **`glp_strong` was deliberately not examined**, on Evan's ruling that it is the wrong corpus. The
+- **`glp_strong` was deliberately not examined**, on the owner's ruling that it is the wrong corpus. The
   fail-closed fence on port 55433 stays shut and was never contacted.
 - **How often anyone imports a CSV, and in what locale, is unmeasured.** An open door says nothing
   about traffic through it — which is precisely why Q2's counter exists.
@@ -100,7 +100,7 @@ unanswerable question ("will this ever happen?") into one that answers itself la
 
 ## Evidence
 
-`spikes/T-5/FRAMING.md` (428 lines — the bar, fixed before evidence, plus Evan's two rulings) ·
+`spikes/T-5/FRAMING.md` (428 lines — the bar, fixed before evidence, plus the owner's two rulings) ·
 `spikes/T-5/FINDINGS.md` (229 lines) · three re-runnable read-only probes in `spikes/T-5/probes/` ·
 [nonascii-digits-in-real-data.md](nonascii-digits-in-real-data.md) (the four options in full) ·
 the decision form at `https://claude.ai/code/artifact/8dd8424f-11db-40df-a035-272e495b115d`

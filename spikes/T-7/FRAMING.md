@@ -1,7 +1,7 @@
 # T-7 · Framing — which write path stores rows that skip the schema type check?
 
 Stage: `sp-frame` (spike@v2) · **lean OFF**, risk low · Framed: **2026-09-01** ·
-Authority: GA-15 (*"Loop until everything is closed"*), lifting Evan's Q6 park
+Authority: GA-15 (*"Loop until everything is closed"*), lifting the owner's Q6 park
 (*"log it as a ticket, do not chase now"*)
 
 **READ-ONLY.** Every database opened `mode=ro&immutable=1`; both GIMS checkouts read, never written.
@@ -33,7 +33,7 @@ looking. What would **not** be a pass is guessing at a path and asserting it.
 
 ## What is out of scope
 
-- **Fixing anything.** Not the rows, not the write paths, not GIMS. Evan's Q3 park stands: nothing
+- **Fixing anything.** Not the rows, not the write paths, not GIMS. The owner's Q3 park stands: nothing
   under either GIMS checkout is modified.
 - **Deleting or repairing the nine rows.** They are somebody's data, junk or not.
 - **A full audit of GIMS's write surface.** Only the paths that reach `put_record`.

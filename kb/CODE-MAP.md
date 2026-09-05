@@ -6,4 +6,4 @@ type: reference
 
 # code-map
 
-Seeded stub (FAC-123 / ruling 35): run `node C:\Users\evanb\Desktop\coding projects\autodev-plugin\scripts\code-map.mjs` to generate the real map — `scripts/code-map.mjs` is the PLUGIN's script, not one that lives in this repo (T-32 N8). This stub only makes the named read resolve on day one.
+Seeded stub (FAC-123 / ruling 35): run `node C:\Users\<you>\Desktop\coding projects\autodev-plugin\scripts\code-map.mjs` to generate the real map — `scripts/code-map.mjs` is the PLUGIN's script, not one that lives in this repo (T-32 N8). This stub only makes the named read resolve on day one.

@@ -1,5 +1,0 @@
-{
-  "_comment": "AutoDev notification config. Shape: scripts/notify.mjs loadConfig() + createTransports(). 'console' prints the decision packet to the terminal (Evan's Q35 'print it into the terminal'); 'file' drops one packet per occurrence at .autodev/outbox/<key>.md, which ops/notify-telegram.sh forwards to Telegram via openclaw. 'telegram' is NOT listed on purpose: it is an adapter slot in this plugin version and every send through it fails closed.",
-  "transports": ["console", "file"],
-  "rules": []
-}

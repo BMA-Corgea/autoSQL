@@ -130,4 +130,4 @@ handled — never assumed to succeed because the schema says `float`.
 
 Read-only throughout. `GIMS-Project` and the GUTS spine copy were read and never written; no
 checkout, branch or index operation was performed in either. Databases opened
-`mode=ro&immutable=1`. Evan's GA-9 Q3 park is intact: **nothing in GIMS was changed.**
+`mode=ro&immutable=1`. The owner's GA-9 Q3 park is intact: **nothing in GIMS was changed.**

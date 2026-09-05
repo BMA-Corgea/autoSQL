@@ -1,7 +1,7 @@
 # T-1 · FINDINGS — compiling the GIMS dashboard expression AST to Postgres SQL
 
 **Stage:** `sp-investigate` (spike@v2) · **ticket:** T-1 · **branch:** `spike/T-1-expr-sql`
-**Decision authority:** `recommend-and-wait` — this document *recommends*; `human:evan` decides at
+**Decision authority:** `recommend-and-wait` — this document *recommends*; `human:owner` decides at
 the `sp_decide` gate.
 **Bar:** set in advance by [`FRAMING.md`](FRAMING.md) §4/§5, before any evidence was collected, so
 the result could not be rationalised afterwards.

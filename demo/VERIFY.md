@@ -1,6 +1,6 @@
 # T-2 — the verification record (stage: `verify`)
 
-This is the record of the last check before Evan's own acceptance gate. It was
+This is the record of the last check before the owner's own acceptance gate. It was
 produced by driving the **running app** — the same stack `./run-demo up`
 starts, app on `127.0.0.1:8787`, the demo's own database on `127.0.0.1:55440`
 — over HTTP, through `POST /api/pick`, the same route the screen posts to.
@@ -18,14 +18,14 @@ by the test suite except where a line says so explicitly.
 real customer, or anything that happened anywhere.
 
 **What this demo never touches.** The demo owns ports `55440` and `8787` and
-nothing else. No command run for this record dialled Evan's live database, on
+nothing else. No command run for this record dialled the owner's live database, on
 any port, at any point. (That machine's port number is deliberately not
 written here — AC-3 forbids it appearing anywhere in the demo tree, this file
 included.)
 
-> **SUPERSEDED IN PARTICULARS — 2026-08-23 (GA-7, Evan's form answers q3 and q4).** This record
+> **SUPERSEDED IN PARTICULARS — 2026-08-23 (GA-7, the owner's form answers q3 and q4).** This record
 > was produced against the build as it stood on 2026-08-22 and is kept intact as evidence of that
-> run — nothing below has been rewritten. After it was produced, two of Evan's own decisions
+> run — nothing below has been rewritten. After it was produced, two of the owner's own decisions
 > changed the build, so the following particulars no longer describe the current tree:
 >
 > 1. **AC-35 was re-scoped** (q3) to the seven files the ticket vendors plus the `__pycache__`
@@ -83,10 +83,10 @@ FAILED demo/tests/test_vendor.py::test_ac35_gims_tree_not_modified[GUTS spine co
 AC-35 asserts that neither GIMS checkout on this machine has been modified.
 Both checkouts currently carry **uncommitted edits** (the failure output lists
 them: files under `api/`, `nodes/`, `projects/RunlogTest/`, and an untracked
-test file). Those edits are **Evan's own work in his own checkouts** — they
+test file). Those edits are **the owner's own work in his own checkouts** — they
 predate this ticket and nothing in this demo wrote them. The test cannot tell
 whose edits they are; it can only see the trees are not clean, and it is right
-to say so. This is a known standing item that is **Evan's decision** (commit,
+to say so. This is a known standing item that is **the owner's decision** (commit,
 stash, or discard his own edits), not a defect in the demo — but it is
 reported here as the failure it literally is, because a verification record
 that reclassified a red test as green would be worthless.
@@ -307,7 +307,7 @@ asserted.** This is the run's most important line.
 
 ## 4. The seven states of the approved mock, each reached on the running app
 
-The mock Evan approved (`design/t2-demo-mock.html`) draws seven states. Each
+The mock the owner approved (`design/t2-demo-mock.html`) draws seven states. Each
 one was reached on the live app through `POST /api/pick`; the pick that
 reaches it and what came back:
 
@@ -334,7 +334,7 @@ beside AC-17, 2026-08-22) after two independent measurements showed the value
 reaches Python as an exact 401-digit integer, never as a float literal, so
 `inf` is never created. The walkthrough and `expected-answers.json` both
 carry the corrected expectation; the live app matches them. The mock predates
-the correction and still draws the old reading — worth one sentence when Evan
+the correction and still draws the old reading — worth one sentence when the owner
 compares the screen against the mock. (Smaller, same kind: the mock's state 7
 names the offending row `edge-04`, where the shipped seed puts `huge` on
 `edge-03` — the row the live refusal names, and the one the signed spec's B24
@@ -446,12 +446,12 @@ Read this section as part of the evidence, not as an appendix.
    layout, the verdict strip, the refusal cards, the per-row marks — has been
    verified by **no one**. The plan's own risk register says this plainly
    (risk 13: "the browser layer is never actually run"). **The one check only
-   Evan can do is open `http://127.0.0.1:8787/` and look — that is precisely
+   The owner can do is open `http://127.0.0.1:8787/` and look — that is precisely
    what his acceptance gate is for, and this record does not pretend to have
    done it for him.**
 2. **The two AC-35 failures stand.** The GIMS-Project checkout and the GUTS
    spine copy both carry uncommitted edits, so `test_ac35_gims_tree_not_modified`
-   fails twice (§1.1). They are Evan's own edits in his own checkouts and
+   fails twice (§1.1). They are the owner's own edits in his own checkouts and
    only he can resolve them; until then, every `./run-demo test` will end
    `2 failed`, and a clean-suite claim cannot honestly be made.
 3. **Plan §8.2's mutation pass has never run.** The suite discloses it on

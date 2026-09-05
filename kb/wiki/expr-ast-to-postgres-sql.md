@@ -1,11 +1,11 @@
 # Compiling the GIMS dashboard expression AST to Postgres SQL — options and the ruling
 
 The distilled result of the T-1 spike (2026-08-19), **re-checked 2026-08-21** on the two points
-Evan made his ruling conditional on (§2a). Full working: `spikes/T-1/FINDINGS.md` (~80,000 words,
+The owner made his ruling conditional on (§2a). Full working: `spikes/T-1/FINDINGS.md` (~80,000 words,
 four adversarial audit passes) and `spikes/T-1/RECHECK-2026-08-21.md` (the re-check), judged against
 a bar set before any evidence was collected (`spikes/T-1/FRAMING.md` §4/§5).
 
-**The ruling is in.** On 2026-08-21 `human:evan` ruled **NO-GO — don't build yet, fund the two
+**The ruling is in.** On 2026-08-21 `human:owner` ruled **NO-GO — don't build yet, fund the two
 follow-up runs** (recorded as go-ahead **GA-3** in `.autodev/events.jsonl`, his words verbatim). The
 decision point in the process — the `sp_decide` gate, where the ruling is signed and the ticket moves
 on — is **cleared**. This page is no longer asking for a decision; it records what was decided, on
@@ -116,7 +116,7 @@ read, not on an argument.
 
 ## 2a. What the 2026-08-21 re-check changed
 
-Evan made his ruling conditional on two checks running first (`.autodev/notes/ANSWERS-FROM-EVAN.md` Q4 and Q5).
+The owner made his ruling conditional on two checks running first (`kb/notes/owner-answers.md` Q4 and Q5).
 Both were done, and he then signed (§6). The working — including what each check's own adversarial
 re-check found — is in `spikes/T-1/RECHECK-2026-08-21.md`; this is the short version.
 
@@ -188,11 +188,11 @@ still have no negative controls of their own (`RECHECK` §5.1).
 | --- | --- | --- | --- |
 | **GO** — build it as scoped | fund the build | — | **Unavailable, unanimously:** all three panel seats hold that §4's third GO clause fails outright and that the prototype as built must never ship (`f5` §5.1) |
 | **CONDITIONAL-GO** — compile a statically-decidable subset, refuse the rest loudly | the corrected subset (32 of 48 constructs; functions `abs coalesce count if length max min`), the five GIMS-side changes of `f5` §5.5 pt 2, and E1 before anything ships | **68 of 130 fixture cases (52.3%)** — measured at closure (`analysis/subset-coverage.json`), independently re-derived; **not** the 84/130 (64.6%) the panel argued from. The AVOID rule — refuse to push an expression into SQL whenever it merely *could* reach a known divergence, decided from the expression itself before any SQL runs — refuses the other **62 of 130 (47.7%)** (`f5` §5.7) | Legitimate, and weaker than it looks. Its residual is **partly measured and non-empty**: **8 of the 16 paths diverging at `a = 1e300` are in-subset**, one (`max($.l)`) returning SQL `1` for Python `1e+300` — a silently wrong **number**, §4's stated disqualifier (`analysis/fuzz/A_f8_guard.txt` §A2, `xc` C.10). The *rate* is unmeasured, and the only widget measured end to end is a date widget outside every proposed subset — **no existing measurement is subset-legal** |
-| **NO-GO** — don't fund it on this evidence; run E1 and E2 first | two experiments, on instruments that exist | the status quo stays wrong in a bounded, signalled way: under `MAX_SCAN`, **top-50 recall** — of the 50 rows that truly belong at the top of the widget's sort, how many the capped path actually returns — is **100 / 88 / 38 / 4 %** at 20 k / 25 k / 100 k / 1 M (`f4` §4.7) | **this is what Evan ruled** (§6) |
+| **NO-GO** — don't fund it on this evidence; run E1 and E2 first | two experiments, on instruments that exist | the status quo stays wrong in a bounded, signalled way: under `MAX_SCAN`, **top-50 recall** — of the 50 rows that truly belong at the top of the widget's sort, how many the capped path actually returns — is **100 / 88 / 38 / 4 %** at 20 k / 25 k / 100 k / 1 M (`f4` §4.7) | **this is what the owner ruled** (§6) |
 
 ## 4. The recommendation, and what it rests on
 
-**NO-GO on the architecture as scoped** — recommended by the research, and ruled by Evan on
+**NO-GO on the architecture as scoped** — recommended by the research, and ruled by the owner on
 2026-08-21 (§6). `f5` §5.5 point 5 and §5.11 give it this shape (condensed here; the verbatim wording
 is in `FINDINGS.md`):
 
@@ -218,13 +218,13 @@ in which SQL returned a value.**
 against a compiled **subset-legal** widget, same table and corpus, at 20 k / 100 k / 1 M. **Bar:
 below Path A's measured 13.3–15.0 µs/row under the cap** (`f4` §4.5, 1 k–25 k) **and the ≈16.7 µs/row
 uncapped alternative** (the latter an **INFERENCE**, `f5` §5.5 pt 3); `panel.json[2]`'s C-0 states it
-as ≤ 5.5 µs/row. Evan's ruling adds a requirement to this run: benchmark **absolute user-facing
+as ≤ 5.5 µs/row. The owner's ruling adds a requirement to this run: benchmark **absolute user-facing
 latency**, not just the relative slowdown. **The absolute number itself is not yet set** — see §8.
 
 **Why it survived the re-check.** It rests on three facts and the re-check touched none of
 them: **(1)** `resolve()` at `sources.py:357` returns `{records, count, truncated}`, so a fallback has
 no channel to be reported through; **(2)** the compiled arm is 3.79×–7.15× slower with no crossover —
-re-derived exactly on 2026-08-21, and Evan's Q11 ruling (§6) makes it a floor; **(3)** 18 of 33
+re-derived exactly on 2026-08-21, and the owner's Q11 ruling (§6) makes it a floor; **(3)** 18 of 33
 divergence classes cannot be detected at query time by any mechanism. What the re-check did move is in
 §2a, in both directions, and it is small by comparison.
 
@@ -252,7 +252,7 @@ cut **for** CONDITIONAL-GO: `xc` C.1's DETECT/AVOID split — DETECT being "we c
 that this query diverged", AVOID being "we cannot tell, so we refuse the expression in advance". Closure also corrected the subset from
 84/130 to **68/130**.
 
-## 6. The ruling, and Evan's scope decisions
+## 6. The ruling, and the owner's scope decisions
 
 **The ruling (Q1, re-confirmed as GA-3 on 2026-08-21).** *"Don't build yet; fund the two
 experiments."* His note attached to it, verbatim: *"Stands — don't build yet. Continue. Do not ship
@@ -267,7 +267,7 @@ production-safe" gates the integration rather than the demo. Full derivation, an
 overturns it, in [`decision-expr-to-sql.md`](decision-expr-to-sql.md) §6.
 
 His other answers rule on **scope**. Five change the shape of whatever gets built. All 46 questions
-and all 12 follow-ups are answered and written down in `.autodev/notes/ANSWERS-FROM-EVAN.md`.
+and all 12 follow-ups are answered and written down in `kb/notes/owner-answers.md`.
 
 - **Index use is permanently off (Q11).** He rejected writing tenant-supplied field names straight
   into SQL text, and index work goes with it. Without an index Postgres has no way to jump to the
@@ -311,7 +311,7 @@ allowed (`f2` §2.9, `xd` D.8 — *"Nothing here extrapolates to production."*).
   their tree, and the GIN claim carries this spike's finding that the index is the wrong shape.
 
 **T-2** (the fake-data UI demo) is moving: it is out of intake, at `refine` writing its spec with a
-design stage added, and Evan's approval of that spec is the next thing waiting on him. **Because the
+design stage added, and the owner's approval of that spec is the next thing waiting on him. **Because the
 gate is now cleared, T-2 is no longer held behind this decision** — that is a consequence of the
 ruling, not a standing fact, and Q18 sets its limit: *"Green light, but only the safe operations."*
 Its SQL-generation layer is still what this decision governs, and Q3 puts the demo *before* any GIMS
@@ -320,7 +320,7 @@ contract change.
 ## 8. Status and pointers
 
 T-1 is at `sp-decide` with the gate **cleared** (GA-3, 2026-08-21). The ticket's authority is
-`recommend-and-wait` — the research recommends and Evan decides — and he has decided. Next in the
+`recommend-and-wait` — the research recommends and the owner decides — and he has decided. Next in the
 pipeline is `sp-spawn`, which turns the accepted option into build tickets: **E1, the subset
 acceptance battery, and E2, the like-for-like speed run, correctness run first (Q6).**
 
@@ -328,7 +328,7 @@ acceptance battery, and E2, the like-for-like speed run, correctness run first (
 
 1. ~~The tick-vs-note ambiguity in the ruling~~ — **ruled 2026-08-21 on delegated authority** (§6):
    the tick governs GIMS integration, the note describes the already-authorised demo. Overturnable by
-   Evan in one line.
+   The owner in one line.
 2. ~~E2's absolute latency bar~~ — **ruled 2026-08-21 on delegated authority**: three bars, one per
    collection size (350 ms / 1 000 ms / 5 500 ms at 20 k / 100 k / 1M), plus a kill condition that the
    compiled path must beat the in-memory path at the same row count. `spikes/T-1/EXPERIMENTS.md` §2.2.
@@ -341,7 +341,7 @@ acceptance battery, and E2, the like-for-like speed run, correctness run first (
 | --- | --- |
 | The full working — 5 findings, 4 cross-cutting sections, closure log | `spikes/T-1/FINDINGS.md` |
 | §2a's working — both verifications, both adversarial re-checks, what is still open | `spikes/T-1/RECHECK-2026-08-21.md` |
-| Every answer Evan has given — all 46 from the first round and all 12 follow-ups, verbatim, each with what it caused, plus the three items still outstanding | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
+| Every answer the owner has given — all 46 from the first round and all 12 follow-ups, verbatim, each with what it caused, plus the three items still outstanding | `kb/notes/owner-answers.md` |
 | The ruling as an event, with his words verbatim | `.autodev/events.jsonl` (GA-3) |
 | The bar, set before any evidence | `spikes/T-1/FRAMING.md` §4/§5 |
 | The 130-case run, per case | `spikes/T-1/proto/results.json` |

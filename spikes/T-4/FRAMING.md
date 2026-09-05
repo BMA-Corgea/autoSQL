@@ -12,14 +12,14 @@ to stop.
 > **Vocabulary, since this document uses shop jargon.** A **spike** is a time-boxed investigation
 > that answers a question rather than shipping a feature. **`sp-frame`** is its first stage: write
 > down what would count as an answer *before* collecting evidence, so the result cannot be
-> rationalised afterwards. **`sp-decide`** is the later stage where Evan rules go/no-go — spelled
+> rationalised afterwards. **`sp-decide`** is the later stage where the owner rules go/no-go — spelled
 > with a **hyphen**, because that is the stage's name in this ticket's own pipeline
 > (`["sp-frame","sp-investigate","sp-synth","sp-decide","sp-spawn"]`, read out of the ticket file).
 > Earlier drafts of this document wrote it `sp_decide`; the underscore form is only the *key* the
 > gate carries inside `.autodev/data/gates-policy.json`, where it is set to `human`. This document
 > says **`sp-decide`** throughout and means the stage. A **seat** is the agent working one stage of
 > one ticket — the seat that writes this framing is not the seat that runs the benchmark, and
-> neither of them is Evan. **Lean** is the shop's lightweight ceremony mode. An **arm** is one of the
+> neither of them is the owner. **Lean** is the shop's lightweight ceremony mode. An **arm** is one of the
 > several ways the same dashboard widget is answered, timed side by side. A **corpus** is the pile of
 > fake rows everything is measured over. **Recall** — the term the correctness column of §4.1's bar
 > table turns on, and the one term here a reader most needs — means *of the rows that should have
@@ -38,8 +38,8 @@ Not "is it faster than Python". Not "by what multiple". **How many milliseconds.
 
 ## 2. The correction this framing is built around
 
-Evan re-specified this run himself. Verbatim, from his Q1 re-confirmation
-(`.autodev/notes/ANSWERS-FROM-EVAN.md`, Q1; logged as **GA-3**):
+The owner re-specified this run himself. Verbatim, from his Q1 re-confirmation
+(`kb/notes/owner-answers.md`, Q1; logged as **GA-3**):
 
 > **"Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
 > intrinsically fatal."**
@@ -55,7 +55,7 @@ re-read):
 
 **The ratio moves by less than 2× across those rows. The wait moves by about sixty-fold.** A bar
 written in ratios says roughly the same thing at both ends, which means it says almost nothing about
-whether a person would mind. Evan is right, and this run is built on his unit.
+whether a person would mind. The owner is right, and this run is built on his unit.
 
 **What the correction does *not* ban.** It bans ratios as the **bar**. It does not ban measuring
 them. Ratios tell you where the time went. They just stop deciding anything. Restated as a rule the
@@ -106,14 +106,14 @@ authority needs stating carefully, because the obvious citation — the one earl
 section used — is the wrong one.
 
 > **The basis for this bar, checked line by line in `.autodev/events.jsonl`.** A **go-ahead** is a
-> recorded line from Evan authorising a class of decisions; each one is logged with the list of
+> recorded line from the owner authorising a class of decisions; each one is logged with the list of
 > tickets it was recorded against.
 >
-> - **The unit — milliseconds, not ratios — is Evan's own**, verbatim, under **GA-3** (line 42,
+> - **The unit — milliseconds, not ratios — is the owner's own**, verbatim, under **GA-3** (line 42,
 >   2026-08-21T18:37:03Z), recorded against **T-1**, the investigation this ticket was spawned out
 >   of. That is §2 above, and it is not delegated at all: he wrote the sentence.
 > - **The 5,500 ms figure is older than any delegation.** It is the earlier panel's C-0 line, set
->   *before* the evidence was collected, converted into Evan's unit — §4.3.
+>   *before* the evidence was collected, converted into the owner's unit — §4.3.
 > - **The authority for a seat ruling T-4's open questions while he is away is GA-5** (line 53,
 >   2026-08-21T20:36:56Z): *"Be as autonomous as possible looping through what we still have to try
 >   and get through all the tickets."* GA-5 is recorded against **`["T-2","T-3","T-4"]`** — this
@@ -122,7 +122,7 @@ section used — is the wrong one.
 >   questions can be answered with your best judgement… I approve the spec for T-2"*. Two caveats
 >   travel with it in this project's other documents and were dropped when it was quoted here: it is
 >   recorded against **`["T-2"]` only**, and it carries **`scope_confirmed: false`** — nobody put the
->   scope of that delegation back to Evan and had him confirm it. It is where the *phrase* "ruled on
+>   scope of that delegation back to the owner and had him confirm it. It is where the *phrase* "ruled on
 >   delegated authority" in this project comes from, and the T-1 seat was working under it when
 >   `EXPERIMENTS.md` §2.2 was written, but **it does not name T-4 and it cannot be quoted as covering
 >   this ticket.**
@@ -202,7 +202,7 @@ floor below.
 > relaxed, this bar has to be relaxed with it** — otherwise it stops measuring latency and starts
 > measuring host noise.
 >
-> **One line from Evan overturns this** in either direction. Wanting a genuine p95 at a million rows
+> **One line from the owner overturns this** in either direction. Wanting a genuine p95 at a million rows
 > is a perfectly reasonable preference; what he would be buying it with is a **second exclusive
 > quiet-host window**, and that is the trade, stated so he does not have to derive it.
 
@@ -219,7 +219,7 @@ buys no correctness there and cannot be justified by winning a race it does not 
 at that size is **no perceptible regression: within +100 ms of the same-session Python median.**
 (An absolute increment, not a smuggled-back ratio.)
 
-> **One line from Evan overturns this.** If he wants the strict form everywhere, the 20,000-row
+> **One line from the owner overturns this.** If he wants the strict form everywhere, the 20,000-row
 > clause simply becomes "< the same-session Python median" and nothing else in this document changes.
 > Worth knowing what he would be choosing: the compiled arm measured **1,138.61 ms** at 20,000 rows
 > against Python's 300.10 ms, so strict-beat-at-every-size is close to a decision taken in advance.
@@ -237,7 +237,7 @@ from 8,331.43 ms, that is itself evidence the host was not quiet, and §6 item 1
 
 5,500 ms is not invented for the ruling: it is the gate an earlier panel set *before* the evidence
 was collected (`panel.json[2]`'s C-0, restated in `FINDINGS.md` §5.7 condition 4), converted out of
-µs/row and into the unit Evan asked for.
+µs/row and into the unit the owner asked for.
 
 ### 4.4 The bar cannot decide on its own which widget it is applied to
 
@@ -267,7 +267,7 @@ no stated verdict, to be invented at the worst possible moment.
 **So the run produces exactly one of three verdicts. They are not interchangeable and the readout
 must name one of them:**
 
-| verdict | when it applies | what it tells Evan |
+| verdict | when it applies | what it tells the owner |
 |---|---|---|
 | **PASS** | all three required sizes measured; every contributing cell admissible under §6; every size at or under **both** its median bar and its tail bar (§4.1); **and** the kill condition met at every size (§4.2) | The compiled path is worth building on latency grounds. **This is the only verdict that says so.** |
 | **FAIL** | any measured, admissible size misses its median bar, misses its tail bar, or fails §4.2's kill condition | Decisive on its own — **and it stays a FAIL even if another size went untested.** A miss is evidence; a gap elsewhere cannot cancel it. |
@@ -369,7 +369,7 @@ The named consumers, `ps -eo pcpu,pmem,comm --sort=-pcpu` **[measured 2026-08-21
 
    **What was true, and is no longer.** The spike originally measured against a scratch database
    `autosql_spike` sitting on **`glp-strong-db`** — the same Postgres server, the same container and
-   the same 128 MB of `shared_buffers` as Evan's live `glp_strong`. Under that arrangement any GIMS
+   the same 128 MB of `shared_buffers` as the owner's live `glp_strong`. Under that arrangement any GIMS
    process reading `glp_strong` competed directly with the benchmark, invisibly to any check of
    *host* load.
 
@@ -408,9 +408,9 @@ in the file.
 `EXPERIMENTS.md` §2.5 item 5 sets a floor of **5** repetitions and voids anything below it. But §2.2's
 bar table asks for a **95th percentile**, and five samples cannot produce one — the 95th percentile of
 5 points is just the maximum under any interpolation rule. Those two requirements are in tension, and
-nothing in Evan's answers resolves it. So:
+nothing in the owner's answers resolves it. So:
 
-> **RULING (mine, not Evan's) — repetition counts and reported statistics.**
+> **RULING (mine, not the owner's) — repetition counts and reported statistics.**
 >
 > - **25 repetitions at 20,000 and 100,000 rows.** Summing the per-arm medians in `FINDINGS.md` §4.4
 >   (line 2450 and 2452), one round of the five arms costs roughly **3 s at 20,000** (A 300 ms,
@@ -438,11 +438,11 @@ nothing in Evan's answers resolves it. So:
 >   restating the bar over buying more repetitions.
 >
 > **Derivation.** §2.5 item 5 sets the floor; §2.2 asks for a percentile; §2.6 makes the exclusive
-> window the binding cost, not money — Evan's **Q9** put "no cap" on this run's budget, which removes
+> window the binding cost, not money — the owner's **Q9** put "no cap" on this run's budget, which removes
 > the only other reason to skimp. Raising 1M from 3 → 9 is the smallest change that clears the floor
 > and triples the worst-case coverage at the size that decides the run.
 >
-> **One line from Evan overturns this**, in either direction, and **nothing about what the run
+> **One line from the owner overturns this**, in either direction, and **nothing about what the run
 > measures changes** — it is a dict literal at `bench.py:508` and a column in the output.
 
 **The headline statistic is the MEDIAN. Never the mean.** Two reasons, and the first is measured:
@@ -478,7 +478,7 @@ It is not possible for that table to be warm.
 Declaring it warm is not an oversight to be corrected by warming harder; it is arithmetically false
 on this server.
 
-> **RULING (mine, not Evan's) — the warm-up policy.**
+> **RULING (mine, not the owner's) — the warm-up policy.**
 >
 > 1. **Keep one discarded warm-up per arm per size**, as `bench.py:544` already does. It removes
 >    first-call effects (connection setup, plan caching, Python import) that nobody is trying to
@@ -495,7 +495,7 @@ on this server.
 > **Derivation.** §2.5 item 7 requires cache state to be *stated*; it does not say how. The measured
 > `shared_buffers = 128MB` against a 700 MB table makes "stated" mean "measured per cell", because
 > the honest answer differs by size. Cheapest possible reversal: it is reporting, not method — no
-> re-run is needed if Evan wants it presented differently.
+> re-run is needed if the owner wants it presented differently.
 
 ### 5.4 What the run must record about the host, so a reader can judge the numbers
 
@@ -529,7 +529,7 @@ disk:
 | # | recorded | why | value at framing time **[verified 2026-08-21]** |
 |---|---|---|---|
 | 15 | **Every other container on this Docker host** — `docker ps` plus `docker stats --no-stream` (CPU%, mem) at the **start and end of every size** | the run's Postgres is one tenant among several on one kernel. A neighbour container appears in host `ps` as an anonymous `postgres`/`node` process, so the container list is the only place its identity is legible. Items 1–3 record host totals; this records *who* | `glp-strong-db` (up 5 h, healthy, 55433) and `autosql-doccheck` (55436) were both up |
-| 16 | **Whether `glp_strong` was actually being worked during the window** — `numbackends` and `xact_commit` for that database from `pg_stat_database`, read **once before and once after each size**, and nothing else | it is the one neighbour known to carry Evan's real work. Two readings and a delta is the entire record; **a delta of zero commits is the only thing that turns "GIMS was idle" from an assumption into a measurement.** **Read-only, two statements, no load, no write, no `CREATE`** — the run's hard rule is that no procedure points at that container, and this is the single narrow exception, stated so nobody widens it | — |
+| 16 | **Whether `glp_strong` was actually being worked during the window** — `numbackends` and `xact_commit` for that database from `pg_stat_database`, read **once before and once after each size**, and nothing else | it is the one neighbour known to carry the owner's real work. Two readings and a delta is the entire record; **a delta of zero commits is the only thing that turns "GIMS was idle" from an assumption into a measurement.** **Read-only, two statements, no load, no write, no `CREATE`** — the run's hard rule is that no procedure points at that container, and this is the single narrow exception, stated so nobody widens it | — |
 | 17 | **Disk contention** — free space **and** I/O activity on the filesystem holding the container's volume, before and after each size, plus whether a CSV was being generated onto the same device while a cell was being timed | the corpus, its CSVs, `glp_strong`'s data and the OS all sit on **one 457 GB filesystem at 96% used**. `EXPERIMENTS.md` §2.6 already forces CSVs to be made and dropped one at a time; this is what records whether that was honoured, and it is the contention host `loadavg` is worst at showing | 19 GB free of 457 GB, 96% used |
 | 18 | **The run's own container**: name, image digest, published port, `--shm-size`, and the literal `docker run` line used | items 4–9 are settings **of a specific server**, and the server that produced the values in this table is not the server the run will use. Without this a reader cannot tell which cluster any setting belongs to | expected `autosql-corpus` · `pgvector/pgvector:pg16` · `127.0.0.1:55434` · `--shm-size=1g` (`REGENERATE-CORPUS.md` §3) |
 
@@ -590,9 +590,9 @@ Any one of these voids the run, or the affected cell. The four the ticket calls 
    with it.
 3. **AN INVENTED WIDGET PRESENTED AS A REAL ONE.** See §7.2. The widget is invented and must carry
    that label everywhere it appears, including every table header and chart caption in the readout.
-   A latency figure attributed to a widget Evan actually uses, when no such widget was measured, is a
+   A latency figure attributed to a widget the owner actually uses, when no such widget was measured, is a
    fabricated result — the most serious failure available to this run.
-4. **INDEX HELP SNEAKING IN.** Evan ruled indexes permanently off (**Q11**: *"Not acceptable — index
+4. **INDEX HELP SNEAKING IN.** the owner ruled indexes permanently off (**Q11**: *"Not acceptable — index
    work stays off"*), which means the generated query is a **sequential scan** — Postgres reading
    every row in order — every single time. Capture `EXPLAIN (ANALYZE, BUFFERS)` for every compiled arm
    at every size and **assert no index-scan node appears** other than the primary key doing the
@@ -614,11 +614,11 @@ And, from `EXPERIMENTS.md` §2.5, equally binding:
 7. **Fewer repetitions than §5.2 rules, or dispersion not reported.**
 8. **Cache state claimed rather than measured** (§5.3).
 9. **`synchronize_seqscans` unrecorded** (§5.4 item 5).
-10. **A ratio quoted as the verdict.** Ratios are reported; the bar is milliseconds. This is Evan's
+10. **A ratio quoted as the verdict.** Ratios are reported; the bar is milliseconds. This is the owner's
     correction and it applies to the write-up as much as to the design.
 11. **Anything written into either GIMS checkout.** Both are read-only. `bench.py:20` inserts
     `/home/corgea/Desktop/Coding Projects/GIMS-Project` onto `sys.path` and imports from it, so run it
-    with bytecode writing disabled (`PYTHONDONTWRITEBYTECODE=1`) or a `__pycache__` lands in Evan's
+    with bytecode writing disabled (`PYTHONDONTWRITEBYTECODE=1`) or a `__pycache__` lands in the owner's
     tree.
 12. **The void path never shown able to fire.** A harness that has only ever printed "measured" has
     not been shown capable of printing anything else — see the negative control, §6.1 below.
@@ -637,7 +637,7 @@ And, from `EXPERIMENTS.md` §2.5, equally binding:
 **`DID_NOT_COMPILE` hits=0, `SQL_ERROR` hits=0, `COMPILED_DIVERGES` hits=0, `COMPILED_AGREES`
 hits=130** (`spikes/T-1/RECHECK-2026-08-21.md` §2.3, lines 141–144 — measured, not inferred). Three of
 the four failure branches had **never executed**. Every conformance headline in this project's record
-had been produced by a rig whose failure branches were dead surface, and nobody caught it until Evan
+had been produced by a rig whose failure branches were dead surface, and nobody caught it until the owner
 asked for the check himself (**Q4**: *"Yes — do that run before I rule"*). When it was finally driven
 the branches worked — **dead, not broken** — but that was luck, and nobody could have known which it
 was.
@@ -680,7 +680,7 @@ a display requirement cannot fail. **This is the requirement that can.**
   against a 2–3 hour exclusive window — and against the alternative, which is a headline nobody can
   stand behind.
 
-**One line from Evan overturns this**, but it is worth being explicit about what he would be
+**One line from the owner overturns this**, but it is worth being explicit about what he would be
 choosing: the project's one previous encounter with an unproven rig cost it every conformance
 headline in the record and took a separate dedicated run to uncover.
 
@@ -688,20 +688,20 @@ headline in the record and took a separate dedicated run to uncover.
 
 ### 7.1 The corpus must be rebuilt first — and the regeneration notes now EXIST
 
-Evan ruled the scratch tables gone (**Q31**: *"Leave it gone"*, with the note *"leave notes for how to
+The owner ruled the scratch tables gone (**Q31**: *"Leave it gone"*, with the note *"leave notes for how to
 generate a corpus"*). Both halves of that ruling have since been executed, and the state of the
 scratch database changed **after** this section was first drafted. Since three documents in this repo
 now tell three different stories about it, here is what actually happened, in order:
 
 1. The spike's original scratch database `autosql_spike` lived on **`glp-strong-db`** — the same
-   container as Evan's live `glp_strong`. Q31 ruled it gone.
+   container as the owner's live `glp_strong`. Q31 ruled it gone.
 2. **It was recreated on that same live container earlier today**, by a worker of this session, while
    the regeneration procedure was being verified. So when this framing was first drafted it did
    exist — **7,567 kB, zero tables in `public`, and only the 21 `xpr` runtime functions** — and this
    section called it *"confirmed still gone"*, which it plainly was not.
 3. **It was dropped at about 20:55 today.** The driving session confirmed it held no tables and had
    **zero active connections**, then dropped it — to execute Q31 as written, and to get this
-   project's benchmark runs off Evan's live container for good.
+   project's benchmark runs off the owner's live container for good.
 4. **`glp_strong` was never touched, at any point.** It is **95 MB** and untouched.
 
 **Two consequences, and the second one corrects a claim this section used to make:**
@@ -775,7 +775,7 @@ comfortably: generate and drop CSVs one size at a time, as `REGENERATE-CORPUS.md
 
 ### 7.2 The widget is INVENTED, and must be labelled invented in the readout
 
-Evan's **Q8** answer was *"I will name a real one I actually use"*. That was **superseded by item 7 of
+The owner's **Q8** answer was *"I will name a real one I actually use"*. That was **superseded by item 7 of
 the second form: "TAKE THE DEFAULT"** — an invented widget, labelled as invented. So:
 
 ```json
@@ -786,12 +786,12 @@ the second form: "TAKE THE DEFAULT"** — an invented widget, labelled as invent
   "limit":  50 }
 ```
 
-**This is an invented widget. It is not one of Evan's. Every table, chart and sentence in the readout
+**This is an invented widget. It is not one of the owner's. Every table, chart and sentence in the readout
 that reports a number for it must say so.** The rule is not cosmetic: §6 item 3 makes an unlabelled
 invented widget an inadmissible result, because a latency figure silently attributed to real usage is
 a fabrication regardless of how carefully it was measured.
 
-**If Evan names a real widget before the run starts, it substitutes directly and nothing else in this
+**If the owner names a real widget before the run starts, it substitutes directly and nothing else in this
 framing changes** (`EXPERIMENTS.md` §2.3). The old date widget also runs, as a control — **same
 corpus, same session, same recorded host load** — which re-establishes the entire existing sweep
 under a *recorded* load for the first time.
@@ -808,7 +808,7 @@ at an unrecorded host load and need re-taking.
 ### 7.3 Ticket dependencies
 
 `T-4.depends_on = ["T-1", "T-3"]` (verified in the ticket file). T-1 is the investigation this spec
-came out of. T-3 is the correctness run, which Evan put **first** (**Q6**: *"Both, correctness run
+came out of. T-3 is the correctness run, which the owner put **first** (**Q6**: *"Both, correctness run
 first"*) so that a bad correctness result kills the project cheaply before anyone books an exclusive
 quiet host. **T-4 does not wait for T-3 to *pass*** — it waits for T-3 to *report*. If T-3 fails, the
 timing run has nothing to time and this framing's answer is "do not run".
@@ -821,7 +821,7 @@ timing run has nothing to time and this framing's answer is "do not run".
   until ten ordering obligations are compiled and tested. Arm **B2** (fully compiled) is **reported,
   not gated**; the bar applies to **arm C**, whose Python sort/limit tail is a real part of what a
   person waits — at 1M with ~5% selectivity roughly 52,000 rows come back to be decoded in Python.
-  *A ratio hides that tail; an absolute bar cannot.* That is a concrete reason Evan's correction
+  *A ratio hides that tail; an absolute bar cannot.* That is a concrete reason the owner's correction
   improves the experiment.
 - **Index design.** Q11 closed it permanently. Arm **B3** (query rewritten so the GIN index becomes
   usable) is dropped for that reason; its answer was known anyway — across 36 measured query plans
@@ -838,7 +838,7 @@ timing run has nothing to time and this framing's answer is "do not run".
   simultaneous resolves), **reported, not gated** — there is no baseline to set a bar against. It is
   confined to 100k on purpose: three concurrent 1M Python resolves would want ~7 GB of heap and become
   a memory experiment rather than a latency one.
-- **Deciding whether to build.** This run produces milliseconds. The verdict is Evan's at `sp-decide`.
+- **Deciding whether to build.** This run produces milliseconds. The verdict is the owner's at `sp-decide`.
 
 ## 9. Environment — verified on this machine [measured 2026-08-21]
 
@@ -847,7 +847,7 @@ timing run has nothing to time and this framing's answer is "do not run".
 | **Host** | 20 cores · 46 GB RAM (32 GB available) · 457 GB disk, **19 GB free, 96% used** |
 | **Load at framing time** | `2.71 2.95 2.86` at 20:38:49 UTC — **above the run's start ceiling** |
 | **The Postgres this run uses** | **does not exist yet — the run creates it.** Throwaway container `autosql-corpus`, `pgvector/pgvector:pg16` (**PostgreSQL 16.14**; image cached locally, 438 MB), **`--shm-size=1g`**, bound to **`127.0.0.1:55434`**, brought up by `REGENERATE-CORPUS.md` §3 and destroyed with its volume by §9 |
-| **`glp-strong-db`** | Evan's live container — **up 5 hours, healthy, port 55433 [verified 2026-08-21]**. **The run does not load into it, does not benchmark against it, and creates nothing on it.** One narrow read-only exception: §5.4 item 16's two `pg_stat_database` reads |
+| **`glp-strong-db`** | the owner's live container — **up 5 hours, healthy, port 55433 [verified 2026-08-21]**. **The run does not load into it, does not benchmark against it, and creates nothing on it.** One narrow read-only exception: §5.4 item 16's two `pg_stat_database` reads |
 | **`autosql_spike`** | **gone.** It was recreated on `glp-strong-db` earlier today by a worker of this session — 7,567 kB, zero tables, 21 `xpr` functions — and **dropped at ~20:55**, with zero active connections, to execute Q31. It is gone because it was dropped, **not** because a container was rebuilt. §7.1 |
 | **`glp_strong`** | **95 MB — never touched** at any point today |
 | **`xpr` runtime schema** | **gone with the database. It must be reinstalled** from `runtime.sql` and the function count checked to be **21**. This table previously said it survived; it did not |
@@ -859,7 +859,7 @@ timing run has nothing to time and this framing's answer is "do not run".
 
 ## 10. Rulings made in this framing, and how to overturn them
 
-Evan is AFK under **GA-5** (`.autodev/events.jsonl` line 53, 2026-08-21T20:36:56Z, covering T-2, T-3,
+The owner is AFK under **GA-5** (`.autodev/events.jsonl` line 53, 2026-08-21T20:36:56Z, covering T-2, T-3,
 T-4): *"I'm about to be AFK for a long time. Be as autonomous as possible looping through what we
 still have to try and get through all the tickets."* Open questions are therefore **ruled**, from his
 recorded answers, rather than handed back. **Each is his to overturn in one line, and none of them
@@ -872,14 +872,14 @@ changes what the run measures.**
 | **R2** | how "state the cache state" is satisfied (§5.3) | measure buffer hits/reads per cell; keep the warm-up but record its timing; never write "warm" unmeasured | §2.5 item 7 · the arithmetic of measured `shared_buffers=128MB` vs a 700 MB table | reporting only — no re-run |
 | **R2a** | what verdict a run with an untested size produces (§4.5) | a **third** verdict, `INCOMPLETE` — never "pass with a gap", never scored as a fail; and `FAIL` outranks it | §4.1's "every measured size must pass" against §3's explicit permission for a size to go untested; the two were contradictory as written | wording only — no re-run |
 | **R3** | the prerequisite file's name (§7.1) | **RESOLVED, not ruled.** The file exists and is `spikes/T-1/proto/REGENERATE-CORPUS.md`; the guessed name `CORPUS-REGEN.md` never existed and every reference to it is corrected. The six-point content test was applied to the real file and **all six points pass** | direct inspection of `spikes/T-1/proto/` **[verified 2026-08-21]** | nothing to reverse — this was a wrong path, not a preference |
-| **R5** | whether the void path must be *proved* to fire before real numbers are quoted (§6.1) | **yes — a negative control, run first, five injections, no output at all if any is scored admissible** | the conformance rig shipped four headline passes from a harness whose three failure branches had `hits=0` (`RECHECK-2026-08-21.md` §2.3) · **Q4** *"do that run before I rule"* is Evan's own standing requirement · §11's display rule cannot fail, so it is not a control | one line; the control costs seconds on the 1,000-row table |
+| **R5** | whether the void path must be *proved* to fire before real numbers are quoted (§6.1) | **yes — a negative control, run first, five injections, no output at all if any is scored admissible** | the conformance rig shipped four headline passes from a harness whose three failure branches had `hits=0` (`RECHECK-2026-08-21.md` §2.3) · **Q4** *"do that run before I rule"* is the owner's own standing requirement · §11's display rule cannot fail, so it is not a control | one line; the control costs seconds on the 1,000-row table |
 | **R4** | T-4's decision authority | assume **`recommend-and-wait`**, as T-1 carries | T-1's ticket has `"decision_authority": "recommend-and-wait"`; **T-4's ticket has no such field** (verified) · GA-5 authorises progress, not deciding for him | one field |
 
 **Where there was genuinely nothing to derive from, this document says so** rather than inventing a
-preference: R4 has no recorded answer of Evan's behind it at all, so it takes the option that is
+preference: R4 has no recorded answer of the owner's behind it at all, so it takes the option that is
 cheapest to reverse — recommending and waiting, which cannot pre-commit him to anything.
 
-**Everything in §4 is Evan's own, or predates this framing.** The unit is his under **GA-3**; the
+**Everything in §4 is the owner's own, or predates this framing.** The unit is his under **GA-3**; the
 5,500 ms line is the earlier panel's C-0, set before the evidence existed; the authority for ruling
 anything on T-4 while he is away is **GA-5**, which names this ticket. **What was ruled here is R1a
 and R2a** — the *shape* of two bars that contradicted other parts of this document, with the numbers
@@ -891,7 +891,7 @@ false`**. See the box at the top of §4.
 
 > **"Seat", since it is in the heading and used unglossed below:** the agent working one stage of one
 > ticket. The seat that wrote this framing is not the seat that will run the benchmark, and neither
-> of them is Evan — which is exactly why everything that matters has to be written down here rather
+> of them is the owner — which is exactly why everything that matters has to be written down here rather
 > than remembered.
 
 **The whole run turns on the host being quiet, and quiet is a state nobody can verify after the
@@ -918,7 +918,7 @@ run may be quoted, anywhere, until the void path has been driven deliberately an
 
 **Second risk, and it changed shape while this framing was being written: the host is shared, even
 though the database no longer is.** The original arrangement put the spike's scratch database on
-`glp-strong-db` beside Evan's live `glp_strong`, competing for the same 128 MB of buffer cache — and
+`glp-strong-db` beside the owner's live `glp_strong`, competing for the same 128 MB of buffer cache — and
 that particular risk is now closed at its source: `autosql_spike` was dropped (§7.1) and the run
 brings up its own throwaway container on port **55434** (§5.1 item 3). **What is not closed is the
 machine underneath.** `glp-strong-db` is still running, other project containers come and go

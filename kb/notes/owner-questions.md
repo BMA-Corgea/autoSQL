@@ -1,10 +1,10 @@
 # autoSQL — every open question · 21 Aug 2026
 
 > **ANSWERED — 2026-08-21.** This is the blank form, kept as the record of what was asked.
-> Every answer Evan gave, and what each one caused, is in [`ANSWERS-FROM-EVAN.md`](ANSWERS-FROM-EVAN.md).
+> Every answer the owner gave, and what each one caused, is in [`kb/notes/owner-answers.md`](kb/notes/owner-answers.md).
 > The checkboxes and ANSWER lines below are deliberately left empty.
 
-For Evan. Second draft: written plainly, after you said the first one was full of jargon.
+For the owner. Second draft: written plainly, after you said the first one was full of jargon.
 
 **46 questions · 7 of them blocking.**
 
@@ -62,7 +62,7 @@ This group is the actual decision on the research into turning GIMS dashboard ex
 
 > *Originally written as:* Is the 130-case `expr_vectors.json` fixture an adequate acceptance test for a third (SQL) runtime of this language?
 >
-> *Why it matters:* FINDINGS §5.2 calls this "the one to hand Evan" — the panel's whole split turns on it. Adequate → the breaches only price a prototype rebuild and CONDITIONAL-GO stays live. Inadequate → the thing that would ship has no acceptance test at all, and NO-GO follows by construction.
+> *Why it matters:* FINDINGS §5.2 calls this "the one to hand the owner" — the panel's whole split turns on it. Adequate → the breaches only price a prototype rebuild and CONDITIONAL-GO stays live. Inadequate → the thing that would ship has no acceptance test at all, and NO-GO follows by construction.
 >
 > `source:` spikes/T-1/FINDINGS.md:4490 §5.2 ("That is the ruling this section asks for") · spikes/T-1/.parts/f5.md:67
 
@@ -500,7 +500,7 @@ The second job on the list is the demo you asked for: the picking screen running
 >
 > *Why it matters:* "Check the numbers" is the demo's whole defence against the silent-wrong-number failure mode, and embedding a reference evaluator in the UI is a materially bigger build than shipping a fixture of expected answers.
 >
-> `source:` Ticket T-2 MUST INCLUDE 4 · SETUP.md "This shop" ("a SQL generator fails quietly — subtly wrong numbers rather than an error")
+> `source:` Ticket T-2 MUST INCLUDE 4 · kb/notes/setup.md "This shop" ("a SQL generator fails quietly — subtly wrong numbers rather than an error")
 
 ---
 
@@ -538,7 +538,7 @@ The second job on the list is the demo you asked for: the picking screen running
 >
 > *Why it matters:* It decides whether the demo ships its own Postgres via docker compose plus a cross-platform seed script, or can lean on this Linux machine's existing container.
 >
-> `source:` SETUP.md "Working across two machines" · FRAMING.md §7 (the spike borrowed glp-strong-db on host port 55433, which belongs to another project)
+> `source:` kb/notes/setup.md "Working across two machines" · FRAMING.md §7 (the spike borrowed glp-strong-db on host port 55433, which belongs to another project)
 
 ---
 
@@ -582,7 +582,7 @@ None of this work has left the laptop. Everything the investigation produced —
 >
 > *Why it matters:* A session started on your other machine would work from a two-day-stale board and then conflict the append-only ledger. Right now that machine cannot see the findings, the T-2 ticket, or any ledger movement.
 >
-> `source:` git status --short (7 modified, 6 untracked) · git log origin/main..spike/T-1-expr-sql = 2 unpushed · git show 181be80:.autodev/tickets/T-1-….json still says sp-frame · SETUP.md:114
+> `source:` git status --short (7 modified, 6 untracked) · git log origin/main..spike/T-1-expr-sql = 2 unpushed · git show 181be80:.autodev/tickets/T-1-….json still says sp-frame · kb/notes/setup.md:114
 
 ---
 
@@ -765,11 +765,11 @@ These are settings that came bundled with the starting template you picked when 
 
 ### Q38. Do you want that permanent warning cleared, or left in place with the note that explains it?
 
-**What's going on:** There is a command that checks this setup's wiring and prints a pass or a warn for each thing it checks. It reads 18 pass and 1 warn, every single time. The warning is about a stricter built-in process template meant for compliance-heavy work — one this repo never runs — whose compliance-review step names a "compliance officer" role that has no definition behind it. SETUP.md already tells anyone who reads it that this warning is expected and harmless. The cost is habit: a check that always warns trains you to skim it, so the day a real warning appears it gets skipped.
+**What's going on:** There is a command that checks this setup's wiring and prints a pass or a warn for each thing it checks. It reads 18 pass and 1 warn, every single time. The warning is about a stricter built-in process template meant for compliance-heavy work — one this repo never runs — whose compliance-review step names a "compliance officer" role that has no definition behind it. kb/notes/setup.md already tells anyone who reads it that this warning is expected and harmless. The cost is habit: a check that always warns trains you to skim it, so the day a real warning appears it gets skipped.
 
 - [ ] **Clear it** — Either define the missing role here or drop that regulated template from this repo, so the check reads all-clear and any warning you see later is a real one.
-- [ ] **Leave it as documented noise** — The check keeps reading 18 pass and 1 warn, and SETUP.md keeps explaining why.
-- [ ] *Take your stated default* — The check keeps reading 18 pass and 1 warn indefinitely, and SETUP.md keeps explaining why.
+- [ ] **Leave it as documented noise** — The check keeps reading 18 pass and 1 warn, and kb/notes/setup.md keeps explaining why.
+- [ ] *Take your stated default* — The check keeps reading 18 pass and 1 warn indefinitely, and kb/notes/setup.md keeps explaining why.
 
 **ANSWER:** 
 
@@ -777,7 +777,7 @@ These are settings that came bundled with the starting template you picked when 
 >
 > *Why it matters:* A doctor that always warns trains you to skim it, so the day a real warning appears it gets skipped.
 >
-> `source:` doctor.mjs --verbose · SETUP.md pre-documents it as "expected and harmless" · .autodev/data/gates-policy.json:10 still carries compliance: human for that unused pipeline
+> `source:` doctor.mjs --verbose · kb/notes/setup.md pre-documents it as "expected and harmless" · .autodev/data/gates-policy.json:10 still carries compliance: human for that unused pipeline
 
 ---
 
@@ -800,19 +800,19 @@ These are settings that came bundled with the starting template you picked when 
 
 ---
 
-### Q40. Do you want both machines reporting under a single "evan" name?
+### Q40. Do you want both machines reporting under a single "the owner" name?
 
-**What's going on:** The monitoring service files its reports tagged with an id for each machine. Your Windows box reports as evanb-evanscience-art-dfd5f3; this Linux box reports as corgea-corgea-ms-7c79-da02f2, because on its first run it fell back to the Linux account name "corgea". Your own recorded rule for this project is that the person doing the work is Evan and never the Corgea git identity, yet this machine attributes everything to corgea. The id was written to a cache file the first time it ran, so renaming now starts a fresh id rather than relabelling what is already filed.
+**What's going on:** The monitoring service files its reports tagged with an id for each machine. Your Windows box reports as <telemetry-id>; this Linux box reports as corgea-corgea-ms-7c79-da02f2, because on its first run it fell back to the Linux account name "corgea". Your own recorded rule for this project is that the person doing the work is the owner and never the Corgea git identity, yet this machine attributes everything to corgea. The id was written to a cache file the first time it ran, so renaming now starts a fresh id rather than relabelling what is already filed.
 
-- [ ] **Unify under one evan identity** — This machine starts reporting as evan, while the reports already filed under corgea keep that label, so the history is split at the changeover point.
-- [ ] **Leave both as they are** — Two machine names stay in the reports, one saying evanb and one saying corgea.
+- [ ] **Unify under one the owner identity** — This machine starts reporting as the owner, while the reports already filed under corgea keep that label, so the history is split at the changeover point.
+- [ ] **Leave both as they are** — Two machine names stay in the reports, one saying owner and one saying corgea.
 - [ ] *Take your stated default* — Both stay as they are. It only affects labels on reports, and because the id is cached, changing it would split the history anyway.
 
 **ANSWER:** 
 
-> *Originally written as:* Fleet reports arrive under two identities — `evanb-evanscience-art-dfd5f3` from Windows and `corgea-corgea-ms-7c79-da02f2` from here, where the operator resolved to "corgea" rather than "evan". Unify them?
+> *Originally written as:* Fleet reports arrive under two identities — `<telemetry-id>` from Windows and `corgea-corgea-ms-7c79-da02f2` from here, where the operator resolved to "corgea" rather than "the owner". Unify them?
 >
-> *Why it matters:* Your own recorded rule is that the true actor is human:evan and never the Corgea git identity, yet this machine's telemetry attributes everything to "corgea".
+> *Why it matters:* Your own recorded rule is that the true actor is human:owner and never the Corgea git identity, yet this machine's telemetry attributes everything to "corgea".
 >
 > `source:` ~/autodev-reports/install.json ({"operator":"corgea"}) vs the Windows install id in onboarding.json:94 · install-id.mjs:46 falls back to the OS username
 
@@ -966,7 +966,7 @@ Every word in this document that is jargon somewhere — the process tool's, thi
 **board** — The generated status view of every ticket and the stage it is in. It is regenerated from the ticket files, never hand-edited.
 **shop** — This repo's whole process setup: which gates need a human, which models get used, whether lean is on, and who the operator is. One repo, one shop.
 **preset** — A ready-made bundle of shop settings picked once at setup; this repo took the "solo-builder-review" one. Everything it chose for you can be changed afterwards.
-**operator** — The human the tool records as the real decision-maker behind every approval. Here that is you — recorded as human:evan, not as the "Corgea" git identity.
+**operator** — The human the tool records as the real decision-maker behind every approval. Here that is you — recorded as human:owner, not as the "Corgea" git identity.
 **worker** — A separate background AI session the tool starts to carry out one stage of one ticket. Each one costs money and runs on whichever model it is given.
 **seat** — The role a stage's work gets done by — coder, reviewer, QA — each carrying a default model tier. The T-1 research also used "seat" for each separate investigating session it ran.
 **roster** — The mapping from seats to the agents and models that actually staff them. This repo's roster folder is empty, so every worker just inherits whatever model the session was already running.
@@ -987,7 +987,7 @@ Every word in this document that is jargon somewhere — the process tool's, thi
 **plugin** — The AutoDev add-on installed on this machine that holds the actual process machinery. The repo itself only holds your settings, your tickets and your notes.
 **watcher** — A background service on this machine that keeps an eye on your enrolled repos and logs when work stalls. It is what noticed T-1 had been waiting 40 hours.
 **monitoring** — The activity reports written out per machine by that background service. Yours currently arrive under two different machine identities, one from the Windows box and one from here.
-**install id** — The per-machine name stamped on those reports, worked out once at setup and then cached. On this machine it resolved to "corgea" rather than "evan".
+**install id** — The per-machine name stamped on those reports, worked out once at setup and then cached. On this machine it resolved to "corgea" rather than "the owner".
 **.autodev/outbox/** — A folder inside this repo the tool can drop plain notification files into, one per event. It is the notification route that needs no accounts, tokens or secrets.
 **work block** — One continuous stretch of tracked activity, ended as soon as there is a gap longer than the idle setting. Time spent inside a long background worker run falls outside them, which is why the recorded hours are far too low.
 **lockfile** — A file pinning the exact version of every dependency, so a fresh install rebuilds the same thing every time. This repo has none.
@@ -996,7 +996,7 @@ Every word in this document that is jargon somewhere — the process tool's, thi
 **spikes/** — The folder holding throwaway investigation work: code written only to answer a question, plus the findings and measurements it produced. It is 2.9 MB and currently uncommitted.
 **autodev/instructions/build.md** — An optional plain-text file of standing notes that any session doing build work would read before it starts. It does not exist in this repo yet.
 **autodev/agents/review.md** — An optional plain-text file that sets the tone and priorities of any session doing review work. It does not exist in this repo yet.
-**SETUP.md** — The file in this repo that explains how to set this project up on another machine.
+**kb/notes/setup.md** — The file in this repo that explains how to set this project up on another machine.
 
 ## This project
 

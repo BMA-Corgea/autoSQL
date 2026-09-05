@@ -46,7 +46,7 @@ One sentence of yours was used as the authority for about twenty-one decisions. 
 - [ ] **I meant the T-2 spec only** — Three rulings revert to open and come back to you: the tick-vs-note reading, the loud-refusal rule, and the speed targets. Nothing is re-run — they just go back on your desk.
 - [ ] *Take your stated default* — Everything ruled under GA-4 stands, including the rulings on tickets it was not logged against.
 
-**ANSWER:** **It covered everything I was asked.** Confirmed by Evan 2026-08-22 in session, recorded as **GA-6** with `scope_confirmed: true` — the thing that was missing on GA-4. All ~21 rulings taken under GA-4 stand as written, including those on T-1 and T-3. Nothing reverts, nothing re-runs.
+**ANSWER:** **It covered everything I was asked.** Confirmed by the owner 2026-08-22 in session, recorded as **GA-6** with `scope_confirmed: true` — the thing that was missing on GA-4. All ~21 rulings taken under GA-4 stand as written, including those on T-1 and T-3. Nothing reverts, nothing re-runs.
 
 > `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/events.jsonl line 52 (GA-4, scope_confirmed: false); relied on at /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/specs/T-2.md §14.1 (line 2431), /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/EXPERIMENTS.md §1.2 (line 262), /home/corgea/Desktop/Coding Projects/autoSQL/kb/wiki/decision-expr-to-sql.md §6 (line 118)
 
@@ -422,7 +422,7 @@ Each was derived from something you already said, recorded with its derivation, 
 
 **ANSWER:** *Stands.* Settled by his own **item 1** answer — *"It covered everything I was asked"* — recorded as **GA-6** with `scope_confirmed: true`. Every ruling in this section was taken under GA-4; his confirmation that GA-4 reached this far makes them settled rather than provisional. No alternative was chosen, nothing re-runs, and the one-line overturn at each ruling's own location still works whenever he wants it.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/time.json lines 4 (idleMin: 90), 10 (timezone), 15 (_why_idleMin_90), 18 (_timezone_note); his recorded answer is ANSWERS-FROM-EVAN.md round-two item 8 (rate only)
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/time.json lines 4 (idleMin: 90), 10 (timezone), 15 (_why_idleMin_90), 18 (_timezone_note); his recorded answer is kb/notes/owner-answers.md round-two item 8 (rate only)
 
 ---
 
@@ -457,7 +457,7 @@ Each was derived from something you already said, recorded with its derivation, 
 
 **ANSWER:** *Stands.* Settled by his own **item 1** answer — *"It covered everything I was asked"* — recorded as **GA-6** with `scope_confirmed: true`. Every ruling in this section was taken under GA-4; his confirmation that GA-4 reached this far makes them settled rather than provisional. No alternative was chosen, nothing re-runs, and the one-line overturn at each ruling's own location still works whenever he wants it.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/RECHECK-2026-08-21.md §4.3 and line 511 ("Nothing in this pass was edited into FINDINGS.md"); /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/FINDINGS.md §"What this round did NOT change" (line 5492); his instruction at ANSWERS-FROM-EVAN.md round-two item 2
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/RECHECK-2026-08-21.md §4.3 and line 511 ("Nothing in this pass was edited into FINDINGS.md"); /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/FINDINGS.md §"What this round did NOT change" (line 5492); his instruction at kb/notes/owner-answers.md round-two item 2
 
 ---
 
@@ -481,7 +481,7 @@ Nobody has decided these, including me. Where a number is proposed it is a propo
 
 **ANSWER:** **Hand it to GIMS** — ruled under GA-6 best judgement, and the narrowest coherent call. Both halves of the work (the badge wording and the cap lift) are edits to **GIMS**, and this shop does not touch GIMS: his item 2 answer, confirmed today, freezes GIMS until T-3 and T-4 report. Opening an autoSQL ticket to edit GIMS would contradict that on the same day he reaffirmed it. It stays **GitHub issue BMA-Corgea/GIMS-Project#9**, verified open. **What he should know:** the badge wording is the half he asked for *first* at Q16, it is separable from the SQL question entirely, and it is one small PR in GIMS whenever he wants it — it does not need to wait for either run. One line moves it here instead.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-EVAN.md Q16 (line 96-98); full option text in /home/corgea/Desktop/Coding Projects/autoSQL/QUESTIONS-FOR-EVAN.md line 330; GitHub issue BMA-Corgea/GIMS-Project#9, verified open today; ticket ledger holds only T-1..T-4
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-OWNER.md Q16 (line 96-98); full option text in /home/corgea/Desktop/Coding Projects/autoSQL/QUESTIONS-FOR-OWNER.md line 330; GitHub issue BMA-Corgea/GIMS-Project#9, verified open today; ticket ledger holds only T-1..T-4
 
 ---
 
@@ -515,7 +515,7 @@ Nobody has decided these, including me. Where a number is proposed it is a propo
 
 **ANSWER:** **Install the automatic hook — done, and then found to be half a fix. Read this one.** The hook is applied to `.claude/settings.json` as a `Stop` hook running the two-leg drain, and the transport is proven: `ops/notify-telegram.sh --test` sent a ping that reached his phone. **But later the same day, with T-3 parked at an uncleared human gate, the drain still returned `{paged:0,alerts:0,feed:0}`.** The cause is upstream and is written up as **Defect 4** in `.autodev/notes/upstream-bugs.md`: the only producer of the `gate_waiting` event the pager listens for fires when something tries to *push a ticket past* a gate — never when a ticket *arrives* at one. A session that behaves correctly, drives to the gate and stops, never triggers it. Verified: `grep -c gate_waiting` over this repo's entire history returns **0**, across four tickets and two previously-cleared human gates. Worse, for a stage whose work IS the human's decision (`sp-decide`), the gate check sits *after* the validator check, so the page can **never** fire — no page until the validator passes, no validator pass until he decides, no decision because there was no page. **The workaround in use:** the session writes the packet to `.autodev/outbox/` and drains it by hand, which is a documented seam and is how his T-3 ping was actually sent. **It is not automatic, which was the point.** Defect 4 is written up ready to file but was NOT filed — item 31's 'File it' covered the three path bugs; this is a different class and posting again under his GitHub name is his call. The running-commentary feed stays off, as he chose.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/notes/notification-route.md §4 'The gap — nothing runs the drain yet' (line 165); his answer at /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-EVAN.md round-two item 5 (line 278)
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/notes/notification-route.md §4 'The gap — nothing runs the drain yet' (line 165); his answer at /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-OWNER.md round-two item 5 (line 278)
 
 ---
 
@@ -533,7 +533,7 @@ Nobody has decided these, including me. Where a number is proposed it is a propo
 
 **ANSWER:** **Correctness run + demo build today; timing run waits for a booked window.** He is away all day, which is the idle machine T-4 wants — but T-4 is sequenced behind T-3 and the demo build would poison its numbers anyway, so the honest use of the day is T-3 and T-2 in parallel. T-4 stays framed and unstarted, waiting on a window he names (item 29).
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-4/FRAMING.md §5.1 item 1 (line 362) and the process table above it; .autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json ("stage": "queue"); ordering constraint from ANSWERS-FROM-EVAN.md round-two item 6
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-4/FRAMING.md §5.1 item 1 (line 362) and the process table above it; .autodev/tickets/T-2-demo-the-autosql-ui-end-to-end-against-a-seeded.json ("stage": "queue"); ordering constraint from kb/notes/owner-answers.md round-two item 6
 
 ---
 
@@ -572,7 +572,7 @@ Your other machine, your priorities, or a value I do not have.
 
 **ANSWER:** **STILL OPEN — needs a value only he has.** Unchanged: the run uses an invented widget, labelled *invented* wherever the number appears. Substituting a real one is a drop-in before the run starts and changes nothing else. The only constraint is that it must use the restricted expression subset — the run mechanically refuses a widget outside it.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-EVAN.md Q8 (line 52-56) and round-two item 7 (line 282); constraint in /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json → spec
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-OWNER.md Q8 (line 52-56) and round-two item 7 (line 282); constraint in /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/tickets/T-4-timing-run-how-long-does-a-person-actually-wait.json → spec
 
 ---
 
@@ -590,24 +590,24 @@ Your other machine, your priorities, or a value I do not have.
 
 **ANSWER:** **File it — DONE.** Filed 2026-08-22 as **https://github.com/RShuken/autodev-plugin/issues/1** from his GitHub account (`BMA-Corgea`, verified logged in; the repo is private, issues enabled, and it was the tracker's first issue). One issue, all three defects, single root cause: a space in the repo path. The body is the full write-up with the internal routing section replaced by a request that the plugin publish a bug-report route at all — there is none in its metadata, which is why the repo had to be found in a git remote. **This was asked precisely because it lands in a third party's private repo under his name; nothing outward goes under his name on a default.** The two local patches stay live until the next plugin update; the issue is what makes the fix permanent.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/notes/upstream-bugs.md, section 'Where this report should go'; his answer at /home/corgea/Desktop/Coding Projects/autoSQL/WAITING-ON-EVAN.md item 9 (line 122). Verified today: the author's issue tracker is empty, so nothing was filed
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/.autodev/notes/upstream-bugs.md, section 'Where this report should go'; his answer at /home/corgea/Desktop/Coding Projects/autoSQL/WAITING-ON-OWNER.md item 9 (line 122). Verified today: the author's issue tracker is empty, so nothing was filed
 
 ---
 
 ### 32. Windows machine: two ten-minute jobs still queued
 
-**What's going on:** Two quality-of-life jobs wait for you to be sitting at the Windows machine. First, make the background monitor start itself at login instead of needing a hand-start each session — the script is written and now committed and pushed, so it will be there after a git pull; it needs exactly one line edited with the folder that contains your repos, which is a value only you can read off that machine. Second, overwrite one small identity file so that box files its reports as 'evan' rather than 'evanb', matching this Linux box. Nothing breaks if you never do either. One warning worth knowing: after doing it, every Claude session on Windows will still claim monitoring is down — the tool only knows how to look for the Mac/Linux service and cannot see a Windows scheduled task.
+**What's going on:** Two quality-of-life jobs wait for you to be sitting at the Windows machine. First, make the background monitor start itself at login instead of needing a hand-start each session — the script is written and now committed and pushed, so it will be there after a git pull; it needs exactly one line edited with the folder that contains your repos, which is a value only you can read off that machine. Second, overwrite one small identity file so that box files its reports as 'the owner' rather than 'owner', matching this Linux box. Nothing breaks if you never do either. One warning worth knowing: after doing it, every Claude session on Windows will still claim monitoring is down — the tool only knows how to look for the Mac/Linux service and cannot see a Windows scheduled task.
 
 *Why you:* Both jobs need someone physically at the Windows machine, and one needs a path only that machine can tell him.
 
 - [ ] **Do both** — About ten minutes, step-by-step commands already written out with verification after each.
 - [ ] **Just the identity fix** — Skip the autostart; the two machines at least report under one name.
-- [ ] **Skip both** — Nothing breaks; the Windows monitor keeps needing a hand-start and that box keeps reporting as evanb.
+- [ ] **Skip both** — Nothing breaks; the Windows monitor keeps needing a hand-start and that box keeps reporting as owner.
 - [ ] *Take your stated default* — Nothing happens on Windows. Both machines keep working; the monitor there stays manual and the reporting history stays split across two names.
 
-**ANSWER:** **STILL OPEN — needs him physically at the Windows machine.** Nothing today could touch it. Both jobs remain about ten minutes with the commands already written out. Nothing breaks while it waits: that box keeps needing a hand-start and keeps filing reports as `evanb` rather than `evan`.
+**ANSWER:** **STILL OPEN — needs him physically at the Windows machine.** Nothing today could touch it. Both jobs remain about ten minutes with the commands already written out. Nothing breaks while it waits: that box keeps needing a hand-start and keeps filing reports as `owner` rather than `the owner`.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/WINDOWS-CHECKLIST.md (whole file); his answers at /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-EVAN.md Q40, Q46 and round-two items 11-12. Note the checklist's 'Before you start' warning is now stale — ops/autodev-watch-windows.ps1 is committed and pushed, verified today
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/WINDOWS-CHECKLIST.md (whole file); his answers at /home/corgea/Desktop/Coding Projects/autoSQL/ANSWERS-FROM-OWNER.md Q40, Q46 and round-two items 11-12. Note the checklist's 'Before you start' warning is now stale — ops/autodev-watch-windows.ps1 is committed and pushed, verified today
 
 ---
 
@@ -661,7 +661,7 @@ Answers of yours are on record that the repo does not actually honour. Most are 
 - [x] **Make acceptance strict, leave the rest** — Smallest change: acceptance is the one checkpoint your own Q34 answer relies on as the safety net. `node tracker.mjs override T-2 --gate accept --policy human:strict`, or set it shop-wide in .autodev/data/gates-policy.json.
 - [ ] **Make spec approval and acceptance both strict** — The two checkpoints this preset was chosen for. Costs you two real stops per feature ticket; nothing autonomous can pass them.
 - [ ] **Leave it as is** — You keep the speed you asked for on 21 Aug ("be as autonomous as possible"), and accept that a checkpoint marked "human" is a note to the record rather than a stop.
-- [ ] *Take your stated default* — Every checkpoint on every ticket keeps being cleared for you by the session, and the phrase "waiting on Evan" never describes a ticket that is genuinely waiting.
+- [ ] *Take your stated default* — Every checkpoint on every ticket keeps being cleared for you by the session, and the phrase "waiting on the owner" never describes a ticket that is genuinely waiting.
 
 **ANSWER:** **Make acceptance strict — on T-2, not shop-wide.** Ruled under GA-6. Two things changed today that this item said had never happened. First, a checkpoint *did* genuinely stop for him: T-2's block held from 05:41 until his own answer cleared it. Second, `design` is now `human:strict`, which refuses on-behalf clearing outright. Added to those: `override T-2 --gate accept --policy human:strict`, so **T-2 physically cannot ship until he clears it himself** with `--i-am-human`. **Per-ticket on purpose** — he did not answer 35 or 36, and a per-ticket override is the reversible version; changing his shop's policy on a question he was not asked would be the same over-reach item 1 was about. **Recommended:** make it shop-wide, one line, whenever he agrees.
 
@@ -688,7 +688,7 @@ Answers of yours are on record that the repo does not actually honour. Most are 
 
 ### 37. The first file every session reads is stale and self-contradicting
 
-**What's going on:** kb/CURRENT-WORK.md is the state-of-play page, and its own header says it is rewritten at every handoff. It has drifted. It says T-2 is "now at refine writing the spec", that the spec has not been approved, and that "his approval of it is the next thing waiting on him" — in fact T-2 is three steps further on, the spec approval was cleared that same evening, and a whole design step has run since. It also still lists your Q31 note (write down how to regenerate the test data) as "Not started", when a fifteen-page procedure for exactly that was written on 21 Aug and is sitting in the spike folder; the outstanding list at the bottom of ANSWERS-FROM-EVAN.md repeats the same stale claim. The Live-edge section's first bullet has also lost its opening line and now begins mid-sentence.
+**What's going on:** kb/CURRENT-WORK.md is the state-of-play page, and its own header says it is rewritten at every handoff. It has drifted. It says T-2 is "now at refine writing the spec", that the spec has not been approved, and that "his approval of it is the next thing waiting on him" — in fact T-2 is three steps further on, the spec approval was cleared that same evening, and a whole design step has run since. It also still lists your Q31 note (write down how to regenerate the test data) as "Not started", when a fifteen-page procedure for exactly that was written on 21 Aug and is sitting in the spike folder; the outstanding list at the bottom of kb/notes/owner-answers.md repeats the same stale claim. The Live-edge section's first bullet has also lost its opening line and now begins mid-sentence.
 
 *Why you:* He asked for a clean start tomorrow, and this is the page that will tell him where things stand — right now it will tell him three things that are not true.
 
@@ -699,7 +699,7 @@ Answers of yours are on record that the repo does not actually honour. Most are 
 
 **ANSWER:** **Both halves.** The refresh already happened at the 2026-08-21/22 wrap-up — `kb/CURRENT-WORK.md` was rewritten from the ticket files and the event log, and its own header records the four stale claims it corrected. It is being refreshed again at today's handoff with T-2's and T-3's movement. The durable half is the one that matters: refreshing it is part of the handoff procedure this session follows, so the page that claims to be updated at every handoff actually is.
 
-> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/kb/CURRENT-WORK.md — Live edge, T-2 bullet ("Now at refine…the spec_ready gate is uncleared") and the truncated first line; "Waiting on" bullet ("Q31's corpus-regeneration notes are not written… Not started") — contradicted by .autodev/tickets/T-2-….json (stage queue, spec_ready true) and spikes/T-1/proto/REGENERATE-CORPUS.md; repeated in ANSWERS-FROM-EVAN.md "Still outstanding"
+> `where this lives:` /home/corgea/Desktop/Coding Projects/autoSQL/kb/CURRENT-WORK.md — Live edge, T-2 bullet ("Now at refine…the spec_ready gate is uncleared") and the truncated first line; "Waiting on" bullet ("Q31's corpus-regeneration notes are not written… Not started") — contradicted by .autodev/tickets/T-2-….json (stage queue, spec_ready true) and spikes/T-1/proto/REGENERATE-CORPUS.md; repeated in kb/notes/owner-answers.md "Still outstanding"
 
 ---
 

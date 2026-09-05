@@ -14,14 +14,14 @@
 >
 > Its own framing requires a **1-minute load average ≤ 2.0 at the start** and an **exclusive 2–3
 > hour window**. Measured when the loop reached it: **load 2.30**, with
-> `uvicorn gui.backend.main:app --port 8642` at **85 % CPU for five hours** (another of Evan's
+> `uvicorn gui.backend.main:app --port 8642` at **85 % CPU for five hours** (another of the owner's
 > projects), a GUTS/gons worker spawning, and Firefox active. **None of that is this session's to
 > stop.**
 >
-> T-4 is measured in **absolute milliseconds** — Evan's own correction under GA-3 — so numbers taken
+> T-4 is measured in **absolute milliseconds** — the owner's own correction under GA-3 — so numbers taken
 > at an elevated load are not weaker, they are **void** (framing §6 item 1). Running it would have
 > burned the one quiet window on numbers its own bar rejects. **The block carries the exact restart
-> recipe**; `tracker.mjs show T-4` prints it. **GA-8 q9 also carries a standing commitment that Evan
+> recipe**; `tracker.mjs show T-4` prints it. **GA-8 q9 also carries a standing commitment that the owner
 > is told before it starts.**
 >
 > **T-4 is the last thing between this project and the GIMS gate.** T-1 measured the compiled path
@@ -84,7 +84,7 @@ cannot pass until a named person signs it — "uncleared" means nobody has signe
 deliberate stop recorded on a ticket, with a reason and a remedy. A *modifier* is an optional extra
 stage bolted onto the standard pipeline (`design@v1` = add a design stage). A ticket's *passport* is
 the running log inside its own ticket file of every move it made and why. A *go-ahead* (GA-*n*) is a
-recorded line from Evan authorising a class of decisions, logged verbatim with a timestamp. A *ruling
+recorded line from the owner authorising a class of decisions, logged verbatim with a timestamp. A *ruling
 on delegated authority* is a decision a session took **for** him under one of those — always labelled,
 always showing its derivation, always overturnable by one line from him.
 
@@ -95,7 +95,7 @@ always showing its derivation, always overturnable by one line from him.
 
 - **T-1** (spike) — *Can the GIMS dashboard expression AST compile to Postgres SQL?* **COMPLETE.**
   Pipeline finished at `sp-spawn`; the `sp_decide` gate was cleared 2026-08-21 under **GA-3** with
-  Evan's words on the record. **The ruling: NO-GO on the standalone-compiler-plus-thin-adapter
+  The owner's words on the record. **The ruling: NO-GO on the standalone-compiler-plus-thin-adapter
   architecture as scoped** — not "impossible", not "discard the work", but *"do not fund this on this
   evidence; run the two follow-up experiments first"*. It turns on three facts: `resolve()` in GIMS
   has no field through which a fallback to in-memory evaluation could ever be reported; the compiled
@@ -103,7 +103,7 @@ always showing its derivation, always overturnable by one line from him.
   the only route by which that gap could have closed, so it is a floor); and **18 of 33** ways the two
   engines can disagree cannot be detected at query time by any mechanism. **Next: nothing** — it
   spawned T-3 and T-4, which are the two runs it asked for. Evidence: `spikes/T-1/FINDINGS.md`
-  (5,528 lines, sha256 `bcda73d6…`, **verified on disk today**, superseding `33c62975…` and
+  (5,528 lines, sha256 `bc87017b…` (re-worded 2026-09-05, the owner's name removed; previously bcda73d6…), **verified on disk today**, superseding `33c62975…` and
   `67fbe421…`); `spikes/T-1/.parts/` **re-assembles it byte-identically — re-verified today**, so
   regenerating from the fragments can no longer silently revert the amendment. Read
   `kb/wiki/decision-expr-to-sql.md` for the ruling and `kb/wiki/expr-ast-to-postgres-sql.md` for the
@@ -112,14 +112,14 @@ always showing its derivation, always overturnable by one line from him.
   and "Downstream" sections were written before four of the things they describe changed** (the
   amendment, the latency bar, the corpus notes, and T-2's stage); this page and the ticket files are
   the current state.
-  `uat`, MERGED TO MAIN, WAITING ON EVAN.** The gate is `accept`, policy **`human:strict`** — hardened
+  `uat`, MERGED TO MAIN, WAITING ON OWNER.** The gate is `accept`, policy **`human:strict`** — hardened
   on this ticket 2026-08-22 under his items 35/36, so **on-behalf clearing is refused**; only his own
   `--i-am-human` hand clears it. Acceptance package, with the screen photographed:
   `https://claude.ai/code/artifact/79700309-4e45-45fa-9d4e-998a5f5c51fb`
   **It runs.** `./run-demo up` → own container on 55440 (`lc_collate=C`), offline install from a
   committed wheelhouse (`--no-index`, so AC-32 is proven by the command), **10,410 invented rows**
   (10 EdgeCase / 8,400 Heartbeat / 2,000 Sample), screen on 8787 with **no Node at run time**.
-  **Suite on main: 1141 passed, 0 skipped, 2 failed** — both `AC-35`, which is Evan's own uncommitted
+  **Suite on main: 1141 passed, 0 skipped, 2 failed** — both `AC-35`, which is the owner's own uncommitted
   GIMS edits and his call. All 14 walkthrough steps driven as **raw HTTP against the live app**, every
   number matching `expected-answers.json`; **step 11 disagrees exactly as asserted** (SQL `1`, Python
   `1e+300`, key `edge-01`, 1 differing row of 10, flagged), reproduced after a cold start that removed
@@ -145,7 +145,7 @@ always showing its derivation, always overturnable by one line from him.
   proven wrong); and the clipped column. **Plan §8.2's mutation pass has still never run** — 4 of 16
   hand-run and killed, 3 with standing detectors, **9 never watched failing** — now printed as a
   DISCLOSURE above every suite summary. Handoff: `.autodev/handoffs/T-2.md`.
-  number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON EVAN. The answer is NO: it does
+  number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON OWNER. The answer is NO: it does
   return wrong numbers.** The bar (zero wrong answers at each of `extra_float_digits` 1, 0 and −3,
   reported separately) is **FAILED at all three**, and not by the guard defect — step zero fixed that
   first (297→309 digits, plus a named `XPR01` refusal) and confirmed it was not the cause.
@@ -166,11 +166,11 @@ always showing its derivation, always overturnable by one line from him.
   `https://claude.ai/code/artifact/75bc45a2-7601-4334-aa2a-5dd6f7ef3351`.
   **`sp_decide` is UNCLEARED and stays that way** — GA-6 would permit clearing it on-behalf; a failing
   result with four live options is not what a go-ahead is for. Ping delivered to his phone.
-  **Evidence integrity:** `spikes/T-1/FINDINGS.md` is untouched (sha256 `bcda73d6…`, matching its
+  **Evidence integrity:** `spikes/T-1/FINDINGS.md` is untouched (sha256 `bc87017b…` (re-worded 2026-09-05, the owner's name removed; previously bcda73d6…), matching its
   recorded digest), but T-1's numbers can no longer be reproduced byte-identically from the current
   instruments — that needs a checkout of `01e75b0`. Handoff: `.autodev/handoffs/T-3.md`.
   Python?* — **at `sp-frame`, framed, and deliberately NOT started today.** `depends_on:
-  ["T-1","T-3"]`. Evan's wrap-up item 28 put the correctness run and the demo build on today and left
+  ["T-1","T-3"]`. The owner's wrap-up item 28 put the correctness run and the demo build on today and left
   the timing run for a booked window, because building the demo is exactly the heavy work that voids
   its numbers. **Two things still gate it, both his:** it needs **this machine to itself for 2–3 hours**
   (item 29, unanswered), and a **real widget name** or the invented one (item 30, unanswered). Its
@@ -186,7 +186,7 @@ always showing its derivation, always overturnable by one line from him.
      <channel>" — no session should discover a hold by archaeology (ruling 24). -->
 
 **Rewritten 2026-08-22 evening.** Everything the previous version listed here has been answered or
-lifted: T-2's design block was cleared by Evan's own look sign-off, and the 38-item wrap-up form is
+lifted: T-2's design block was cleared by the owner's own look sign-off, and the 38-item wrap-up form is
 fully answered — nine by him in session, the other 29 ruled under GA-6 and recorded where each lives.
 
 - **T-3's `sp_decide` gate — CLEARED 2026-08-23.** He ruled from the form: *"Homework first,
@@ -236,9 +236,9 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 - 2026-09-01 **T-6 COMPLETE** — Correctness re-run: does the subset pass once the two mechanisms are fixed?
 - 2026-09-01 **T-5 COMPLETE** — Homework: do non-ASCII digit strings actually occur in the real data?
 - 2026-08-23 **T-3 COMPLETE** — Correctness run: does the restricted expression subset ever return a wrong numb…
-- **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by Evan 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
+- **2026-08-22 — T-2 cleared at `queue`, on purpose.** The pipeline had no design gate to stop at, so a — unblocked 2026-08-22: Look sign-off GIVEN by the owner 2026-08-22 under GA-6: wrapup item 3 = 'Approve as drawn'. He opened the mock and approved the design as drawn; the build copies it exactly. This is the block's own stated remedy, satisfied.
   block was recorded in its place rather than inventing a gate or building past him.
-- **2026-08-21 — the 38-item wrap-up swept and put to Evan.** Written because roughly 47 decisions had
+- **2026-08-21 — the 38-item wrap-up swept and put to the owner.** Written because roughly 47 decisions had
   been taken on his behalf across seven documents, with no single place to review or reverse them from.
 - **2026-08-21 — T-2's design stage ran.** Mock plus brief, seven states, verified in headless Chromium
   at 1440 and 390: no console errors, no horizontal page scroll, all thirteen picker controls reachable
@@ -253,7 +253,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 - **2026-08-21 — `autosql_spike` dropped from the live container**, zero active connections, to execute
   Q31 as written and get benchmark work off `glp-strong-db` for good. The `xpr` runtime went with it and
   must be reinstalled (function count **21**); `glp_strong` was never touched.
-- **2026-08-21 — `FINDINGS.md` amended and re-fingerprinted** on Evan's *"Fix them — re-fingerprint the
+- **2026-08-21 — `FINDINGS.md` amended and re-fingerprinted** on the owner's *"Fix them — re-fingerprint the
   document"*, after a closure seat died mid-pass leaving six corrections unapplied. The two material
   ones are fixed (recursion limits **333 / 333 / 332**, parse depth **63**, both §2.6); the new digest
   `bcda73d6…` is in the `sp-decide` receipt and matches the file today.
@@ -271,7 +271,7 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
   **+2.2%** without it — the one thing arguing for CONDITIONAL-GO rather than NO-GO.
 - **2026-08-21 — the GIMS checkout question settled with git.** **One repo on two branches**, not two
   repos: `../GIMS-Project` is on `refactor/foundation` @ 995cc59, already merged into `main` and 44
-  commits behind, last fetched 2026-06-27. Evan ruled (Q12) that work is authored against `main` in that
+  commits behind, last fetched 2026-06-27. The owner ruled (Q12) that work is authored against `main` in that
   standalone checkout, leaving the GUTS spine alone. **It needs a fetch and a branch change first; it is
   his working copy and no session has touched it.**
 
@@ -283,16 +283,16 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 | The event-by-event record | `events.jsonl` (append-only, forever) |
 | Durable lessons and decisions | `kb/wiki/` |
 | What the code looks like now | `kb/CODE-MAP.md` |
-| Every question Evan answered, and what each answer caused | `.autodev/notes/ANSWERS-FROM-EVAN.md` (its "Still outstanding" list is stale: one of the three is done, the other two were ruled on his behalf and are wrap-up items 2 and 8) |
-| The open items put to him at the wrap-up | `.autodev/notes/WRAPUP-FOR-EVAN.md` |
+| Every question the owner answered, and what each answer caused | `kb/notes/owner-answers.md` (its "Still outstanding" list is stale: one of the three is done, the other two were ruled on his behalf and are wrap-up items 2 and 8) |
+| The open items put to him at the wrap-up | `kb/notes/owner-wrapup.md` |
 
 ## T-12 / T-13 — README + AGPL-3.0, and one stale doc (2026-09-04/05)
 
-- **T-12** (feature, lean) — Evan: "Give autosql a readme and an agpl license." Built on branch
+- **T-12** (feature, lean) — the owner: "Give autosql a readme and an agpl license." Built on branch
   `t-12-readme-license` (worktree `../autoSQL-T-12`, commit `f25f401`): `README.md` in his voice with
   every number cited to its KB page, `LICENSE` = AGPL-3.0 verbatim from the GitHub licenses API.
-  **SHIPPED 2026-09-05.** Accepted on Evan's words (GA-17: no name / no factory talk in the README, the
+  **SHIPPED 2026-09-05.** Accepted on the owner's words (GA-17: no name / no factory talk in the README, the
   owner-facing notes moved to `.autodev/notes/`), pushed to origin main (24d5114), and the repo is now
   **PUBLIC** on his "besides that it looks fine to publish".
 - **T-13** (bug, lean) — `demo/README.md` still calls step 11 a live disagreement (T-8 fixed it).
-  Filed from T-12's finding; waiting on Evan's go. Recommended before the repo goes public.
+  Filed from T-12's finding; waiting on the owner's go. Recommended before the repo goes public.

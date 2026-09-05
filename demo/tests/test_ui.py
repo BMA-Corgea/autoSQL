@@ -1268,7 +1268,7 @@ class TestTheSevenStatesAreReachable:
 # ═════════════════════════════════════════════════════════════════════════
 # q8 (GA-8) — the differing column sits BESIDE the marker
 #
-# Evan, 2026-08-23, resolving his own Q1/Q2 contradiction: *"Fix it first -
+# The owner, 2026-08-23, resolving his own Q1/Q2 contradiction: *"Fix it first -
 # move the differing column beside the marker"* — so that a row shows its own
 # disagreement instead of the reader scrolling sideways to find the values the
 # banner already named.

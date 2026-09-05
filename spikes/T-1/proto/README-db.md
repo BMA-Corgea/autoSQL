@@ -11,7 +11,7 @@ Scrubbed 2026-08-21, before this tree's first commit.
 ## To reproduce
 
 Point the scripts at a **throwaway** Postgres container of your own — never at `glp-strong-db`
-on port **55433**, which is Evan's live data. `REGENERATE-CORPUS.md` §3 gives the container
+on port **55433**, which is the owner's live data. `REGENERATE-CORPUS.md` §3 gives the container
 command and §4 gives the load; the port below is that throwaway container's.
 
 ```bash
@@ -50,13 +50,13 @@ Stated plainly, because an earlier version of this file got both halves of it wr
 database was gone *because the container had been rebuilt*, and neither the reason nor the state
 was right.
 
-1. The corpus tables this spike measured against are gone and stay gone, under Evan's Q31 ruling —
+1. The corpus tables this spike measured against are gone and stay gone, under the owner's Q31 ruling —
    **"Leave it gone."**
 2. Later on 2026-08-21, one of this session's own workers **recreated an `autosql_spike` database
    on the live `glp-strong-db` container**. It was effectively empty: **no tables at all**, only the
    21 `xpr` helper functions, **7,567 kB** in total.
 3. The driving session found it, confirmed it had **zero active connections**, and **dropped it at
-   about 20:55** — to execute Q31 as written, and to keep this spike's work off Evan's live
+   about 20:55** — to execute Q31 as written, and to keep this spike's work off the owner's live
    container.
 
 **The container was never rebuilt.** `glp-strong-db` has been up continuously — `docker ps` read

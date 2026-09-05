@@ -128,7 +128,7 @@ but the fix is discipline:
 
 ## This shop
 
-- **shop** `autosql` · **operator** `human:evan` · **preset** `solo-builder-review`
+- **shop** `autosql` · **operator** `human:owner` · **preset** `solo-builder-review`
 - Two human gates: **spec approval** and **QA acceptance**. Build, review,
   merge, verify and ship run unattended.
 - Rationale on the record: a SQL generator fails *quietly* — subtly wrong

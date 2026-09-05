@@ -46,7 +46,7 @@ so AC-33 checksums it where it already lives.
 roughly 1.8e296 was being silently turned into a null; the fix also makes the out-of-range branch
 RAISE a named `XPR01` refusal instead of returning NULL. For one day the demo pinned the older
 427-line version, because adopting the fix changes what four acceptance criteria assert; on
-2026-08-23 Evan's own form answer q4 (GA-7) ruled *"Adopt it — update the four criteria"*, so the
+2026-08-23 the owner's own form answer q4 (GA-7) ruled *"Adopt it — update the four criteria"*, so the
 vendored copy is now T-3's corrected 472-line version
 (sha256 `1c58d548a6045aa6698b07c167ceb3391a60c2f43b9bd4ff15cf914e6cf7e93d`), B15/B24/AC-13/AC-17
 carry dated amendment notes (plus AC-22, a recorded consequence), and `test_vendor.py` asserts the

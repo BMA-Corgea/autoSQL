@@ -1,6 +1,6 @@
 # Regenerating the T-1 measurement corpus
 
-**Written 2026-08-21 to close the note Evan attached to Q31** ("Leave it gone" — *"leave notes for
+**Written 2026-08-21 to close the note the owner attached to Q31** ("Leave it gone" — *"leave notes for
 how to generate a corpus"*). The scratch database this spike measured against is gone and is not
 coming back — `README-db.md` records exactly what happened to it, including the fact that a worker
 briefly recreated an empty `autosql_spike` on the **live** container on 2026-08-21 and the driving
@@ -150,7 +150,7 @@ change plan choice and therefore timings.
 ## 3. Bringing up a Postgres to load into
 
 > ### ⚠️ Do not load this into `glp-strong-db`.
-> That container (host port **55433**) hosts Evan's live `glp_strong` data. The spike originally used
+> That container (host port **55433**) hosts the owner's live `glp_strong` data. The spike originally used
 > it, which is exactly why `README-db.md` had to scrub a password out of this tree: the role
 > `glp_owner` owns the live database as well as the scratch one, so its password is a working
 > credential for real data. **Use a throwaway container instead**, on a different port. Port 55433 is
@@ -719,21 +719,21 @@ docker ps --format '{{.Names}}\t{{.Ports}}'
 
 ## 10. Decisions made in writing this, and what would overturn them
 
-Evan is away; these were ruled from his recorded answers rather than handed back as questions. Each
+The owner is away; these were ruled from his recorded answers rather than handed back as questions. Each
 one says what it was derived from. **Any single line from him overturns any of these.**
 
 | decision | derived from | reversibility |
 |---|---|---|
 | **Rebuild into a throwaway container, never `glp-strong-db`** | Q31 "Leave it gone", plus `README-db.md`'s own stated reason for scrubbing the password: `glp_owner` owns the live `glp_strong` database on that container. Loading fake rows next to live data is exactly the risk that scrub was protecting against. | total — the container is deleted in §9 |
 | **A literal throwaway password (`spike`) printed in this file** | `README-db.md`'s concern is precisely "a working credential for real data" in git history. A loopback-bound container holding only generated rows is not that. The `AUTOSQL_SPIKE_DSN` / `PGPASSWORD` mechanism is kept exactly as documented, so pointing at a real database still requires a real password from the environment. | total — change one env var |
-| **Port 55434** | 55433 is occupied by the live container (verified). No preference of Evan's exists on port numbers. | total |
+| **Port 55434** | 55433 is occupied by the live container (verified). No preference of the owner's exists on port numbers. | total |
 | **Image `pgvector/pgvector:pg16`** | it is the image every recorded measurement in this spike ran on, and it yields exactly PostgreSQL 16.14 today (verified). A different image is a different experiment. | total |
 | **All six sizes, not the three §2.3 requires** | §2.3 makes 1,000 / 10,000 / 25,000 optional "if the window allows"; §6 measures the whole rebuild at under two minutes, so the window always allows. | total — drop sizes from the loop |
-| **§5 reads sizes only after an explicit `VACUUM`** | nothing of Evan's bears on it. The choice was between a deterministic reading and one that drifts by up to 2.5% depending on when autovacuum last touched the table (measured, §5). Determinism was chosen so §5 can be a pass/fail check rather than a judgement call; the at-load figures the old record used are kept alongside, not replaced. | total — drop the `VACUUM` loop and read whatever the tables happen to be |
+| **§5 reads sizes only after an explicit `VACUUM`** | nothing of the owner's bears on it. The choice was between a deterministic reading and one that drifts by up to 2.5% depending on when autovacuum last touched the table (measured, §5). Determinism was chosen so §5 can be a pass/fail check rather than a judgement call; the at-load figures the old record used are kept alongside, not replaced. | total — drop the `VACUUM` loop and read whatever the tables happen to be |
 | **§5 gates selectivity at 4.5–6.0% before any timing** | `../EXPERIMENTS.md` §2.5 item 6 already makes that band the void condition for Run 2, and §2.3 says to regenerate "before you time anything." Checking it at verification rather than after measurement applies his own rule where it costs seconds instead of a measurement window. | none needed — it is a read-only query |
 | **`gen_data.py` left unmodified in this tree** | Q7 lets the follow-up runs edit these scripts, and §2.4 item 2 assigns the edit to Run 2. Writing it now would silently invalidate §5's reference values for anyone rebuilding the *original* corpus before Run 2 starts. The patch and its measured effects are in §7 instead. | total — §7 is a four-line patch |
 
-**No preference of Evan's was invented anywhere above.** Where there was genuinely nothing to derive
+**No preference of the owner's was invented anywhere above.** Where there was genuinely nothing to derive
 from — container name, port number, the throwaway password string — the cheapest-to-reverse option was
 taken and labelled as such.
 
@@ -811,4 +811,4 @@ and left no dangling volume. The live `glp-strong-db` container was read twice (
   logged as a cosmetic defect against `measurement.md`.
 - `gims-ledger/migrations/pg/0001_instances.sql:13-18` and `0002_instances_data_gin.sql:36-37` — the
   production table and index the corpus copies, read-only (§1).
-- `../../../ANSWERS-FROM-EVAN.md` (repo root) — Q7, Q11, Q31, Q41.
+- `../../../ANSWERS-FROM-OWNER.md` (repo root) — Q7, Q11, Q31, Q41.

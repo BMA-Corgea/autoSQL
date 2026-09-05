@@ -5,7 +5,7 @@ Built from `spikes/T-3/FINDINGS.md` (the investigation; verdict in its §10), th
 files in `spikes/T-3/out/` (headline claims spot-checked against them for this document), and the
 bar fixed in advance in `spikes/T-3/FRAMING.md` §3.
 
-**This document recommends. It does not decide.** The decision is Evan's, at the next stage
+**This document recommends. It does not decide.** The decision is the owner's, at the next stage
 (`sp-decide`). Nothing here clears that gate.
 
 ---
@@ -35,7 +35,7 @@ One honest qualifier on that example, up front: it only happens at that one sett
 production would pin the setting that gets it right. The failures that survive even the *right*
 setting are different — quieter — and they are what §2 explains.
 
-**What it means for the plan, in one line:** under the rule Evan himself confirmed on 2026-08-22
+**What it means for the plan, in one line:** under the rule the owner himself confirmed on 2026-08-22
 — *nothing enters GIMS until T-3 and T-4 both pass* — the road into GIMS stays shut, now on
 evidence rather than caution. What is on the table is whether to abandon that road, repair it and
 re-test, or redraw the rule. §5 lays out those options; §6 recommends one.
@@ -52,7 +52,7 @@ and compares the answers. A disagreement is sorted into four kinds, called **cla
 returns null (empty), so a dashboard cell goes blank or a filtered row silently disappears;
 **class 3** — the reverse, null becomes a value; **class 4** — Python crashes with an error while
 SQL confidently returns a number. Separately, there are **refusals**: cases where the SQL query
-deliberately *dies with a named error* instead of answering. Under the ruling Evan delegated and
+deliberately *dies with a named error* instead of answering. Under the ruling the owner delegated and
 later confirmed, a refusal is allowed — it is loud, a caller can see it and fall back to Python —
 so refusals are counted on their own line and are not wrong answers. Everything in this section is
 a genuine wrong answer, not a refusal.
@@ -62,7 +62,7 @@ short), that controls how many digits it writes out when turning a stored floati
 into text. That sounds cosmetic. Here it is not: the compiled SQL passes every intermediate number
 through that text form — the **value channel**, the path the actual numbers travel on, not just
 how they are displayed. So the knob changes the numbers themselves. Its three settings were all
-tested, per Evan's own requirement (Q10): `1` (full precision, up to 17 digits), `0` (15 digits),
+tested, per the owner's own requirement (Q10): `1` (full precision, up to 17 digits), `0` (15 digits),
 and `-3` (12 digits).
 
 ### Mechanism one — the Unicode-digit gap (fails at every setting, including the right one)
@@ -167,7 +167,7 @@ With that said, here is how each mechanism maps onto reality:
   rate was small and specific.** The ordinary-data battery: 2 wrong in 3,801 (~0.05%) — both
   requiring a full-width digit string in the record. The text-heavy battery: 17 in 3,799 (~0.45%)
   — all the same gap. Zero refusals on either. The 130-case contract fixture passed 130/130
-  before and after the guard fix (and Evan has already ruled the fixture is not, by itself, an
+  before and after the guard fix (and the owner has already ruled the fixture is not, by itself, an
   acceptance test).
 - **The truncation mechanism is fully avoidable** by pinning the setting — but the run also
   priced what failing to pin costs: wrong numbers on values as small as a few billion, including
@@ -193,7 +193,7 @@ convertible to loud refusals, or contingent on data shapes not yet observed.
 
 ## 4. What this does to T-1's ruling
 
-T-1's ruling (2026-08-21, signed by Evan) was: **don't build the compiler into GIMS yet; fund two
+T-1's ruling (2026-08-21, signed by the owner) was: **don't build the compiler into GIMS yet; fund two
 experiments and let a build be earned from their results** — this correctness run first, then T-4,
 a speed run. On 2026-08-22 he confirmed the boundary in his own words: nothing enters GIMS until
 T-3 **and** T-4 pass.
@@ -226,7 +226,7 @@ does not:
 
 The standing default in the T-3 handoff is that T-4 waits for T-3's *report*, and that a failed
 T-3 leaves the timing run with nothing to time. Whether T-4 runs at all is therefore part of the
-decision in front of Evan, not an automatic next step.
+decision in front of the owner, not an automatic next step.
 
 ---
 ## 5. The options
@@ -243,7 +243,7 @@ completeness problem autoSQL exists to solve stays unsolved. The prototype work 
 ever runs.
 **The honest case for it:** the bar was zero, it was set twice before any evidence existed, and
 the subset failed it at every setting. The other experiment's territory already looks bad — T-1
-measured the SQL path 3.8×–7.2× slower with the one classical cure (indexes) ruled out by Evan
+measured the SQL path 3.8×–7.2× slower with the one classical cure (indexes) ruled out by the owner
 himself. When both experiments point downhill, "let a build be earned" was designed to produce
 exactly this outcome, cheaply. Stopping here is the system working.
 
@@ -273,7 +273,7 @@ What "fix" concretely means, mechanism by mechanism:
 - **Truncation:** pin `extra_float_digits = 1` per session/query. Cheap, proven effective by this
   run's own data.
 - **Containers:** needs the compiled SQL to normalise numbers inside returned containers — a
-  redesign the investigation priced but did not do. Alternatively, Evan can rule on the
+  redesign the investigation priced but did not do. Alternatively, the owner can rule on the
   comparison-rule question (§2) — if tolerance inside containers is the contract's defect, the
   fix may belong there instead.
 - **Raw mode:** the Python evaluator's own crashes are GIMS contract gaps; they need their own
@@ -314,11 +314,11 @@ between them.
 
 ## 6. Recommendation
 
-**This is a recommendation, not a decision. The decision is Evan's at `sp-decide`.**
+**This is a recommendation, not a decision. The decision is the owner's at `sp-decide`.**
 
 **Recommended: do the small measurement first, then take Option C in its cheap form — pin the
 float-digit setting, convert the Unicode-digit gap into a loud refusal, put the container
-comparison-rule question back to Evan explicitly as its own one-line ruling, and re-run the same
+comparison-rule question back to the owner explicitly as its own one-line ruling, and re-run the same
 batteries on the unchanged zero bar. Do not abandon yet; do not accept a carve-out yet. Hold T-4
 until the re-run reports** (his own ordering — correctness first — and a failed correctness path
 leaves nothing worth timing).
@@ -329,7 +329,7 @@ Reasoning:
    comparison rule, one contingent on writers that do not exist yet. That is a very different
    shape from "the translation is wrong all over", and it is a shape with treatments.
 2. The treatments are mostly **conversions to loudness, not silent patches** — which is exactly
-   the design philosophy Evan already ruled for. A re-run then re-tests the same bar with the
+   the design philosophy the owner already ruled for. A re-run then re-tests the same bar with the
    same instruments; nothing about the target moves.
 3. **The alternatives currently rest on the same missing fact.** Abandoning because of a
    mechanism whose trigger may never occur in this data, or accepting a carve-out for a trigger
@@ -343,7 +343,7 @@ non-ASCII digits are *common* in real data, Option C turns those cases from sile
 into frequent visible refusals — correct by the bar, but potentially a worse product than either
 a properly narrowed language (B) or stopping (A). And even a fully passed re-run buys admission
 to T-4, the speed run — not to GIMS. The speed question is untouched and T-1's measured 3.8×–7.2×
-slowdown still stands on the other side of this decision. If Evan's appetite for the whole road
+slowdown still stands on the other side of this decision. If the owner's appetite for the whole road
 is gone on speed grounds alone, Option A is cheaper honesty than a passing re-run followed by a
 failed T-4.
 
@@ -366,15 +366,15 @@ The run's own named limits (FINDINGS §9), plus what this synthesis adds:
   own wall clocks (~3 s per battery) only so T-4 can be planned from a measurement; no
   performance claim is made.
 - **The refusal-rate line: deliberately not drawn.** The rates are produced (0.24% adversarial /
-  0% ordinary at the pinned setting); where "too many refusals" sits is Evan's line to draw,
+  0% ordinary at the pinned setting); where "too many refusals" sits is the owner's line to draw,
   per the framing.
-- **The fixture's 130/130 says nothing beyond the fixture** (Evan's own Q2 ruling stands).
+- **The fixture's 130/130 says nothing beyond the fixture** (the owner's own Q2 ruling stands).
 
 ---
 
 ## 8. Evidence integrity — what this run changed under T-1's feet
 
-T-3 was permitted (Evan's Q7) to edit T-1's instruments in place rather than fork them, and it
+T-3 was permitted (the owner's Q7) to edit T-1's instruments in place rather than fork them, and it
 did: the guard literal in `spikes/T-1/proto/runtime.sql` was extended from 297 to 309 digits at
 both sites and its out-of-range branch now raises the named error `XPR01` instead of returning
 null; `spikes/T-1/analysis/fuzz/differ.py` now splits named refusals from unexplained errors and
@@ -403,4 +403,4 @@ number is affected.
 
 ---
 
-*End of synthesis. Next stage: `sp-decide` — Evan's gate.*
+*End of synthesis. Next stage: `sp-decide` — the owner's gate.*

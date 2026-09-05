@@ -20,7 +20,7 @@ literally typing the shape it is warning about.
 
 # Walking through the demo
 
-This is the same 14 steps Evan drives at the running screen, written down so
+This is the same 14 steps the owner drives at the running screen, written down so
 the numbers can be checked ahead of time and so anyone reading this later —
 without the screen open — can see what it is supposed to show.
 
@@ -85,7 +85,7 @@ yet — this step is about the infrastructure starting up, not about the data.
 
 **What to expect.** The demo's own database comes up on port
 `55440`<!--#steps[0].expect.db_port--> and the app on port
-`8787`<!--#steps[0].expect.app_port-->. Neither of those is the port Evan's
+`8787`<!--#steps[0].expect.app_port-->. Neither of those is the port the owner's
 live database runs on — this demo never touches that machine, under any
 circumstance. Once the database is seeded, it holds
 `10,410`<!--#steps[0].expect.rows_loaded--> rows in total, all of them

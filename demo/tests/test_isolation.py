@@ -342,7 +342,7 @@ def test_the_only_importer_check_would_actually_catch_one(tmp_path):
 #     `_AC3_FORBIDDEN` below and nowhere else in this file, for the reason
 #     that function's docstring gives — appear NOWHERE in the demo tree.
 #     Absolute, literal,
-#     prose included, over every byte of every file.  Naming Evan's live
+#     prose included, over every byte of every file.  Naming the owner's live
 #     database in a comment is exactly as forbidden as dialling it, because
 #     the string is how a careless copy-paste finds it.  That is the whole
 #     point of the criterion and it is why the neighbour check was exiled
@@ -522,7 +522,7 @@ def test_ac3s_grep_would_actually_catch_one(tmp_path):
 # ------------------------------------------------------------------------
 # B33 just above rules that AC-3's "the demo tree" carries **no carve-out**
 # — not even `demo/vendor/`. That is right for AC-3: its four needles are
-# Evan's live database's own literal name, and GIMS's code has no reason to
+# The owner's live database's own literal name, and GIMS's code has no reason to
 # contain them, so unioning `demo/vendor/` in costs nothing and closes a
 # real hole (a careless copy-paste could as easily land there as anywhere
 # else in the tree).

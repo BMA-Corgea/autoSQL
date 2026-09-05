@@ -19,7 +19,7 @@ N_LEDGER = 150_000
 N_SUBMISSION = 50_000
 rnd = random.Random(20260819)
 
-ACTORS = ["foreman", "goms", "operator", "gims", "human:evan", "watcher", "runner"]
+ACTORS = ["foreman", "goms", "operator", "gims", "human:owner", "watcher", "runner"]
 EVENTS = ["work_order_forwarded_to_goms", "coordination_answer", "ticket_stage_advanced",
           "gate_cleared", "spike_finding_written", "conformance_run", "hold_placed"]
 RISK = ["low", "medium", "high"]

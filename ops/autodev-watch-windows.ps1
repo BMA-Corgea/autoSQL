@@ -34,7 +34,7 @@ param(
 #    No trailing backslash. A comma inside a path is impossible: watch.mjs splits
 #    --roots on commas, so the script refuses one instead of breaking quietly.
 $RepoParents = @(
-    'C:\Users\evanb\FILL-THIS-IN'
+    'C:\Users\<you>\FILL-THIS-IN'
 )
 
 # 2. node.exe. 'auto' looks on PATH, then the usual install locations.

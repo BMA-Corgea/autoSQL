@@ -1,6 +1,6 @@
 # Decision — the correctness run failed, and what happens because of it
 
-**Status:** decided · **Ruled by:** Evan, 2026-08-23 05:08 UTC · **Recorded as:** GA-7,
+**Status:** decided · **Ruled by:** the owner, 2026-08-23 05:08 UTC · **Recorded as:** GA-7,
 `scope_confirmed: true` · **Ticket:** T-3 · **Supersedes nothing; extends
 [decision-expr-to-sql.md](decision-expr-to-sql.md)**
 
@@ -33,7 +33,7 @@ Python's own evaluator raises while SQL answers cleanly.
 
 > **"Homework first, then fix-and-re-run."**
 
-Evan took the synthesis's recommendation, from a form listing all four options with the honest case
+The owner took the synthesis's recommendation, from a form listing all four options with the honest case
 for each. In order:
 
 1. **The homework, first and cheapest.** A **read-only sweep of the real data for strings containing
@@ -42,7 +42,7 @@ for each. In order:
 2. **Then the cheap form of fix-and-re-run.** Pin `extra_float_digits = 1` per session. Convert the
    Unicode-digit gap into a **named refusal** — it cannot cheaply be made to *match* Python, and
    under the standing ruling a loud refusal is an allowed outcome where a silent wrong number is not.
-   Put the container comparison-rule question back to Evan as its own one-line decision.
+   Put the container comparison-rule question back to the owner as its own one-line decision.
 3. **Re-run the same batteries against the same unchanged zero bar.** Same instruments, same target.
 4. **Hold T-4 until the re-run reports.** His own ordering — correctness before speed — and a failed
    correctness path leaves less worth timing.
@@ -75,7 +75,7 @@ read-only sweeping buys that fact before any bigger money moves.
 
 ## Consequences already applied
 
-- **The demo (T-2) adopts the corrected runtime** — Evan's form answer q4, *"Adopt it — update the
+- **The demo (T-2) adopts the corrected runtime** — the owner's form answer q4, *"Adopt it — update the
   four criteria."* The demo had been pinning the pre-fix 427-line `runtime.sql` so its signed
   criteria kept meaning what they said; it now moves to T-3's corrected version, and B15, B24, AC-13
   and AC-17 are amended to match. **Note the interaction:** step 2 above will change the runtime

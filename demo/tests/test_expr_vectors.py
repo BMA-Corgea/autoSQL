@@ -37,7 +37,7 @@ passing/failing on *the split*, and says nothing about the case count. The
 choice made here is that a build must not go red because a tree this ticket
 does not own changed underneath it, and the loud finding is what stops the
 change from passing unnoticed. One assertion away from the other reading, if
-Evan wants it: assert `len(cases) == EXPECTED_CASE_COUNT`.
+The owner wants it: assert `len(cases) == EXPECTED_CASE_COUNT`.
 
 **§9.7's four-part loud skip, and how each part is met here** — the shape is
 `test_vendor.py`'s, and deliberately so: this module imports that module's own

@@ -63,6 +63,6 @@ double"). Then exactly one verdict line:
 `CLEAR — <what you checked and against what>` or
 `FINDING — <what breaks, and the number it breaks>`
 
-Escalate to `human:evan` rather than guessing when the intended semantics of a
+Escalate to `human:owner` rather than guessing when the intended semantics of a
 transformation are genuinely ambiguous. Guessing is how the wrong number gets
 blessed.

@@ -9,11 +9,11 @@ live on this machine that day and marked **[measured 2026-08-21]**.
 > the question (§1), the bar (§3), the wrong-answer/refusal line (§4.1–4.7), the
 > admissibility list (§5), the risk statement (§10) or the glossary (§12) changed — those
 > sections were audited against the repo as it stands and hold. What did change:
-> **(1)** GA-4's scope is now **confirmed wide by Evan himself** — wrap-up item 1, answered
+> **(1)** GA-4's scope is now **confirmed wide by the owner himself** — wrap-up item 1, answered
 > 2026-08-22, recorded as **GA-6** with `scope_confirmed: true` — so §2 C1 and §11 R1 no
 > longer rest on an unconfirmed delegation; the loud-refusal ruling also survived its own
 > wrap-up question (item 7) on the stated default. §2 C1, §6 and §11 updated.
-> **(2)** Evan confirmed the GIMS boundary (wrap-up item 2): the "don't build yet" tick
+> **(2)** the owner confirmed the GIMS boundary (wrap-up item 2): the "don't build yet" tick
 > governs GIMS and **nothing enters GIMS until T-3 and T-4 pass**; the note describes the
 > demo. §6 and §7 updated. **(3)** Every `conformance.py`/`differ.py` line number this
 > document cited drifted the day it was written: commit `01e75b0` — the very commit that
@@ -22,7 +22,7 @@ live on this machine that day and marked **[measured 2026-08-21]**.
 > **[re-verified 2026-08-22]**. **(4)** §9 rewritten: the scratch database `autosql_spike`
 > was **dropped** later on 21 Aug (Q31, same commit), so "T-3 needs no database rebuild" is
 > reversed — the run brings up its own throwaway container and must never point at
-> `glp-strong-db`, Evan's live container, which every spike script now refuses by port.
+> `glp-strong-db`, the owner's live container, which every spike script now refuses by port.
 > Container health, Postgres 16.14, Python 3.12.3, the instruments, and the two 297-digit
 > guard literals were all re-verified live on 2026-08-22; disk is at 96%.
 > **(5)** §8 gains the one calendar fact GA-6 item 28 supplies: T-3 is on today's slate.
@@ -66,7 +66,7 @@ efd =  0    1/3 -> 0.333333333333333
 efd = -3    1/3 -> 0.333333333333
 ```
 
-The three settings in the question are `1`, `0` and `-3`. Evan required all three (Q10).
+The three settings in the question are `1`, `0` and `-3`. The owner required all three (Q10).
 
 ---
 
@@ -75,17 +75,17 @@ The three settings in the question are `1`, `0` and `-3`. Evan required all thre
 The T-3 ticket file was checked line by line against the machine before this framing was written.
 Four things in it no longer hold. None changes the question; all four change what the run must do.
 
-### C1 — the ticket's "BLOCKED ON EVAN" line is already answered, and T-3 is not blocked
+### C1 — the ticket's "BLOCKED ON OWNER" line is already answered, and T-3 is not blocked
 
 The ticket says:
 
-> "BLOCKED ON EVAN: how to handle that surviving divergence — exclude such expressions, write a
+> "BLOCKED ON OWNER: how to handle that surviving divergence — exclude such expressions, write a
 > named carve-out into the bar, or refuse the subset. Do not pick for him."
 
 That block is **cleared**. `EXPERIMENTS.md` §1.2 contains a **ruling on delegated authority**
-(AutoDev's term for a decision Evan handed to me rather than made himself) picking **none of the
+(AutoDev's term for a decision the owner handed to me rather than made himself) picking **none of the
 three**: the divergence becomes a **reported runtime refusal**. The authority is **GA-4**, a
-*go-ahead* — a recorded line from Evan authorising a class of decisions — logged verbatim in
+*go-ahead* — a recorded line from the owner authorising a class of decisions — logged verbatim in
 `.autodev/events.jsonl` at `2026-08-21T19:43:01.819Z`:
 
 > "I feel like these questions can be answered with your best judgement. I give them to you to
@@ -93,7 +93,7 @@ three**: the divergence becomes a **reported runtime refusal**. The authority is
 
 **The scope of that line is no longer an open question [settled 2026-08-22].** GA-4 was
 logged against T-2 only, with `scope_confirmed: false`, and this framing leaned on it anyway
-— that gap was put back to Evan as wrap-up item 1 (*"GA-4 approved one ticket; it was used
+— that gap was put back to the owner as wrap-up item 1 (*"GA-4 approved one ticket; it was used
 to rule on three"*). He answered: **"It covered everything I was asked."** Recorded as
 **GA-6** (`.autodev/events.jsonl`, `2026-08-22T17:35:37.208Z`, `scope_confirmed: true`).
 Every ruling taken under GA-4 — this one included — stands as written, on confirmed
@@ -108,7 +108,7 @@ answers**, because a reported refusal is not a wrong answer. Without that ruling
 subset cannot pass at all, and the zero would have to be a zero with an exception written beneath
 it. §4 makes the wrong-answer/refusal line sharp enough to hold weight.
 
-**One line from Evan overturns it** — *"take the carve-out"* or *"exclude those expressions"* —
+**One line from the owner overturns it** — *"take the carve-out"* or *"exclude those expressions"* —
 and only the reporting changes. Nothing needs re-running. That exact choice was in fact put in
 front of him, verbatim, as wrap-up item 7 on 2026-08-22; he left it on its stated default —
 **the ruling stands.** So it has now survived twice: once under item 1's wide-scope answer,
@@ -158,7 +158,7 @@ intended behaviour as the highest-severity failure.
 ## 3. The pass bar
 
 **Zero wrong answers of any kind, at each of `extra_float_digits` = 1, 0 and −3, reported
-separately.** Not "few". Not "none we could reach". Not "none in Evan's data". Zero.
+separately.** Not "few". Not "none we could reach". Not "none in the owner's data". Zero.
 
 | # | wrong-answer class | count required, per setting |
 |---|---|---|
@@ -253,7 +253,7 @@ magnitude too tight.
 `A_f8_guard.txt` §A2 paths as a before-and-after. If the eight in-subset divergences do not go to
 zero, the cause is not the literal and T-3 has found something larger.
 
-**The bar does not move because the defect is unreachable in Evan's data.** It is unreachable:
+**The bar does not move because the defect is unreachable in the owner's data.** It is unreachable:
 the read-only sweep at `FINDINGS.md` §D.3 examined **5,235,942 numeric values** across every GIMS
 database on this machine and found **0** at or above the guard; the largest number any GIMS writer
 here has ever stored is **1,787,169,706,037**, an epoch timestamp in milliseconds, **284 decimal
@@ -349,7 +349,7 @@ forever. It is being ruled **not a failure**. It is **not** being ruled a pass.
 **No refusal-rate threshold is set, deliberately.** A subset that returns zero wrong answers while
 refusing a large share of its inputs has passed the correctness bar and failed as a product — and
 only the count makes that visible. There is no measurement in the record from which to set a
-threshold, so the run produces the rate and Evan draws a line across it afterwards if he wants one.
+threshold, so the run produces the rate and the owner draws a line across it afterwards if he wants one.
 **Overflow and underflow are counted separately**, because underflow is reachable at far less
 extreme magnitudes (it needs a product that falls below the smallest double, not a value near the
 largest) and nobody has ever measured its rate.
@@ -362,7 +362,7 @@ other three are ruled as follows.
 | bucket | ruling | derivation |
 |---|---|---|
 | `BOTH_RAISE` — both engines refuse | **not a wrong answer.** Reported on the refusal line. | Neither side produced an answer, so nothing can be wrong. §4.1. |
-| `NULLNESS` — values decode equal, but one side is SQL `NULL` and the other the jsonb literal `null` | **reported on its own line; does not fail the bar by itself — *unless* the two representations behave differently in a `WHERE` or `ORDER BY`, which the run must test rather than assume.** If they do, every affected case is class 2 and the bar is failed. | Both sides mean "no value", so it is not a value↔null flip, which is what `FRAMING.md` §5 forbids by name. But `differ.py:97` calls it "a leak of the representation contract", and the filter path is where a leak becomes a dropped row. Cheapest to reverse: reporting it separately means Evan can promote it to a failure with one line and no re-run. |
+| `NULLNESS` — values decode equal, but one side is SQL `NULL` and the other the jsonb literal `null` | **reported on its own line; does not fail the bar by itself — *unless* the two representations behave differently in a `WHERE` or `ORDER BY`, which the run must test rather than assume.** If they do, every affected case is class 2 and the bar is failed. | Both sides mean "no value", so it is not a value↔null flip, which is what `FRAMING.md` §5 forbids by name. But `differ.py:97` calls it "a leak of the representation contract", and the filter path is where a leak becomes a dropped row. Cheapest to reverse: reporting it separately means the owner can promote it to a failure with one line and no re-run. |
 | `UNCOMPILABLE` — `compile.py` refused to compile the expression | **on a subset-legal expression this is a STOP** (§8), not a class. `differ.py:96` already says it: "an honest gap, never a pass". | Either the generator emitted an out-of-subset construct — which is inadmissible, §5 item 4 — or the subset is not the 32 constructs it is claimed to be. Both make every number the run has produced meaningless until resolved. |
 
 ---
@@ -391,7 +391,7 @@ are added here.
 8. **The above-DBL_MAX divergence quietly folded into a pass or a fail** instead of reported as
    its own line.
 9. **Anything written into either GIMS checkout.** Both are read-only. Import the parser with
-   bytecode writing disabled so no `__pycache__` lands in Evan's tree.
+   bytecode writing disabled so no `__pycache__` lands in the owner's tree.
 10. **Any real number quoted before the negative control has passed.** Ordering rule, below.
 11. **The float-digit setting not proven to have actually changed** (correction C3). Positive
     control, below.
@@ -411,7 +411,7 @@ outcomes at four sites, all inside its per-case loop. A full normal run under a 
 hits=130** (`RECHECK-2026-08-21.md` §2.3). Three of the four failure branches had never executed —
 measured, not inferred. The 23 negative controls the harness shipped with never drove the per-case
 loop at all. Every conformance headline in the record was produced by a rig whose failure branches
-were dead surface, and it stayed that way until Evan explicitly asked for the check (Q4). When it
+were dead surface, and it stayed that way until the owner explicitly asked for the check (Q4). When it
 was finally driven, the branches worked — **dead, not broken** — but nobody knew that, and nobody
 could have.
 
@@ -489,9 +489,9 @@ Never as passed, and never silently absent from the table.
 
 ---
 
-## 6. The binding constraints from Evan
+## 6. The binding constraints from the owner
 
-These come from `.autodev/notes/ANSWERS-FROM-EVAN.md`. None is negotiable inside the run. Each is quoted, then
+These come from `kb/notes/owner-answers.md`. None is negotiable inside the run. Each is quoted, then
 translated into what it does to the run.
 
 | answer | his words | what it does to T-3 |
@@ -499,13 +499,13 @@ translated into what it does to the run.
 | **Q11** — indexes | *"Not acceptable — index work stays off"* | **No index help, anywhere, ever.** An **index** is a structure that lets Postgres jump to the rows it wants instead of reading all of them; Q11 rules them out for generated queries because they would require writing tenant-supplied field names into SQL text. For T-3 this means: no battery may create an index to make itself faster, no result may be conditioned on one existing, and the `IMMUTABLE`-plus-index split-brain hazard that `analysis/index-shape.md` §6.4 demonstrated is out of reach by construction. It also means the measured 3.79×–7.15× speed gap is now a **floor** — but that is T-4's problem, not this run's. |
 | **Q10** — float digits | *"Make the correctness run test all three settings"* | **Everything runs three times and is reported three times.** A pooled pass rate is forbidden (§3). This is also why corrections C2 and C3 and the §5.2 positive control exist: two instruments pin the setting today, and only one of them is in the spec's work list. |
 | **Q7** — instruments | *"Let them edit the existing code in place"* | `spikes/T-1/proto/` and `spikes/T-1/analysis/fuzz/` are **edited directly**. No rebuild from scratch, no parallel copy. This is what makes step zero — the 24-character guard fix — legal. Both GIMS checkouts stay read-only regardless. |
-| **Q2** — the fixture | *"Not good enough — build a real one"* | **This run IS the acceptance test.** The 130-case fixture (`expr_vectors.json`) is GIMS's contract between its Python and JavaScript evaluators; Evan ruled it inadequate as an acceptance test for a third, SQL evaluator. It still runs here, as one input set among several, and it may never be presented as the bar. `FINDINGS.md` §5.10 predicts the temptation in as many words: *"the next seat will be tempted to reuse it, and it will pass."* |
+| **Q2** — the fixture | *"Not good enough — build a real one"* | **This run IS the acceptance test.** The 130-case fixture (`expr_vectors.json`) is GIMS's contract between its Python and JavaScript evaluators; the owner ruled it inadequate as an acceptance test for a third, SQL evaluator. It still runs here, as one input set among several, and it may never be presented as the bar. `FINDINGS.md` §5.10 predicts the temptation in as many words: *"the next seat will be tempted to reuse it, and it will pass."* |
 | **Q4** — the rig | *"Yes — do that run before I rule"* | The negative control is his standing requirement, not a methodological flourish. §5.1 extends it to the instrument the first pass missed. |
 | **Q1 / GA-3** — the ruling | *"Stands — don't build yet"*, with *"build the bounded SQL path with explicit fallback, instrument which path ran"* | T-3 exists to earn or refuse the build. The "explicit fallback, instrument which path ran" half is what makes a **reported refusal** the right shape for the surviving divergence — a caught, named error *is* that instrument; a null is not. |
 | **Q15** — the target data | *"High-volume data GIMS does not have yet"* | Kills the "unreachable in practice" defence outright. Nobody has sampled the data autoSQL is aimed at. |
 | **Q36 + shop config** — ceremony | *"Lightweight by default, full for the demo"*; `.autodev/shop.json` has `settings.lean: true` | **T-3 runs lean.** The full-ceremony carve-out is T-2, the demo. "Lean" is AutoDev's reduced-ceremony mode: fewer mandatory review seats per stage, same gates. |
 
-**Confirmed since framing — 2026-08-22, GA-6** (Evan's wrap-up answers, logged verbatim in
+**Confirmed since framing — 2026-08-22, GA-6** (the owner's wrap-up answers, logged verbatim in
 `.autodev/events.jsonl` at `2026-08-22T17:35:37.208Z`, `scope_confirmed: true`):
 
 - **Item 1 — GA-4's scope:** *"It covered everything I was asked."* All ~21 rulings taken
@@ -536,7 +536,7 @@ translated into what it does to the run.
   which it did visible damage, but the mis-declaration stands and the run says what it costs.
 - **Indexes**, in any form (Q11).
 - **The GIMS integration, the storage migration, the UI demo (T-2), the badge wording (Q16), the
-  four GIMS issues (Q17).** Different tickets. The GIMS boundary is now Evan's own confirmed
+  four GIMS issues (Q17).** Different tickets. The GIMS boundary is now the owner's own confirmed
   reading, not a session's **[GA-6 item 2, 2026-08-22]**: nothing enters GIMS until T-3 **and**
   T-4 pass.
 - **Anything written to `GIMS-Project` or `GUTS/spine/L1-memory/gims-ledger`.** Read-only, both.
@@ -603,10 +603,10 @@ document was written — and one of them reverses a claim this section used to m
 - **Postgres:** docker container `glp-strong-db`, image `pgvector/pgvector:pg16`, up and healthy,
   host port **55433**. `select version()` → **PostgreSQL 16.14** (Debian 16.14-1.pgdg12+1).
   **[re-verified 2026-08-22]** — but read the next item before touching it.
-- **CHANGED — that container is Evan's live database, and nothing in this run may point at
+- **CHANGED — that container is the owner's live database, and nothing in this run may point at
   it.** Since commit `01e75b0` (21 Aug, after framing) every spike script **fails closed**:
   no default connection string, and an outright refusal if `AUTOSQL_SPIKE_DSN` names port
-  55433. `glp_strong` — Evan's real data, ~95 MB — lives there and is never touched.
+  55433. `glp_strong` — the owner's real data, ~95 MB — lives there and is never touched.
 - **CHANGED — the scratch database is gone, and the earlier claim "T-3 needs no database
   rebuild at all" is reversed.** `autosql_spike` (and the `xpr` schema with it) was dropped
   later on 21 Aug, executing Q31's "leave it gone" (same commit; zero active connections at
@@ -629,7 +629,7 @@ document was written — and one of them reverses a claim this section used to m
 - **Python:** `GIMS-Project/.venv`, CPython **3.12.3** — the reference runtime, imported
   read-only. **[re-verified 2026-08-22]**
 - **Both GIMS checkouts are read-only for this run.** Nothing is written to either — and
-  wrap-up item 33 records that Evan's GIMS checkout carries his own uncommitted edits, one
+  wrap-up item 33 records that the owner's GIMS checkout carries his own uncommitted edits, one
   more reason no tool of this run may write there.
 
 ---
@@ -646,7 +646,7 @@ Every ingredient of a false green light is already assembled and sitting on disk
 with untested failure paths, a language whose Python side is *total* (it never throws — it returns
 `null`), a bar whose passing value is the same character an empty result prints, and a project
 whose one previous rig turned out to have three dead failure branches that nobody noticed until
-Evan asked.
+The owner asked.
 
 Build so that **five outcomes stay visibly distinct end to end** — agrees · diverges (with its
 class) · named refusal · unexplained raise · did-not-compile — never four, and never a pass column
@@ -657,7 +657,7 @@ single real number.
 
 ## 11. Rulings made in this document, and how to overturn them
 
-Each was derived from Evan's recorded answers because he is AFK and cannot be asked. Each shows
+Each was derived from the owner's recorded answers because he is AFK and cannot be asked. Each shows
 its derivation. **Each is overturned by one line from him**, and the "cost to overturn" column is
 what that line actually costs.
 
@@ -669,12 +669,12 @@ any of these remains his to reverse with one line, at the stated cost.
 
 | # | ruling | derived from | cost to overturn |
 |---|---|---|---|
-| **R1** | The ticket's "BLOCKED ON EVAN" line is **cleared**; the surviving above-DBL_MAX divergence is a **reported runtime refusal**, and the bar stays at zero (§2 C1, §4). | The `EXPERIMENTS.md` §1.2 ruling under **GA-4** (logged verbatim, `19:43:01.819Z`), itself derived from T-1 `FRAMING.md` §5 (*"reported, never silent"*) and Evan's Q1/GA-3 note (*"explicit fallback, instrument which path ran"*). **Confirmed 2026-08-22:** GA-6 item 1 fixed GA-4's scope wide (`scope_confirmed: true`), and wrap-up item 7 — this ruling's own question — stood on its default. **Settled.** | **Nothing re-runs.** Only the reporting changes. |
-| **R2** | T-3 inherits T-1's **`risk: medium`** and **`decision_authority: recommend-and-wait`** — T-3 recommends, Evan decides at the `sp-decide` gate. | T-3's ticket carries neither field; T-1's carries both. T-3 was spawned by T-1's `sp-spawn` from Evan's own ruling, and Q1 (*"don't build yet"*) keeps the build decision with him. `spike@v2` has an `sp-decide` gate regardless. | **One line.** Recommending costs nothing to upgrade to deciding. |
+| **R1** | The ticket's "BLOCKED ON OWNER" line is **cleared**; the surviving above-DBL_MAX divergence is a **reported runtime refusal**, and the bar stays at zero (§2 C1, §4). | The `EXPERIMENTS.md` §1.2 ruling under **GA-4** (logged verbatim, `19:43:01.819Z`), itself derived from T-1 `FRAMING.md` §5 (*"reported, never silent"*) and the owner's Q1/GA-3 note (*"explicit fallback, instrument which path ran"*). **Confirmed 2026-08-22:** GA-6 item 1 fixed GA-4's scope wide (`scope_confirmed: true`), and wrap-up item 7 — this ruling's own question — stood on its default. **Settled.** | **Nothing re-runs.** Only the reporting changes. |
+| **R2** | T-3 inherits T-1's **`risk: medium`** and **`decision_authority: recommend-and-wait`** — T-3 recommends, the owner decides at the `sp-decide` gate. | T-3's ticket carries neither field; T-1's carries both. T-3 was spawned by T-1's `sp-spawn` from the owner's own ruling, and Q1 (*"don't build yet"*) keeps the build decision with him. `spike@v2` has an `sp-decide` gate regardless. | **One line.** Recommending costs nothing to upgrade to deciding. |
 | **R3** | T-3 runs **lean**. | `.autodev/shop.json` `settings.lean: true` + Q36 (*"Lightweight by default, full for the demo"*), and the demo is T-2, not T-3. | One line; changes ceremony, not measurements. |
 | **R4** | The **negative control runs once per setting, and runs first** (§5.1, §5.2). | Q4 (*"do that run before I rule"*) + Q10 (three settings) + correction C3 — `differ.py:79` pins the setting, so a control that only ever ran at setting 1 proves nothing about the two new code paths. | One line. Running it three times and later deciding once was enough costs nothing; the reverse costs a full re-run. |
 | **R5** | **All three settings run even if the first fails.** A fail at one setting does not cancel the other two. | Q10 requires each reported separately, and a setting that was not run cannot be reported. | One line. |
-| **R6** | **`NULLNESS` is reported separately and does not fail the bar by itself**, unless the two null representations behave differently in a `WHERE`/`ORDER BY` — which the run tests rather than assumes (§4.8). | It is not a value↔null flip, which is what `FRAMING.md` §5 forbids by name; but `differ.py:97` calls it "a leak of the representation contract" and the filter path is where a leak drops rows. **Nothing in Evan's answers speaks to this**, so this is the cheapest-to-reverse option, chosen for that reason. | One line, **no re-run** — it is already a separate line in the output, so promoting it to a failure is a re-read of the same report. |
+| **R6** | **`NULLNESS` is reported separately and does not fail the bar by itself**, unless the two null representations behave differently in a `WHERE`/`ORDER BY` — which the run tests rather than assumes (§4.8). | It is not a value↔null flip, which is what `FRAMING.md` §5 forbids by name; but `differ.py:97` calls it "a leak of the representation contract" and the filter path is where a leak drops rows. **Nothing in the owner's answers speaks to this**, so this is the cheapest-to-reverse option, chosen for that reason. | One line, **no re-run** — it is already a separate line in the output, so promoting it to a failure is a re-read of the same report. |
 | **R7** | **`SQL_RAISE` is split** into *named refusal* and *unexplained raise* before any number is quoted (§2 C4). | GA-4's ruling makes a deliberate refusal an allowed outcome, while `differ.py:169`'s comment still calls every raise "highest severity". The instrument cannot serve the new bar unsplit. | One line — but overturning it means the refusal count and the defect count cannot be told apart, so it would have to be re-run. |
 | **R8** | The **`IMMUTABLE` mis-declaration is priced, not fixed** (§7). | `EXPERIMENTS.md` §1.1 (*"Run 1 is where it gets priced"*) + T-1 `FRAMING.md` §3's stop-rule idiom: record cause, do not fix. | One line; fixing it is a separate, small piece of work. |
 
@@ -682,7 +682,7 @@ any of these remains his to reverse with one line, at the stated cost.
 
 ## 12. Words used above, glossed
 
-Written because Evan asked for the database reasoning explained and the coding basics skipped (Q41).
+Written because the owner asked for the database reasoning explained and the coding basics skipped (Q41).
 
 **Spike** — research that answers a question rather than shipping a feature. Runs `sp-frame →
 sp-investigate → sp-synth → sp-decide → sp-spawn`.
@@ -691,16 +691,16 @@ sp-investigate → sp-synth → sp-decide → sp-spawn`.
 cannot be rationalised afterwards.
 
 **Gate** — a point in the pipeline where something must be decided before work continues. `sp-decide`
-is the one where Evan rules on this run.
+is the one where the owner rules on this run.
 
 **Lean** — AutoDev's reduced-ceremony mode: fewer mandatory review seats, same gates.
 
 **Decision authority / `recommend-and-wait`** — the spike recommends; the human decides.
 
-**Go-ahead (GA-*n*)** — a recorded line from Evan authorising a class of decisions, logged with a
+**Go-ahead (GA-*n*)** — a recorded line from the owner authorising a class of decisions, logged with a
 timestamp and his verbatim words.
 
-**Ruling on delegated authority** — a decision Evan handed to me under a go-ahead rather than made
+**Ruling on delegated authority** — a decision the owner handed to me under a go-ahead rather than made
 himself. Always labelled as such, and always overturnable by one line from him.
 
 **Battery** — one file of related test cases under `analysis/fuzz/`, each printing its own evidence.

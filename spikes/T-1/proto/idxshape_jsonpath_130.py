@@ -4,7 +4,7 @@ PROVENANCE, READ THIS FIRST. This file was NOT written by the investigation. It 
 2026-08-21 by the .recheck reconstruction pass to close `f3` §3.8 open item 9 — "the 130-case
 jsonpath run has no committed artifact ... copy the scratchpad script into proto/ when the tree is
 writable again; it is re-derivable today from idxshape_fixture_subset.py +
-idxshape_jsonpath_agree.py". Evan waived FRAMING §3's no-edit rule in writing on 2026-08-21.
+idxshape_jsonpath_agree.py". The owner waived FRAMING §3's no-edit rule in writing on 2026-08-21.
 
 It REPRODUCES f3 §3.5(d)(ii)'s published table exactly: 130 cases -> 114 OTHER, 10
 cmp(path,literal) (9 agree / 1 diverges), 6 bare path (2 agree / 4 diverge); 16 expressible,

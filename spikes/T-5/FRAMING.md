@@ -20,7 +20,7 @@ standard library or from files already in this repository. Figures marked **[T-1
 > **`sp-frame`** is its first stage, and it exists for one reason: to write down *what would count
 > as an answer* **before** any evidence exists, so the result cannot be reinterpreted afterwards to
 > suit whichever way it lands. **`sp-investigate`** does the actual sweeping. **`sp-decide`** is
-> where **Evan rules** — nobody else can, and no agent may sign it.
+> where **the owner rules** — nobody else can, and no agent may sign it.
 >
 > **Coercion** — turning a value that is stored as *text* into a *number*. `"7"` → `7.0`. The
 > dashboard does this constantly, because a lot of GIMS data is stored as strings that look like
@@ -48,13 +48,13 @@ standard library or from files already in this repository. Figures marked **[T-1
 Two questions, and they are not the same size.
 
 > **Q1 — Do strings that Python would silently coerce to a number, and that contain a non-ASCII
-> decimal digit, occur in Evan's real data? At what rate, in which collections, and does any of it
+> decimal digit, occur in the owner's real data? At what rate, in which collections, and does any of it
 > sit in a collection a dashboard actually reads?**
 
 > **Q2 — Is anything other than the GIMS Python process ever going to write rows that autoSQL
 > reads?**
 
-Q1 is a measurement. Q2 is an inventory of code paths and an answer from Evan about intent — it
+Q1 is a measurement. Q2 is an inventory of code paths and an answer from the owner about intent — it
 cannot be settled by sweeping, because it is a question about the future as much as the present.
 
 **Neither question asks whether the compiled SQL is correct.** T-3 settled that: it is not, at all
@@ -62,7 +62,7 @@ three Postgres output settings. T-5 asks only **how much that matters here**.
 
 ## 2. The decision this feeds, stated exactly
 
-T-3's ruling (`kb/wiki/decision-t3-correctness-run.md`, Evan, 2026-08-23, GA-7) is
+T-3's ruling (`kb/wiki/decision-t3-correctness-run.md`, the owner, 2026-08-23, GA-7) is
 **"homework first, then fix-and-re-run."** T-5 *is* the homework, and the ADR names its own weakest
 point in the same breath:
 
@@ -182,9 +182,9 @@ is cheap: the same walk, one extra counter.
 T-1's corpus was, in its own words, "every `objects.db` / `archive.db` under `gims-ledger/projects/`
 and `GIMS-Project/projects/`" [T-1 §D.2] — **SQLite files only**. Five things sit outside it:
 
-1. **`glp_strong` — Evan's live Postgres, ~95 MB.** Docker container `glp-strong-db`
+1. **`glp_strong` — the owner's live Postgres, ~95 MB.** Docker container `glp-strong-db`
    (`pgvector/pgvector:pg16`, host port **55433**, up and healthy **[measured 2026-09-01]**,
-   `docker ps` only — no connection opened). T-3 recorded it as "Evan's real data, ~95 MB … and is
+   `docker ps` only — no connection opened). T-3 recorded it as "the owner's real data, ~95 MB … and is
    never touched" [T-3 §FRAMING]. **It is the largest real corpus on the machine and no sweep has
    ever looked inside it.** See §6 — reaching it is not T-5's decision to make.
 2. **`guts-pg`** — a second Postgres container (`postgres:16`, port 55432), **exited 4 weeks ago**
@@ -201,9 +201,9 @@ disappointment later: *n* = **1 machine, 1 operator**. 60.2 % of T-1's rows were
 written by AutoDev itself and 36.5 % were code-embedding vectors; the only tenant-shaped project
 contributed **222 rows across 18 collections**, and the one real dashboard's own source collection
 holds **7 rows** [T-1 §D.8]. **Nothing here extrapolates to production.** T-5 can answer "does this
-occur in the data Evan has"; it cannot answer "does this occur in the data a customer has."
+occur in the data the owner has"; it cannot answer "does this occur in the data a customer has."
 
-## 6. The prerequisite only Evan can clear
+## 6. The prerequisite only the owner can clear
 
 Since commit `01e75b0` (21 Aug) **every spike script fails closed against port 55433**: no default
 connection string, and an outright refusal if `AUTOSQL_SPIKE_DSN` names that port [T-3 §FRAMING].
@@ -213,7 +213,7 @@ That fence was put there deliberately, and it is the reason T-3's own instrument
 **T-5 will not reach through it on its own authority.** The fence is a standing instruction, and
 "the new sweep is read-only" is exactly the argument every unsafe read starts with.
 
-> **The one question for Evan, and the only thing blocking the most valuable half of this spike:**
+> **The one question for the owner, and the only thing blocking the most valuable half of this spike:**
 > **may `sp-investigate` open a read-only connection to `glp_strong` on port 55433 — `SELECT` only,
 > one session, no schema installed, no writes, no `xpr` functions, no compiler — for the sole
 > purpose of counting strings?**
@@ -252,7 +252,7 @@ Two things keep Q2 open, and both are named in T-1's own limits:
   documenting this exact parity disagreement as a bug the team fixed once [T-1 §D.5] — so "there
   has never been one" is already false as history, and the question is really about the future.
 
-**The future half is Evan's to answer, not the sweep's.** One sentence from him settles it: *is
+**The future half is the owner's to answer, not the sweep's.** One sentence from him settles it: *is
 anything other than the GIMS Python process ever going to write rows autoSQL reads — an ETL job, a
 `psql` session, a restored dump, a second service, a customer import?* If the answer is "no, and
 that is a rule we intend to keep", T-3's M4 class (raw-JSON rows from non-Python writers) is
@@ -273,7 +273,7 @@ nothing", and §3 has already removed the largest chunk of it by finding the swe
 
 **Overrun rule:** if the day ends with the sweep incomplete, `sp-investigate` reports **what it
 swept and what it did not**, with the zeros and non-zeros it actually has. It does not take a second
-day without Evan saying so. A partial sweep honestly bounded is a usable input; a spike that
+day without the owner saying so. A partial sweep honestly bounded is a usable input; a spike that
 quietly grows is not.
 
 ## 9. What a decision needs — the bands, fixed now
@@ -289,7 +289,7 @@ see how strong the rate is.
 | **ZERO** | **0**, and 0 in tier A too | **Ruling stands, unqualified.** Proceed to fix-and-re-run. The refusal is a theoretical guard that fires on nothing this project has ever stored. |
 | **RARE** | **>0 but <0.1 %**, none of it in a collection any dashboard reads | **Ruling stands.** A refusal that fires on <1 row in 1,000 is a good trade against a silent wrong number. Name the collections in the findings. |
 | **PRESENT** | **0.1 %–1 %**, *or* any occurrence at all in a collection a dashboard reads | **Ruling stands, with a rider.** The fix needs a refusal that names the row and the JSON path, not a bare `XPR01` — a user who sees a refusal must be able to find the cell. Costs T-6 real work; say so. |
-| **COMMON** | **>1 %**, *or* >0 in the one real dashboard's own source collection | **THE TRIGGER. Stop and put the ruling back to Evan.** The chosen fix would convert frequent silent errors into frequent visible refusals; narrowing the language (Option B) or stopping (Option A) becomes the honest choice. **`sp-investigate` does not proceed to T-6 on this result** — it reports and hands to `sp-decide`. |
+| **COMMON** | **>1 %**, *or* >0 in the one real dashboard's own source collection | **THE TRIGGER. Stop and put the ruling back to the owner.** The chosen fix would convert frequent silent errors into frequent visible refusals; narrowing the language (Option B) or stopping (Option A) becomes the honest choice. **`sp-investigate` does not proceed to T-6 on this result** — it reports and hands to `sp-decide`. |
 
 **Three rules that make these bands mean something:**
 
@@ -316,7 +316,7 @@ Fixed now, so no result can be rescued by argument later.
 
 - **Any write, anywhere.** Read-only connections only (`mode=ro&immutable=1` for SQLite, a `SELECT`
   session for Postgres). One write invalidates the run — the ticket says READ-ONLY and that is the
-  condition of touching Evan's live data at all.
+  condition of touching the owner's live data at all.
 - **A compiler run.** T-5 does not execute `runtime.sql`, does not install the `xpr` schema, does
   not compile an expression. It counts characters in stored strings. Anything more is T-6.
 - **A pooled rate across corpora** (§9 rule 3).
@@ -336,7 +336,7 @@ Fixed now, so no result can be rescued by argument later.
   old zeros, in which case that disagreement *is* the finding.
 - **The other T-3 mechanisms** — value-channel truncation (M3), container comparison rules (M2),
   raw-JSON rows (M4). Q2 informs M4's pricing; it does not measure it.
-- **Speed.** T-4 is held until the correctness re-run reports, per Evan's own ordering.
+- **Speed.** T-4 is held until the correctness re-run reports, per the owner's own ordering.
 - **Production data.** Not reachable and not in scope (§5).
 - **The T-2 demo's disagreement-state question.** Separate decision, separate form, still open.
 
@@ -347,7 +347,7 @@ Fixed now, so no result can be rescued by argument later.
 1. **A write is detected**, attempted or accidental, against any real database — stop immediately,
    report exactly what happened.
 2. **The COMMON band is hit** (§9) — the ruling is in question; further sweeping cannot change that,
-   and the decision belongs to Evan.
+   and the decision belongs to the owner.
 3. **Two instruments disagree** on any corpus — the instruments are the finding, and a number
    nobody can reproduce is worse than no number.
 4. **The timebox expires** (§8) — report the partial sweep with its exact boundary.
@@ -364,14 +364,14 @@ connection was opened. `docker ps` was run to confirm container state and nothin
 `demo/vendor/expr.py:302` as it stands in this tree. T-1 and T-3 figures were re-read from
 `spikes/T-1/FINDINGS.md` and `spikes/T-3/FRAMING.md` at the line numbers cited, not recalled.
 
-**Open and blocking the most valuable half of this spike: §6 — Evan's ruling on read-only access to
+**Open and blocking the most valuable half of this spike: §6 — the owner's ruling on read-only access to
 `glp_strong`.**
 
 ---
 
-# AMENDMENT — 2026-09-01, after Evan answered §6 and §7
+# AMENDMENT — 2026-09-01, after the owner answered §6 and §7
 
-The two open questions were put to Evan the same day this was framed. **Both answers change the
+The two open questions were put to the owner the same day this was framed. **Both answers change the
 spike, and one of them retires a section above.** Recorded verbatim, because a paraphrase would
 lose the ruling.
 
@@ -387,10 +387,10 @@ built to read, and autoSQL must stand as its own project rather than inherit a d
 another system's tables.
 
 **§5 called it "the largest real corpus … and the most valuable half of this spike." That was
-wrong, and Evan corrected it.** The framing had inherited T-3's assumption that "biggest" meant
+wrong, and the owner corrected it.** The framing had inherited T-3's assumption that "biggest" meant
 "most relevant". T-1 §D.8 had already said the quiet part — 60.2 % of its rows were `LedgerRecord`
 written by AutoDev itself and 36.5 % were code-embedding vectors — and this framing quoted that
-sentence without letting it change the plan. `sp-investigate` proceeds under **§6(c)** by Evan's
+sentence without letting it change the plan. `sp-investigate` proceeds under **§6(c)** by the owner's
 own ruling, and §5 items 2–5 lose most of their point for the same reason.
 
 ## A2 — on non-Python writers (§7), and it re-points the whole spike

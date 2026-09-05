@@ -213,7 +213,7 @@ export function Panes({ answer, hot, setHot }) {
     "--cols-m": columns.length ? template(columns, kinds, narrowFor) : "1fr",
   };
 
-  // q8 (Evan, GA-8): "move the differing column beside the marker".  The server
+  // q8 (the owner, GA-8): "move the differing column beside the marker".  The server
   // publishes the permutation; this view only follows it.  The grid is
   // [SQL | spine | Python], so the two orders are mirrored about the spine and
   // each pane needs its OWN track template — hence the inline --cols here,

@@ -1,7 +1,7 @@
-# autoSQL — Evan's decisions · 21 Aug 2026
+# autoSQL — the owner's decisions · 21 Aug 2026
 
 Every answer he has given, verbatim, with what each one caused. Two rounds:
-the 46-question form (`QUESTIONS-FOR-EVAN.md`) and the 12-item follow-up (`WAITING-ON-EVAN.md`).
+the 46-question form (`kb/notes/owner-questions.md`) and the 12-item follow-up (`kb/notes/owner-waiting.md`).
 
 **All 46 answered. All 12 answered.** Go-aheads on the record: GA-1 (T-1), GA-2 (T-2), GA-3 (T-1 ruling).
 
@@ -223,11 +223,11 @@ the 46-question form (`QUESTIONS-FOR-EVAN.md`) and the 12-item follow-up (`WAITI
 
 > Widened to all three path-with-a-space defects by item 9 of the second form.
 
-**Q40.** Do you want both machines reporting under a single "evan" name?
+**Q40.** Do you want both machines reporting under a single "the owner" name?
 
-→ **Unify under one evan identity**
+→ **Unify under one the owner identity**
 
-> APPLIED on this machine. Windows still reports as evanb — queued in WINDOWS-CHECKLIST.md.
+> APPLIED on this machine. Windows still reports as owner — queued in kb/notes/windows-checklist.md.
 
 ## About you — the last open goal
 
@@ -261,7 +261,7 @@ the 46-question form (`QUESTIONS-FOR-EVAN.md`) and the 12-item follow-up (`WAITI
 
 → **Still on Windows — make it automatic**
 
-> Script written; needs one path filled in and one run on that machine. Queued in WINDOWS-CHECKLIST.md.
+> Script written; needs one path filled in and one run on that machine. Queued in kb/notes/windows-checklist.md.
 
 ---
 
@@ -289,7 +289,7 @@ the 46-question form (`QUESTIONS-FOR-EVAN.md`) and the 12-item follow-up (`WAITI
 
 **11.** → **TAKE THE DEFAULT** — Windows script keeps its placeholder
 
-**12.** → **Queue them — remind me when I'm there** — WINDOWS-CHECKLIST.md at the repo root
+**12.** → **Queue them — remind me when I'm there** — kb/notes/windows-checklist.md at the repo root
 
 ---
 

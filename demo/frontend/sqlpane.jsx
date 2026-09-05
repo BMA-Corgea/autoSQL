@@ -18,7 +18,7 @@
 // from the one piece of user-typed text that reaches SQL text; the
 // approved mock draws that as warm single-quoted values against a BOXED
 // warm-2 identifier, and where D6's wording and the drawing differ the
-// drawing is what Evan approved. The two spans below therefore carry
+// drawing is what the owner approved. The two spans below therefore carry
 // BOTH vocabularies — `.s`/`.sql-bind` and `.alias`/`.sql-alias` — so
 // part 5.2's inventory and the drawing are the same thing.
 

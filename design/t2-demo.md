@@ -38,7 +38,7 @@ rewrite. This is the record of what *this screen* does with it.
 
 ## 1. The style: Watery, and why
 
-**Q23**, verbatim from `.autodev/notes/ANSWERS-FROM-EVAN.md`:
+**Q23**, verbatim from `kb/notes/owner-answers.md`:
 
 > **"Its own app, but built GIMS's way"**
 
@@ -176,7 +176,7 @@ not a reason a later session can check:
 | **V1 and V2 merged** | The old V1 (*resting*) and the rolling-window half of the old V2 are one view — the mock's **Agreement**, which already carries the 3-point window and the six-decimal numbers | A "resting" pick with nothing switched on has no answer worth comparing, so it demonstrates neither AC-20 nor §5. Two artboards were being spent on one screen |
 | **The time bucket was split out and drawn** | The other half of the old V2 became its own view, **Time buckets** — the one the mock was missing | This is the case where the brief named a view that genuinely should exist, so the rule was to draw it rather than delete it. A bucketed answer is a **derived table** — 7 labels and 7 counts, not a row list — which is a result shape nothing else on the screen shows; and it is the only view where the **session time zone** is load-bearing (§7.1's time-bucket rule, AC-43: the same 8,400 beats fall into 8 buckets rather than 7 if it is wrong, with both panes computing correctly) |
 | **Operation 9 was adopted from the mock** | **Only what changed** stays, as a view in its own right | §7.1's operation-9 ruling: *"Without operation 9, the defining property of the demo's headline collection is never shown to anyone."* It is the case the project was pitched on, it is walkthrough step 9, and its answer is a **count** rather than a table — a third result shape |
-| **The alias refusal was split out and drawn** | The old V4 covered *"the static gate refused the expression, **or** §4.10's allowlist refused the alias"* in one view, and the mock drew only the first half. They are now two views, **Refused: the expression** and **Refused: the column name** | The two refusals are different controls, in different code paths, refusing different inputs — a construct against §4.4's allowlist, a name against §4.10's. This document's own standard everywhere else (§5, §8.3's R11, part 4) is that **a control nobody can watch fire is not trustworthy**, and the alias check was asserted only in a footnote. It is also the one walkthrough step Evan drives himself against hostile input (step 14) |
+| **The alias refusal was split out and drawn** | The old V4 covered *"the static gate refused the expression, **or** §4.10's allowlist refused the alias"* in one view, and the mock drew only the first half. They are now two views, **Refused: the expression** and **Refused: the column name** | The two refusals are different controls, in different code paths, refusing different inputs — a construct against §4.4's allowlist, a name against §4.10's. This document's own standard everywhere else (§5, §8.3's R11, part 4) is that **a control nobody can watch fire is not trustworthy**, and the alias check was asserted only in a footnote. It is also the one walkthrough step the owner drives himself against hostile input (step 14) |
 
 Each view is one artboard, reachable by its own tab, by keyboard, and by URL fragment. Each maps to
 walkthrough steps and to acceptance criteria, so QA compares against a thing and not against a taste.
@@ -278,7 +278,7 @@ Coral in this screen means *the two answers differ* and nothing else (D3).
 > changes; the signal does not shrink.
 
 **Why it is a requirement and not a preference.** The compiler this demo generates SQL with is being
-reused unmodified, on Evan's own instruction — Q19, *"Reuse the throwaway program as-is"* — and it is
+reused unmodified, on the owner's own instruction — Q19, *"Reuse the throwaway program as-is"* — and it is
 known to be wrong in ways the demo's safe subset does not exclude. Eight of the sixteen measured
 disagreements at `spikes/T-1/analysis/fuzz/A_f8_guard.txt` are built entirely from constructs the
 subset keeps, and one of them, `max($.l)`, returns **`1`** where the true answer is **`1e+300`** — a
@@ -288,7 +288,7 @@ between that number and a person's trust is Q24 — *"Both answers side by side 
 only thing that makes side-by-side *work* is that the difference between the two sides announces
 itself rather than waiting to be noticed. So the visible-disagreement signal is not decoration on a
 correctness control; **it is the correctness control, wearing a visual form.** Q19 is safe because of
-it and unsafe without it (§5, and Q19's own note in `.autodev/notes/ANSWERS-FROM-EVAN.md`: *"Safe only because of
+it and unsafe without it (§5, and Q19's own note in `kb/notes/owner-answers.md`: *"Safe only because of
 Q24… Q24 is therefore not droppable"*). Trading it down for layout reasons — a smaller badge, a
 subtler colour, a marker below the fold, a banner that scrolls away — converts the demo into a
 machine that displays confident wrong numbers, which is the exact failure this whole project exists
@@ -401,7 +401,7 @@ them resolves to 1e-06s and the disagreement banner is at full opacity — part 
 
 ## 8. Rulings on delegated authority
 
-Evan did not choose any of the following. Each is a **ruling on delegated authority** — a decision
+The owner did not choose any of the following. Each is a **ruling on delegated authority** — a decision
 this document made because he handed the decision over under **GA-4** (*"I feel like these questions
 can be answered with your best judgement… I approve the spec for T-2"*) and **GA-5** (*"Be as
 autonomous as possible"*) — not a decision he made. Each shows its derivation and each is overturned
@@ -469,7 +469,7 @@ Five things a mock cannot settle. None blocks the build; each is one line from h
 
 | Claim | Where |
 |---|---|
-| Q23, Q24, Q25, Q27, Q21, Q19, Q43 verbatim | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
+| Q23, Q24, Q25, Q27, Q21, Q19, Q43 verbatim | `kb/notes/owner-answers.md` |
 | GA-4 and GA-5, verbatim, with timestamps | `.autodev/events.jsonl` (read only) |
 | The Watery style guide, mood, palette, roles, motion, component list | `../GUTS/spine/L1-memory/gims-ledger/design/watery.md` |
 | Every token value and base component cited above | `../GUTS/spine/L1-memory/gims-ledger/static/styles/watery.css` (242 lines) |

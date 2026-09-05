@@ -1,6 +1,6 @@
 # T-1 recheck · Can the conformance harness actually report a failure?
 
-**Verification task:** Evan's NO-GO on T-1 is conditional on two verifications. This is one of
+**Verification task:** the owner's NO-GO on T-1 is conditional on two verifications. This is one of
 them. The spike's headline is *"130 of 130 fixture cases agree bit-exactly"*. `FINDINGS.md`
 §5.9(6) states, against the spike, that the code which assigns the *other* outcomes has never
 executed. This section establishes whether that is true, and then runs the experiment §5.9(6)
@@ -14,7 +14,7 @@ jsonb-`null`-for-SQL-NULL substitution whose values compare **equal** is still c
 branches were dead, not broken. The `FRAMING.md` §8 failure mode did **not** occur. What that
 does and does not do to the ruling is §9; what it does not establish is §7.
 
-**Rule I worked under:** the spike ran under a written no-edit rule (`FRAMING.md` §3). Evan
+**Rule I worked under:** the spike ran under a written no-edit rule (`FRAMING.md` §3). The owner
 waived it in writing on 2026-08-21 for this pass. Everything I changed is listed in §7.
 
 ---
@@ -632,7 +632,7 @@ inject a known-wrong input and assert the emitted classification.
 
 ## 8. Everything I changed
 
-The spike ran under `FRAMING.md` §3's no-edit rule. Evan waived it for this pass in writing on
+The spike ran under `FRAMING.md` §3's no-edit rule. The owner waived it for this pass in writing on
 2026-08-21 (*"Let them edit the existing code in place"*). In the event I did **not** need to
 edit anything in place — the injection is a separate driver — so the waiver went unused on
 `proto/`'s existing files. The complete ledger:

@@ -3,7 +3,7 @@
 ## `FINDINGS.md` is the authoritative document. This directory is not.
 
 `../FINDINGS.md` is the document of record for the T-1 spike — the one that was read at the gate, the one
-that carries a sha256 in the event log, the one Evan's 2026-08-21 ruling (`GA-3`) was made against. This
+that carries a sha256 in the event log, the one the owner's 2026-08-21 ruling (`GA-3`) was made against. This
 directory holds the **fragments it was assembled from**: one Markdown file per finding or cross-cutting
 section, concatenated in order to produce `FINDINGS.md`.
 

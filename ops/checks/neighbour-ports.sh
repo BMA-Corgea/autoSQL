@@ -4,7 +4,7 @@
 #
 # WHY THIS LIVES HERE AND NOT IN demo/
 #   "The demo tree" (T-2.md §11.1) is `demo/` plus `./run-demo`, nothing
-#   else — and AC-3's grep test forbids the string `55433` (Evan's LIVE
+#   else — and AC-3's grep test forbids the string `55433` (the owner's LIVE
 #   database, glp-strong-db) anywhere inside that tree. This check's whole
 #   job is to name port numbers and watch them, so it has to live outside
 #   the tree it would otherwise be caught by its own neighbour's rule. It is

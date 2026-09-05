@@ -1,7 +1,7 @@
 # autoSQL — what's still waiting on you · 21 Aug 2026
 
 > **ANSWERED — 2026-08-21.** This is the blank form, kept as the record of what was asked.
-> Every answer Evan gave, and what each one caused, is in [`ANSWERS-FROM-EVAN.md`](ANSWERS-FROM-EVAN.md).
+> Every answer the owner gave, and what each one caused, is in [`kb/notes/owner-answers.md`](kb/notes/owner-answers.md).
 > The checkboxes and ANSWER lines below are deliberately left empty.
 
 **12 items. 2 of them are your signature — nobody else can do those.**
@@ -162,7 +162,7 @@ Both are on the Windows machine, which I can't reach from here. I've written eve
 
 ### 12. Two edits on the Windows box — want them queued for when you're next there?
 
-**What's going on:** The autostart registration, so the monitoring watcher starts itself at logon instead of needing a hand-start every session. And a two-field edit to a file there so both machines report under the name evan rather than that one still reporting as evanb. Neither is urgent and neither breaks anything if you never do it.
+**What's going on:** The autostart registration, so the monitoring watcher starts itself at logon instead of needing a hand-start every session. And a two-field edit to a file there so both machines report under the name the owner rather than that one still reporting as owner. Neither is urgent and neither breaks anything if you never do it.
 
 - [ ] **Queue them — remind me when I'm there** — I write both into a single checklist at the repo root so you can run through them in one sitting.
 - [ ] **I'll handle it, no checklist** — The script and instructions are already committed; nothing more gets written.

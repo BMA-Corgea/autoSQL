@@ -148,7 +148,7 @@ refusal is better than a silent wrong number. That argument holds. But its price
 and it is not the 26 cases the bug actually broke — **it is 86 queries that stop working**, on data
 that contains a single non-ASCII digit anywhere the expression touches. Paired with T-5's finding
 (prevalence in real data is 0 of 144, but GIMS's CSV import admits these by design), this is
-precisely what Evan's Q2 refusal counter exists to watch.
+precisely what the owner's Q2 refusal counter exists to watch.
 
 ## 6. Verdict against the bar
 
@@ -188,7 +188,7 @@ should be fixed to hash `pg_get_functiondef` instead; that is a one-line change 
 
 ## 8. Q2 — the refusal record, and why it is a log and not a counter
 
-Evan's GA-9 Q2: *"yes — build it into T-6."* Implemented as **`RAISE LOG` immediately before the
+The owner's GA-9 Q2: *"yes — build it into T-6."* Implemented as **`RAISE LOG` immediately before the
 `RAISE EXCEPTION`**, carrying the offending value truncated to 60 characters. **589 such lines
 landed in this run's server log**, each with a timestamp and backend PID:
 

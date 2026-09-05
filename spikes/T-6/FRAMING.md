@@ -3,7 +3,7 @@
 Stage: `sp-frame` (spike@v2) · **lean: OFF**, and **risk: HIGH vetoes lean regardless** — this
 ticket decides whether a SQL compiler returns wrong numbers · Framed: **2026-09-01**
 
-**Authority.** Evan, 2026-09-01: *"Go to T-6. Go ahead and loop through the tickets. Try to use my
+**Authority.** the owner, 2026-09-01: *"Go to T-6. Go ahead and loop through the tickets. Try to use my
 best judgement instead of asking me for any others"* — recorded as **GA-10**. Two decisions this
 document would otherwise have put to him are therefore ruled here, **before any evidence exists**,
 and both are flagged so he can overturn either in one line: **§4 (the container comparison rule)**
@@ -79,12 +79,12 @@ non-ASCII `Nd` digit, i.e. exactly where Python would have coerced and SQL canno
 
 ### 2.3 Count the refusals (GA-9 Q2)
 
-Evan's Q2: *"yes — build it into T-6."* Every refusal the runtime raises is **recorded**, so the
+The owner's Q2: *"yes — build it into T-6."* Every refusal the runtime raises is **recorded**, so the
 first real occurrence in production is seen rather than inferred. T-5 measured prevalence at **0 of
 144 coercible strings** and could not measure the future; the counter is what converts that into a
 question that answers itself later.
 
-**Scope guard:** the counter is autoSQL's own. Evan's Q3 **parked** the GIMS-side validator fix, so
+**Scope guard:** the counter is autoSQL's own. The owner's Q3 **parked** the GIMS-side validator fix, so
 **nothing in GIMS is changed by this ticket.**
 
 ### 2.4 The container comparison rule — see §4. It is the one genuinely contested change.
@@ -146,7 +146,7 @@ correctness spike into theatre. So:
 > **Every battery reports BOTH numbers, always, side by side: counts under the ORIGINAL strict rule
 > and counts under the recursive rule.** Neither is hidden, neither is a footnote. A pass claimed
 > only under the recursive rule is reported as *exactly that*, with the strict number printed next
-> to it. **If the two numbers differ, the verdict names every case the change absorbed** so Evan can
+> to it. **If the two numbers differ, the verdict names every case the change absorbed** so the owner can
 > see precisely what was reclassified and overturn this ruling in one line.
 
 ## 5. Decision criteria — fixed now
@@ -154,7 +154,7 @@ correctness spike into theatre. So:
 | band | at efd 1, class-1 wrong answers | verdict |
 | --- | --- | --- |
 | **PASS** | **0** under the recursive rule, **and** every difference from the strict count is M2's container shape and nothing else | The re-run passes. Admission to **T-4**, the speed run — **not** to GIMS. |
-| **PASS-WITH-NOTE** | **0** under the recursive rule, but the strict/recursive gap contains something that is *not* M2 | Report as a pass **and name the reclassified cases individually**. Evan sees exactly what the rule change absorbed. |
+| **PASS-WITH-NOTE** | **0** under the recursive rule, but the strict/recursive gap contains something that is *not* M2 | Report as a pass **and name the reclassified cases individually**. The owner sees exactly what the rule change absorbed. |
 | **FAIL** | **> 0** under the recursive rule | The re-run fails. See §7. |
 
 **Refusals are counted and named, never pooled with wrong answers** — that is the whole design.
@@ -180,14 +180,14 @@ found class 4 empty on `py`-mode data and non-empty on `raw` data; if that chang
 
 ## 7. RULING — what happens if it fails (fixed before evidence)
 
-Under GA-10 this seat rules on the re-run's verdict rather than putting it back to Evan. **That
+Under GA-10 this seat rules on the re-run's verdict rather than putting it back to the owner. **That
 authority has a limit, and here it is:**
 
 - **A PASS is recorded on this seat's authority.** It is a factual verdict against a bar fixed
   before evidence, with both numbers published. No new judgement is involved.
 - **A FAIL is NOT.** A failure means a *third* layer of unpredicted mechanism after T-3 found two,
   and the honest options at that point (narrow the subset, abandon, carve out) are the same product
-  choices T-3's ruling weighed and Evan decided. **A failing re-run stops and goes back to him**,
+  choices T-3's ruling weighed and the owner decided. **A failing re-run stops and goes back to him**,
   because "use your best judgement" is authority to finish the work, not authority to re-take a
   decision he already made once on evidence.
 - **A PASS-WITH-NOTE is recorded, and the reclassified cases are surfaced to him anyway** — recorded
@@ -202,7 +202,7 @@ what did not, per setting, with both numbers. Do not take a second day without a
 
 1. **Any connection attempt to port 55433** — stop, report.
 2. **A control fails** (§6) — the instrument is the finding; stop.
-3. **FAIL band** (§5) — stop at `sp-synth`, hand to Evan (§7).
+3. **FAIL band** (§5) — stop at `sp-synth`, hand to the owner (§7).
 4. **A refusal fires where Python also refused** — the refusal is too broad (§2.2); fix the
    predicate and re-run, do not accept the number.
 5. **The timebox expires** (§8).

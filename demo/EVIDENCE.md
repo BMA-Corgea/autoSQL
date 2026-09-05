@@ -1,8 +1,8 @@
 # T-2 — the build's evidence pack
 
-> **SUPERSEDED IN PARTICULARS — 2026-08-23 (GA-7, Evan's form answers q3 and q4).** This record
+> **SUPERSEDED IN PARTICULARS — 2026-08-23 (GA-7, the owner's form answers q3 and q4).** This record
 > was produced against the build as it stood on 2026-08-22 and is kept intact as evidence of that
-> run — nothing below has been rewritten. After it was produced, two of Evan's own decisions
+> run — nothing below has been rewritten. After it was produced, two of the owner's own decisions
 > changed the build, so the following particulars no longer describe the current tree:
 >
 > 1. **AC-35 was re-scoped** (q3) to the seven files the ticket vendors plus the `__pycache__`
@@ -85,7 +85,7 @@ T-2 is `HEAD`: eleven minutes after T-2's plan was approved, **T-3 fixed the
 very defect T-2 exists to demonstrate.** AC-22 below is only satisfiable on the
 297-digit guard — with T-3's version the SQL pane reads `1e300` successfully and
 the two panes agree, which AC-22 defines as a failing build. This is a
-cross-ticket decision for Evan, recorded here rather than left to be discovered
+cross-ticket decision for the owner, recorded here rather than left to be discovered
 by whoever next rebases.
 
 ---
@@ -1525,7 +1525,7 @@ conclusion.
 2. Change `demo/pyrunner/rows.py`'s `record_f` parse so an integer literal above
    `DBL_MAX` becomes `float('inf')`, which makes the documents true as written.
 
-**THE RULING (2026-08-22, under Evan's standing GA-6, on the strength of the two
+**THE RULING (2026-08-22, under the owner's standing GA-6, on the strength of the two
 independent measurements): option 1. W13-2 stands — the documents are corrected,
 and the code is NOT changed to manufacture an `inf`.**
 
@@ -1582,7 +1582,7 @@ this ticket actually reads, `core/dashboard/expr.py`, has mtime **2026-07-02
 So AC-35's *intent* — this ticket never wrote to GIMS — holds and is proven by
 mtime and digest; AC-35's *test* — `git status` clean — cannot pass on a working
 tree its operator is actively using. That is a criterion wording question for
-Evan, and it belongs to W2.
+The owner, and it belongs to W2.
 
 ### 6.3 AC-37's timing-vocabulary sweep — W18's, one hit
 
@@ -1686,7 +1686,7 @@ artifact, prefixed `AC-19 FINDING:` — and does not fail. The reasoning is that
 the build must not go red because a tree this ticket does not own changed
 underneath it, and a loud finding is what stops that change passing unnoticed.
 It is **one assertion away from the other reading** (`assert len(cases) ==
-EXPECTED_CASE_COUNT`, in `demo/tests/test_expr_vectors.py`), and it is Evan's to
+EXPECTED_CASE_COUNT`, in `demo/tests/test_expr_vectors.py`), and it is the owner's to
 overturn. Today the count is 130, so the question is not live — only recorded.
 
 #### Both legs of AC-19's own *Test:* clause, run
@@ -1823,7 +1823,7 @@ SQL **1**, flagged, one row differing. Verified live on the running stack, not i
 
 **Why it is not `$.l` any more.** It was, and `$.l = [1e300, 1]` no longer diverges: the shipped
 297-digit guard that silently nulled `1e300` was a *defect*, T-3 corrected it to 309 digits, and
-Evan's q4 ruling adopted the corrected runtime. Both engines now read `1e300`, so `max($.l)` agrees.
+The owner's q4 ruling adopted the corrected runtime. Both engines now read `1e300`, so `max($.l)` agrees.
 **The original showcase divergence was an artifact of the bug the adopted fix removed.** Full note
 against AC-22 in `.autodev/specs/T-2.md`.
 
@@ -1840,12 +1840,12 @@ The honest successor is the magnitude refusal already demonstrated at step 13 (`
 step 11's claim changes from *"the two engines disagree"* to *"the tool refuses rather than
 guessing"*.
 
-**That changes what the demo argues, so it is Evan's call, not T-8's.** It is written down in three
+**That changes what the demo argues, so it is the owner's call, not T-8's.** It is written down in three
 places — here, against AC-22, and in `kb/CURRENT-WORK.md` — so T-8 cannot make it by accident.
 
 ## The differing column sits beside the marker — q8, GA-8
 
-Evan, 2026-08-23: *"Fix it first — move the differing column beside the marker."* Implemented
+The owner, 2026-08-23: *"Fix it first — move the differing column beside the marker."* Implemented
 2026-09-01.
 
 The grid is `[SQL pane | coral spine | Python pane]`, so "beside the marker" is **mirrored about the

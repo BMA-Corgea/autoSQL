@@ -137,9 +137,9 @@ AC33_FILES = (
 # and made the out-of-range branch RAISE a named XPR01 refusal.
 #
 # For one day the demo PINNED the pre-fix version and this file asserted the
-# two copies stayed DIFFERENT — a ruling under delegated authority (Evan's
+# two copies stayed DIFFERENT — a ruling under delegated authority (the owner's
 # wrap-up item 28), because T-2's signed criteria described the pre-fix
-# behaviour.  That divergence ruling was SUPERSEDED on 2026-08-23 by Evan's
+# behaviour.  That divergence ruling was SUPERSEDED on 2026-08-23 by the owner's
 # own form answer q4 under GA-7 — "Adopt it — update the four criteria" — so
 # the demo now vendors T-3's corrected version, B15/B24/AC-13/AC-17 carry
 # dated amendment notes (plus AC-22, a consequence recorded the same way),
@@ -165,7 +165,7 @@ def test_runtime_sql_is_adopted_and_matches_the_spike() -> None:
 
     Until 2026-08-23 this test asserted the OPPOSITE — the pinned copy and
     the spike's copy deliberately different.  It was correct for the old
-    ruling and wrong for Evan's q4 (GA-7), which superseded it; see the
+    ruling and wrong for the owner's q4 (GA-7), which superseded it; see the
     note above.  Identity is asserted, not just digest-validity, so neither
     side can be edited without the other — the same one-file-one-truth
     property the divergence assertion used to protect, pointed the other
@@ -266,7 +266,7 @@ def test_ac34_tree_half(vendored_relpath: str, tree_relpath: str) -> None:
 # ---------------------------------------------------------------------------
 # AC-35 — no file this ticket vendors is modified in either GIMS checkout
 #
-# RE-SCOPED 2026-08-23 — Evan's own decision (form answer q3, GA-7; the dated
+# RE-SCOPED 2026-08-23 — the owner's own decision (form answer q3, GA-7; the dated
 # note beside AC-35 in .autodev/specs/T-2.md). As signed, AC-35 asserted the
 # ENTIRE `git status --porcelain` of both checkouts empty, which failed on his
 # own uncommitted 2026-08-13 edits (api/app.py, account_roles/logins_db.py,
@@ -405,7 +405,7 @@ def test_ac35_rescoped_check_still_fails_on_a_vendored_modification() -> None:
 
 def test_ac35_rescoped_check_ignores_the_owners_own_work() -> None:
     """The other half of the q3 ruling: the exact status lines that were
-    failing the suite — Evan's own 2026-08-13 edits, in files this ticket
+    failing the suite — the owner's own 2026-08-13 edits, in files this ticket
     never reads — are NOT violations."""
     tree_paths = set(_vendored_tree_paths())
     his_edits = (

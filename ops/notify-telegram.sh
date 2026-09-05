@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# notify-telegram.sh — drain AutoDev's outbox to the Telegram path Evan already has.
+# notify-telegram.sh — drain AutoDev's outbox to the Telegram path the owner already has.
 #
 # WHY THIS FILE EXISTS
 #   AutoDev ships two REAL notification transports (console, file) and two ADAPTER
@@ -14,7 +14,7 @@
 #
 # WHAT IT SENDS THROUGH
 #   `openclaw message send` — the same CLI the GUTS bridge's src/notify.js already
-#   uses to put Claude's questions on Evan's phone. Nothing new is authenticated:
+#   uses to put Claude's questions on the owner's phone. Nothing new is authenticated:
 #   the Telegram bot token lives in openclaw's own store (~/.openclaw, mode 0600)
 #   and is never read, copied or printed by this script.
 #
@@ -76,7 +76,7 @@ TARGET_SRC="\$AUTODEV_NOTIFY_TARGET"
 if [ -z "$TARGET" ]; then
   TVAR="$(jqget .target_var)"; TVAR="${TVAR:-BRIDGE_NOTIFY_TARGET}"
   # Candidates are tried in order; the first readable one wins. This is a LIST rather than a
-  # single path so the same config resolves on Linux and on the Windows machine (Evan runs both).
+  # single path so the same config resolves on Linux and on the Windows machine (the owner runs both).
   CANDS="$(jq -r '.target_file_candidates[]? // empty' "$CONF" 2>/dev/null)"
   [ -n "$CANDS" ] || CANDS="/home/corgea/Desktop/Coding Projects/GUTS/spine/L0-runtime/guts-bridge/.env"
   while IFS= read -r RAW; do

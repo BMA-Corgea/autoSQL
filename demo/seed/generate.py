@@ -200,7 +200,7 @@ def sample_rows() -> Iterator[Row]:
 #            digit (123.0) where the SQL runtime's ASCII-only regex reads
 #            NULL. Walkthrough step 11's shown disagreement now rides m.
 #            T-6 will convert this gap to a named refusal, at which point
-#            this row moves again (Evan was told; he chose adopt).
+#            this row moves again (the owner was told; he chose adopt).
 #   edge-04/edge-05 straddle the CORRECTED guard: just below DBL_MAX is a
 #            number; just above is the raised XPR01, no longer a NULL.
 EDGE_CASES = [

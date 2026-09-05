@@ -265,7 +265,7 @@ would also overwrite the `poison` block whose *superseded* values (`time_to_rais
 `overhead_pct: 2.2`) `f4` §4.11 item 10 deliberately points at as a re-derivation hazard. The three
 blocks are therefore not merely unreproducible — they are **one documented command away from being
 destroyed**, and nothing in the tree warns a future seat of that. *(I did not run it. `proto/` is
-writable to me under Evan's waiver; I made no change there — see §5.)*
+writable to me under the owner's waiver; I made no change there — see §5.)*
 
 ### 2.3 Whether the corpus behind them still exists — it does not
 
@@ -445,7 +445,7 @@ the completeness of its trail**.
 ### 3.5 What I changed, to close the document's own open item
 
 `f3` §3.8 open item 9 (`FINDINGS.md:2037`) prescribes the remedy: *"copy the scratchpad script into
-`proto/` when the tree is writable again"*. Under Evan's written waiver I did the equivalent, and wrote
+`proto/` when the tree is writable again"*. Under the owner's written waiver I did the equivalent, and wrote
 the instrument I built:
 
 **`spikes/T-1/proto/idxshape_jsonpath_130.py`** — new file. Its header states in the first paragraph that
@@ -504,7 +504,7 @@ been correct. It is, however, considerably better than an untested assertion, wh
 
 ## 6. What I changed
 
-Under Evan's written waiver of `FRAMING.md` §3's no-edit rule (2026-08-21, *"Let them edit the existing
+Under the owner's written waiver of `FRAMING.md` §3's no-edit rule (2026-08-21, *"Let them edit the existing
 code in place"*):
 
 | file | change |
@@ -559,7 +559,7 @@ document's account of its own process more than it damages its findings.**
 **Neither:** the verdict rests on the **18 undetectable-in-principle classes**, and nothing in this pass
 touched them. `f4` §4.9 itself says +463% never priced them.
 
-**One thing Evan should weigh before ruling.** The un-auditable parts of this record are concentrated in
+**One thing the owner should weigh before ruling.** The un-auditable parts of this record are concentrated in
 the *audit* layer, not the evidence layer: three lens reads, a fourth final-check read, and eighteen seat
 reports exist only as summaries written by the seat being summarised. Every **measurement** I tried to
 re-derive from a retained artifact came back exact. That is the right way round — but it means "three

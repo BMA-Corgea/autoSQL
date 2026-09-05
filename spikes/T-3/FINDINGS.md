@@ -224,7 +224,7 @@ be **converted to a named refusal** (raise on any regex-rejected string that con
 digits), but it cannot be silently *fixed* to match Python cheaply: Python's `\d` (Unicode
 category Nd) has no direct equivalent in Postgres regexes. Reachability in real data: §D.6 measured
 tolerant string-coercion as *actually reached, repeatedly* in GIMS data; whether **non-ASCII**
-numeric strings occur in Evan's data was not measured by any sweep on the record.
+numeric strings occur in the owner's data was not measured by any sweep on the record.
 
 ### M2 — containers returned whole: jsonb's exact decimal vs Python's float (class 1; every setting)
 
@@ -264,7 +264,7 @@ timestamp `1,787,169,706,037` (FINDINGS.md §D.3):
 | 0 | agrees (13 digits ≤ 15) | agrees |
 | **−3** | **`1787169706040`** — wrong number, off by 3 ms | **`1787169706.04`** — wrong number |
 
-**At efd −3 the subset returns a wrong number on data shaped exactly like Evan's own.** No exotic
+**At efd −3 the subset returns a wrong number on data shaped exactly like the owner's own.** No exotic
 magnitudes required.
 
 And the same mechanism interacts with the (now correct) guard mid-expression: at efd 0,
@@ -354,7 +354,7 @@ be **converted to a named refusal** (raise on any regex-rejected string that con
 digits), but it cannot be silently *fixed* to match Python cheaply: Python's `\d` (Unicode
 category Nd) has no direct equivalent in Postgres regexes. Reachability in real data: §D.6 measured
 tolerant string-coercion as *actually reached, repeatedly* in GIMS data; whether **non-ASCII**
-numeric strings occur in Evan's data was not measured by any sweep on the record.
+numeric strings occur in the owner's data was not measured by any sweep on the record.
 
 ### M2 — containers returned whole: jsonb's exact decimal vs Python's float (class 1; every setting)
 
@@ -394,7 +394,7 @@ timestamp `1,787,169,706,037` (FINDINGS.md §D.3):
 | 0 | agrees (13 digits ≤ 15) | agrees |
 | **−3** | **`1787169706040`** — wrong number, off by 3 ms | **`1787169706.04`** — wrong number |
 
-**At efd −3 the subset returns a wrong number on data shaped exactly like Evan's own.** No exotic
+**At efd −3 the subset returns a wrong number on data shaped exactly like the owner's own.** No exotic
 magnitudes required.
 
 And the same mechanism interacts with the (now correct) guard mid-expression: at efd 0,
@@ -478,7 +478,7 @@ once (raw huge-int `$.a > 1`: Python raised, the guard refused) and is reported 
 wrong answer.
 
 **No refusal-rate threshold is applied** — deliberately, per framing §4.7. The rate is produced;
-the line across it is Evan's to draw.
+the line across it is the owner's to draw.
 
 **Ruling R6 (NULLNESS) discharged:** zero `NULLNESS` cases arose in every counted battery at every
 setting. The representations were still tested rather than assumed (`out/nullness_probe.txt`):
@@ -541,7 +541,7 @@ failures live, and the witnesses are printed in the outputs.
   are real; the *rates* on raw data are unmeasured.
 - The A2 truncation boundaries (≈ 4.16e9 / ≈ 3.22e9) are bisect-path witnesses, not proofs of the
   exact frontier — the first wrong value depends on digit pattern, not only magnitude.
-- Whether non-ASCII numeric strings (M1) occur in Evan's actual data was not measured (no sweep on
+- Whether non-ASCII numeric strings (M1) occur in the owner's actual data was not measured (no sweep on
   the record covers string *content*; §D.6 measured coercion reachability, not scripts).
 - The fixture's 130/130 says nothing beyond the fixture (Q2 stands).
 
@@ -569,7 +569,7 @@ What the failure is made of matters more than the count:
    1e300 guard defect; both survive step zero.**
 2. **At efd 0 and −3** the value channel itself lies (M3), starting at magnitudes as small as a
    few billion — and at −3 it corrupts an epoch-millisecond timestamp, the exact shape of the
-   largest value in Evan's real data. Q10's three-settings requirement earned its keep: a
+   largest value in the owner's real data. Q10's three-settings requirement earned its keep: a
    one-setting run at efd 1 would have called this "close to green".
 3. **On raw-written rows** (M4) the Python evaluator itself stops being total (ninth raise site,
    class 4) and exact storage splits from float semantics. autoSQL is aimed at high-volume data

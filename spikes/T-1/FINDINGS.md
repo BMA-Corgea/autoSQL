@@ -1,7 +1,7 @@
 # T-1 · FINDINGS — compiling the GIMS dashboard expression AST to Postgres SQL
 
 **Stage:** `sp-investigate` (spike@v2) · **ticket:** T-1 · **branch:** `spike/T-1-expr-sql`
-**Decision authority:** `recommend-and-wait` — this document *recommends*; `human:evan` decides at
+**Decision authority:** `recommend-and-wait` — this document *recommends*; `human:owner` decides at
 the `sp_decide` gate.
 **Bar:** set in advance by [`FRAMING.md`](FRAMING.md) §4/§5, before any evidence was collected, so
 the result could not be rationalised afterwards.
@@ -1291,7 +1291,7 @@ wrong response for "this valid expression cannot be pushed down", where the corr
 > detectable and reported at query time, never silent" — the first clause is **vacuously satisfied** (no construct fails), the
 > second is **not met today**, and the third is **not achievable for R2–R5/R7 by detection alone**; those must be fixed at the
 > source or accepted as known divergences under pinned deployment conditions. This seat supplies the evidence; the verdict is
-> Evan's.
+> The owner's.
 
 **What closing the gap would take — named, not built** (stop rules apply; nothing was implemented, `compile.py` and
 `runtime.sql` untouched): add **`pushed_down: bool` and `fallback: [{"scope","reason"}]` to `resolve()`'s returned dict** —
@@ -2136,7 +2136,7 @@ rule 2 on a shape whose agreement has been *measured*, and rules 1 and 2 must be
 alongside the fallback report rule 4 emits. On the evidence here, rule 1's measured-agreeing shape
 set is **one distinct expression shape** — which is an argument for shipping rule 3 and rule 4 first,
 and treating rules 1 and 2 as optimisations that must earn their way in case by case. **OPINION**,
-labelled as such: that reading of the numbers is a recommendation, and §5's verdict is Evan's at the
+labelled as such: that reading of the numbers is a recommendation, and §5's verdict is the owner's at the
 `sp_decide` gate.
 
 ---
@@ -4427,7 +4427,7 @@ reasoning **and the cost of the fallback machinery**.
 > measured FRAMING §5 breaches; and the performance the ticket asked for is negative at every size measured, with its fix
 > blocked behind four compiler changes.
 
-**This is a recommendation, not a decision.** `decision_authority` is `recommend-and-wait`; `human:evan` rules at the
+**This is a recommendation, not a decision.** `decision_authority` is `recommend-and-wait`; `human:owner` rules at the
 `sp_decide` gate. §5.7 sets out what a CONDITIONAL-GO would have to contain if he rules the other way; §5.11 names the two
 experiments that would convert this verdict on evidence rather than argument.
 
@@ -4481,7 +4481,7 @@ the fixture-adequacy question, not on [1]'s value-vs-construct point, which clos
 rules **required** its defects to be left unfixed, so the breaches price a rebuild rather than refuse one. **Reading B**
 (seat [1]): §5 is written about "any compiler output… regardless of its performance", and FRAMING §8 predicted exactly
 this — an instrument that "would reproduce, inside the spike itself, exactly the failure mode the spike exists to rule
-out." The readings differ on one decidable sub-question, and it is the one to hand Evan: **is the 130-case fixture an
+out." The readings differ on one decidable sub-question, and it is the one to hand the owner: **is the 130-case fixture an
 adequate acceptance test for a third runtime of this language?** The evidence answers **no**: 130/130 was achieved *while
 both* §5 directions were breached (`f1` §1.9.3); **6 of 7** `KNOWN_DIVERGENCES` entries are `in_fixture: false`
 (`compile.py:71-146`); the fixture holds **zero** `sort`/`filters`/`limit` cases (`xb` B.10) — two of the four clauses in
@@ -4738,7 +4738,7 @@ value-vs-construct argument** (§5.1), which `xc` C.1 scopes to DETECT. **Firmer
 range floor rises from 2.55× to **3.79×** once the un-audited `recheck` block is demoted to what it is (§5.3a) — and
 **§5.2's fixture-adequacy argument**, which gains the residual that `conformance.py`'s outcome-assignment branches were
 never exercised (§5.6, §5.9). Reasons 1, 2 and 5 are untouched. **On the balance of that: I still recommend NO-GO, and
-`human:evan` still decides at `sp_decide`** — but a reader who wanted to rule the other way should attack reason 3 and
+`human:owner` still decides at `sp_decide`** — but a reader who wanted to rule the other way should attack reason 3 and
 leg (b) first, because those are the two the evidence now supports least.
 
 ### 5.6 The strongest argument against my recommendation
@@ -4785,7 +4785,7 @@ however badly worded); the compiler's is unbounded and unsignalled, 18 of 33 cla
 signalled bounded error with an unsignalled unbounded one is the trade §5 forbids, and the cheapest fix for it is not this
 project.
 
-### 5.7 If Evan rules CONDITIONAL-GO — the subset, and what "provably" would cost
+### 5.7 If the owner rules CONDITIONAL-GO — the subset, and what "provably" would cost
 
 I do not recommend one, so this names the subset he would have to adopt instead, corrected by closure. **Start from
 `panel.json[0]`'s subset** — all 10 leaf/structural node types, all 5 arithmetic operators, all 6 comparisons, all 5
@@ -4831,7 +4831,7 @@ the gate (`f2` §2.9, no `DataSource` corpus); **(ii)** the residual divergence 
 §A2's 16 diverging paths as in-subset, including one silently-wrong number **[punch]**. What remains unmeasured
 is the *rate*, which is §5.5 reason 1 and is untouched by a coverage count — E1 is what would measure it;
 **(iii)** the one widget measured end to end is a **date** widget, outside the subset at 84/130 and still outside at
-68/130, so no existing measurement is subset-legal either way. **If Evan rules CONDITIONAL-GO, the honest headline is
+68/130, so no existing measurement is subset-legal either way. **If the owner rules CONDITIONAL-GO, the honest headline is
 that the named subset compiles 52.3% of the contract fixture with an unmeasured residual — not 64.6%.**
 
 **"Provably" is not satisfied today, and the reason must be stated plainly:** the subset was derived by attribution.
@@ -5260,7 +5260,7 @@ those in-place statements, not a substitute for reading them.
 
 `f5`'s own summary of where this leaves a reader who wants to rule the other way, stated in §5.5 so the
 gate does not have to find it: **attack reason 3 and leg (b) first, because those are the two the evidence
-now supports least.** `human:evan` decides at the `sp_decide` gate.
+now supports least.** `human:owner` decides at the `sp_decide` gate.
 
 ### Assembly
 
@@ -5449,7 +5449,7 @@ None is decision-blocking and none touches a measurement.
 
 ### Amendment round — three corrections a dead closure seat never applied
 
-**Date: 2026-08-21. Authority: Evan, 2026-08-21 — the ruling recorded as go-ahead `GA-3`** in this ticket's
+**Date: 2026-08-21. Authority: the owner, 2026-08-21 — the ruling recorded as go-ahead `GA-3`** in this ticket's
 event log (`.autodev/events.jsonl`), whose item 2 reads *"Fix them — re-fingerprint the document."* Nothing
 in this round is discretionary: it applies **three named corrections and nothing else**.
 

@@ -56,7 +56,7 @@
 #
 # HARD FENCE — never remove this comment or the check below.
 #   This demo owns ports 55440 (its own Postgres) and 8787 (the app) and
-#   NOTHING else. Evan's LIVE database is on another port entirely (spec
+#   NOTHING else. The owner's LIVE database is on another port entirely (spec
 #   §11.2 names it; that name and port are exactly what AC-3's grep forbids
 #   anywhere in this tree, so neither is repeated here) — this script must
 #   never dial it, under any verb, ever.

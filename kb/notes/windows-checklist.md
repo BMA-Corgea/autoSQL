@@ -9,7 +9,7 @@ Two jobs:
 1. **Make the background monitor start itself when you log in.** Right now on Windows it
    has to be hand-started every session, and it dies when you log out. Mac and Linux get
    this automatically from the plugin; Windows has no built-in path, so there's a script.
-2. **Make that machine file its reports as "evan" instead of "evanb".** It picked up your
+2. **Make that machine file its reports as "the owner" instead of "owner".** It picked up your
    Windows account name on its first run. The Linux box was already corrected.
 
 They're independent. Doing one without the other is fine.
@@ -57,7 +57,7 @@ Near the top (lines 36-38) you'll find:
 
 ```powershell
 $RepoParents = @(
-    'C:\Users\evanb\FILL-THIS-IN'
+    'C:\Users\<you>\FILL-THIS-IN'
 )
 ```
 
@@ -71,13 +71,13 @@ backslash.** On the Linux box that same line reads:
 so yours ends up looking like:
 
 ```powershell
-    'C:\Users\evanb\Desktop\Coding Projects'
+    'C:\Users\<you>\Desktop\Coding Projects'
 ```
 
 Save and close. That is the only edit. Everything below the marked block is done.
 
 Two things not to do: don't point it at the autoSQL folder itself (it looks *inside* the
-folder you give it), and don't point it at `C:\Users\evanb` (it would sweep your whole
+folder you give it), and don't point it at `C:\Users\<you>` (it would sweep your whole
 profile every 60 seconds).
 
 **Verify:**
@@ -104,7 +104,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\autodev-watch-windows.
 **Verify:** near the end it prints a line like
 
 ```
-Heartbeat: 4s ago — 1 repo(s) watched, roots C:\Users\evanb\Desktop\Coding Projects
+Heartbeat: 4s ago — 1 repo(s) watched, roots C:\Users\<you>\Desktop\Coding Projects
 ```
 
 The number of repos must not be `0`. `0 repo(s)` means the folder from step 2 is wrong —
@@ -137,9 +137,9 @@ If the heartbeat is stale or missing:
 
 ---
 
-## Job 2 — report as "evan"
+## Job 2 — report as "the owner"
 
-The file is `C:\Users\evanb\autodev-reports\install.json`. Replacing it is the whole job.
+The file is `C:\Users\<you>\autodev-reports\install.json`. Replacing it is the whole job.
 
 ### Step 5. Overwrite the identity file
 
@@ -149,11 +149,11 @@ Paste this whole block into PowerShell in one go:
 $json = @'
 {
   "id": "evan-evanscience-art-1a442f",
-  "operator": "evan",
+  "operator": "the owner",
   "host": "evanscience-art",
   "created": "2026-08-18T20:34:17.985Z",
-  "_changed": "2026-08-21 - identity unified under one evan identity, matching the Linux box (evan-corgea-ms-7c79-6a45ef). Was evanb-evanscience-art-dfd5f3: install-id.mjs fell back to the Windows account name (evanb) on first run because the caller passed no repo root, so shop.json's operator (human:evan) was never read. The id and its 6-char hash are exactly what installId() would now generate for who=evan on this machine (sha256('evan|evanscience-art|evanb')[0:6] = 1a442f), so deleting this cache regenerates the same id rather than a third one.",
-  "_previous_id": "evanb-evanscience-art-dfd5f3",
+  "_changed": "2026-08-21 - identity unified under one the owner identity, matching the Linux box (evan-corgea-ms-7c79-6a45ef). Was <telemetry-id>: install-id.mjs fell back to the Windows account name (owner) on first run because the caller passed no repo root, so shop.json's operator (human:owner) was never read. The id and its 6-char hash are exactly what installId() would now generate for who=the owner on this machine (sha256('the owner|evanscience-art|owner')[0:6] = 1a442f), so deleting this cache regenerates the same id rather than a third one.",
+  "_previous_id": "<telemetry-id>",
   "_created_note": "The 'created' value above is the Windows setup timestamp recorded in .autodev/onboarding.json, not the original value of this field - the original file could not be read from the Linux box where this replacement was written. Nothing reads this field."
 }
 '@
@@ -167,10 +167,10 @@ That line writes it plain.
 **Verify:**
 
 ```powershell
-Get-Content C:\Users\evanb\autodev-reports\install.json | ConvertFrom-Json | Select-Object id, operator
+Get-Content C:\Users\<you>\autodev-reports\install.json | ConvertFrom-Json | Select-Object id, operator
 ```
 
-Should print `evan-evanscience-art-1a442f` and `evan`. If `ConvertFrom-Json` complains, the
+Should print `evan-evanscience-art-1a442f` and `the owner`. If `ConvertFrom-Json` complains, the
 paste got mangled — redo it.
 
 Stronger check — ask the tool who it now thinks it is:
@@ -189,7 +189,7 @@ folder doesn't exist, the plugin has updated since — use the highest-numbered 
 No restart needed — the file is re-read on every upload. Within about 15 minutes:
 
 ```powershell
-Get-Content C:\Users\evanb\autodev-reports\telemetry-status.json
+Get-Content C:\Users\<you>\autodev-reports\telemetry-status.json
 ```
 
 **Verify:** `"install": "evan-evanscience-art-1a442f"` and a recent `lastSuccess`.
@@ -201,12 +201,12 @@ name, the machine name, and a 6-character fingerprint of both plus your Windows 
 name. Hand-writing one risks an id the tool would never produce on its own, so that if the
 file were ever deleted you'd get a *third* identity.
 
-`1a442f` is the real computed value for operator `evan` on that machine. I checked the
+`1a442f` is the real computed value for operator `the owner` on that machine. I checked the
 recipe by running it backwards: the same formula reproduces your current `dfd5f3` exactly.
 So this file is what the tool would have written itself, and deleting it regenerates the
 same id.
 
-**The limit:** reports already filed under `evanb-evanscience-art-dfd5f3` stay filed under
+**The limit:** reports already filed under `<telemetry-id>` stay filed under
 that name. This changes new reports only — the history splits at this point. The Linux box
 has the identical split at its own changeover.
 

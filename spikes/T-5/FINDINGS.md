@@ -2,11 +2,11 @@
 
 Stage: `sp-investigate` (spike@v2) · lean: OFF · Run: **2026-09-01** ·
 Bar: **`spikes/T-5/FRAMING.md`**, fixed before any evidence, plus its 2026-09-01 amendment
-recording Evan's two rulings.
+recording the owner's two rulings.
 
 **Read-only, and here is the guarantee.** Every SQLite database was opened
 `file:<path>?mode=ro&immutable=1` — the form T-1 §D.1 used. **No Postgres connection was opened at
-all**, by anything, at any point; `glp_strong` was never contacted, per Evan's ruling (FRAMING
+all**, by anything, at any point; `glp_strong` was never contacted, per the owner's ruling (FRAMING
 amendment A1). No compiler was run, no `xpr` schema installed, no expression compiled. Nothing was
 written anywhere outside `spikes/T-5/`.
 
@@ -77,7 +77,7 @@ extrapolates — it is what happens when the number is quoted without its base.
 
 This is the finding, and it is not a row count.
 
-Evan's ruling A2: *"In the GIMS there's a method of adding rows and data for a run or noun via CSV.
+The owner's ruling A2: *"In the GIMS there's a method of adding rows and data for a run or noun via CSV.
 That gets digested by a python process."* Following that path through the code:
 
 **The chain, link by link, every link read in the source:**
@@ -177,15 +177,15 @@ amendment anticipated exactly this and instructed that it be said plainly, so:
 - **A third treatment site exists that neither T-3 nor this framing named:** the gap can be closed
   **at the door** (`is_number`, one function, one flag) rather than **at every query** (a refusal
   in the compiled runtime). The two are not exclusive. **Weighing them is `sp-synth`'s job, and the
-  ruling is Evan's** — noted here only because a finding that names a treatment site nobody had on
+  ruling is the owner's** — noted here only because a finding that names a treatment site nobody had on
   the table should not be left in a probe file. Note it is **GIMS's** code, not autoSQL's, which is
-  a real cost given Evan's ruling that autoSQL stands as its own project.
+  a real cost given the owner's ruling that autoSQL stands as its own project.
 
 ## 7. Q2 — the writer inventory
 
 **Answered, and it splits.**
 
-- **Storage writer: Python, confirmed.** Evan: *"That gets digested by a python process."* Corroborated
+- **Storage writer: Python, confirmed.** the owner: *"That gets digested by a python process."* Corroborated
   in code — the bulk path writes through `store.put_record` (`routes_bulk.py:141/144/163`), and T-1
   §D.5 found **0 of 5,236,427** stored numeric literals that a `json.dumps()` of a Python object
   could not have emitted. **T-3's M4 class — raw-JSON rows a Python float cannot represent — stays
@@ -201,7 +201,7 @@ exact Python/non-Python parity disagreement as a bug the team fixed once — so 
 
 ## 8. Limits — what this run does NOT establish
 
-1. **`glp_strong` was not examined.** By Evan's ruling (A1), on relevance grounds. Stated here in
+1. **`glp_strong` was not examined.** By the owner's ruling (A1), on relevance grounds. Stated here in
    the findings, not buried, per FRAMING §10.
 2. **`guts-pg`** (exited container, port 55432), **158 backup snapshots**, the **un-checkpointed
    WAL**, and `archive.db`'s column-per-field `noun_Sample` table were **not swept**. A1 removed most

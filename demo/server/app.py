@@ -370,7 +370,7 @@ def _page_start(first: int | None) -> int:
 
 
 def column_order(width: int, per_row: dict) -> dict:
-    """q8 (Evan, GA-8): *"move the differing column beside the marker"*.
+    """q8 (the owner, GA-8): *"move the differing column beside the marker"*.
 
     The grid is [SQL pane | coral spine | Python pane], so "beside the marker"
     is MIRRORED about the spine: on the left pane the differing columns move to

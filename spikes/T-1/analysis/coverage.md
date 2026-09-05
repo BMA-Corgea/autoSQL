@@ -564,7 +564,7 @@ to compute it in memory and *say so*, not to reject the widget.
 > source or accepted as known divergences with pinned deployment conditions.
 >
 > This is a **CONDITIONAL-GO shape**, which `FRAMING.md` §4 names as a legitimate verdict.
-> The decision is Evan's; this seat supplies the evidence, not the verdict.
+> The decision is the owner's; this seat supplies the evidence, not the verdict.
 
 ### 7.4 What closing the gap would take (named, not built — stop rules apply)
 

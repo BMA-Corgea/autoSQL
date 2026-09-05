@@ -77,7 +77,7 @@ one investigation pass, the five findings below, and no more. Specifically:
 
 ## 4. What a decision needs (the `sp_decide` criteria)
 
-`decision_authority` is `recommend-and-wait` — this spike **recommends**, Evan decides at
+`decision_authority` is `recommend-and-wait` — this spike **recommends**, the owner decides at
 the `sp_decide` gate. For that gate to be answerable, the findings must supply:
 
 | # | Finding | What makes it decision-grade |

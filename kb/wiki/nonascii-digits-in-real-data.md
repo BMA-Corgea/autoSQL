@@ -1,11 +1,11 @@
 # Do non-ASCII digit strings actually occur in the real data? — options and a recommendation
 
-**Status:** synthesis, awaiting Evan's ruling at `sp-decide` · **Ticket:** T-5 (the homework T-3's
+**Status:** synthesis, awaiting the owner's ruling at `sp-decide` · **Ticket:** T-5 (the homework T-3's
 ruling ordered first) · **Written:** 2026-09-01 · **Evidence:** `spikes/T-5/FINDINGS.md`,
-`spikes/T-5/FRAMING.md` (bar fixed before evidence, plus Evan's two rulings), three re-runnable
+`spikes/T-5/FRAMING.md` (bar fixed before evidence, plus the owner's two rulings), three re-runnable
 read-only probes in `spikes/T-5/probes/`
 
-**This is a recommendation, not a decision. The decision is Evan's.**
+**This is a recommendation, not a decision. The decision is the owner's.**
 
 > **The one-line version:** In the data you have — **none, zero, and the zero is trustworthy.**
 > But the zero is over **144 strings, not the 1.1 million the earlier figure implied**, and GIMS's

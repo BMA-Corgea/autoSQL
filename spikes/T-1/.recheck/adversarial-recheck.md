@@ -134,7 +134,7 @@ milliseconds falls **8 410.77 → 1 527.22, a 5.5× reduction**. The structured 
 Unchanged from the trail's, with one correction. The NO-GO stands. The trail's re-derivations are sound —
 I reproduced the two it offered as independent work (the C3 re-bisect and the 130-case jsonpath run) to the
 digit, and every retained-artifact measurement I touched came back exact. Its account of the **process
-gaps** is where it overreaches: the +463% exposure is real and worth Evan's attention, but the document
+gaps** is where it overreaches: the +463% exposure is real and worth the owner's attention, but the document
 **does** disclose the +2.2% fallback and does label the composite a construction, so this is a *sharpening*
 of a disclosed weakness, not an undisclosed one. And the trail's own coverage statistic understates how
 much of the audit trail survives.
