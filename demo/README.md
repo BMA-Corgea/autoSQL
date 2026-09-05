@@ -82,17 +82,19 @@ order, with the specific number each one is supposed to produce, and a short
 glossary of the handful of technical terms it can't avoid using along the
 way.
 
-One step in it (step 11) is worth calling out here too, because it looks
-like a bug and isn't one: the two answers are supposed to come out
-different. One collection carries a piece of text whose digits are the
+One step in it (step 11) is worth calling out here too, because of what it
+used to do. One collection carries a piece of text whose digits are the
 wide, full-width kind rather than the ordinary `0`–`9`. Python's
 number-reading recognises digits from any writing system and reads it as
-`123`; the SQL side's rule only recognises the ordinary characters, so to
-it the text is not a number at all and drops out of the calculation. Two
-plausible answers, silently different — a real, measured gap between the
-two engines, not something staged. When that happens, the screen says so
-out loud — a marked, visible disagreement, never two quiet numbers sitting
-side by side as if they matched.
+`123`; the SQL side's rule knew only the ordinary characters, so the text
+was not a number to it at all and dropped out of the calculation — two
+plausible answers, silently different, and a genuine bug. Both panes now
+report `123`, because the runtime learned to translate digits from any
+writing system before giving up, and that agreement is the point of the
+step now. The reporting behind it has not changed: whenever the two sides
+differ on any step, the screen says so out loud — a marked, visible
+disagreement, never two quiet numbers sitting side by side as if they
+matched.
 
 ## What this is not
 
