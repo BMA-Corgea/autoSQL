@@ -2,7 +2,7 @@
 
 ---
 
-> # START HERE — 2026-09-05 (T-13 shipped; the suite is NOT green, and that is new)
+> # START HERE — 2026-09-05 (T-13 and T-16 shipped; the suite is green again)
 >
 > **T-13 shipped** — `demo/README.md`'s step-11 paragraph no longer claims the two engines
 > disagree. Merged `35ac969`, pushed to the public remote. It was run under the owner's decision
@@ -12,22 +12,22 @@
 > while the bug was open, so the ticket went back to `refine` and the spec gate was re-cleared
 > rather than amended behind it.
 >
-> **Read this before trusting any "all green" line below.** The demo suite is **1154 passed /
-> 1 failed**, and has been since `adf23bf` (T-14) on 2026-09-05 — *before* T-13 ran. T-14
-> reworded a comment in `demo/frontend/panes.jsx` and `sqlpane.jsx` and never re-ran
-> `./run-demo build-ui`, so `demo/manifest.json`'s source digest is stale and the bundle-staleness
-> guard fires. Proven by recomputing the guard's own digest over committed blobs: `main` FAILs,
-> `adf23bf^` PASSes. No privacy leak and no behavioural drift — both edits were comments, which
-> esbuild strips. Ticket **T-16**. **`README.md:136` still tells the public the suite is 1155 and
-> all green; that is currently false and was deliberately left for T-16 rather than fixed here.**
+> **T-16 shipped too — the suite is 1155 green again.** It had been 1154/1 since `adf23bf`
+> (T-14) earlier the same day, *before* T-13 ran: T-14 reworded a comment in
+> `demo/frontend/panes.jsx` and `sqlpane.jsx` and never re-ran `./run-demo build-ui`, so
+> `demo/manifest.json`'s source digest described sources that no longer existed. Fixed by
+> regenerating it. **Both bundles came back byte-identical** (`app.js` `2ad58b53…`,
+> `vendor.js` `bdaa68a3…`) — esbuild strips comments, so a comment-only edit cannot move the
+> output — which is the check that confirmed nothing beyond the digest was in play. No privacy
+> leak: the name never reached the bundle. `README.md:136`'s "1155 … all green" is accurate
+> again and needed no edit.
 >
-> **Three tickets were filed, not fixed** — the owner's Q1 chose a bounded grant (T-13 only) over
-> the wider one, so unrelated findings are parked for them:
+> **Two tickets remain filed-but-unfixed** — the owner's Q1 chose a bounded grant (T-13 only)
+> over the wider one, so these were parked rather than folded in:
 >
 > | | what | why it matters |
 > |---|---|---|
-> | **T-15** | `demo/EVIDENCE.md` documents step 11 as the *old* `1e300` case — five values, all contradicting the shipped data, including "a run where the panes agree here is a FAILING run" | worse than the bug T-13 fixed: two generations stale, in the file that exists to be the evidence of record |
-> | **T-16** | `main` is red (above) | the board and the public README both overstate the suite by one |
+> | **T-15** | `demo/EVIDENCE.md` documents step 11 as the *old* `1e300` case — five values, all contradicting the shipped data, including "a run where the panes agree here is a FAILING run" | worse than the bug T-13 fixed: two generations stale, in the file that exists to be the evidence of record. **No test covers it, so nothing will catch it.** |
 > | **T-17** | nothing tests the demo's three *prose* files against `expected-answers.json` | root cause of T-13 **and** T-15 — `WALKTHROUGH.md` stayed correct precisely because a test reads it |
 >
 > **T-4 is still blocked and still the last thing before GIMS.** The owner ruled on it in the same
@@ -84,8 +84,7 @@
 > (`871b1b4c2df95719`), `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Tests assert all three.
 >
 > **Suites:** demo **1155** · runtime **58** · compiler **34** — all green, B10 checksum guard verified.
-> *(True on 2026-09-01. **No longer true** — see the 2026-09-05 block above: the demo suite is
-> 1154 passed / 1 failed since `adf23bf`. Ticket **T-16**.)*
+> *(Went red 2026-09-05 at `adf23bf` and was green again the same day — T-16. Still accurate.)*
 >
 > ## Three things a resuming session must not miss
 >
@@ -221,8 +220,8 @@ always showing its derivation, always overturnable by one line from him.
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
 - **T-15** (bug) — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene… — intake
-- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — intake
 - **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — intake
+- **T-16** (bug) — main is red: T-14 edited two .jsx sources without re-running build-ui, so the b… — build
 
 ## Waiting on
 
@@ -264,6 +263,7 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
+- **T-16** — waiting at spec_ready on human:owner since 2026-09-05
 
 ## Recent past (~15 items / ~30 days)
 
