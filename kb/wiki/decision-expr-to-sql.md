@@ -4,7 +4,7 @@
 2026-08-21 by **rulings on delegated authority** (§3's number, §6's ambiguity) — his delegation, not his
 decisions; either is overturnable in one line
 **Ticket:** T-1, gate `sp_decide` cleared 2026-08-21, logged as go-ahead **GA-3** in `.autodev/events.jsonl`
-**Decisions:** `ANSWERS-FROM-EVAN.md` (Q1; item 1 of the follow-up round) · **Evidence:**
+**Decisions:** `.autodev/notes/ANSWERS-FROM-EVAN.md` (Q1; item 1 of the follow-up round) · **Evidence:**
 `spikes/T-1/RECHECK-2026-08-21.md`, distilled in [`expr-ast-to-postgres-sql.md`](expr-ast-to-postgres-sql.md)
 
 The research recommends; this records what was decided.
@@ -237,7 +237,7 @@ T-2. Either costs one line and re-runs nothing.
 
 | For | Read |
 | --- | --- |
-| Every decision quoted here, verbatim | `ANSWERS-FROM-EVAN.md` |
+| Every decision quoted here, verbatim | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
 | The ruling as logged, in his words | `.autodev/events.jsonl` — go-ahead `GA-3`, 2026-08-21 |
 | The evidence, and what the re-check moved | `spikes/T-1/RECHECK-2026-08-21.md` (§4 what changed, §5 what is still open) |
 | The research distilled, and the full working | [`expr-ast-to-postgres-sql.md`](expr-ast-to-postgres-sql.md) → `spikes/T-1/FINDINGS.md` |

@@ -178,6 +178,8 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
+- **T-12** (feature) — README and AGPL-3.0 license for autoSQL — uat
+- **T-13** (bug) — demo/README.md still describes walkthrough step 11 as a live SQL/Python disagre… — intake
 
 ## Waiting on
 
@@ -281,5 +283,14 @@ session that parks a ticket at a human gate must write the packet to `.autodev/o
 | The event-by-event record | `events.jsonl` (append-only, forever) |
 | Durable lessons and decisions | `kb/wiki/` |
 | What the code looks like now | `kb/CODE-MAP.md` |
-| Every question Evan answered, and what each answer caused | `ANSWERS-FROM-EVAN.md` (its "Still outstanding" list is stale: one of the three is done, the other two were ruled on his behalf and are wrap-up items 2 and 8) |
-| The open items put to him at the wrap-up | `WRAPUP-FOR-EVAN.md` |
+| Every question Evan answered, and what each answer caused | `.autodev/notes/ANSWERS-FROM-EVAN.md` (its "Still outstanding" list is stale: one of the three is done, the other two were ruled on his behalf and are wrap-up items 2 and 8) |
+| The open items put to him at the wrap-up | `.autodev/notes/WRAPUP-FOR-EVAN.md` |
+
+## T-12 / T-13 — README + AGPL-3.0, and one stale doc (2026-09-04/05)
+
+- **T-12** (feature, lean) — Evan: "Give autosql a readme and an agpl license." Built on branch
+  `t-12-readme-license` (worktree `../autoSQL-T-12`, commit `f25f401`): `README.md` in his voice with
+  every number cited to its KB page, `LICENSE` = AGPL-3.0 verbatim from the GitHub licenses API.
+  In review. Evan reads it at accept; the visibility flip stays his explicit go.
+- **T-13** (bug, lean) — `demo/README.md` still calls step 11 a live disagreement (T-8 fixed it).
+  Filed from T-12's finding; waiting on Evan's go. Recommended before the repo goes public.

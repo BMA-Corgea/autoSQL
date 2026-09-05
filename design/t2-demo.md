@@ -38,7 +38,7 @@ rewrite. This is the record of what *this screen* does with it.
 
 ## 1. The style: Watery, and why
 
-**Q23**, verbatim from `ANSWERS-FROM-EVAN.md`:
+**Q23**, verbatim from `.autodev/notes/ANSWERS-FROM-EVAN.md`:
 
 > **"Its own app, but built GIMS's way"**
 
@@ -288,7 +288,7 @@ between that number and a person's trust is Q24 — *"Both answers side by side 
 only thing that makes side-by-side *work* is that the difference between the two sides announces
 itself rather than waiting to be noticed. So the visible-disagreement signal is not decoration on a
 correctness control; **it is the correctness control, wearing a visual form.** Q19 is safe because of
-it and unsafe without it (§5, and Q19's own note in `ANSWERS-FROM-EVAN.md`: *"Safe only because of
+it and unsafe without it (§5, and Q19's own note in `.autodev/notes/ANSWERS-FROM-EVAN.md`: *"Safe only because of
 Q24… Q24 is therefore not droppable"*). Trading it down for layout reasons — a smaller badge, a
 subtler colour, a marker below the fold, a banner that scrolls away — converts the demo into a
 machine that displays confident wrong numbers, which is the exact failure this whole project exists
@@ -469,7 +469,7 @@ Five things a mock cannot settle. None blocks the build; each is one line from h
 
 | Claim | Where |
 |---|---|
-| Q23, Q24, Q25, Q27, Q21, Q19, Q43 verbatim | `ANSWERS-FROM-EVAN.md` |
+| Q23, Q24, Q25, Q27, Q21, Q19, Q43 verbatim | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
 | GA-4 and GA-5, verbatim, with timestamps | `.autodev/events.jsonl` (read only) |
 | The Watery style guide, mood, palette, roles, motion, component list | `../GUTS/spine/L1-memory/gims-ledger/design/watery.md` |
 | Every token value and base component cited above | `../GUTS/spine/L1-memory/gims-ledger/static/styles/watery.css` (242 lines) |

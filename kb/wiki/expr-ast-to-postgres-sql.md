@@ -116,7 +116,7 @@ read, not on an argument.
 
 ## 2a. What the 2026-08-21 re-check changed
 
-Evan made his ruling conditional on two checks running first (`ANSWERS-FROM-EVAN.md` Q4 and Q5).
+Evan made his ruling conditional on two checks running first (`.autodev/notes/ANSWERS-FROM-EVAN.md` Q4 and Q5).
 Both were done, and he then signed (§6). The working — including what each check's own adversarial
 re-check found — is in `spikes/T-1/RECHECK-2026-08-21.md`; this is the short version.
 
@@ -267,7 +267,7 @@ production-safe" gates the integration rather than the demo. Full derivation, an
 overturns it, in [`decision-expr-to-sql.md`](decision-expr-to-sql.md) §6.
 
 His other answers rule on **scope**. Five change the shape of whatever gets built. All 46 questions
-and all 12 follow-ups are answered and written down in `ANSWERS-FROM-EVAN.md`.
+and all 12 follow-ups are answered and written down in `.autodev/notes/ANSWERS-FROM-EVAN.md`.
 
 - **Index use is permanently off (Q11).** He rejected writing tenant-supplied field names straight
   into SQL text, and index work goes with it. Without an index Postgres has no way to jump to the
@@ -341,7 +341,7 @@ acceptance battery, and E2, the like-for-like speed run, correctness run first (
 | --- | --- |
 | The full working — 5 findings, 4 cross-cutting sections, closure log | `spikes/T-1/FINDINGS.md` |
 | §2a's working — both verifications, both adversarial re-checks, what is still open | `spikes/T-1/RECHECK-2026-08-21.md` |
-| Every answer Evan has given — all 46 from the first round and all 12 follow-ups, verbatim, each with what it caused, plus the three items still outstanding | `ANSWERS-FROM-EVAN.md` |
+| Every answer Evan has given — all 46 from the first round and all 12 follow-ups, verbatim, each with what it caused, plus the three items still outstanding | `.autodev/notes/ANSWERS-FROM-EVAN.md` |
 | The ruling as an event, with his words verbatim | `.autodev/events.jsonl` (GA-3) |
 | The bar, set before any evidence | `spikes/T-1/FRAMING.md` §4/§5 |
 | The 130-case run, per case | `spikes/T-1/proto/results.json` |

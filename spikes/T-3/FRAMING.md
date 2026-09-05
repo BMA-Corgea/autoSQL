@@ -491,7 +491,7 @@ Never as passed, and never silently absent from the table.
 
 ## 6. The binding constraints from Evan
 
-These come from `ANSWERS-FROM-EVAN.md`. None is negotiable inside the run. Each is quoted, then
+These come from `.autodev/notes/ANSWERS-FROM-EVAN.md`. None is negotiable inside the run. Each is quoted, then
 translated into what it does to the run.
 
 | answer | his words | what it does to T-3 |

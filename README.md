@@ -38,7 +38,7 @@ https://github.com/BMA-Corgea/gims-oss
   the two engines with nobody touching a line of code.
 - **`demo/`** — a self-contained screen for driving the idea by hand: its own Postgres, 10,410
   invented rows, a server, and two answer panes side by side. Its test suite lives here too.
-- **`spikes/`** — one folder per spike ticket: a `FRAMING.md` (the bar, fixed in writing before any
+- **`spikes/`** — one folder per spike: a `FRAMING.md` (the bar, fixed in writing before any
   evidence was collected), a `FINDINGS.md`, and whatever recon, analysis and prototype code that
   spike needed. **Frozen evidence, not source** — digests of files in here are cited in the findings
   and battery outputs, and tests assert they have not moved. `compiler/` and `runtime/` are live.
@@ -47,11 +47,6 @@ https://github.com/BMA-Corgea/gims-oss
   each one was taken.
 - **`design/`** — the demo's design brief and its HTML mock. **`ops/`** — small operational scripts.
 
-`.autodev/` is the AutoDev factory's ledger for this repo — tickets, events, handoffs, evidence.
-Also at the root: `SETUP.md` (setting this repo up on a new machine, plugin included),
-`WINDOWS-CHECKLIST.md`, and the `QUESTIONS-FOR-EVAN.md` / `ANSWERS-FROM-EVAN.md` /
-`WAITING-ON-EVAN.md` / `WRAPUP-FOR-EVAN.md` set: the factory's questions to the owner and his answers,
-kept because the decisions in `kb/` cite them.
 
 ## Running the demo
 
@@ -111,8 +106,7 @@ demo — that question belongs to work that has not run yet (see below).
   broken (`kb/wiki/decision-expr-to-sql.md`).
 - **The numbers no longer depend on a session setting.** The pass above holds at
   `extra_float_digits = 1`; at 0 and −3 there were still 62 and 66 wrong numbers, from a
-  value-channel truncation the pin cures (`kb/wiki/decision-t6-correctness-rerun.md`). T-9 and T-11
-  closed that: the shipping compiler routes float8 through `xpr.j`, which carries its own setting,
+  value-channel truncation the pin cures (`kb/wiki/decision-t6-correctness-rerun.md`). Later work closed that: the shipping compiler routes float8 through `xpr.j`, which carries its own setting,
   so the same expression returns `0.3333333333333333` at either setting where the frozen spike
   compiler returned a short number (`kb/CURRENT-WORK.md`).
 - **The trigger for the worst divergence has not been seen in real data, and nothing prevents it.**
@@ -125,13 +119,13 @@ demo — that question belongs to work that has not run yet (see below).
 
 What is **not** settled, stated plainly:
 
-- **Speed.** The one like-for-like timing run has never happened. The T-1 spike measured the
+- **Speed.** The one like-for-like timing run has never happened. The first spike measured the
   compiled path at **3.79× to 7.15× slower** than today's Python across six table sizes from 1,000
   to 1,000,000 rows, with no crossover — it never won at any size — and because index work is ruled
   out, that gap is a floor rather than a starting point (`kb/wiki/decision-expr-to-sql.md`), and it
-  has never been refined. The run that would refine it, T-4, is blocked on a measured condition: it
+  has never been refined. The run that would refine it has not happened yet, for a measured reason: it
   reports absolute milliseconds, so it needs a 1-minute load average of 2.0 or below and an
-  exclusive two-to-three-hour window, and the load when it came up was 2.30
+  exclusive two-to-three-hour window, and the machine has not yet had that window
   (`kb/CURRENT-WORK.md`). Numbers taken under load are not weaker, they are void, so it waits.
 - The digit mapping is generated but **nothing regenerates it** on a Unicode bump, `raw`-mode data
   was never re-run, and the planned mutation pass has never run — 9 of 16 mutants have never been
@@ -143,7 +137,7 @@ Research-grade. The demo works end to end and the correctness thread is closed; 
 demo 1155, runtime 58, compiler 34, all green (`kb/CURRENT-WORK.md`). None of it is wired into
 GIMS, and nothing here should be called production-safe.
 
-That is deliberate. The standing ruling (Evan, 2026-08-21) is **do not build the
+That is deliberate. The standing ruling (2026-08-21) is **do not build the
 standalone-compiler-plus-thin-adapter architecture as scoped, yet** — not "impossible" and not
 "throw the work away", but *this evidence does not fund this build* — with two follow-up runs
 funded to earn it (`kb/wiki/decision-expr-to-sql.md`). The correctness run is the one that has

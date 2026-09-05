@@ -51,7 +51,7 @@ downstream of that fact:
 ## Standing constraints, already decided
 
 Do not relitigate these; they are Evan's rulings, recorded in
-`ANSWERS-FROM-EVAN.md`.
+`.autodev/notes/ANSWERS-FROM-EVAN.md`.
 
 - **No tenant-supplied field names in SQL literal position** (Q11). That closes
   the door on database indexes for generated queries. Accept it and design

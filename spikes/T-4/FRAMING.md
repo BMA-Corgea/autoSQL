@@ -39,7 +39,7 @@ Not "is it faster than Python". Not "by what multiple". **How many milliseconds.
 ## 2. The correction this framing is built around
 
 Evan re-specified this run himself. Verbatim, from his Q1 re-confirmation
-(`ANSWERS-FROM-EVAN.md`, Q1; logged as **GA-3**):
+(`.autodev/notes/ANSWERS-FROM-EVAN.md`, Q1; logged as **GA-3**):
 
 > **"Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
 > intrinsically fatal."**

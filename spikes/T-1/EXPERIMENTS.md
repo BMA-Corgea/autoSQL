@@ -34,7 +34,7 @@ real data is anywhere near it, and fixing it is twelve characters.
 ## The correction this document is built around
 
 Evan's words, verbatim, from his re-confirmation of the ruling (GA-3, recorded in
-`ANSWERS-FROM-EVAN.md` under Q1):
+`.autodev/notes/ANSWERS-FROM-EVAN.md` under Q1):
 
 > "Benchmark absolute user-facing latency rather than treating a 3.79×–7.15× relative slowdown as
 > intrinsically fatal."
