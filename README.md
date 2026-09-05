@@ -48,10 +48,15 @@ https://github.com/BMA-Corgea/gims-oss
 - **`design/`** — the demo's design brief and its HTML mock. **`ops/`** — small operational scripts.
 
 `.autodev/` is the AutoDev factory's ledger for this repo — tickets, events, handoffs, evidence.
+Also at the root: `SETUP.md` (setting this repo up on a new machine, plugin included),
+`WINDOWS-CHECKLIST.md`, and the `QUESTIONS-FOR-EVAN.md` / `ANSWERS-FROM-EVAN.md` /
+`WAITING-ON-EVAN.md` / `WRAPUP-FOR-EVAN.md` set: the factory's questions to the owner and his answers,
+kept because the decisions in `kb/` cite them.
 
 ## Running the demo
 
-You need Docker and `python3`. From the repository root:
+You need Docker and CPython 3.12 on x86-64 Linux, which is the only platform the committed
+wheelhouse covers (`demo/vendor/wheels/README.md`). From the repository root:
 
 ```
 ./start.sh          # bring it up and open the screen
@@ -65,9 +70,15 @@ untrimmed. The other verbs are `./run-demo down`, `./run-demo test`, and `./run-
 
 It brings up its own Postgres container on `127.0.0.1:55440` and serves the screen on
 `127.0.0.1:8787` (`kb/CURRENT-WORK.md`), and it refuses to start if either port is already taken
-rather than guessing. Python dependencies are installed offline from a committed wheelhouse
-(`--no-index`), so `up` and `test` both work with the network switched off and with Node removed
-from `PATH`; `build-ui` is the only verb that needs Node.
+rather than guessing. Python dependencies are installed from a committed wheelhouse (`pip install --no-index`), built
+for CPython 3.12 on manylinux x86-64. On that platform, once the first `up` has pulled the Postgres
+image (the one step that needs the network), `up` and `test` both run with the network switched off
+and with Node removed from `PATH`. On macOS, Windows, or an ARM machine the offline install has no
+matching wheel and fails outright rather than half-installing. `build-ui` is the only verb that
+needs Node.
+
+`./run-demo test` runs the demo's own suite (`demo/tests/`). The compiler and runtime suites are
+plain pytest: `python3 -m pytest compiler/tests runtime/tests`.
 
 What you get is a picking panel and two answer panes: the SQL pane, which is what Postgres
 computed, and the Python pane, a separate program that reads the same rows and works the answer out
@@ -103,7 +114,7 @@ demo — that question belongs to work that has not run yet (see below).
 - **The trigger for the worst divergence has not been seen in real data, and nothing prevents it.**
   Eight databases read-only: zero non-ASCII digits — but the honest denominator is **144** strings a
   dashboard would actually try to turn into a number, not the million-odd an earlier sweep counted,
-  and GIMS's own CSV import admits 8 of 10 such forms into a number-declared field by design
+  and GIMS's own CSV import lets 8 of 10 such forms into a number-declared field without complaint
   (`kb/wiki/nonascii-digits-in-real-data.md`). It has not happened. Nothing stops it.
 - **A declared field type is not a guarantee about stored content.** Six of seven GIMS write paths
   never check the schema (`kb/wiki/declared-types-are-not-a-guarantee.md`).
