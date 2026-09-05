@@ -1,0 +1,11 @@
+# T-12 verify (main checkout, 2026-09-04T23:36:46-06:00)
+merge commit: fded8c2 Merge T-12: README and AGPL-3.0 license
+files: fded8c2 Merge T-12: README and AGPL-3.0 license; LICENSE | 662 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++; README.md | 154 +++++++++++++++;
+LICENSE bytes: 34524
+LICENSE verbatim vs GitHub API reference: IDENTICAL
+README lines: 154
+banned words: 0 hits
+secrets scan (README+LICENSE): README.md:0 LICENSE:0 
+step-11 claim vs expected-answers.json: python None sql None
+worktree branch merged: 1 (1 = yes)
+verify stage receipt (the same checks, recorded for the verify stage itself)

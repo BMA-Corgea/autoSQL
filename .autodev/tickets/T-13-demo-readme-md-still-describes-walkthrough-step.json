@@ -1,0 +1,47 @@
+{
+  "id": "T-13",
+  "slug": "demo-readme-md-still-describes-walkthrough-step",
+  "type": "bug",
+  "title": "demo/README.md still describes walkthrough step 11 as a live SQL/Python disagreement",
+  "stage": "intake",
+  "status": "triage",
+  "spec": "Found by T-12's builder 2026-09-04 while writing the top-level README: demo/README.md's step-11 paragraph predates T-8, which reconciled the full-width-digit case (both panes now report 123; demo/WALKTHROUGH.md and demo/expected-answers.json steps[10] are current). Fix the paragraph so the demo's own docs do not contradict the demo on first run. Worth doing before the repo goes public. Not started; waiting on Evan's go.",
+  "pipeline_version": "bug@v1",
+  "modifiers": [],
+  "pipeline": [
+    "intake",
+    "refine",
+    "queue",
+    "locate",
+    "plan",
+    "build",
+    "auto-review",
+    "gate",
+    "verify",
+    "uat",
+    "release",
+    "monitor"
+  ],
+  "passport": [
+    "2026-09-05 created as bug \"demo/README.md still describes walkthrough step 11 as a live SQL/Python disagreement\" on bug@v1 by agent:pm"
+  ],
+  "assignees": {},
+  "links": {},
+  "gates": {
+    "spec_ready": false,
+    "merge": false,
+    "accept": false,
+    "deploy": false,
+    "sp_decide": false,
+    "ex_decide": false,
+    "compliance": false,
+    "design": false
+  },
+  "overrides": {},
+  "lean": true,
+  "loop": {
+    "validator_passed": false,
+    "attempts": 0
+  },
+  "history": []
+}
