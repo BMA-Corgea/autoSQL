@@ -20,10 +20,18 @@
 >    the reachable float8-overflow (22003) vehicle is now `$.a * $.a`; and the seed digest is
 >    `65d83e813f47aebd100723723138ba40`.
 >
+> 3. **SUPERSEDED AGAIN — 2026-09-05 (T-15, GA-22).** This is the second update the paragraph
+>    below said was due, and it was overdue: T-6 ruled, **T-8 landed variant C**, and step 11's
+>    disagreement stopped existing rather than moving a third time. `max($.m)` over `["１２３", 1]`
+>    now **agrees** — both panes `123`, `panes_agree` `true`, `flagged` `false` — so every
+>    `steps[10]` figure in §3 and in the table below describes a state the build no longer has.
+>    The demo exhibits **no value disagreement anywhere** now, deliberately; step 11 was
+>    re-purposed to demonstrate reconciliation. Full note at the end of this file.
+>
 > The current behaviour is asserted by the suite (`./run-demo test`) and recorded in the dated
 > notes beside AC-13/AC-17/AC-22/AC-35 in `.autodev/specs/T-2.md` and B15/B24 in
 > `.autodev/specs/T-2-plan.md`. T-6 will change the runtime again (the q5 ruling), after which a
-> second such update is due.
+> second such update is due — **that update is item 3 above, written 2026-09-05.**
 
 Plan §6.4, item by item: **not "the tests pass" but numbers.** Everything
 below was produced by driving the running demo, not by reading the code.
@@ -1866,3 +1874,44 @@ Six end-to-end tests in `demo/tests/test_ui.py::TestTheDifferingColumnSitsBeside
 both orders are permutations of every column, agreeing picks stay natural, the differing block is
 adjacent to the spine on both sides, the two orders mirror each other, untouched columns keep their
 relative order, and the built bundle actually reads the published order (so a stale bundle fails).
+
+---
+
+## Step 11's witness moved a third time, and stopped moving — 2026-09-05, T-15 (GA-22)
+
+**This closes the prediction the 2026-09-01 note made.** That note said, of variant C:
+
+> When T-8 lands variant C in `demo/vendor/`, `$.m` stops diverging exactly the way `$.l` did.
+
+T-8 landed it. **It does.** Measured against the shipped `demo/expected-answers.json`
+`steps[10].expect` today:
+
+| | on 2026-08-22, as the body below records it | today |
+|---|---|---|
+| the pick | `max($.l)` over `[1e300, 1]` | `max($.m)` over `["１２３", 1]` |
+| Python pane | `1e+300` | **`123`** |
+| SQL pane | `1` | **`123`** |
+| `panes_agree` | `false` | **`true`** |
+| `flagged` | `true` | **`false`** |
+
+`xpr.num` maps the non-ASCII `Nd` code points onto ASCII before the numeric read, which is what
+Python's `float()` already did, so both engines answer the same number.
+
+**The "third witness" question resolved by not needing a third witness.** The 2026-09-01 note
+warned that step 11 "cannot keep making the claim it makes now" and that changing what the demo
+argues was the owner's call. The call went the other way from the one that note anticipated: step
+11 was **not** re-pointed at a new diverging value. It was **re-purposed** — its assertions were
+inverted rather than deleted, and it now demonstrates *reconciliation*: this is the exact value
+that once came back wrong, reading the same on both sides. `demo/WALKTHROUGH.md` step 11 carries
+the full account, and its verdict reads `agree`.
+
+**So the demo no longer exhibits a value disagreement anywhere, and that is deliberate.** The
+"tool refuses rather than guessing" argument the 2026-09-01 note nominated as the honest successor
+is carried by **step 13**'s magnitude refusal (`edge-03`, layer-2 runtime probe), which is
+unaffected by variant C. The disagreement *machinery* is untouched and still fires whenever the
+panes differ — nothing currently trips it.
+
+**Nothing above has been rewritten to produce this note.** The `steps[10]` rows, the `## 3. AC-22`
+section and the 2026-09-01 note all still read as they did when they were written, because they are
+the record of what was measured on those dates. Read them as history; read this note, the suite, and
+`demo/expected-answers.json` for what is true now.
