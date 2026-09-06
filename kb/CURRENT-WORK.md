@@ -227,7 +227,6 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — release
 
 ## Waiting on
 
@@ -269,13 +268,13 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
-- **T-17** — waiting at accept on human:owner since 2026-09-06
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-06 **T-17 COMPLETE** — Nothing tests the demo's prose files against expected-answers.json, so they dri…
 - 2026-09-06 **T-15 COMPLETE** — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene…
 - 2026-09-05 **T-16 COMPLETE** — `main` had been red since `adf23bf` the same day: T-14 reworded a
   comment in two `.jsx` sources without re-running `./run-demo build-ui`, so `demo/manifest.json`'s
