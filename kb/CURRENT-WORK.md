@@ -2,43 +2,50 @@
 
 ---
 
-> # START HERE — 2026-09-05 (T-13 and T-16 shipped; the suite is green again)
+> # START HERE — 2026-09-05 (T-13, T-15, T-16 and T-17 all shipped; suite now **1164** green)
 >
-> **T-13 shipped** — `demo/README.md`'s step-11 paragraph no longer claims the two engines
-> disagree. Merged `35ac969`, pushed to the public remote. It was run under the owner's decision
-> form `autosql-loop-2026-09-05` (**GA-19**) and their "get after it" (**GA-20**), with both their
-> gates cleared `on-behalf`. Its scope was widened once, mid-flight and on the record: fixing
-> `demo/README.md` alone would have invalidated a caveat at `README.md:94-95` that existed only
-> while the bug was open, so the ticket went back to `refine` and the spec gate was re-cleared
-> rather than amended behind it.
+> **Four tickets closed in one session**, all under the owner's decision form
+> `autosql-loop-2026-09-05` and the follow-up asks it produced: **GA-19** (bounded grant, T-13
+> only), **GA-20** ("get after it"), **GA-21** ("what are you waiting for"), **GA-22** ("take T-15
+> and T-17 the same way"). Every gate was cleared `on-behalf` — none signed as the owner.
 >
-> **T-16 shipped too — the suite is 1155 green again.** It had been 1154/1 since `adf23bf`
-> (T-14) earlier the same day, *before* T-13 ran: T-14 reworded a comment in
-> `demo/frontend/panes.jsx` and `sqlpane.jsx` and never re-ran `./run-demo build-ui`, so
-> `demo/manifest.json`'s source digest described sources that no longer existed. Fixed by
-> regenerating it. **Both bundles came back byte-identical** (`app.js` `2ad58b53…`,
-> `vendor.js` `bdaa68a3…`) — esbuild strips comments, so a comment-only edit cannot move the
-> output — which is the check that confirmed nothing beyond the digest was in play. No privacy
-> leak: the name never reached the bundle. `README.md:136`'s "1155 … all green" is accurate
-> again and needed no edit.
+> **The thread they form.** One defect class ran through all four: *the same fact stated in five
+> places, only one of them checked by a test.* T-13 and T-15 were instances; T-16 was the same
+> shape one level down (a source file and the digest describing it); **T-17 is the fix** — the
+> guard that makes the class visible.
 >
-> **Two tickets remain filed-but-unfixed** — the owner's Q1 chose a bounded grant (T-13 only)
-> over the wider one, so these were parked rather than folded in:
->
-> | | what | why it matters |
+> | | what shipped | merge |
 > |---|---|---|
-> | **T-15** | `demo/EVIDENCE.md` documents step 11 as the *old* `1e300` case — five values, all contradicting the shipped data, including "a run where the panes agree here is a FAILING run" | worse than the bug T-13 fixed: two generations stale, in the file that exists to be the evidence of record. **No test covers it, so nothing will catch it.** |
-> | **T-17** | nothing tests the demo's three *prose* files against `expected-answers.json` | root cause of T-13 **and** T-15 — `WALKTHROUGH.md` stayed correct precisely because a test reads it |
+> | **T-13** | `demo/README.md`'s step-11 paragraph stopped claiming a live disagreement; the caveat about it left the top-level README | `35ac969` |
+> | **T-16** | `demo/manifest.json`'s digest regenerated — `main` had been **red** since `adf23bf` (T-14 edited two `.jsx` comments without `build-ui`). Bundles came back **byte-identical**, which is what proved the rebuild safe | `ef5830e` |
+> | **T-15** | `demo/EVIDENCE.md`'s overdue supersession note, **appended not rewritten** | `3cfd43c` |
+> | **T-17** | `demo/tests/test_prose_matches_data.py` — 9 tests, the prose-vs-data guard | see below |
 >
-> **T-4 is still blocked and still the last thing before GIMS.** The owner ruled on it in the same
-> form: leave it blocked and tell them when the host is genuinely quiet (Q2 = A), the three
-> latency bars stand including the must-beat-Python kill condition (Q5 = A), and the run keeps its
-> invented widget, labelled (Q6 = A). Measured at 18:20 UTC: 1-minute load **1.68** — under the
-> 2.00 bar for the first time — but the host is not exclusive (a Python process at 85% of a core,
-> plus a browser), so the framing's quiet-window requirement is still unmet.
+> **Two things a resuming session should not re-learn the hard way:**
+>
+> 1. **`demo/EVIDENCE.md` is FROZEN**, like `spikes/`. It is an append-only record of the
+>    2026-08-22 build; its `steps[10]` figures are *supposed* to describe a state the build no
+>    longer has. T-15 was filed saying "five wrong values" — that premise was **wrong**, and
+>    acting on it would have destroyed evidence. Corrections go at the end, dated, with a header
+>    entry. T-17's guard excludes it deliberately and asserts its `SUPERSEDED` header survives.
+> 2. **T-17's guard is data-driven and bidirectional.** Nothing is hard-coded to `123` or
+>    "agree": it reads `steps[10].expect.panes_agree` and inverts. It was **watched failing** in
+>    both directions before being trusted — against the real pre-T-13 blob at `9ad498a`, and
+>    against a synthetic tree with `panes_agree` flipped. Re-run that proof any time:
+>    `bash .autodev/evidence/T-17/watched-failing.sh`. Two genuine holes were found *by* that
+>    exercise (a substring value check that matched almost any text; a `/differ/` search the
+>    correct past-tense prose already satisfied) and fixed before merge.
+>
+> **T-4 is now the only open ticket, and still the last thing before GIMS.** The owner ruled on
+> it in the same form: leave it blocked and tell them when the host is genuinely quiet (Q2 = A),
+> the three latency bars stand including the must-beat-Python kill condition (Q5 = A), and the
+> run keeps its invented widget, labelled (Q6 = A). Load was **1.68** at 18:20 UTC — under the
+> 2.00 bar for the first time — but the host was not exclusive, and by 23:5x it was back above
+> 2.0. The quiet-window requirement is still unmet.
 >
 > **Ceremony:** shop `settings.lean` was flipped back **true** (their Q4 = A), discharging the
-> 2026-08-22 note that said to flip it once T-2 shipped.
+> 2026-08-22 note that said to flip it once T-2 shipped. T-17 deliberately ran **FULL**, not
+> lean — it writes executable code the suite's green depends on.
 
 ---
 
@@ -84,7 +91,8 @@
 > (`871b1b4c2df95719`), `spikes/T-1/proto/compile.py` (`b71b153802d0df94`). Tests assert all three.
 >
 > **Suites:** demo **1155** · runtime **58** · compiler **34** — all green, B10 checksum guard verified.
-> *(Went red 2026-09-05 at `adf23bf` and was green again the same day — T-16. Still accurate.)*
+> *(Accurate on 2026-09-01. Went red 2026-09-05 at `adf23bf`, green again the same day (T-16),
+> and the demo count then rose to **1164** when T-17 added the prose-vs-data guard.)*
 >
 > ## Three things a resuming session must not miss
 >
@@ -219,8 +227,7 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — refine
-- **T-15** (bug) — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene… — release
+- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — build
 
 ## Waiting on
 
@@ -262,13 +269,14 @@ entire history returns **0**. Worse, for a stage whose work IS the human's decis
 gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
 session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
 `ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
-- **T-15** — waiting at accept on human:owner since 2026-09-06
+- **T-17** — waiting at spec_ready on human:owner since 2026-09-06
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-06 **T-15 COMPLETE** — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene…
 - 2026-09-05 **T-16 COMPLETE** — `main` had been red since `adf23bf` the same day: T-14 reworded a
   comment in two `.jsx` sources without re-running `./run-demo build-ui`, so `demo/manifest.json`'s
   source digest was stale and the bundle-staleness guard failed. Regenerated; **both bundles came
