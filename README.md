@@ -133,7 +133,7 @@ What is **not** settled, stated plainly:
 ## Status
 
 Research-grade. The demo works end to end and the correctness thread is closed; suites stand at
-demo 1155, runtime 58, compiler 34, all green (`kb/CURRENT-WORK.md`). None of it is wired into
+demo 1164, runtime 58, compiler 34, all green (`kb/CURRENT-WORK.md`). None of it is wired into
 GIMS, and nothing here should be called production-safe.
 
 That is deliberate. The standing ruling (2026-08-21) is **do not build the
