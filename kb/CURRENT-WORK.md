@@ -227,7 +227,7 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — build
+- **T-17** (techdebt) — Nothing tests the demo's prose files against expected-answers.json, so they dri… — gate
 
 ## Waiting on
 
