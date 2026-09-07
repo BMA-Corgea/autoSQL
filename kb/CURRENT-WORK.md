@@ -2,6 +2,79 @@
 
 ---
 
+> # START HERE — 2026-09-07 (T-4 is finally RUNNING; the demo got a skin system and two real bug fixes)
+>
+> All of today's work is under **GA-23** — the owner's *"Close everything you need on the machine and
+> run T-4"* — plus his direct asks that followed it. Every gate cleared `on-behalf`; none signed as him.
+>
+> ## T-4 is unblocked and at `sp-investigate`
+>
+> It had been blocked since 2026-09-01 for a measured reason, and that reason is now gone. The host
+> was made quiet and exclusive: **1-min load 0.41** against the framing's `≤ 2.0` bar, top process
+> `gnome-shell` at 3.3%. What was stopped: four uvicorn dev servers — one of them
+> `gui.backend.main:8642` **burning 85% of a core for seven hours while idle, which is a spin-loop
+> bug worth chasing separately** — two vite front ends, Firefox, Discord, Steam, and the AutoDev
+> watch sidecar (framing §5.1 item 1). **The sidecar must be restarted when the run ends:**
+> `systemctl --user start autodev-watch.service`.
+>
+> Left running and DECLARED rather than pretended away (§5.1 item 4): this session, one idle second
+> Claude session, the GUTS bridge, the openclaw gateway, and **`glp-strong-db` — the owner's LIVE
+> database, never written, read-only `pg_stat_database` sampling only** (§5.4 item 16).
+>
+> **The corpus is rebuilt and verified** in a throwaway container `autosql-corpus` on
+> `127.0.0.1:55434`, `--shm-size=1g`, PostgreSQL **16.14** — an exact match for the recorded
+> environment — with all **21 `xpr` functions** installed. All six sizes loaded including the 1M
+> table that used to die at `VACUUM ANALYZE`. Measured selectivity **5.39 / 5.31 / 5.27%**, inside
+> the required 4.5–6.0% band, so the corpus is admissible under §6 item 2.
+>
+> **`spikes/` stayed frozen.** T-4 needs two generator fields the T-1 corpus lacks. Rather than edit
+> the frozen `gen_data.py` — which would have left the OLD corpus unbuildable and broken the
+> cold-rebuild reproducibility the T-1 handoff claims — `spikes/T-4/gen_data_t4.py` imports it and
+> extends it. The draw order is identical to REGENERATE-CORPUS §7's documented patch, and it was
+> proved rather than asserted: **5.31% / 85.09% / 303.2 bytes, a three-way match** to the figures
+> §7 measured independently. The pinned digests `b71b153802d0df94` and `1c58d548a6045aa6` still match.
+>
+> **What is NOT done: the harness.** `spikes/T-4/bench_t4.py` is written but UNPROVEN. Two of the
+> five arms did not exist (**C** — the arm the bar applies to — and **A-uncapped**), the widget was
+> still the old date one, and there was no void path. All of that is now drafted, but **§6.1's
+> negative control has not been run**, and until it passes **no millisecond may be quoted from it,
+> in any document.** That ordering is binding, and it exists because this project already shipped a
+> rig whose failure branches had never once executed.
+>
+> ## The demo: a skin system, and two bugs that were really there
+>
+> The owner called the Watery look "disgusting" and picked **System/base** (GitHub-like, follows the
+> OS). Watery is now one option among seven, switchable and persisted, with `#skin=<name>` to link a
+> look. The contract is repo-tour's, ported: **one file scoped under `:root[data-theme="…"]` plus one
+> row in `skin.js`.**
+>
+> Doing it without breaking anything meant working around two guards, and both are worth knowing:
+> `demo/vendor/styles/*.css` are **sha256-pinned** to GIMS's (D1), and `demo.css` **may declare no
+> custom property at all** (B18, asserted twice). So the whole restyle is a token layer in NEW files,
+> linked last, redefining Watery's own 60 token names. **No `.jsx` was touched** — that is digest-
+> covered, and editing it without `build-ui` is exactly what went red in T-16.
+>
+> | fix | what it was |
+> |---|---|
+> | `start.sh` | `open_page()` returned 0 unconditionally, so a browser that failed to launch printed *nothing* — the fallback line was unreachable. Now it detects a fast failure without letting a blocking opener hang the script. |
+> | the two-pane overlap | `minmax(0,1fr)` + `.cmp-cell{min-width:0}` let each pane collapse below the row template it drew: **764px needed, 471px given** at 1440, so panes printed over the spine and each other. `min-content` restores the floor and the existing `.cmp-scroll` finally engages. |
+>
+> The overlap was **pre-existing** — the old Watery build has it identically — and it broke the
+> demo's own brief, which designs at 1440 and forbids breaking at 1280.
+>
+> **Suite: 1165 green** (was 1164). The extra one is a new regression guard that refuses a `0`
+> minimum on a pane track or the return of `.cmp-cell{min-width:0}`; it was watched failing in both
+> directions. One existing test had to change: it pinned the literal buggy value as though it were
+> the invariant, so it now matches the shape by regex and additionally asserts the two panes share a
+> track definition — strengthened, not loosened.
+>
+> ## Next
+>
+> Run §6.1's five injections through the real harness, then the timing cells. Then the guided tour
+> the owner asked for (the spotlight kind over the demo UI, **not** a repo-tour code walkthrough).
+
+---
+
 > # START HERE — 2026-09-05 (T-13, T-15, T-16 and T-17 all shipped; suite now **1164** green)
 >
 > **Four tickets closed in one session**, all under the owner's decision form
@@ -227,6 +300,14 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
+- **T-4** (spike) — *Timing run: how long does a person actually wait, generated SQL vs today's
+  Python?* **Unblocked and running, 2026-09-07**, under **GA-23** ("Close everything you need on
+  the machine and run T-4"). The host was made quiet and exclusive — 1-min load **0.41** against
+  the framing's ≤ 2.0 bar — by stopping four uvicorn dev servers (one at 85% CPU for seven hours),
+  two vite front ends, Firefox, Discord, Steam and the AutoDev watch sidecar. Left running and
+  declared per framing §5.1 item 4: this session, one idle second session, the GUTS bridge, the
+  openclaw gateway, and `glp-strong-db` (the owner's LIVE database — never written, read-only
+  `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 
 ## Waiting on
 
@@ -253,10 +334,6 @@ fully answered — nine by him in session, the other 29 ruled under GA-6 and rec
   carries T-3's 472-line fix. Adopting the fix would change B15's guard digits, B24's edge-04/edge-05
   pair, AC-13's fifth witness and AC-17's mechanism — four signed criteria — so it was not taken
   unilaterally. One line either way.
-- **T-4** — blocked: The host is not quiet, and T-4's own framing forbids starting here. Measured 20…
-  (item 29), and either a real dashboard widget of his own or acceptance of the invented one, which is
-  labelled invented everywhere it appears (item 30). After T-3's failure, whether T-4 runs at all is
-  part of the `sp-decide` decision rather than an automatic next step.
 - **Two ten-minute jobs at the Windows machine** (item 32), and his stale GIMS checkout (item 33,
   which AC-35 above now depends on).
 
