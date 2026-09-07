@@ -39,14 +39,29 @@ is_up() { curl -fsS -m 3 -o /dev/null "http://127.0.0.1:${APP_PORT}/api/operatio
 open_page() {
   # Prefer the live screen; fall back to the offline launcher, which is a real
   # page in its own right and says what to do next.
-  local target="$1"
+  #
+  # The opener is backgrounded so an opener that blocks until the browser exits
+  # cannot hang this script -- but we then wait briefly and check whether it
+  # FAILED, because "an opener exists" and "a page opened" are different claims.
+  # They come apart in practice: xdg-open is installed but the browser will not
+  # start (no browser running and a stale profile lock is the common one). This
+  # used to return 0 unconditionally, so that case printed nothing at all and
+  # looked, from the terminal, exactly like success.
+  local target="$1" opener pid i
   for opener in xdg-open open; do
-    if command -v "$opener" >/dev/null 2>&1; then
-      "$opener" "$target" >/dev/null 2>&1 &
-      return 0
-    fi
+    command -v "$opener" >/dev/null 2>&1 || continue
+    "$opener" "$target" >/dev/null 2>&1 &
+    pid=$!
+    for i in $(seq 1 10); do                 # up to ~2s for a fast failure
+      if ! kill -0 "$pid" 2>/dev/null; then
+        wait "$pid" && return 0              # exited cleanly: the page opened
+        return 1                             # exited non-zero: it did not
+      fi
+      sleep 0.2
+    done
+    return 0                                 # still running: it did not fail fast
   done
-  return 1
+  return 1                                   # no opener on this machine at all
 }
 
 # ── subcommands ───────────────────────────────────────────────────────────
@@ -83,7 +98,8 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH. The demo need
 if is_up; then
   say ""
   say "${B}Already running.${OFF} http://127.0.0.1:${APP_PORT}/"
-  open_page "http://127.0.0.1:${APP_PORT}/" || say "${DIM}(open that URL yourself — no browser opener found)${OFF}"
+  open_page "http://127.0.0.1:${APP_PORT}/" ||
+    say "${DIM}(couldn't open a browser — open the URL above yourself, or ${LAUNCHER})${OFF}"
   exit 0
 fi
 
@@ -131,4 +147,4 @@ say "  ${DIM}Stop it with ./start.sh stop. Every row in it is invented.${OFF}"
 say ""
 
 open_page "http://127.0.0.1:${APP_PORT}/" ||
-  say "  ${DIM}(no browser opener found — open the URL above, or ${LAUNCHER})${OFF}"
+  say "  ${DIM}(couldn't open a browser — open the URL above yourself, or ${LAUNCHER})${OFF}"
