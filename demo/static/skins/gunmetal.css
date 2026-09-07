@@ -1,0 +1,85 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   GUNMETAL — brushed graphite and one electric cyan. Ported from repo-tour's
+   assets/skins/gunmetal.css onto this demo's token names.
+
+   Scoped under :root[data-theme="gunmetal"], so this file is inert until the switcher sets
+   that attribute. Tokens only: every panel, bar, chip, ring and field in the vendored sheets
+   and in demo.css is drawn from these variables, so redefining them re-skins the whole page
+   including anything added later.
+
+   One cyan, used sparingly. A skin with three accents has no accent — so the action-blue
+   family collapses onto the cyan, and green/amber/red stay only where they carry a verdict.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="gunmetal"] {
+  --bg:        #14181e;
+  --bg2:       #0b0e12;
+  --surface:   #1c222a;
+  --surface2:  #1e242c;
+
+  --card:              #171c23;
+  --card-2:            #1e242c;
+  --card-border:       #2b323c;
+  --card-edge:         #333c48;
+  --card-edge-strong:  #4b5766;
+
+  --border:    #2b323c;
+  --border2:   #3c4552;
+
+  --text:      #dbe3ec;
+  --text-mid:  #a4aebc;
+  --text-soft: #8b96a5;
+  --text-mute: #6b7787;
+
+  --accent:       #4fd1e0;
+  --accent-2:     #6adde9;
+  --accent-light: rgba(79,209,224,0.12);
+  --accent-glow:  rgba(79,209,224,0.30);
+
+  --blue:        #4fd1e0;
+  --blue-2:      #6adde9;
+  --blue-deep:   #2f9dab;
+  --blue-light:  rgba(79,209,224,0.12);
+  --blue-glow:   rgba(79,209,224,0.30);
+  --blue-border: rgba(79,209,224,0.38);
+  --blue-text:   #a6e8f0;
+  --blue-cta-1:  #1f7c88;
+  --blue-cta-2:  #2a94a2;
+
+  --green:       #9fd6a0;
+  --green-text:  #b8e3b9;
+  --green-light: rgba(159,214,160,0.12);
+  --green-glow:  rgba(159,214,160,0.30);
+
+  --amber:       #d9b26a;
+  --amber-light: rgba(217,178,106,0.12);
+
+  --red:         #f0879b;
+  --red-text:    #f6a9b8;
+  --red-light:   rgba(240,135,155,0.12);
+  --red-border:  rgba(240,135,155,0.36);
+
+  --warm:      #8b96a5;
+  --warm-2:    #a4aebc;
+
+  --warm-glow:  transparent;
+  --glow-aqua:  transparent;
+  --glow-floor: transparent;
+
+  --radius:    6px;
+  --radius-lg: 10px;
+  --radius-sm: 4px;
+
+  --shadow-sm: 0 1px 0 rgba(0,0,0,0.5);
+  --shadow-md: 0 1px 3px rgba(0,0,0,0.6), 0 0 0 1px rgba(43,50,60,0.6);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(43,50,60,0.6);
+
+  --chart-1: #4fd1e0;
+  --chart-2: #9fd6a0;
+  --chart-3: #d9b26a;
+  --chart-4: #f0879b;
+  --chart-5: #b19cf0;
+  --chart-6: #6adde9;
+  --chart-axis: var(--text-mute, #6b7787);
+  --chart-grid: rgba(219,227,236,0.08);
+}

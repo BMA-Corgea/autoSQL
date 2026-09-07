@@ -1,0 +1,100 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   JRPG — a console menu screen. Deep teal ground, gold double-rule frames, cream text.
+   Ported from repo-tour's assets/skins/jrpg.css.
+
+   The reference is the Tales-of-era status menu: every panel is a framed window sitting on a
+   dark jewel-tone field, labels in cream, values in gold.
+
+   ── What actually makes it read as a JRPG menu ───────────────────────────────────────────
+   Not the colours. Two things, in order:
+
+     1. THE DOUBLE RULE. Every window is bounded by a thin dark line, a gold line, and another
+        dark line. One gold border looks like a bootstrap alert; the sandwich is what looks
+        forged. It is stacked box-shadow rings, so nothing needs extra markup.
+     2. LABEL VERSUS VALUE. A menu never sets both in the same colour: the noun is cream and
+        the number is gold. Here that falls out of --text (cream) against --accent (gold).
+
+   Scoped under :root[data-theme="jrpg"], so it is inert until chosen.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="jrpg"] {
+  --bg:        #10353a;
+  --bg2:       #0a2226;
+  --surface:   #17454b;
+  --surface2:  #1f5860;
+
+  --card:              #143f45;
+  --card-2:            #17454b;
+  --card-border:       #c9a961;
+  --card-edge:         #c9a961;
+  --card-edge-strong:  #e8c46a;
+
+  --border:    #1d4f52;
+  --border2:   #c9a961;
+
+  --text:      #f2e8cf;
+  --text-mid:  #cfe0d8;
+  --text-soft: #9fbdb4;
+  --text-mute: #6f9a92;
+
+  --accent:       #e8c46a;
+  --accent-2:     #f0d68a;
+  --accent-light: rgba(232,196,106,0.14);
+  --accent-glow:  rgba(232,196,106,0.34);
+
+  --blue:        #8fd4e0;
+  --blue-2:      #a8e0ea;
+  --blue-deep:   #5aa8b8;
+  --blue-light:  rgba(143,212,224,0.14);
+  --blue-glow:   rgba(143,212,224,0.34);
+  --blue-border: rgba(143,212,224,0.42);
+  --blue-text:   #c2ecf3;
+  --blue-cta-1:  #1f5860;
+  --blue-cta-2:  #2a6d76;
+
+  --green:       #a8d8a0;
+  --green-text:  #c4e6be;
+  --green-light: rgba(168,216,160,0.14);
+  --green-glow:  rgba(168,216,160,0.34);
+
+  --amber:       #e0a060;
+  --amber-light: rgba(224,160,96,0.14);
+
+  --red:         #f2919b;
+  --red-text:    #f8b4bc;
+  --red-light:   rgba(242,145,155,0.14);
+  --red-border:  rgba(242,145,155,0.40);
+
+  --warm:      #c9a961;
+  --warm-2:    #e8c46a;
+
+  --warm-glow:  transparent;
+  --glow-aqua:  transparent;
+  --glow-floor: transparent;
+
+  --radius:    2px;
+  --radius-lg: 3px;
+  --radius-sm: 2px;
+
+  /* the double rule: dark, gold, dark — stacked rings, no extra markup */
+  --shadow-sm: 0 0 0 1px #0a2226;
+  --shadow-md: 0 0 0 1px #0a2226, 0 0 0 2px #c9a961, 0 0 0 3px #0a2226;
+  --shadow-lg: 0 0 0 1px #0a2226, 0 0 0 2px #c9a961, 0 0 0 3px #0a2226,
+               0 10px 28px rgba(0,0,0,0.55);
+
+  --chart-1: #e8c46a;
+  --chart-2: #a8d8a0;
+  --chart-3: #e0a060;
+  --chart-4: #f2919b;
+  --chart-5: #b9a3e8;
+  --chart-6: #8fd4e0;
+  --chart-axis: var(--text-soft, #9fbdb4);
+  --chart-grid: rgba(242,232,207,0.12);
+}
+
+/* ── FIXUP — the framed-window sandwich on the panels that carry the look ────────────────── */
+:root[data-theme="jrpg"] .panel,
+:root[data-theme="jrpg"] .cmp {
+  box-shadow: var(--shadow-md);
+  border-color: transparent;
+}

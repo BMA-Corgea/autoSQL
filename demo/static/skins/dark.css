@@ -1,0 +1,78 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   DARK — the base palette, pinned dark regardless of the operating system.
+
+   Scoped under :root[data-theme="dark"], so this file is inert until the switcher sets that
+   attribute. It is the same palette base.css uses inside its prefers-color-scheme block; the
+   block is repeated here rather than shared because base.css's media rule is guarded to
+   :root:not([data-theme]) on purpose — every EXPLICIT skin starts from the known light
+   ground, so an alternate can never inherit half a palette it did not choose.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="dark"] {
+  --bg:        #0d1117;
+  --bg2:       #010409;
+  --surface:   #151b23;
+  --surface2:  #212830;
+
+  --card:              #0d1117;
+  --card-2:            #151b23;
+  --card-border:       #3d444d;
+  --card-edge:         #3d444d;
+  --card-edge-strong:  #565e68;
+
+  --border:    #3d444d;
+  --border2:   #565e68;
+
+  --text:      #e6edf3;
+  --text-mid:  #9198a1;
+  --text-soft: #7d8590;
+  --text-mute: #6e7681;
+
+  --accent:       #4493f8;
+  --accent-2:     #6cb6ff;
+  --accent-light: rgba(68,147,248,0.12);
+  --accent-glow:  rgba(68,147,248,0.32);
+
+  --blue:        #4493f8;
+  --blue-2:      #6cb6ff;
+  --blue-deep:   #316dca;
+  --blue-light:  rgba(68,147,248,0.12);
+  --blue-glow:   rgba(68,147,248,0.32);
+  --blue-border: rgba(68,147,248,0.40);
+  --blue-text:   #9cd0ff;
+  --blue-cta-1:  #1f6feb;
+  --blue-cta-2:  #2a7af0;
+
+  --green:       #3fb950;
+  --green-text:  #7ee787;
+  --green-light: rgba(63,185,80,0.12);
+  --green-glow:  rgba(63,185,80,0.32);
+
+  --amber:       #d29922;
+  --amber-light: rgba(210,153,34,0.12);
+
+  --red:         #f85149;
+  --red-text:    #ff9492;
+  --red-light:   rgba(248,81,73,0.12);
+  --red-border:  rgba(248,81,73,0.38);
+
+  --warm:      #7d8590;
+  --warm-2:    #9198a1;
+
+  --warm-glow:  transparent;
+  --glow-aqua:  transparent;
+  --glow-floor: transparent;
+
+  --shadow-sm: 0 1px 0 rgba(1,4,9,0.5);
+  --shadow-md: 0 1px 3px rgba(1,4,9,0.6), 0 0 0 1px rgba(61,68,77,0.5);
+  --shadow-lg: 0 8px 24px rgba(1,4,9,0.7), 0 0 0 1px rgba(61,68,77,0.5);
+
+  --chart-1: #4493f8;
+  --chart-2: #3fb950;
+  --chart-3: #d29922;
+  --chart-4: #f85149;
+  --chart-5: #a371f7;
+  --chart-6: #39c5cf;
+  --chart-axis: var(--text-mute, #6e7681);
+  --chart-grid: rgba(230,237,243,0.08);
+}

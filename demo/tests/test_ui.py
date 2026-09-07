@@ -1119,8 +1119,56 @@ class TestTheScreenCannotHideEitherPane:
         css = _DEMO_CSS.read_text()
         assert ".pane-pair" in css
         assert ".cmp-grid" in css
-        # D5: side by side above the one breakpoint B29 allows
-        assert "grid-template-columns: minmax(0,1fr) 48px minmax(0,1fr)" in css
+        # D5: side by side above the one breakpoint B29 allows — ONE grid of three
+        # tracks, [pane | 48px spine | pane], both panes on the same 1fr.
+        m = re.search(
+            r"\.cmp-grid,\s*\.pane-pair\s*\{[^}]*?grid-template-columns:\s*"
+            r"minmax\(\s*([^,]+?)\s*,\s*1fr\)\s+48px\s+minmax\(\s*([^,]+?)\s*,\s*1fr\)",
+            css,
+        )
+        assert m, "the pair is no longer one grid of [pane | 48px spine | pane]"
+        assert m.group(1) == m.group(2), (
+            "the two panes no longer share a track definition, so they can differ in "
+            "width — D5 requires equal width"
+        )
+
+    def test_a_pane_track_cannot_collapse_below_its_own_row_template(self):
+        """The other half of D5's "never collapsed", and a real regression.
+
+        The track minimum used to be ``0`` (``minmax(0,1fr)``, with
+        ``.cmp-cell { min-width: 0 }``). That let each pane shrink to any width while
+        ``.rowcells`` inside it still laid out the fixed template ``--cols`` publishes.
+        MEASURED at 1440 on walkthrough step 1, five columns
+        ``132px 118px minmax(220px,2.4fr) minmax(110px,1fr) 112px``:
+
+            692px of tracks + 4 gaps x 10px + 32px padding = 764px needed, per pane
+            (1022px of layout - 48px spine) / 2            = 471px given, per pane
+
+        so each pane overflowed by ~293px and printed on top of the spine and the other
+        pane — the header read ``ALIVE COLLECTION ROLLING_AKEY``. ``.cmp-scroll`` is
+        ``overflow-x: auto`` and was always the intended escape hatch; a track that may
+        collapse to zero never reports anything to scroll, so it never engaged.
+
+        A zero minimum here IS that bug, which is why this asserts on the value rather
+        than only on the shape.
+        """
+        css = _DEMO_CSS.read_text()
+        m = re.search(
+            r"\.cmp-grid,\s*\.pane-pair\s*\{[^}]*?grid-template-columns:\s*"
+            r"minmax\(\s*([^,]+?)\s*,\s*1fr\)",
+            css,
+        )
+        assert m, "the pane track is no longer a minmax(...,1fr)"
+        assert m.group(1) not in ("0", "0px"), (
+            "a pane track with a 0 minimum can collapse below the row template it "
+            "carries and overflow onto the spine and the other pane"
+        )
+        assert "min-width: 0" not in re.search(
+            r"\.cmp-cell\s*\{[^}]*\}", css
+        ).group(0), (
+            ".cmp-cell { min-width: 0 } zeroes the track's min-content contribution, "
+            "which defeats the minimum above"
+        )
 
     def test_the_frame_goes_coral_only_when_they_differ(self):
         """DR-1's second of three independent signals, and D3's one named

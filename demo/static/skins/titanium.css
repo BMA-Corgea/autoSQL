@@ -1,0 +1,84 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   TITANIUM — warm light metal and a deep teal. The daylight answer to Gunmetal: the same
+   hardware, photographed in a bright room. Ported from repo-tour's assets/skins/titanium.css.
+
+   Scoped under :root[data-theme="titanium"], so it is inert until chosen.
+
+   THE INVERSION IS THE POINT. Gunmetal lifts panels off the ground with a light inner bevel;
+   on warm paper that reads as a smudge, so the elevation here is a faint warm shadow instead
+   and nothing outside this file needs to know.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="titanium"] {
+  --bg:        #faf9f6;
+  --bg2:       #eceae6;
+  --surface:   #f2efe9;
+  --surface2:  #e6e2da;
+
+  --card:              #ffffff;
+  --card-2:            #f2efe9;
+  --card-border:       #d3ccbf;
+  --card-edge:         #c9c2b4;
+  --card-edge-strong:  #ada494;
+
+  --border:    #d3ccbf;
+  --border2:   #c9c2b4;
+
+  --text:      #23201b;
+  --text-mid:  #5c5548;
+  --text-soft: #6e6759;
+  --text-mute: #8a8172;
+
+  --accent:       #0f6b6b;
+  --accent-2:     #148585;
+  --accent-light: rgba(15,107,107,0.10);
+  --accent-glow:  rgba(15,107,107,0.26);
+
+  --blue:        #0f6b6b;
+  --blue-2:      #148585;
+  --blue-deep:   #0c5757;
+  --blue-light:  rgba(15,107,107,0.10);
+  --blue-glow:   rgba(15,107,107,0.26);
+  --blue-border: rgba(15,107,107,0.34);
+  --blue-text:   #0c5757;
+  --blue-cta-1:  #0f6b6b;
+  --blue-cta-2:  #0c5757;
+
+  --green:       #1f5d3f;
+  --green-text:  #164a31;
+  --green-light: rgba(31,93,63,0.10);
+  --green-glow:  rgba(31,93,63,0.26);
+
+  --amber:       #7a4a12;
+  --amber-light: rgba(122,74,18,0.10);
+
+  --red:         #a3324a;
+  --red-text:    #862740;
+  --red-border:  rgba(163,50,74,0.32);
+  --red-light:   rgba(163,50,74,0.10);
+
+  --warm:      #8a8172;
+  --warm-2:    #6e6759;
+
+  --warm-glow:  transparent;
+  --glow-aqua:  transparent;
+  --glow-floor: transparent;
+
+  --radius:    6px;
+  --radius-lg: 10px;
+  --radius-sm: 4px;
+
+  /* warm shadow, not a cold bevel — see the note above */
+  --shadow-sm: 0 1px 0 rgba(60,50,35,0.06);
+  --shadow-md: 0 1px 3px rgba(60,50,35,0.14), 0 0 0 1px rgba(60,50,35,0.05);
+  --shadow-lg: 0 8px 24px rgba(60,50,35,0.16), 0 0 0 1px rgba(60,50,35,0.05);
+
+  --chart-1: #0f6b6b;
+  --chart-2: #1f5d3f;
+  --chart-3: #7a4a12;
+  --chart-4: #a3324a;
+  --chart-5: #5a3ba8;
+  --chart-6: #146b7a;
+  --chart-axis: var(--text-mute, #8a8172);
+  --chart-grid: rgba(35,32,27,0.10);
+}

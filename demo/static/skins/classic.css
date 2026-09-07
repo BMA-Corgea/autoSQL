@@ -1,0 +1,128 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   CLASSIC — Win9x/2000/XP "classic desktop". Ported from repo-tour's assets/skins/classic.css,
+   which took it from GIMS-Project's static/styles/classic.css.
+
+   Light 3D gray chrome, white sunken client areas, navy selection, square corners. No
+   gradients, glows, blur, web fonts or decorative motion. Runs on a toaster.
+
+   Scoped under :root[data-theme="classic"], so the file is inert until the switcher sets that
+   attribute. Two layers, in the order they matter:
+
+     1. TOKENS — the whole palette redefined: light gray ground, radii to 0, shadows flattened
+        to hard 1px bevels, the accent collapsed to one navy. That alone re-skins every
+        token-driven rule in the demo, including anything added after this file.
+     2. FIXUPS — the short list of places the base assumed a soft, rounded, glowing ground.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="classic"] {
+  --bg:        #d6d3ce;
+  --bg2:       #c9c6c1;
+  --surface:   #d6d3ce;
+  --surface2:  #c0bdb8;
+
+  --card:              #ffffff;
+  --card-2:            #d6d3ce;
+  --card-border:       #808080;
+  --card-edge:         #808080;
+  --card-edge-strong:  #404040;
+
+  --border:    #808080;
+  --border2:   #404040;
+
+  --text:      #000000;
+  --text-mid:  #202020;
+  --text-soft: #404040;
+  --text-mute: #606060;
+
+  --accent:       #0a3d6e;
+  --accent-2:     #0f5390;
+  --accent-light: #cfe0f2;
+  --accent-glow:  rgba(10,61,110,0.30);
+
+  --blue:        #0a3d6e;
+  --blue-2:      #0f5390;
+  --blue-deep:   #062a4d;
+  --blue-light:  #cfe0f2;
+  --blue-glow:   rgba(10,61,110,0.30);
+  --blue-border: #0a3d6e;
+  --blue-text:   #0a3d6e;
+  --blue-cta-1:  #d6d3ce;
+  --blue-cta-2:  #dedbd6;
+
+  --green:       #006400;
+  --green-text:  #004d00;
+  --green-light: #d8ecd8;
+  --green-glow:  rgba(0,100,0,0.30);
+
+  --amber:       #7d5000;
+  --amber-light: #f5e8cc;
+
+  --red:         #7d0000;
+  --red-text:    #5c0000;
+  --red-light:   #f2d8d8;
+  --red-border:  #7d0000;
+
+  --warm:      #404040;
+  --warm-2:    #202020;
+
+  --warm-glow:  transparent;
+  --glow-aqua:  transparent;
+  --glow-floor: transparent;
+
+  /* square corners, and no soft elevation anywhere */
+  --radius:    0;
+  --radius-lg: 0;
+  --radius-sm: 0;
+
+  --shadow-sm: none;
+  --shadow-md: 1px 1px 0 #808080;
+  --shadow-lg: 2px 2px 0 #808080;
+
+  --chart-1: #000080;
+  --chart-2: #006400;
+  --chart-3: #7d5000;
+  --chart-4: #7d0000;
+  --chart-5: #4b0082;
+  --chart-6: #008080;
+  --chart-axis: #000000;
+  --chart-grid: #a0a0a0;
+}
+
+/* ── FIXUPS — the places the base assumed soft, rounded, animated chrome ─────────────────── */
+
+/* Tahoma-first, and no web font: this skin's whole claim is that it runs on a toaster. */
+:root[data-theme="classic"] body,
+:root[data-theme="classic"] .input,
+:root[data-theme="classic"] .select,
+:root[data-theme="classic"] textarea.input {
+  font-family: Tahoma, "MS Sans Serif", Geneva, Verdana, sans-serif;
+}
+
+/* No decorative motion at all. */
+:root[data-theme="classic"] *,
+:root[data-theme="classic"] *::before,
+:root[data-theme="classic"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Raised bevel on the things you press, sunken on the things you type into — the two
+   shapes the whole look rests on. */
+:root[data-theme="classic"] .btn,
+:root[data-theme="classic"] .btn-primary {
+  border: 1px solid;
+  border-color: #ffffff #404040 #404040 #ffffff;
+  background: #d6d3ce;
+  color: #000000;
+}
+:root[data-theme="classic"] .btn:active,
+:root[data-theme="classic"] .btn-primary:active {
+  border-color: #404040 #ffffff #ffffff #404040;
+}
+:root[data-theme="classic"] .input,
+:root[data-theme="classic"] .select,
+:root[data-theme="classic"] textarea.input {
+  border: 1px solid;
+  border-color: #404040 #ffffff #ffffff #404040;
+  background: #ffffff;
+}

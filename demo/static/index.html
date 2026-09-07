@@ -64,6 +64,40 @@
 <link rel="stylesheet" href="/vendor/styles/components.css">
 <link rel="stylesheet" href="/static/demo.css">
 
+<!--
+  THE SKIN LAYER, AND WHY IT IS LAST
+
+    The four vendored sheets are pinned byte-identical to GIMS's by sha256 in
+    demo/manifest.json (D1) and may not be edited, and demo.css may declare no
+    custom property at all (B18, asserted twice in demo/tests/test_ui.py) so it
+    cannot become a silent fork of GIMS's stylesheet. That leaves exactly one
+    legal place to change the look: a new sheet, linked after both, redefining
+    watery.css's own token NAMES.
+
+    Because these files set only tokens, they do not compete with any component
+    rule — demo.css still wins the `.rail` collision it was ordered last to win,
+    and test_ui.py's vendored-before-demo.css assertion still holds.
+
+    base.css owns the bare :root (light, with a prefers-color-scheme dark block
+    guarded to :root:not([data-theme]) so an explicit pick always wins). Every
+    other skin is scoped under :root[data-theme="<name>"] and is inert until
+    chosen. Adding one is this list plus one row in skin.js — nothing else.
+-->
+<link rel="stylesheet" href="/static/skins/base.css">
+<link rel="stylesheet" href="/static/skins/dark.css">
+<link rel="stylesheet" href="/static/skins/gunmetal.css">
+<link rel="stylesheet" href="/static/skins/titanium.css">
+<link rel="stylesheet" href="/static/skins/classic.css">
+<link rel="stylesheet" href="/static/skins/jrpg.css">
+
+<!--
+  Synchronous, in <head>, and NOT deferred: the stored skin has to be on <html>
+  before the first paint or a reader who chose a light skin gets a dark flash on
+  every load. It cannot be an inline <script> — the CSP above is script-src
+  'self' with no 'unsafe-inline', so an inline one would simply be refused.
+-->
+<script src="/static/js/skin.js"></script>
+
 <link rel="preload" href="/static/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 
