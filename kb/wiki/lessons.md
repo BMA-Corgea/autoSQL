@@ -55,6 +55,34 @@ was right.**
   exit code.** Otherwise the known red masks the new one and the whole check becomes noise —
   `EXPECTED_SURVIVORS` in `demo/tests/mutation_pass.py`.
 
+## The procedure transfers; the proof does not
+
+*2026-09-08 · ruled while approving T-22's `.jsx` edit · the precedent is T-16*
+
+**T-16 rebuilt digest-covered `.jsx` bundles and could say the rebuild was safe *because the
+bundles came back byte-identical*.** That worked because T-14 had only reworded two comments:
+any bundle change at all would have meant something unintended happened. It is a genuinely
+strong proof — for that change.
+
+**It is unavailable to the next change, and its absence proves nothing.** T-22 adds
+`data-tour` attributes to about eight controls. That *legitimately* changes the bundles. A
+session reaching for "byte-identical" out of habit gets a failure it cannot interpret: the
+check fails, and it fails for a good reason, and nothing distinguishes that from the bad one.
+
+**So: reuse the steps, re-derive the evidence.** The procedure carries over unchanged — edit
+the `.jsx`, run `./run-demo build-ui`, re-baseline `manifest.json`. What has to be rebuilt for
+each change is the *argument that the rebuild did only what was intended*:
+
+| change | the proof that fits it |
+|---|---|
+| comments reworded (T-16) | bundles **byte-identical** — any diff is a defect |
+| attributes added (T-22) | **diff the bundles** and show the change set contains only the added attributes |
+
+**The general rule: a borrowed procedure comes with a borrowed proof, and the proof is the half
+that expires.** When you inherit a runbook, ask what its evidence step was *establishing*, and
+whether your change still makes that the right question. Ask it before running the check, not
+after it goes red.
+
 ## A citation to "the plan" is not a citation to the spec
 
 *2026-09-08 · found while starting plan §8.2's mutation pass · `.autodev/notes/plan-8-2-mutation-pass-citation.md`*
