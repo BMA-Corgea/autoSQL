@@ -475,3 +475,97 @@ Read this section as part of the evidence, not as an appendix.
 7. **This record verifies the demo, not the integration.** Nothing here says
    anything about GIMS itself — the demo runs on invented data, on its own
    database, behind its own fence, and that is all that was tested.
+
+
+---
+
+## ADDENDUM — 2026-09-08. §1.2's disclosure is discharged: the mutation pass has run.
+
+**Nothing above this line is edited.** This record was produced on 2026-08-22 and every
+statement in it was true when written; §1.2 and §6 item 3 say plainly that plan §8.2's
+mutation pass had never run, and on that date it had not.
+
+**It has now.** `demo/tests/mutation_pass.py` implements it; `./run-demo test --mutants` is the
+command §8.2 names. Current result, 2026-09-08:
+
+    mutation pass: 15 killed, 1 survived (1 known, 0 NEW), 0 INVALID, of 16
+      KNOWN SURVIVOR M15 — tracked in T-20
+    Every criterion was watched failing against its own mutant, except the 1 known and
+    tracked above. Those are the pass WORKING: it found a criterion that only looks like
+    it works.
+
+**An earlier version of this addendum said 16/16. That was wrong and is corrected here rather
+than edited away.** Three mutants were being killed by something other than the criterion §8.2
+names for them: M3 ran `test_order.py`, which says at its own line 357 that AC-41(d) lives in
+`test_walkthrough.py`; M14 was killed by `assert "jsonb_typeof(" in probe.sql`, a substring check,
+while its criterion is a `22P02` the aggregate raises — a string that appears nowhere in
+`test_probes.py`; and M15 ran only the first of the two halves the plan names. With the criteria
+corrected, M3 and M14 are genuinely killed and **M15 is not**.
+
+So §6 item 3's *"9 have never been watched failing"* no longer holds: fifteen have, and the
+sixteenth has been driven against both halves of its criterion with one of them not firing.
+The four hand-run once (M1, M4, M8, M16) and the three with standing detectors (M6, M12,
+M13) are now driven mechanically alongside the other nine, every time the pass is run.
+
+**Three properties of that run, because the number alone is not the evidence:**
+
+1. **A criterion is checked GREEN before it is allowed to go red.** A test that was already
+   failing proves nothing by failing again, so each mutant runs its criterion on the clean
+   tree first. Outcomes are KILLED / SURVIVED / **INVALID**, and only KILLED counts.
+2. **A mutant that cannot be anchored fails the run.** It is never skipped — the original
+   reason this was not implemented in the launcher.
+3. **The fixture is guarded.** M16's defect *is* leaving a row behind, so reverting its
+   source does not undo it. The first run of this pass left a committed scratch row in
+   `demo.records`, and the next pytest session opened with `B10 CHECKSUM GUARD FAILED`.
+   That is recorded here rather than quietly repaired: the row was
+   `noun:__scratch__/scratch-00`, the three seeded collections were untouched, and the
+   digest was restored to the manifest's `65d83e81…`. The pass now reads the digest before
+   it starts and after **every** mutant, restores on drift, and aborts if it cannot.
+
+**Worth knowing before trusting the 16/16:** on the first complete run, six mutants
+SURVIVED and two were INVALID — and every one of those eight was a defect in the *mutant*,
+not a decorative criterion. A node id missing its class; a rounding mode overridden at the
+call site; an anchor inside an `except ImportError` branch that never executes; a grep
+aimed at the wrong module; the weaker of two halves of a criterion whose own docstring said
+so; and a detector matching the guard's internal state word rather than its printed banner.
+**The suite's catchers were alive the whole time.** The three-outcome design is what made
+that legible instead of eight accusations against a working suite.
+
+
+### M15, the one that does not die — and why the criterion was not edited to make it
+
+Plan §8.2 names two halves for M15: *"AC-41(a) grep, and AC-41(b)'s ten runs"*. Measured: the
+grep kills it; the ten runs do not, and the mutant demonstrably reaches the statement they
+execute — with `ORDER BY` dropped the emitted SQL ends `LIMIT %(cap)s` with no ordering at all,
+and ten runs still return one identical sequence.
+
+**That is a property of AC-41(b), not a defect in the demo.** Its own docstring says it exists to
+catch *"an order which is stable by luck of the plan rather than by ORDER BY — a synchronised
+sequential scan joining the table mid-way"*, and `.autodev/specs/T-2.md`'s "why half (2) exists"
+lists the causes: a different plan, a synchronised sequential scan, one parallel worker finishing
+before another. **None of those occurs on an idle 8,400-row table**, so ten sequential runs of an
+unordered query return the same rows in the same order and the test passes. It is a real test of
+repeatability; it is not a detector for a missing `ORDER BY`.
+
+**AC-41(b) has deliberately not been strengthened to kill M15.** `.autodev/specs/T-19.md` puts that
+out of scope in as many words: *"Changing any criterion to make a mutant die. If a criterion is
+decorative, that is the finding — it is not licence to edit the test until it passes."* Scoring
+M15 KILLED on the strength of the grep alone would also work, and is a defensible reading of the
+plan's "and"; that choice belongs to whoever owns the bar, not to the author of the mutant.
+
+### The pass must not decay, so a known red cannot hide a new one
+
+A permanently-red check gets made green the easy way by whoever meets it next — which is
+the move §8.2 exists to prevent. So the pass distinguishes **a known survivor** from **a
+new one**:
+
+* `EXPECTED_SURVIVORS` in `demo/tests/mutation_pass.py` carries a **reason and a ticket**
+  per entry. M15 is the only one, tracked in T-20.
+* A survivor **not** on that list is reported as `*** NEW SURVIVOR ***` and the run exits
+  **3**, distinct from a structural refusal (2) and from green (0).
+* An entry that **stops** surviving is also reported, so a stale list cannot quietly hide a
+  regression behind an obsolete excuse.
+
+Proved rather than asserted: with M6's criterion temporarily weakened, the run printed both
+`KNOWN SURVIVOR M15` and `*** NEW SURVIVOR M6 ***` and exited 3. The known red did not mask
+the new one.

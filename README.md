@@ -126,9 +126,19 @@ What is **not** settled, stated plainly:
   reports absolute milliseconds, so it needs a 1-minute load average of 2.0 or below and an
   exclusive two-to-three-hour window, and the machine has not yet had that window
   (`kb/CURRENT-WORK.md`). Numbers taken under load are not weaker, they are void, so it waits.
-- The digit mapping is generated but **nothing regenerates it** on a Unicode bump, `raw`-mode data
-  was never re-run, and the planned mutation pass has never run — 9 of 16 mutants have never been
-  watched failing (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
+- The digit mapping is generated but **nothing regenerates it** on a Unicode bump, and `raw`-mode
+  data was never re-run (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
+- The planned mutation pass **now runs**: `./run-demo test --mutants` applies plan §8.2's sixteen
+  one-line defects, runs only the criterion each must break, and asserts it fails
+  (2026-09-08). **15 killed, 1 known survivor, 0 new** — and the survivor is the pass doing
+  its job. §8.2 names two halves for M15; `AC-41(a)`'s grep kills it, `AC-41(b)`'s ten runs do
+  not, and that is a real discovery about `AC-41(b)` rather than a defect in the demo: the
+  reordering it watches for needs a synchronised sequential scan, a plan change or parallel
+  workers, and none of those occurs on a 2.8 MB table where `LIMIT 10` stops the scan first.
+  It is a repeatability test, not an `ORDER BY` detector. Tracked in **T-20**, and the
+  criterion was deliberately **not** edited to make the mutant die (`.autodev/specs/T-19.md`,
+  Out of scope). Known survivors are listed with a reason and a ticket each, and a **new**
+  survivor exits 3 — so a tracked red can never mask a fresh one.
 
 ## Status
 
