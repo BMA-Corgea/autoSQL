@@ -369,6 +369,7 @@ always showing its derivation, always overturnable by one line from him.
   declared per framing §5.1 item 4: this session, one idle second session, the GUTS bridge, the
   openclaw gateway, and `glp-strong-db` (the owner's LIVE database — never written, read-only
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
+- **T-18** (techdebt) — A gate parked by arrival never pings: gate_waiting only fires on a refused adva… — auto-review
 
 ## Waiting on
 
@@ -401,11 +402,22 @@ fully answered — nine by him in session, the other 29 ruled under GA-6 and rec
 **A caution for any session that expects to be paged.** The automatic gate ping **does not work**, and
 it is not a configuration mistake — see Defect 4 in `.autodev/notes/upstream-bugs.md`. `notify.mjs`
 pages on `gate_waiting`; the only producer of that event fires when an advance is *refused* at a gate,
-never when a ticket *arrives* at one. `grep -c gate_waiting .autodev/events.jsonl` over this repo's
-entire history returns **0**. Worse, for a stage whose work IS the human's decision (`sp-decide`), the
-gate check sits *after* the validator check, so it can never fire at all. **Until that is fixed, a
-session that parks a ticket at a human gate must write the packet to `.autodev/outbox/` and run
-`ops/notify-telegram.sh` by hand** — that is a documented seam, and it is how T-3's ping was delivered.
+never when a ticket *arrives* at one. `gate_waiting` has now fired **13** times
+(`spec_ready` 7, `accept` 6) — *corrected 2026-09-08; this line used to say 0, which was true when
+written on 2026-08-22 and stopped being true on 2026-09-01. It then briefly said 12, which was an
+off-by-one in the correction itself: the 13th fired at 19:17:38Z, emitted by the very `pass` attempt
+that was investigating this defect.* But **`sp_decide` has fired 0 times in
+the repo's entire history**, because for a stage whose work IS the human's decision the gate check
+sits *after* the validator check, and that validator ("ADR recorded") cannot pass until the human
+decides. **As of T-18 the packet is usually written for you**: `ops/gate-ping.mjs` runs in the
+`Stop` hook and announces tickets parked at an uncleared human gate. Read its limits before relying on
+it — it does **not** restore the ledger event or the passport stamp (it never writes ticket state), and
+it announces nothing at all on a machine where it cannot find the tracker, in which case it exits
+non-zero and says so rather than reporting a clear board. **So the manual seam stands as the fallback:
+a session that parks a ticket at a human gate should still confirm a packet reached
+`.autodev/outbox/`, and write one and run `ops/notify-telegram.sh` by hand if not** — that is how
+T-3's and T-4's pings were delivered. Filing upstream stays his call
+(`.autodev/notes/upstream-bugs.md` Defect 4).
 
 ## Recent past (~15 items / ~30 days)
 
