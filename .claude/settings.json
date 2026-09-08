@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node \"$CLAUDE_PLUGIN_ROOT/scripts/notify.mjs\" process --root . --shop autosql >/dev/null 2>&1; node ops/gate-ping.mjs --no-send >/dev/null 2>&1 || true; ops/notify-telegram.sh >/dev/null 2>&1 || true"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && node \"$CLAUDE_PLUGIN_ROOT/scripts/notify.mjs\" process --root . --shop autosql >/dev/null 2>&1; node ops/gate-ping.mjs --no-send >>.autodev/logs/gate-ping.log 2>&1 || echo \"[$(date -uIs)] gate-ping FAILED \u2014 see .autodev/logs/gate-ping.log\" >>.autodev/logs/gate-ping.log; ops/notify-telegram.sh >/dev/null 2>&1 || true"
           }
         ]
       }
