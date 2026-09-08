@@ -123,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print("runtime/runtime.sql is STALE for this interpreter (Unicode %s).\n"
               "  Regenerate with: python3 runtime/generate.py\n"
+              "  Then VERIFY with:  ops/runtime-check.sh\n"
               "  If the digit set itself moved, the two engines have drifted apart — read\n"
               "  runtime/README.md before committing the new bytes."
               % unicodedata.unidata_version)
@@ -132,6 +133,21 @@ def main(argv: list[str] | None = None) -> int:
     print("wrote %s (Unicode %s, %d digits, %d whitespace)"
           % (TARGET, unicodedata.unidata_version,
              len(nonascii_decimal_digits()), len(python_whitespace())))
+    # Writing the file proves nothing about whether the two engines still agree. The
+    # staleness guard will now pass — it compares the committed bytes against THIS
+    # interpreter — and the 39 cases that actually compare xpr.num against the Python
+    # evaluator skip unless AUTOSQL_RUNTIME_DSN is set. A regeneration accepted on the
+    # strength of a green `pytest runtime/tests/` has had no Unicode digit compared
+    # between the two engines at all.
+    print("\n"
+          "  NOT YET VERIFIED. These bytes are what this interpreter produces; that is not\n"
+          "  the same as the two engines agreeing on them.\n"
+          "\n"
+          "  Run:  ops/runtime-check.sh\n"
+          "\n"
+          "  It brings up a throwaway Postgres, installs these bytes, and compares xpr.num\n"
+          "  against the real Python evaluator on every Unicode digit case. Without it,\n"
+          "  `pytest runtime/tests/` reports 8 passed / 50 skipped and reads as green.")
     return 0
 
 
