@@ -48,6 +48,16 @@ check that nothing called. **Both are the same failure at different distances fr
 **The test:** *what would have to break for this check to stop protecting me, and would I
 notice?* If the answer is "someone stops typing it", it is not a guard yet.
 
+**Its first catch was its own author, on the day it was written.** With the guard now invoked by
+the suite, the next commit was refused — because `demo/tests/test_owner_name_absent.py` used the
+owner's name **literally** as its probe fixture, so the check correctly flagged its own test file.
+Two things made that a good outing rather than an embarrassing one: the commit was **chained with
+`&&`**, so the refusal actually stopped it (the failure hours earlier was a `;` that let the push
+through), and the fix was to **assemble** the probe (`"ev" + "an"`) so the file never contains the
+token while the test still drives the real pattern. **A guard whose first catch is the person who
+wrote it, minutes after writing it, is a guard that works** — and it is a reminder that the author
+is inside the blast radius, not above it.
+
 **Instance 2 is the sharpest and instance 4 is the most instructive.** Number 2 is a control
 whose job was proving failure paths fire, and its own failure path could not. Number 4 shows
 the class survives having a *correct, running* guard next door: detection worked perfectly,

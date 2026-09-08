@@ -2,6 +2,66 @@
 
 ---
 
+> # START HERE — 2026-09-08 (the queue is EMPTY; two things wait on his hand and nothing else)
+>
+> **Six queue items, all closed or deliberately parked.** `main` is level with `origin/main`;
+> suites green — **demo 1168 · runtime 58 (with a database) · compiler 34 · ops 14**, doctor
+> **19/19**. Full detail, written for a session with no memory:
+> **`.autodev/handoffs/2026-09-08-run.md`**. **Do not start new work without an instruction.**
+>
+> | ticket | | |
+> |---|---|---|
+> | **T-4** | the timing run — **verdict FAIL**, ~2.5× slower than Python at every size | **PARKED at `sp_decide` — HIS** |
+> | **T-18** | a gate parked by *arrival* never announced itself | merged `a1a54cb` |
+> | **T-19** | plan §8.2's mutation pass — 15 killed, 1 known survivor, 0 new | merged `a110378` |
+> | **T-21** | the digit mapping had detection without verification | merged `e18d9cc` |
+> | **T-23** | the raw-mode re-run — the headline claim has a scope | `33f0c33` |
+> | **T-22** | the guided tour — **drawn, not built** | **BLOCKED at `design` — HIS** |
+> | **T-20** | criteria that cannot detect what they name | deferred, with a trigger |
+>
+> ## The two things waiting on him, and the mechanics that will surprise you
+>
+> **T-4's `sp_decide`** — uncleared in both directions, and GA-24 Q2 excludes it from on-behalf
+> by name. **The verdict is final; do not re-litigate the measurement** — he ruled the numbers
+> pristine. He rules from `kb/wiki/decision-t4-timing-verdict.md`.
+>
+> **T-22's `design` gate** — he has already ruled the step list and the narrator (the GIMS gnome);
+> the look sign-off remains. **Two mechanics:** his *words are not the clearance* — `human:strict`
+> refuses on-behalf, so he must run the command himself; and **the gate is bound to nothing**
+> (`design@v1`'s `bands.gate` is `None`), so T-22 is held by an explicit `block` rather than by the
+> gate. `.autodev/notes/design-gate-does-not-bind.md`. The `override --policy human` loophole is
+> recorded there as **forbidden, not offered**.
+>
+> ## The most reusable thing this run produced
+>
+> **`kb/wiki/lessons.md` — "a check that never ran reads exactly like a check that passed", with
+> five witnesses**, all found in one day by someone re-driving a path for another reason:
+> `conformance.py`'s three dead branches · T-4's §6.1 helper unit tests · `--only <typo>` exiting
+> 0 on `0 of 0` · the digit mapping's **50 skips wearing the word "passed"** · and
+> `ops/name-check.sh`, a sound check that **nothing invoked**. The fifth differs from the rest:
+> its failure path works, and the *invocation* was missing. **Its first catch was its own author.**
+>
+> Two more entries there: **the procedure transfers, the proof does not** (T-16's byte-identical
+> check will mislead the next `.jsx` edit — diff the bundles instead), and **a citation to "the
+> plan" is not a citation to the spec** (`T-2.md` §8.2 is "The table"; `T-2-plan.md` §8.2 is the
+> mutation pass).
+>
+> ## One correction to the record
+>
+> **The correctness headline is narrower than it read.** *0 wrong numbers over 11,367 expressions*
+> is true **of `py`-mode data only**. T-23 measured **7 divergences in 204 expressions** in `raw`
+> mode — all equality/inequality, mechanism measured: jsonb compares an exact `numeric`, Python
+> compares after a `float` parse. **That count is not a rate** — the denominator was a hand-picked
+> adversarial set and **no frequency estimate exists**. `README.md` now says so where the claim is
+> made.
+>
+> ## The host
+>
+> The watch sidecar is **running** (restarted after T-4's window — verify rather than assume). The
+> **GUTS dev stack is still down**, stopped under GA-25 for the timing window and his to restart.
+> `autosql-corpus` on 55434 holds T-4's corpus — **evidence, do not destroy**. **Never 55433.**
+
+
 > # START HERE — 2026-09-08 (T-4 RAN. Verdict FAIL. `sp_decide` is parked and is HIS)
 >
 > **T-4 is answered.** The compiled path is **2.5× slower than the Python path it would
