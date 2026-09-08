@@ -104,12 +104,35 @@ export function routeOf(id, bin, run = defaultRun) {
   return JSON.parse(run(bin, ["next", id, "--root", ROOT]));
 }
 
-/** Gate policies the tracker treats as human (tracker.mjs:893 HUMAN_POLICIES).
- *  Anything unrecognised is ALSO treated as human — see the failure direction above. The
- *  repo's own gates.json names `autonomous | recommend-and-wait | auto-unless-contested`
- *  as future dials, and none of those start with "human". */
-const AUTO_POLICIES = new Set(["auto", "none", "off", "disabled", "autonomous"]);
-export const isHumanPolicy = (p) => p != null && !AUTO_POLICIES.has(String(p).toLowerCase());
+/** Does this gate policy wait for a person?
+ *
+ *  Mirrors the tracker's own vocabulary (tracker.mjs:891-894): HUMAN_POLICIES is exactly
+ *  {human, human:strict}, and "everything else (auto-when-green | unattended) clears itself
+ *  when green".
+ *
+ *  A prefix test on "human" was wrong in BOTH directions and is why this is a mirrored set
+ *  with a test rather than a guess. It missed future dials that do wait for a person
+ *  (gates.json names `recommend-and-wait` and `auto-unless-contested`), and — caught live,
+ *  before this ever paged anyone — it also matched nothing for `unattended`, which meant the
+ *  watchdog wanted to page the operator about T-18's own merge gate. This shop marks BOTH
+ *  `merge` and `deploy` unattended, so that would have been a page on every merge and every
+ *  deploy, forever.
+ *
+ *  UNKNOWN policies still resolve toward announcing — a duplicate costs two seconds and a
+ *  miss costs a night — but a policy the tracker itself calls green is not unknown. */
+const HUMAN_POLICIES = new Set(["human", "human:strict"]);
+const GREEN_POLICIES = new Set(["auto-when-green", "unattended",
+                                "auto", "none", "off", "disabled", "autonomous"]);
+export const isHumanPolicy = (p) => {
+  if (p == null) return true;                       // no policy stated: announce, do not guess
+  const k = String(p).toLowerCase();
+  if (HUMAN_POLICIES.has(k)) return true;
+  if (GREEN_POLICIES.has(k)) return false;
+  return true;                                      // unknown: announce
+};
+export const isKnownPolicy = (p) =>
+  p != null && (HUMAN_POLICIES.has(String(p).toLowerCase()) ||
+                GREEN_POLICIES.has(String(p).toLowerCase()));
 
 /** Has the PLUGIN already emitted this exact occurrence? Read from the ledger — the real
  *  source of truth — not from a filename convention.
@@ -183,6 +206,10 @@ export function pending({ files = ticketFiles(), bin = null, route = routeOf,
     if (!g || !g.name) continue;
     if (g.cleared) continue;
     if (!isHumanPolicy(g.policy)) continue;
+    if (!isKnownPolicy(g.policy)) {
+      failures.push({ id: t.id, why: `unknown gate policy ${JSON.stringify(g.policy)} on ` +
+        `${g.name} — announcing it to be safe, but the policy vocabulary has moved` });
+    }
 
     // The occurrence is (ticket, stage, gate) — the key the plugin itself uses — so a
     // loopback and re-arrival at a different stage is a NEW occurrence and pings again.

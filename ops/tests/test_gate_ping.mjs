@@ -121,14 +121,30 @@ test("AC4 — never pings a CLEARED gate; DOES ping an unrecognised policy", () 
     gate: { ...ROUTE_PARKED["T-4"].gate, policy: "auto" } } });
   assert.match(runTool(auto, ["--dry-run"]).out, /nothing parked/);
 
-  // The failure direction: a policy this tool has never heard of must PING, not go quiet.
-  // gates.json names `recommend-and-wait` and `auto-unless-contested` as future dials, and
-  // neither starts with "human" — a prefix test would have silently dropped both.
+  // The GREEN policies the tracker names (tracker.mjs:891-894) must stay silent. This is
+  // not hypothetical: this shop marks BOTH `merge` and `deploy` `unattended`, and an
+  // earlier startsWith("human") test classified `unattended` as human — it wanted to page
+  // the operator about T-18's own merge gate, i.e. on every merge and deploy forever.
+  for (const policy of ["unattended", "auto-when-green"]) {
+    const green = tree([T4], { "T-4": { ...ROUTE_PARKED["T-4"],
+      gate: { ...ROUTE_PARKED["T-4"].gate, policy } } });
+    assert.match(runTool(green, ["--dry-run"]).out, /nothing parked/,
+      `policy ${policy} clears itself when green — paging about it is noise`);
+  }
+
+  // The failure direction: a policy this tool has never heard of must PING, not go quiet —
+  // and must be REPORTED, because an unknown policy means the vocabulary has moved.
+  // gates.json names `recommend-and-wait` and `auto-unless-contested` as future dials.
   for (const policy of ["recommend-and-wait", "human:strict", "needs-owner"]) {
     const odd = tree([T4], { "T-4": { ...ROUTE_PARKED["T-4"],
       gate: { ...ROUTE_PARKED["T-4"].gate, policy } } });
     assert.match(runTool(odd, ["--dry-run"]).out, /WOULD SEND/, `policy ${policy} must ping`);
   }
+  const unknown = tree([T4], { "T-4": { ...ROUTE_PARKED["T-4"],
+    gate: { ...ROUTE_PARKED["T-4"].gate, policy: "needs-owner" } } });
+  const r = runTool(unknown, ["--dry-run"]);
+  assert.match(r.err, /unknown gate policy/, "an unknown policy must be surfaced, not absorbed");
+  assert.equal(r.code, 1);
 });
 
 test("AC5 — the route comes from the tracker, not from a local map", () => {
