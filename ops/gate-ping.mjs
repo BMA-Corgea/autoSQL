@@ -15,6 +15,18 @@
  *   Demonstrated 2026-09-08: T-4 was advanced into `sp-decide` with `sp_decide` uncleared
  *   and human-held, and nothing announced it. A human relayed it by hand.
  *
+ *   THERE IS A SECOND, WORSE CAUSE, and it is why this cannot be worked around by simply
+ *   attempting an advance. The gate check sits AFTER the validator check in that same
+ *   function, so for a stage whose work IS the human's decision the advance returns
+ *   `validator_pending` and never reaches the gate at all. The ordering is circular: no page
+ *   until the validator passes, the validator ("ADR recorded") cannot pass until the human
+ *   decides, and the human does not know to decide because there was no page. Measured over
+ *   this repo's whole history: `spec_ready` emitted 7 times and `accept` 6 — gates whose
+ *   validator an AGENT can satisfy — and `sp_decide` exactly ZERO. The pager is structurally
+ *   unreachable for precisely the gates that most need it.
+ *
+ *   This watchdog sidesteps both causes by never touching the advance path.
+ *
  * WHY HERE AND NOT IN THE PLUGIN
  *   The plugin is third-party (github.com/RShuken/autodev-plugin), the running version is
  *   0.53.0 and the only local checkout is 0.50.4. This repo has already ruled on cache
