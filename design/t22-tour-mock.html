@@ -1,0 +1,286 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The Step 11 Tour</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ── THE MOCK'S OWN CHROME (not shipped) ─────────────────────────────────────── */
+*{box-sizing:border-box}
+:root{
+  --ink:#12191f; --ink-2:#4a5b6b; --ink-3:#6f8296;
+  --ground:#eceff3; --sheet:#ffffff; --rule:#d3dbe4;
+  --accent:#1d5fa8; --flag:#8a6410; --flag-bg:#fdf5e3;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#e4ebf2; --ink-2:#a7b8c8; --ink-3:#7d90a3;
+    --ground:#0d1319; --sheet:#151d25; --rule:#28323d;
+    --accent:#6aa9e8; --flag:#e0b768; --flag-bg:#241d0d;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e4ebf2; --ink-2:#a7b8c8; --ink-3:#7d90a3;
+  --ground:#0d1319; --sheet:#151d25; --rule:#28323d;
+  --accent:#6aa9e8; --flag:#e0b768; --flag-bg:#241d0d;
+}
+body{margin:0;font:400 15px/1.6 var(--sans);background:var(--ground);color:var(--ink);
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:36px 22px 80px}
+h1{font-size:27px;font-weight:600;letter-spacing:-.015em;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0 0 26px;font-size:15px}
+.note{background:var(--sheet);border:1px solid var(--rule);border-left:3px solid var(--accent);
+      padding:14px 16px;border-radius:5px;margin:0 0 28px;font-size:14px;color:var(--ink-2);
+      max-width:74ch}
+.note b{color:var(--ink)}
+h2{font-size:12px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);
+   margin:38px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--rule)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:22px}
+.skinlab{font:500 11px/1 var(--mono);letter-spacing:.07em;text-transform:uppercase;
+         color:var(--ink-3);margin:0 0 7px}
+
+/* ── THE TOUR TOKENS — the shipped shape, one block per skin ──────────────────
+   In the real build this is demo/static/tour-tokens.css. demo.css declares NO
+   custom property (B18) and vendor styles are sha256-pinned (D1), so the tour's
+   palette lives here and nowhere else. Each demo skin gets a block; anything
+   not overridden derives, so an eighth skin gets a sane tour for free.        */
+.scene{--tour-dim:rgba(12,18,26,.62);
+       --tour-ring:#3b82f6; --tour-ring-w:2px; --tour-radius:8px;
+       --tour-glow:0 0 0 4px rgba(59,130,246,.28);
+       --tour-bubble-bg:#ffffff; --tour-bubble-fg:#16202c; --tour-bubble-bd:#c9d4e0;
+       --tour-accent:#3b82f6; --tour-btn-fg:#fff;
+       --screen-bg:#f7f9fb; --screen-fg:#16202c; --panel:#fff; --line:#d9e2ec; --muted:#64748b}
+.scene[data-theme="dark"]{--tour-dim:rgba(2,6,12,.72);--tour-ring:#60a5fa;
+       --tour-glow:0 0 0 4px rgba(96,165,250,.25);
+       --tour-bubble-bg:#111a24;--tour-bubble-fg:#e6edf5;--tour-bubble-bd:#2b3947;
+       --screen-bg:#0b1219;--screen-fg:#e6edf5;--panel:#111a24;--line:#22303d;--muted:#8fa3b7}
+.scene[data-theme="classic"]{--tour-dim:rgba(0,0,32,.55);
+       --tour-ring:#000080;--tour-ring-w:2px;--tour-radius:0;--tour-glow:none;
+       --tour-bubble-bg:#c0c0c0;--tour-bubble-fg:#000;--tour-bubble-bd:#000;
+       --tour-accent:#000080;--tour-btn-fg:#fff;
+       --screen-bg:#008080;--screen-fg:#000;--panel:#c0c0c0;--line:#808080;--muted:#404040}
+.scene[data-theme="jrpg"]{--tour-dim:rgba(6,32,38,.66);
+       --tour-ring:#e8c66a;--tour-ring-w:2px;--tour-radius:4px;
+       --tour-glow:0 0 0 3px rgba(232,198,106,.3);
+       --tour-bubble-bg:#0e3b45;--tour-bubble-fg:#f4ead2;--tour-bubble-bd:#e8c66a;
+       --tour-accent:#e8c66a;--tour-btn-fg:#0e3b45;
+       --screen-bg:#0a2f38;--screen-fg:#f4ead2;--panel:#0e3b45;--line:#1d5a68;--muted:#9fc3c9}
+
+/* ── THE SCENE: a faked demo screen, just enough to judge the overlay on ───── */
+.scene{position:relative;border:1px solid var(--rule);border-radius:8px;overflow:hidden;
+       background:var(--screen-bg);color:var(--screen-fg);height:330px;font-size:12px}
+.app{padding:10px 12px}
+.appbar{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);
+        padding-bottom:8px;margin-bottom:10px}
+.mark{width:18px;height:18px;border-radius:5px;background:var(--tour-accent)}
+.appbar b{font-size:12px}
+.pickbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.f{border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:4px 8px;font-size:11px}
+.runbtn{border:1px solid var(--tour-accent);background:var(--tour-accent);color:var(--tour-btn-fg);
+        border-radius:4px;padding:4px 12px;font-size:11px;font-weight:600}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pane{border:1px solid var(--line);background:var(--panel);border-radius:5px;padding:8px}
+.pane h4{margin:0 0 6px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cell{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted var(--line)}
+.big{font:600 15px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* ── THE OVERLAY: four picture-frame panels, NOT one sheet ───────────────────
+   The target rect is left UNCOVERED, so it stays natively clickable however it
+   is nested. This is the engine's actual mechanism, drawn to scale.           */
+.dim{position:absolute;background:var(--tour-dim)}
+.ring{position:absolute;border:var(--tour-ring-w) solid var(--tour-ring);
+      border-radius:var(--tour-radius);box-shadow:var(--tour-glow);pointer-events:none}
+.bubble{position:absolute;max-width:280px;background:var(--tour-bubble-bg);color:var(--tour-bubble-fg);
+        border:1px solid var(--tour-bubble-bd);border-radius:calc(var(--tour-radius) + 2px);
+        padding:10px 12px;font-size:11.5px;line-height:1.5;
+        box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.bubble .who{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.bubble .disc{width:20px;height:20px;border-radius:50%;background:var(--tour-accent);flex:0 0 20px}
+.bubble .nm{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.bubble .acts{display:flex;gap:6px;align-items:center;margin-top:8px}
+.bubble button{font:inherit;font-size:10.5px;border-radius:4px;padding:3px 10px;border:1px solid var(--tour-bubble-bd);
+        background:transparent;color:inherit}
+.bubble button.pri{background:var(--tour-accent);border-color:var(--tour-accent);color:var(--tour-btn-fg);font-weight:600}
+.bubble .cnt{margin-left:auto;font-size:10px;color:var(--muted)}
+.fw{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.ok{color:#15803d;font-weight:600}
+.scene[data-theme="dark"] .ok,.scene[data-theme="jrpg"] .ok{color:#4ade80}
+.scene[data-theme="classic"] .ok{color:#006000}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:5px;background:var(--sheet)}
+table.steps{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+table.steps th,table.steps td{border-bottom:1px solid var(--rule);padding:9px 12px;text-align:left;
+  vertical-align:top}
+table.steps tr:last-child td{border-bottom:0}
+table.steps th{font:600 11px/1 var(--sans);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);padding-top:11px;padding-bottom:11px}
+table.steps td:first-child{font:500 13px/1.6 var(--mono);color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+table.steps tr.pay td{background:var(--flag-bg)}
+table.steps tr.pay td:first-child{color:var(--flag)}
+.cut{border-left-color:var(--flag)}
+.cut b{color:var(--ink)}
+</style>
+<div class="wrap">
+<h1>T-22 — the guided tour, drawn</h1>
+<p class="sub">Nothing is built. This is the look, for the <code>design</code> gate.</p>
+
+<p class="note"><b>What you are looking at.</b> A faked demo screen with the real overlay drawn over it,
+on four of the seven skins. The dim is <b>four panels around</b> the highlighted control — never one
+sheet on top — so the control underneath stays clickable however it is nested. Palette comes from a new
+<code>demo/static/tour-tokens.css</code>; <code>demo.css</code> gains nothing (B18) and the pinned
+vendor styles are untouched (D1).</p>
+
+<h2>Step 6 — the payload, on four skins</h2>
+<div class="grid">
+
+<div><p class="skinlab">system / light — narrator A, the mark</p>
+<div class="scene">
+  <div class="app">
+    <div class="appbar"><span class="mark"></span><b>autoSQL — demo</b></div>
+    <div class="pickbar"><span class="f">noun:EdgeCase</span><span class="f">biggest = max($.m)</span><span class="runbtn">Run this pick</span></div>
+    <div class="panes">
+      <div class="pane"><h4>SQL — Postgres</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+      <div class="pane"><h4>Python</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+    </div>
+  </div>
+  <div class="dim" style="left:0;top:0;right:0;height:150px"></div>
+  <div class="dim" style="left:0;top:150px;width:12px;height:44px"></div>
+  <div class="dim" style="left:196px;top:150px;right:0;height:44px"></div>
+  <div class="dim" style="left:0;top:194px;right:0;bottom:0"></div>
+  <div class="ring" style="left:12px;top:150px;width:184px;height:44px"></div>
+  <div class="bubble" style="right:14px;top:120px">
+    <div class="who"><span class="disc"></span><span class="nm">autoSQL</span></div>
+    Those are not ASCII digits. <span class="fw">１２３</span> is three fullwidth code points.
+    Python's <span class="fw">float()</span> accepts them — and so, now, does the SQL.
+    Both panes read <b>123</b>. <b>This is the cell that used to be silently wrong.</b>
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">6 / 7</span></div>
+  </div>
+</div></div>
+
+<div><p class="skinlab">dark</p>
+<div class="scene" data-theme="dark">
+  <div class="app">
+    <div class="appbar"><span class="mark"></span><b>autoSQL — demo</b></div>
+    <div class="pickbar"><span class="f">noun:EdgeCase</span><span class="f">biggest = max($.m)</span><span class="runbtn">Run this pick</span></div>
+    <div class="panes">
+      <div class="pane"><h4>SQL — Postgres</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+      <div class="pane"><h4>Python</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+    </div>
+  </div>
+  <div class="dim" style="left:0;top:0;right:0;height:150px"></div>
+  <div class="dim" style="left:0;top:150px;width:12px;height:44px"></div>
+  <div class="dim" style="left:196px;top:150px;right:0;height:44px"></div>
+  <div class="dim" style="left:0;top:194px;right:0;bottom:0"></div>
+  <div class="ring" style="left:12px;top:150px;width:184px;height:44px"></div>
+  <div class="bubble" style="right:14px;top:120px">
+    <div class="who"><span class="disc"></span><span class="nm">autoSQL</span></div>
+    Those are not ASCII digits. Both panes read <b>123</b>.
+    <b>This is the cell that used to be silently wrong.</b>
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">6 / 7</span></div>
+  </div>
+</div></div>
+
+<div><p class="skinlab">classic — square ring, no glow, navy</p>
+<div class="scene" data-theme="classic">
+  <div class="app">
+    <div class="appbar"><span class="mark"></span><b>autoSQL — demo</b></div>
+    <div class="pickbar"><span class="f">noun:EdgeCase</span><span class="f">biggest = max($.m)</span><span class="runbtn">Run this pick</span></div>
+    <div class="panes">
+      <div class="pane"><h4>SQL — Postgres</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+      <div class="pane"><h4>Python</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+    </div>
+  </div>
+  <div class="dim" style="left:0;top:0;right:0;height:150px"></div>
+  <div class="dim" style="left:0;top:150px;width:12px;height:44px"></div>
+  <div class="dim" style="left:196px;top:150px;right:0;height:44px"></div>
+  <div class="dim" style="left:0;top:194px;right:0;bottom:0"></div>
+  <div class="ring" style="left:12px;top:150px;width:184px;height:44px"></div>
+  <div class="bubble" style="right:14px;top:120px">
+    <div class="who"><span class="disc"></span><span class="nm">autoSQL</span></div>
+    A rounded glowing ring would read as a foreign object here, so this skin gets
+    square corners and no glow. Both panes read <b>123</b>.
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">6 / 7</span></div>
+  </div>
+</div></div>
+
+<div><p class="skinlab">jrpg — gold ring, warmer dim</p>
+<div class="scene" data-theme="jrpg">
+  <div class="app">
+    <div class="appbar"><span class="mark"></span><b>autoSQL — demo</b></div>
+    <div class="pickbar"><span class="f">noun:EdgeCase</span><span class="f">biggest = max($.m)</span><span class="runbtn">Run this pick</span></div>
+    <div class="panes">
+      <div class="pane"><h4>SQL — Postgres</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+      <div class="pane"><h4>Python</h4><div class="cell"><span>edge-01</span><span class="big ok">123</span></div><div class="cell"><span class="fw">["１２３", 1]</span><span></span></div></div>
+    </div>
+  </div>
+  <div class="dim" style="left:0;top:0;right:0;height:150px"></div>
+  <div class="dim" style="left:0;top:150px;width:12px;height:44px"></div>
+  <div class="dim" style="left:196px;top:150px;right:0;height:44px"></div>
+  <div class="dim" style="left:0;top:194px;right:0;bottom:0"></div>
+  <div class="ring" style="left:12px;top:150px;width:184px;height:44px"></div>
+  <div class="bubble" style="right:14px;top:120px">
+    <div class="who"><span class="disc"></span><span class="nm">autoSQL</span></div>
+    A neutral grey dim turns this palette to mud, so it gets a warmer dim and a
+    gold ring. Both panes read <b>123</b>.
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">6 / 7</span></div>
+  </div>
+</div></div>
+</div>
+
+<h2>Narrator — A (recommended) or B</h2>
+<div class="grid">
+<div><p class="skinlab">A — the mark. No character.</p>
+<div class="scene" style="height:130px">
+  <div class="bubble" style="left:16px;top:18px;position:absolute">
+    <div class="who"><span class="disc"></span><span class="nm">autoSQL</span></div>
+    Sober, matches a tool whose subject is <i>“is this number right”</i>, and it cannot
+    read as cute on a screen showing a correctness failure.
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">1 / 7</span></div>
+  </div>
+</div></div>
+<div><p class="skinlab">B — a character beside the bubble.</p>
+<div class="scene" style="height:130px">
+  <div class="bubble" style="left:76px;top:18px;position:absolute">
+    <div class="who"><span class="disc" style="border-radius:6px"></span><span class="nm">your guide</span></div>
+    Warmer, more obviously a tutorial. Needs an asset that does not exist yet, and it
+    has to survive seven skins including a Win9x one.
+    <div class="acts"><button>Back</button><button class="pri">Next</button><button>Skip</button><span class="cnt">1 / 7</span></div>
+  </div>
+  <div style="position:absolute;left:14px;top:44px;width:52px;height:64px;border-radius:8px;
+              border:1px dashed var(--tour-bubble-bd);display:flex;align-items:center;
+              justify-content:center;font-size:9px;color:var(--muted);text-align:center">art<br>needed</div>
+</div></div>
+</div>
+
+<h2>The seven steps</h2>
+<div class="tablewrap"><table class="steps">
+<tr><th>#</th><th>anchor</th><th>what it says</th><th>advance</th></tr>
+<tr><td>1</td><td>the whole screen</td><td>Two panes. Same question, two ways. Agreement is boring; disagreement means something is wrong.</td><td>next</td></tr>
+<tr><td>2</td><td>the pick form</td><td>This is where you ask.</td><td>next</td></tr>
+<tr><td>3</td><td>Run this pick</td><td>Run it. <b>The visitor actually clicks</b> — the host runs the pick.</td><td>target-click</td></tr>
+<tr><td>4</td><td>the two panes</td><td>Both read the same. That is the normal case, and what 11,367 expressions of testing bought.</td><td>next</td></tr>
+<tr><td>5</td><td>the gate</td><td>Compile → Gate → Execute. The gate refuses what cannot be answered identically.</td><td>next</td></tr>
+<tr class="pay"><td>6</td><td><b>the step-11 result cell</b></td><td><b>The payload.</b> Fullwidth <span class="fw">１２３</span>, both engines read 123, the cell that used to be silently wrong. Driven by <span class="fw">beforeShow</span> so the visitor arrives without eight manual actions.</td><td>next</td></tr>
+<tr><td>7</td><td>skins + replay</td><td>Seven looks, and the tour again whenever you want it.</td><td>next</td></tr>
+</table></div>
+<p class="note cut"><b>Cut, deliberately:</b> demo steps 3–10 and 13–14 — filter, sort, aggregate, time-bucket,
+rolling window, changed-rows, <span class="fw">round()</span>, and the SQL-injection column name. They teach the
+<i>expression language</i>, which <code>demo/README.md</code>'s walkthrough already does better and at the
+reader's own pace. A tour that walks all fourteen evenly spends its budget before reaching the only step
+whose result a visitor could not have predicted. <b>The one I'd add back first is demo step 14</b> (the
+injection column name) — cut only because ending on a security anecdote leaves the last impression on the
+wrong subject. One entry in the <span class="fw">STEPS</span> array, no engine change.</p>
+
+<h2>The one thing that is not free</h2>
+<p class="note"><b>The demo has two <code>id</code>s and three <code>data-</code> attributes across all six
+<code>.jsx</code> files</b> — there is nothing to anchor a spotlight to. The recommended fix adds
+<code>data-tour="…"</code> to about eight controls, which means editing files covered by
+<code>manifest.json</code>'s <code>ui:frontend-sources:sha256</code> and re-running
+<code>./run-demo build-ui</code> to re-baseline the digest. That is the exact step T-14 skipped and T-16
+had to repair, so it is on this page rather than in a commit. <b>The overlay itself needs no
+<code>.jsx</code>:</b> it builds its own DOM and appends to <code>&lt;body&gt;</code>, exactly as
+<code>skin.js</code> already does.</p>
+</div>
