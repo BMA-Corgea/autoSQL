@@ -56,16 +56,63 @@ in the right way. I cut it because it is a *security* anecdote, and putting it a
 would leave the visitor's last impression on the wrong subject. **Easy to add back as an
 eighth step if he wants it** — it costs one entry in the `STEPS` array and no engine change.
 
-## 3. The narrator — two options, drawn side by side
+## 3. The narrator — the GIMS gnome. RULED, not proposed.
 
-The mock shows both. **My recommendation is A**, and B is one line to switch to.
+**His words:** *"autoSQL would be part of the GIMS so you'd have the transparent gnome.png from the
+GIMS Project folder."* Options A and B are withdrawn.
 
-- **A — the mark.** No character. The demo's own brand mark in a small disc, and a bubble in
-  the demo's type. Sober, matches a tool whose whole subject is *"is this number right"*, and
-  it cannot age badly or read as cute on a screen showing a correctness failure.
-- **B — a character.** A small illustrated guide beside the bubble. Warmer and more obviously
-  a tutorial. It needs an asset that does not exist yet, and it has to survive seven skins
-  including a Win9x one.
+**The framing matters more than the asset.** autoSQL is a **GIMS component, not a standalone
+product**, so the tour should look like it belongs to GIMS rather than inventing an identity. The
+bubble's byline reads **GIMS**, not autoSQL.
+
+**Which file, and why it is not an aesthetic choice.** Two candidates carry the same artwork:
+
+| file | size | |
+|---|---|---|
+| `GIMS-Project/Transparent gnome.png` | 1024×1024 | the one he named; square, generous padding. **Not in any public tree.** |
+| **`gims-oss/static/images/gnome-tour.png`** | 673×917 | tighter portrait crop, already named for a tour |
+
+**Take `gnome-tour.png`, because it is already published.** autoSQL is a public AGPL repo, so
+vendoring an asset publishes it. Verified rather than assumed: that file is on `origin/main` of
+`github.com/BMA-Corgea/gims-oss`, which ships **AGPL-3.0** — the same licence autoSQL ships under.
+Provenance and licence are both citable and the question never gets asked. If the square crop is
+wanted, crop it from the gims-oss file rather than reaching for the unpublished one.
+
+### The skin risk inverts, and the earlier draft had it backwards
+
+The withdrawn option B worried that a character would read as *"a foreign object on Win9x"*. **That
+was the right worry about the wrong asset.** The gnome is chunky pixel art with a hard black outline
+— blue pointed hat, square eyes, red cheeks, climbing out of a cardboard box. **On Classic and JRPG
+it is native.** Those are now the easy skins.
+
+**The risk moved to the sober end** — System/base, which follows the OS and is the default. A
+smiling gnome beside a bubble on a screen whose subject is *"is this number wrong"* is the tonal
+problem, and it is the one the design has to solve.
+
+**Two moves answer it, and neither is a hedge:**
+
+1. **He is not in every step.** He appears at **1** (orientation), **6** (the payload) and **7**
+   (sign-off), and is **absent from the working steps 2–5**. He introduces, gets out of the way
+   while the visitor is reading numbers, returns for the point, and signs off.
+2. **Step 6 is the reconciled moment.** Both panes read 123; the tour's path never fires the
+   disagreement banner. So the one step where he stands over a number is the step where the number
+   is **right** — which is the opposite of the tonal failure being guarded against.
+
+### A bitmap does not derive the way a token does — priced now, not at build
+
+**Tokens recolour per skin. A PNG cannot.** So what derives is the **placement rule**, not the
+artwork:
+
+| | treatment | derives? |
+|---|---|---|
+| system, light, dark, gunmetal, titanium | **62px**, beside the bubble's lower edge, no frame — a byline mark rather than a mascot | **yes** — one conservative rule, shared, because they share a sober register |
+| classic | **96px**, Win9x inset frame, square | **no** — an explicit per-skin rule |
+| jrpg | 96px, gold frame | **no** — an explicit per-skin rule |
+
+**An eighth skin inherits the conservative treatment**, which is the safe direction to fail in.
+**What it does not get for free is a look tuned to its own personality** — that is one rule per skin
+that wants one, in *size, framing and presence*, never colour. Saying the token layer covers it
+would be untrue, so it is said here instead.
 
 ## 4. The spotlight, and the seven-skin problem
 
@@ -130,5 +177,33 @@ they are self-hosted, so no inline script is involved.
 3. **The `.jsx` edit** — approach A above, `data-tour` hooks plus `./run-demo build-ui` and a
    re-baselined digest.
 
-**Nothing is built until this clears.** The gate is `human:strict`; it refuses an on-behalf
-clear by design, and that is the correct behaviour, not an obstacle.
+**Nothing is built until this clears.**
+
+### The clearance has to be his own hand — a relayed answer will not do it
+
+He has now given the look ruling **in words**, and that is not the same as clearing the gate.
+Checked in the tracker rather than assumed:
+
+- `tracker.mjs:890` — *"`human:strict` — ONLY a confirmed human clears it. On-behalf is refused."*
+- `tracker.mjs:2866` — *"an agent can never mint its own authority."*
+- attempted live on T-22: `approve --by "agent:claude(on-behalf:evan,GA-30)"` was **refused**.
+
+**The T-2 precedent does not transfer, twice over.** The 2026-08-22 event it rests on is
+`ticket.gate_overridden` on the **`accept`** gate — an override of a policy, not a strict clear —
+and T-2 had no `design` gate at all to clear.
+
+**So the one command, and it must be run by him:**
+
+```
+tracker.mjs approve T-22 design --by human:evan --i-am-human
+```
+
+**One loophole exists and is recorded as forbidden rather than offered:** `override --gate design
+--policy human` would soften the gate, and the tracker accepts a live grant for that. Softening a
+strict checkpoint so a relay can pass it is worse than leaving it unbound — it launders the relay
+as his judgement. Not taken.
+
+**And a separate defect, found while parking:** the `design` gate is defined in
+`.autodev/data/gates.json`, policed `human:strict` in `gates-policy.json`, and **bound to nothing** —
+`design@v1`'s `bands.gate` is `None`, so no stage consults it. T-22 is held by an explicit `block`
+instead, which does work. `.autodev/notes/design-gate-does-not-bind.md`.
