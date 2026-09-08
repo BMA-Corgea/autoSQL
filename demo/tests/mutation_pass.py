@@ -1,4 +1,4 @@
-"""demo/mutation_pass.py — plan §8.2's mutation pass. The part that proves the catchers work.
+"""demo/tests/mutation_pass.py — plan §8.2's mutation pass. The part that proves the catchers work.
 
 WHY THIS EXISTS, IN THE PLAN'S OWN WORDS
 ----------------------------------------
@@ -51,6 +51,7 @@ USAGE
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -90,7 +91,12 @@ MUTANTS = [
          replacement="    indices.sort(\n        key=lambda i: ev.row_sort_key(\n"
                      "            rows[i], sort_steps, cells[i], sort_alias, direction\n"
                      "        ),\n        reverse=True,\n    )",
-         selector="tests/test_order.py"),
+         # test_order.py:357 says it outright: "AC-41(d) is walkthrough step 5 and
+         # lives in test_walkthrough.py". That test's docstring names THIS mutant --
+         # "a Python pane written as sorted(..., reverse=True) over a tuple containing
+         # key returns the ten HIGHEST keys and must fail here". Pointing at
+         # test_order.py made M3 go red on a different test entirely.
+         selector="tests/test_walkthrough.py::test_step_5_the_tiebreak_runs_ascending_under_a_descending_sort"),
     dict(id="M4",
          defect="operation 9 compares the whole record (drop - 'ts')",
          criterion="AC-40(a) -- 8,400 kept against a band of 700-1,100",
@@ -137,7 +143,7 @@ MUTANTS = [
          # which overrides the context, so mutating the context changes nothing at all.
          anchor="    result = x.quantize(SIX_PLACES, rounding=ROUND_HALF_UP, context=_Q6_CONTEXT)",
          replacement='    result = x.quantize(SIX_PLACES, rounding="ROUND_HALF_EVEN", context=_Q6_CONTEXT)',
-         selector="tests/test_decimal.py"),
+         selector="tests/test_decimal.py::test_q6_rounds_ties_half_up"),
     dict(id="M9",
          defect="Decimal(v) from the float instead of from the JSON text",
          criterion="AC-24(a) on a noun:Sample aggregate over a 4-decimal field_n (B7)",
@@ -169,7 +175,7 @@ MUTANTS = [
          file="probes.py",
          anchor='"             AND abs( ( " + op_sql + " #>> \'{}\' )::numeric ) >= "',
          replacement='"             AND abs( xpr.f8( " + op_sql + " ) ) >= "',
-         selector="tests/test_probes.py"),
+         selector="tests/test_probes.py::TestAC17::test_1e400_refuses_naming_cause_and_row"),
     dict(id="M12",
          defect="the gate accepts only the ten leaf/structural tags",
          criterion="AC-14's tag half -- and every comparison in the demo is refused",
@@ -191,7 +197,12 @@ MUTANTS = [
          file="probes.py",
          anchor='        "( jsonb_typeof( " + op_sql + " ) = \'number\'\\n"',
          replacement='        "( true\\n"',
-         selector="tests/test_probes.py"),
+         # NOT tests/test_probes.py: no test there issues a noun:Sample aggregate and
+         # the string 22P02 appears nowhere in it. The mutant was being killed by
+         # `assert "jsonb_typeof(" in probe.sql` -- a no-database substring check that
+         # proves the text is present and proves NOTHING about the guard being
+         # load-bearing. This node actually executes the aggregate.
+         selector="tests/test_decimal.py::test_sample_4_decimal_aggregates_end_to_end"),
     dict(id="M15",
          defect="ORDER BY dropped from one multi-row statement",
          criterion="AC-41(a) grep, and AC-41(b)'s ten runs",
@@ -200,7 +211,11 @@ MUTANTS = [
          file="builder.py",
          anchor='        return f" ORDER BY {lead}, {q}key ASC"',
          replacement='        return ""',
-         selector="tests/test_builder_sql.py::TestAC41a"),
+         # The plan names BOTH halves -- "AC-41(a) grep, AND AC-41(b)'s ten runs" --
+         # and (b) is the half that catches an order stable by luck of the plan rather
+         # than by ORDER BY, which is the interesting half against a dropped ORDER BY.
+         selector=("tests/test_builder_sql.py::TestAC41a",
+                   "tests/test_order.py::test_ac41b_ten_runs_of_one_pick_return_one_sequence")),
     dict(id="M16",
          defect="a test writes a row and does not clean up",
          criterion="B10's end-of-session checksum guard",
@@ -217,6 +232,21 @@ MUTANTS = [
 KILLED, SURVIVED, INVALID = "KILLED", "SURVIVED", "INVALID"
 
 
+def _write_atomic(path, text: str) -> None:
+    """Temp file + os.replace. write_text() truncates before it writes, so a SIGKILL,
+    an OOM or a power loss in between leaves a TRUNCATED source file -- worse than a
+    mutant, and the module docstring's promise that an interrupted run cannot leave a
+    mutant on disk was stronger than the code that backed it."""
+    tmp = path.with_suffix(path.suffix + f".mutant-tmp-{os.getpid()}")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
+def _selectors(m) -> tuple:
+    sel = m["selector"]
+    return (sel,) if isinstance(sel, str) else tuple(sel)
+
+
 def _pytest(selector: str, timeout: int = 900):
     return subprocess.run(
         [sys.executable, "-m", "pytest", selector, "-q", "--no-header", "-p", "no:cacheprovider"],
@@ -227,7 +257,12 @@ def _b10_leaked(out: str) -> bool:
     # The guard sets _GUARD["state"]="LEAKED" internally but PRINTS a banner reading
     # "B10 CHECKSUM GUARD FAILED". Matching only the internal word made M16 look like a
     # survivor while the guard had in fact fired -- a detection bug in the detector.
-    return ("B10 CHECKSUM GUARD FAILED" in out) or ("LEAKED" in out)
+    # ONLY the printed banner (conftest.py:247). A bare `"LEAKED" in out` matches
+    # anywhere in pytest's whole stdout -- and conftest.py:229 contains the literal
+    # source line `_GUARD["state"] = "LEAKED"`, so any traceback surfacing that line
+    # would make M16 report KILLED with the guard never having fired. Re-opening the
+    # looseness this detector was rewritten to close.
+    return "B10 CHECKSUM GUARD FAILED" in out
 
 
 # ---------------------------------------------------------------------------------
@@ -260,34 +295,71 @@ def _digest():
         conn.close()
 
 
+MANIFEST_KEY = "seed:demo.records:md5"
+
+
 def _manifest_digest():
+    """Read the recorded digest BY NAME. A scan that returns None on no match turns the
+    pass's strongest precondition into a silent no-op that still prints
+    'fixture verified against manifest'."""
     import json
     m = json.loads((DEMO / "manifest.json").read_text())
-    for k, v in m.items():
-        if "records" in str(k) and "md5" in str(k):
-            return v
-    return None
+    if MANIFEST_KEY not in m:
+        raise KeyError(
+            f"demo/manifest.json has no {MANIFEST_KEY!r} — the mutation pass compares the "
+            "live fixture against it before running, and cannot silently skip that check")
+    return m[MANIFEST_KEY]
+
+
+MAX_RESTORE_DELETE = 50   # a mutant leaks a row or two; anything more is not a leak
 
 
 def _restore_db() -> bool:
-    """Delete anything outside the three seeded collections and report whether that
-    put the digest back. Deliberately narrow: it removes rows a mutant added, and it
-    cannot repair a modified seeded row -- which is why the caller aborts on failure
-    rather than continuing."""
+    """Delete rows a mutant ADDED outside the seeded collections. Returns whether it
+    deleted anything.
+
+    Deliberately narrow, and bounded. It cannot repair a MODIFIED seeded row -- the
+    caller aborts on that. And it refuses to delete more than MAX_RESTORE_DELETE rows:
+    SEEDED duplicates knowledge that really lives in demo/seed/, so if the seed ever
+    grows a fourth collection this function would otherwise delete every row of it on
+    the first digest drift, and `run-demo up` does not re-seed a non-empty table."""
     sys.path.insert(0, str(ROOT))
     from demo.seed.load import demo_connection
     conn = demo_connection()
     try:
+        n = conn.execute("SELECT count(*) FROM demo.records WHERE collection <> ALL(%(keep)s)",
+                         {"keep": list(SEEDED)}).fetchone()[0]
+        if n == 0:
+            return False
+        if n > MAX_RESTORE_DELETE:
+            raise RuntimeError(
+                f"{n} rows sit outside {SEEDED}; refusing to delete that many. This is not "
+                "a mutant's leak -- either the seed grew a collection this list does not "
+                "know about, or something else wrote to demo.records.")
         conn.execute("DELETE FROM demo.records WHERE collection <> ALL(%(keep)s)",
                      {"keep": list(SEEDED)})
         conn.commit()
+        return True
     finally:
         conn.close()
-    return True
 
 
 def run(dry_run: bool = False, only: list[str] | None = None) -> int:
+    known = {m["id"] for m in MUTANTS}
+    if only:
+        unknown = [i for i in only if i not in known]
+        if unknown:
+            print(f"mutation pass: --only names no such mutant: {unknown}")
+            print(f"mutation pass: the sixteen are {sorted(known, key=lambda x: int(x[1:]))}")
+            return 2
     chosen = [m for m in MUTANTS if not only or m["id"] in only]
+    if not chosen:
+        # `--only M17` used to select nothing and then print "0 killed, 0 SURVIVED,
+        # 0 INVALID, of 0" followed by "Every criterion was watched failing against its
+        # own mutant", and exit 0 — a green report over branches nobody drove, which is
+        # precisely what §8.2 exists to prevent.
+        print("mutation pass: nothing selected — refusing to report a pass over nothing.")
+        return 2
 
     # ---- anchor check FIRST, for every mutant, before anything is applied ----------
     # A mutant that cannot be anchored fails the run; it is never skipped.
@@ -335,45 +407,70 @@ def run(dry_run: bool = False, only: list[str] | None = None) -> int:
         t0 = time.time()
         print(f"\n--- {m['id']}: {m['defect']}\n    criterion: {m['criterion']}", flush=True)
 
-        base = _pytest(m["selector"])
-        base_ok = (base.returncode == 0)
-        if m.get("session_guard"):
-            base_ok = base_ok and not _b10_leaked(base.stdout)
-        if not base_ok:
-            results.append((m, INVALID, "the criterion was NOT GREEN before the mutant was "
-                                        "applied, so its going red proves nothing"))
-            print(f"    INVALID — criterion not green on the clean tree", flush=True)
-            continue
-
+        sels = _selectors(m)
         try:
-            p.write_text(original.replace(m["anchor"], m["replacement"], 1))
-            got = _pytest(m["selector"])
+            # -- every named half must be GREEN before any of them is allowed to fail --
+            not_green = []
+            for sel in sels:
+                base = _pytest(sel)
+                ok = base.returncode == 0
+                if m.get("session_guard"):
+                    ok = ok and not _b10_leaked(base.stdout)
+                if not ok:
+                    not_green.append(sel)
+            if not_green:
+                results.append((m, INVALID,
+                                f"not green on the clean tree: {', '.join(not_green)} — "
+                                "going red proves nothing"))
+                print(f"    INVALID — criterion not green on the clean tree: {not_green}",
+                      flush=True)
+                continue
+
+            try:
+                _write_atomic(p, original.replace(m["anchor"], m["replacement"], 1))
+                per = []
+                for sel in sels:
+                    got = _pytest(sel)
+                    if m.get("session_guard"):
+                        hit = _b10_leaked(got.stdout)
+                    else:
+                        hit = got.returncode != 0
+                    per.append((sel, hit))
+            finally:
+                _write_atomic(p, original)
+                if p.read_text() != original:   # explicit: `assert` is stripped by python -O
+                    raise RuntimeError(f"{m['file']} was NOT restored after {m['id']}")
+
+            # The plan names the criterion; where it names TWO halves (M15), BOTH are
+            # required, because a half that does not catch the defect is exactly the
+            # decorative criterion §8.2 is looking for.
+            caught = all(hit for _, hit in per)
+            missed = [sel for sel, hit in per if not hit]
+            how = ("criterion failed" if caught
+                   else f"still passed: {', '.join(missed)}")
             if m.get("session_guard"):
-                caught = _b10_leaked(got.stdout)
-                how = "B10 reported LEAKED" if caught else "B10 did not report a leak"
-            else:
-                caught = (got.returncode != 0)
-                how = "criterion failed" if caught else "criterion still passed"
+                how = "B10 reported the guard failed" if caught else "B10 did not report a leak"
+
+            results.append((m, KILLED if caught else SURVIVED, how))
+            print(f"    {'KILLED' if caught else '*** SURVIVED ***'} — {how} "
+                  f"({time.time()-t0:.0f}s)", flush=True)
         finally:
-            p.write_text(original)
-            assert p.read_text() == original, f"{m['file']} was not restored after {m['id']}"
-
-        results.append((m, KILLED if caught else SURVIVED, how))
-        print(f"    {'KILLED' if caught else '*** SURVIVED ***'} — {how} ({time.time()-t0:.0f}s)",
-              flush=True)
-
-        # ---- the fixture, after every mutant, not just the data-mutating one --------
-        now = _digest()
-        if now != baseline:
-            print(f"    fixture drifted (md5 {now}) — restoring", flush=True)
-            _restore_db()
+            # ---- the fixture, on EVERY exit path from this mutant --------------------
+            # Not after the result: an INVALID `continue`, a pytest timeout and a Ctrl-C
+            # all used to skip this, and M16's mutated run COMMITS a row by design. That
+            # is the exact incident this pass already caused once — a scratch row left in
+            # demo.records and the next session opening with B10 CHECKSUM GUARD FAILED.
             now = _digest()
             if now != baseline:
-                print(f"\nmutation pass: ABORTING — demo.records could not be restored after "
-                      f"{m['id']}.\n  now {now}\n  baseline {baseline}\n"
-                      "Every later result would be measured against an unknown fixture.")
-                return 2
-            print("    fixture restored", flush=True)
+                print(f"    fixture drifted (md5 {now}) — restoring", flush=True)
+                _restore_db()
+                now = _digest()
+                if now != baseline:
+                    print(f"\nmutation pass: ABORTING — demo.records could not be restored "
+                          f"after {m['id']}.\n  now {now}\n  baseline {baseline}\n"
+                          "Every later result would be measured against an unknown fixture.")
+                    return 2
+                print("    fixture restored", flush=True)
 
     print("\n" + "=" * 78)
     killed = [r for r in results if r[1] == KILLED]

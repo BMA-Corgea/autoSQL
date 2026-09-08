@@ -48,11 +48,11 @@
 #     recording a possibly-dead pid over a live app. It now confirms the
 #     process it started is the one holding the socket, and writes the
 #     pidfile only then.
-#   * plan §8.2's sixteen-mutant pass has never run and was disclosed
-#     nowhere. It is still not implemented — that is a work item, not a
-#     launcher fix — but the flag now says so plainly and EVERY
-#     `./run-demo test` prints the disclosure immediately above its
-#     summary line, so the numbers and the caveat travel together.
+#   * plan §8.2's sixteen-mutant pass had never run and was disclosed
+#     nowhere. It NOW RUNS: `./run-demo test --mutants`, implemented at
+#     demo/tests/mutation_pass.py (under tests/ because it forks pytest
+#     sixteen times and B21 forbids that anywhere the demo itself runs).
+#     First green run 2026-09-08: 16 killed, 0 survived, 0 invalid.
 #
 # HARD FENCE — never remove this comment or the check below.
 #   This demo owns ports 55440 (its own Postgres) and 8787 (the app) and
@@ -580,7 +580,7 @@ SUMEOF
 # decorative — row 15 citing T-1's own re-check, which found that every branch
 # of its harness that reports a failure had zero executions across a full run.
 #
-# IT NOW RUNS. `demo/mutation_pass.py` is the implementation and
+# IT NOW RUNS. `demo/tests/mutation_pass.py` is the implementation and
 # `./run-demo test --mutants` is the command §8.2 names. First green run
 # 2026-09-08: 16 killed, 0 survived, 0 invalid.
 #
@@ -614,7 +614,7 @@ SUMEOF
 # suite's catchers were alive throughout. The three-outcome design is what made
 # that legible instead of six false accusations.
 #
-MUTATION_PASS_STATE="implemented — demo/mutation_pass.py; run it with './run-demo test --mutants'"
+MUTATION_PASS_STATE="implemented — demo/tests/mutation_pass.py; run it with './run-demo test --mutants'"
 
 mutation_pass_disclosure() {
   echo "run-demo test: plan §8.2's mutation pass IS $MUTATION_PASS_STATE."
@@ -627,7 +627,19 @@ run_suite() {
     shift
     echo "run-demo test: plan §8.2's mutation pass — sixteen mutants, each with the"
     echo "run-demo test: criterion that must fail. A survivor is a BUILD FAILURE."
-    exec "$VENV_DIR/bin/python" "$REPO_ROOT/demo/tests/mutation_pass.py" "$@"
+    # The pass runs pytest sixteen times and reads demo.records, so it needs exactly
+    # what the ordinary suite needs: the venv and a database that is up. It used to
+    # `exec` straight past all of it, so on a fresh clone it died with "No such file or
+    # directory" instead of bootstrapping, and with the stack down it reported "cannot
+    # read demo.records — refusing to run", which reads as a corrupt fixture rather than
+    # a stack that was never started. And `exec` replaces the shell, so the teardown
+    # trap below would never have fired for a stack this command brought up.
+    trap teardown_if_we_started_it EXIT INT TERM
+    prepare_stack_for_test
+    ensure_venv
+    wait_for_db_ready || exit 1
+    "$VENV_DIR/bin/python" "$REPO_ROOT/demo/tests/mutation_pass.py" "$@"
+    exit $?
   fi
 
   # Before anything is brought up or connected to: this file has no
@@ -943,9 +955,11 @@ verbs:
   test       run the demo's test suite
 
 note:
-  ./run-demo test --mutants  plan §8.2's sixteen-mutant pass (--dry-run, --only M6,M9)
-                             and it has never run; the flag refuses, and every
-                             ./run-demo test says so above its summary line.
+  ./run-demo test --mutants  plan §8.2's sixteen-mutant pass (--dry-run, --only M6,M9).
+                             Applies each one-line defect, runs ONLY the criterion the
+                             plan names for it, asserts it FAILS, and reverts. A mutant
+                             that survives is a BUILD FAILURE — the criterion is
+                             decorative. Brings the stack up like any other test verb.
 EOF
 }
 

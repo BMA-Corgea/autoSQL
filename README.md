@@ -129,10 +129,14 @@ What is **not** settled, stated plainly:
 - The digit mapping is generated but **nothing regenerates it** on a Unicode bump, and `raw`-mode
   data was never re-run (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
 - The planned mutation pass **now runs**: `./run-demo test --mutants` applies plan §8.2's sixteen
-  one-line defects, runs only the criterion each must break, and asserts it fails. First green
-  run 2026-09-08 — **16 killed, 0 survived**. Every one of the sixteen has now been watched
-  failing against its own mutant, which is the evidence that the suite's catchers are alive
-  rather than decorative.
+  one-line defects, runs only the criterion each must break, and asserts it fails
+  (2026-09-08). **15 of 16 are killed by their own criterion. M15 is not, and the pass reports
+  red because of it** — plan §8.2 names two halves for M15, `AC-41(a)`'s grep and `AC-41(b)`'s
+  ten runs; the grep kills it and the ten runs do not. That is a finding about `AC-41(b)`, not
+  a defect in the demo: the reordering it watches for needs a synchronised sequential scan, a
+  plan change or parallel workers, none of which an idle 8,400-row table produces, so it
+  cannot detect a dropped `ORDER BY`. Awaiting a ruling; the criterion has deliberately NOT
+  been edited to make the mutant die (`.autodev/specs/T-19.md`, Out of scope).
 
 ## Status
 
