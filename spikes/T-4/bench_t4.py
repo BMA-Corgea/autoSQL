@@ -147,8 +147,18 @@ def capture_plan(conn, sql: str, params) -> str:
     return "\n".join(r[0] for r in cur.fetchall())
 
 
-def perturb_rows(rows: List[dict]) -> List[dict]:
-    """Identity by default.  SEAM: injection 4 swaps this to perturb one row."""
+def perturb_rows(rows: List[dict], arm: str = "") -> List[dict]:
+    """Identity by default.  SEAM: injection 4 swaps this to perturb ONE arm by one row.
+
+    Applied to the ARMS ONLY -- never to the reference.  It was applied to both sides, and
+    a seam applied symmetrically CANNOT FIRE: the same perturbation on the truth and on the
+    arm still compares equal, so injection 4 would have reported the void path working
+    while proving nothing.  That is the precise failure section 6.1 exists to catch, found
+    in the harness that section 6.1's control was going to be run against.
+
+    `arm` is passed so an injection can perturb one named arm rather than all of them,
+    which is what section 6.1's table actually specifies ("one arm's result perturbed").
+    """
     return rows
 
 
@@ -304,6 +314,45 @@ def glp_strong_activity() -> Dict[str, Any]:
     return {"raw": out}
 
 
+def memory_state() -> Dict[str, Any]:
+    """FRAMING.md section 5.4 item 2 -- 'nproc, total and available RAM, free disk'.  The
+    RAM half was absent, and a load average means nothing without it."""
+    out: Dict[str, Any] = {}
+    try:
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                k, _, v = line.partition(":")
+                if k in ("MemTotal", "MemAvailable", "SwapTotal", "SwapFree"):
+                    out[k] = int(v.split()[0]) * 1024
+    except OSError as exc:
+        out["error"] = str(exc)
+    return out
+
+
+def disk_io() -> Dict[str, Any]:
+    """FRAMING.md section 5.4 item 17 -- free space AND I/O ACTIVITY.  disk_state() recorded
+    only free space; the corpus, its CSVs, glp_strong's data and the OS all sit on the one
+    filesystem, and contention there is precisely what host loadavg is worst at showing.
+    Cumulative counters: a reader diffs the start and end records for the window."""
+    out: Dict[str, Any] = {}
+    try:
+        with open("/proc/diskstats") as fh:
+            for line in fh:
+                f = line.split()
+                if len(f) < 14:
+                    continue
+                name = f[2]
+                if name.startswith(("loop", "ram", "dm-")):
+                    continue
+                reads, writes = int(f[5]), int(f[9])       # sectors read / written
+                if reads or writes:
+                    out[name] = {"sectors_read": reads, "sectors_written": writes,
+                                 "ms_io": int(f[12])}
+    except OSError as exc:
+        out["error"] = str(exc)
+    return out
+
+
 def disk_state() -> Dict[str, Any]:
     out = _sh(["df", "-B1", "--output=size,avail,pcent", "/"])
     lines = out.splitlines()
@@ -330,7 +379,9 @@ def host_state(conn, label: str) -> Dict[str, Any]:
         "loadavg": {"1min": l1, "5min": l5, "15min": l15},
         "nproc": os.cpu_count(),
         "top_processes": top_processes(3),
+        "memory": memory_state(),
         "disk": disk_state(),
+        "disk_io": disk_io(),
         "docker": docker_state(),
         "glp_strong": glp_strong_activity(),
     }
@@ -353,6 +404,40 @@ def server_state(conn) -> Dict[str, Any]:
     out["container"] = _sh(["docker", "inspect", "autosql-corpus", "--format",
                             "{{.Name}}|{{.Config.Image}}|{{.Image}}|{{.HostConfig.ShmSize}}"])
     return out
+
+
+SELECTIVITY_BAND = (4.5, 6.0)        # FRAMING.md section 6 item 2
+
+
+def corpus_state(conn, table: str, spec, n: int) -> Dict[str, Any]:
+    """FRAMING.md section 5.4 item 12 and section 6 item 2 -- row count, MEASURED
+    selectivity, and mean stored JSON bytes per row.  None of the three was recorded
+    anywhere in the output, and section 5.4 opens 'every one of these, in the output JSON,
+    per size, or the cell is not admissible'.  Selectivity and payload size silently move
+    every number in the run, and adding the two generator fields moved both.
+    """
+    cur = conn.cursor()
+    cur.execute(f"SELECT count(*) FROM {table}")
+    rows = int(cur.fetchone()[0])
+    sql, params = _t4_build_b2(table, spec, order=False, count_only=True)
+    cur.execute(sql, params)
+    qualifying = int(cur.fetchone()[0])
+    cur.execute(f"SELECT avg(pg_column_size(data)), avg(octet_length(data::text)) FROM {table}")
+    stored, as_text = cur.fetchone()
+    sel = (100.0 * qualifying / rows) if rows else None
+    lo, hi = SELECTIVITY_BAND
+    return {
+        "table": table, "rows": rows, "rows_expected": n,
+        "qualifying_rows": qualifying,
+        "selectivity_pct": round(sel, 3) if sel is not None else None,
+        "selectivity_band": list(SELECTIVITY_BAND),
+        "selectivity_in_band": (sel is not None and lo <= sel <= hi),
+        "mean_stored_bytes": round(float(stored), 2) if stored is not None else None,
+        "mean_json_text_bytes": round(float(as_text), 2) if as_text is not None else None,
+        "stored_bytes_note": ("mean_stored_bytes is pg_column_size(data) -- the on-disk "
+                              "datum, TOAST compression included; mean_json_text_bytes is "
+                              "the uncompressed JSON text the generator reports"),
+    }
 
 
 def script_fingerprints() -> Dict[str, str]:
@@ -423,6 +508,103 @@ def arm_a_uncapped(conn, table: str, spec) -> Dict[str, Any]:
         "rows_scanned": r["rows_scanned"], "rows_kept": r["rows_kept"]}}
 
 
+def _sort_sql_dir(v: str, direction: str) -> str:
+    """B.sort_sql with an explicit direction on each of its three rank terms.
+
+    Mirrors bench.py:111-118 term for term.  The frozen one emits no direction at all, so
+    it is ASC-only -- and the invented widget sorts DESC (FRAMING.md section 7.2).  The
+    direction cannot be bolted on by splitting the frozen function's output on commas,
+    because the expression substituted into it is compiled SQL that contains commas of its
+    own (`xpr.pdate_ms(a, b)`).  Faithfulness is asserted rather than claimed:
+    _assert_builder_faithful() checks this returns B.sort_sql(v) exactly when asc.
+    """
+    d = " DESC" if str(direction).lower() == "desc" else ""
+    ty = f"jsonb_typeof({v})"
+    r1 = (f"(CASE WHEN {v} IS NULL OR {ty}='null' THEN 4 WHEN {ty}='boolean' THEN 0 "
+          f"WHEN {ty}='number' THEN 1 WHEN {ty}='string' THEN 2 ELSE 3 END)")
+    r2 = (f"(CASE WHEN {ty}='boolean' THEN (CASE WHEN {v}='true'::jsonb THEN 1.0 ELSE 0.0 END) "
+          f"WHEN {ty}='number' THEN xpr.f8({v}) ELSE 0.0 END)")
+    r3 = f"(CASE WHEN {ty}='string' THEN ({v} #>> '{{}}') ELSE '' END) COLLATE \"C\""
+    if not d:
+        return f"{r1}, {r2}, {r3}"
+    return f"{r1}{d}, {r2}{d}, {r3}{d}"
+
+
+def _t4_build_b2(table: str, spec, tie: bool = False, order: bool = True,
+                 count_only: bool = False):
+    """B2 for an ARBITRARY widget spec, built from the frozen module's own primitives.
+
+    Why this exists rather than a call to B.build_b: bench.py:242 reads
+    WIDGET["filters"]["status"] unconditionally, so the frozen builder raises
+    KeyError('status') on the invented widget -- whose spec (FRAMING.md section 7.2) carries
+    no filters at all.  Measured, before this was written: arms C and B2 both raised, which
+    means THE ARM THE BAR APPLIES TO could not run on the widget the bar is about.  bench.py
+    is FROZEN EVIDENCE and cannot be edited, so this drives its parts instead -- the same
+    EXPR.parse, the same CC.compile_ast, the same subst, the same params tagging.
+
+    Faithfulness is asserted, not asserted-in-a-comment: for the date control this returns
+    SQL and params byte-identical to B.build_b("B2", table, tie).  See
+    _assert_builder_faithful(), which runs before any cell is timed.
+    """
+    w = spec["widget"]
+    name = spec["derive_name"]
+    d_ast = B.EXPR.parse(w["derive"][name])
+    w_ast = B.EXPR.parse(w["where"])
+    params: Dict[str, Any] = {"coll": B.COLLECTION, "ctx": json.dumps(B.CTX)}
+
+    def take(c, tag: str) -> str:
+        sql = c.sql
+        for k, v in c.params.items():
+            params[f"{tag}_{k}"] = v
+            sql = sql.replace(f"%({k})s", f"%({tag}_{k})s")
+        return sql
+
+    w_in = B.subst(w_ast, name, d_ast)
+    w_sql = take(B.CC.compile_ast(w_in, column="data"), "w")
+    d_sql_sort = take(B.CC.compile_ast(d_ast, column="data"), "s")
+    d_sql_out = take(B.CC.compile_ast(d_ast, column="data"), "o")
+    aug = f"(data || jsonb_build_object('{name}', {d_sql_out}))"
+
+    filters = w.get("filters") or {}
+    unknown = set(filters) - {"status"}
+    if unknown:
+        raise ValueError(f"_t4_build_b2 cannot express filters {sorted(unknown)}")
+    if "status" in filters:
+        params["fstatus"] = json.dumps(filters["status"])
+        filt = " AND (data -> 'status') = %(fstatus)s::jsonb"
+    else:
+        filt = ""
+
+    projection = "count(*)" if count_only else aug
+    sql = (f"SELECT {projection} FROM {table} WHERE collection = %(coll)s{filt} "
+           f"AND xpr.truthy({w_sql})")
+    if order:
+        sql += (f" ORDER BY {_sort_sql_dir(d_sql_sort, w['sort'].get('dir', 'asc'))}"
+                f"{B.TIE if tie else ''} LIMIT {int(w['limit'])}")
+    return sql, params
+
+
+def _assert_builder_faithful() -> Dict[str, Any]:
+    """The extension above must reproduce the frozen builder exactly where the frozen
+    builder can run, or the date control stops being a control.  Checked for both tie
+    settings on the date widget, against B.build_b itself."""
+    out = {}
+    with widget(WIDGET_DATE):
+        for tie in (False, True):
+            want_sql, want_params = B.build_b("B2", "T", tie)
+            got_sql, got_params = _t4_build_b2("T", WIDGET_DATE, tie)
+            if got_sql != want_sql or got_params != want_params:
+                raise AssertionError(
+                    "t4 B2 builder diverges from the frozen one for the date control "
+                    f"(tie={tie}).\n  frozen: {want_sql}\n  t4    : {got_sql}")
+            out[f"b2_tie_{tie}"] = "byte-identical to frozen build_b"
+        v = "xpr.f8(data -> 'x')"
+        if _sort_sql_dir(v, "asc") != B.sort_sql(v):
+            raise AssertionError("t4 sort_sql(asc) diverges from the frozen sort_sql")
+        out["sort_sql_asc"] = "byte-identical to frozen sort_sql"
+    return out
+
+
 def _arm_c_sql(table: str, spec) -> Tuple[str, Dict[str, Any]]:
     """Arm C's statement: the compiled derive and where, with NO order by and NO limit.
 
@@ -430,10 +612,12 @@ def _arm_c_sql(table: str, spec) -> Tuple[str, Dict[str, Any]]:
     ten separate ordering obligations are compiled and tested -- Postgres and Python sort
     mixed-type JSON differently at 9 of 9 tested positions.  So the honest shippable shape
     is SQL for the derive and the predicate, Python for the sort and the limit.
+
+    The clauses are omitted at BUILD time (order=False) rather than cut off the finished
+    statement with `sql.split(" ORDER BY ")`, which is a text search over compiled SQL that
+    happens to contain no such literal today and carries no guarantee it never will.
     """
-    sql, params = B.build_b("B2", table)
-    body = sql.split(" ORDER BY ")[0]          # drop ORDER BY ... LIMIT n
-    return body, params
+    return _t4_build_b2(table, spec, order=False)
 
 
 def arm_c(conn, table: str, spec) -> Dict[str, Any]:
@@ -450,25 +634,34 @@ def arm_c(conn, table: str, spec) -> Dict[str, Any]:
     cur.execute(sql, params)
     rows = [r[0] for r in cur.fetchall()]
     t_sql = (time.perf_counter() - t0) * 1000
+    n_from_sql = len(rows)          # BEFORE the limit -- see below
 
     t1 = time.perf_counter()
     rows = SRC._apply_sort(rows, spec["widget"]["sort"])
     rows = SRC._apply_limit(rows, spec["widget"]["limit"])
     t_py = (time.perf_counter() - t1) * 1000
 
+    # rows_from_sql is captured before _apply_limit.  It was read after it, which made it
+    # report 50 at every size -- the count of what SQL returned, wearing the value of what
+    # survived the limit.  The ~52,000 rows this arm decodes in Python at 1M IS the tail
+    # this arm exists to time, so the number that names it has to be the real one.
     return {"ms": t_sql + t_py, "rows": rows,
             "split": {"sql_ms": round(t_sql, 2), "python_tail_ms": round(t_py, 2)},
-            "shape": {"rows_from_sql": len(rows)}}
+            "shape": {"rows_from_sql": n_from_sql, "rows_after_limit": len(rows)}}
 
 
 def arm_b2(conn, table: str, spec) -> Dict[str, Any]:
     """B2 -- fully compiled.  Postgres does everything including sort and limit.
     Reported, not gated: the ceiling if the ordering obligations are ever discharged."""
-    r = B.path_b(conn, table, "B2")
-    return {"ms": r["t"]["total_ms"], "rows": r["rows"]}
+    sql, params = _t4_build_b2(table, spec)
+    cur = conn.cursor()
+    t0 = time.perf_counter()
+    cur.execute(sql, params)
+    rows = [r[0] for r in cur.fetchall()]
+    return {"ms": (time.perf_counter() - t0) * 1000, "rows": rows}
 
 
-def _build_b4_generic(table: str, spec) -> Tuple[str, Dict[str, Any]]:
+def _build_b4_generic(table: str, spec, tie: bool = False) -> Tuple[str, Dict[str, Any]]:
     expr = spec["b4_expr"]
     name = spec["derive_name"]
     params = {"coll": B.COLLECTION}
@@ -477,7 +670,8 @@ def _build_b4_generic(table: str, spec) -> Tuple[str, Dict[str, Any]]:
     thresh = where.rsplit(">", 1)[1].strip()
     sql = (f"SELECT data || jsonb_build_object('{name}', to_jsonb({expr})) "
            f"FROM {table} WHERE collection = %(coll)s AND {expr} > {thresh} "
-           f"ORDER BY {expr} {spec['b4_desc'].upper()} LIMIT {int(spec['widget']['limit'])}")
+           f"ORDER BY {expr} {spec['b4_desc'].upper()}{B.TIE if tie else ''} "
+           f"LIMIT {int(spec['widget']['limit'])}")
     return sql, params
 
 
@@ -520,7 +714,7 @@ def plan_for_arm(conn, table: str, spec, arm: str) -> Optional[Tuple[str, str]]:
     if arm == "C":
         sql, params = _arm_c_sql(table, spec)
     elif arm == "B2":
-        sql, params = B.build_b("B2", table)
+        sql, params = _t4_build_b2(table, spec)
     elif arm == "B4":
         sql, params = (B.build_b4(table) if spec["b4_expr"] is None
                        else _build_b4_generic(table, spec))
@@ -534,6 +728,19 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
     """One (size, widget, arm) cell.  Every admissibility gate is checked HERE, and a
     failure produces a void cell rather than a number."""
     fn = ARMS[arm]
+    started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())   # section 5.4 item 10
+
+    # -- guard: the arm must be timing the widget it was handed -------------------------
+    # Arms A, B2 and B4 read the widget from the FROZEN module's global, not from `spec`,
+    # so calling one outside `with widget(spec):` silently times a DIFFERENT widget while
+    # reporting this one's name.  Section 6 item 3 makes a latency figure attributed to the
+    # wrong widget the most serious failure available to this run, so it is asserted rather
+    # than left to call-site discipline.  (Caught in smoke: every arm ran the date widget
+    # while being handed the invented spec.)
+    if B.WIDGET is not spec["widget"] or B.DERIVE_NAME != spec["derive_name"]:
+        raise AssertionError(
+            f"arm {arm} would time widget {B.DERIVE_NAME!r} while reporting "
+            f"{spec['derive_name']!r} -- call inside `with widget(spec):`")
 
     # -- gate: corpus completeness (section 6 item 2) -----------------------------------
     actual = read_row_count(conn, table)
@@ -558,8 +765,12 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
             return cell_void("index_help", f"plan uses an index other than the pkey: {offending}",
                              {"plan": plan_text})
 
-    # -- warm once, discarded (section 5.3: cache state measured, never claimed) ---------
-    fn(conn, table, spec)
+    # -- warm once, RECORDED (section 5.3 ruling item 2) ---------------------------------
+    # The frozen harness throws the warm-up away.  It is the closest thing to a cold
+    # reading available and it costs nothing to keep, so it is labelled warmup_ms and
+    # excluded from the median rather than discarded.
+    warm = fn(conn, table, spec)
+    warmup_ms = round(warm["ms"], 2)
 
     # -- the repetitions ----------------------------------------------------------------
     per_rep: List[Dict[str, Any]] = []
@@ -581,6 +792,9 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
         "arm": arm,
         "size": n,
         "reps": reps,
+        "started_utc": started,
+        "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "warmup_ms": warmup_ms,
         "stats": agg,
         "load_start": l1_start,
         "load_end": l1_end,
@@ -596,26 +810,131 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
     return out
 
 
-def identity_across_arms(results: Dict[str, Any], truth_arm: str = "B2") -> Dict[str, Any]:
-    """Section 6 item 6: if the arms disagree, the timing comparison is between two
-    different questions.  Compared as SETS keyed by id, because arm C sorts in Python and
-    B2 sorts in Postgres, and the two disagree on ties by design -- that is the very
-    reason sort is not in the compiled path."""
-    ref = results.get(truth_arm, {}).get("_rows")
-    if ref is None:
-        return {"checked": False, "detail": f"{truth_arm} produced no rows to compare against"}
-    out = {"checked": True, "reference": truth_arm, "arms": {}}
-    ref_ids = sorted(r.get("id") for r in perturb_rows(ref))
-    for arm, res in results.items():
-        rows = res.get("_rows")
-        if rows is None or arm == truth_arm:
+# The arms that are HELD TO IDENTITY.  Arm A is deliberately not among them -- see
+# identity_check.  A_uncapped is the correctness-matched Python baseline and is.
+UNCAPPED_ARMS = ("A_uncapped", "C", "B2", "B4")
+TRUTH_ARM = "B2"
+
+
+def _t4_sorted_tiebroken(rows: List[dict], spec) -> List[dict]:
+    """The widget's sort, then $.id ascending, deterministically.
+
+    bench.py:416 does exactly this for the asc case and says why (bench.py:192-196):
+    Python's sorted() is stable and Postgres' sort is not, so a tie spanning the LIMIT
+    boundary makes a row-for-row comparison meaningless.  The frozen helper asserts the
+    sort is ascending (bench.py:407) and the invented widget sorts DESC, so the extension
+    is here.  sorted() being stable is what makes it correct: sorting on id first and then
+    on the sort key leaves id ascending inside every tie group, which is what SQL's
+    `ORDER BY key <dir>, id ASC` produces.
+    """
+    field = str(spec["widget"]["sort"]["field"])
+    desc = str(spec["widget"]["sort"].get("dir", "asc")).lower() == "desc"
+    rows = sorted(rows, key=lambda r: str(SRC._field_value(r, "id")))
+    return sorted(rows, key=lambda r: SRC._sort_key(SRC._field_value(r, field)), reverse=desc)
+
+
+def _arm_rows_tiebroken(conn, table: str, spec, arm: str) -> List[dict]:
+    """Each arm's answer in a deterministic order.  NEVER timed -- bench.py:194 keeps the
+    tiebreak out of the timing statement, and so does this."""
+    limit = int(spec["widget"]["limit"])
+    w = spec["widget"]
+    if arm in ("A", "A_uncapped"):
+        old = SRC.MAX_SCAN
+        if arm == "A_uncapped":
+            SRC.MAX_SCAN = 1 << 62
+        try:
+            cur = conn.cursor()
+            cur.execute(f"SELECT data FROM {table} WHERE collection = %s", (B.COLLECTION,))
+            raw = [r[0] for r in cur.fetchall()]
+            rows = raw[:SRC.MAX_SCAN] if len(raw) > SRC.MAX_SCAN else raw
+            rows = SRC._apply_derive(rows, w["derive"], B.CTX)
+            rows = SRC._filter_rows(rows, w.get("filters"), w["where"], B.CTX)
+        finally:
+            SRC.MAX_SCAN = old
+        return _t4_sorted_tiebroken(rows, spec)[:limit]
+    if arm == "C":
+        sql, params = _arm_c_sql(table, spec)
+        cur = conn.cursor(); cur.execute(sql, params)
+        return _t4_sorted_tiebroken([r[0] for r in cur.fetchall()], spec)[:limit]
+    if arm == "B2":
+        sql, params = _t4_build_b2(table, spec, tie=True)
+    elif arm == "B4":
+        sql, params = (B.build_b4(table, True) if spec["b4_expr"] is None
+                       else _build_b4_generic(table, spec, tie=True))
+    else:
+        raise ValueError(arm)
+    cur = conn.cursor(); cur.execute(sql, params)
+    return [r[0] for r in cur.fetchall()]
+
+
+def identity_check(conn, table: str, spec) -> Dict[str, Any]:
+    """FRAMING.md section 6 item 6, run ONCE per size on the tiebroken arms.
+
+    TWO corrections to what this replaced, both of which would have destroyed the run.
+
+    1.  It compared the TIMING arms' rows.  Arm C sorts in Python and B2 sorts in Postgres,
+        so ties spanning the LIMIT boundary put different-but-equally-correct rows in the
+        last places -- which the old docstring acknowledged and then compared anyway.
+        MEASURED before this was rewritten: arm C "disagreed" with B2 on 8 of 50 ids at
+        20,000 rows, and the old code voided the disagreeing arm.  Arm C is THE ARM THE BAR
+        APPLIES TO, so the run would have voided its own headline for tie order.  The frozen
+        harness had already solved this -- build_b(tie=), path_a_tiebreak, ground_truth --
+        and the fix is to use that mechanism rather than to invent another.
+
+    2.  It held ARM A to identity.  Arm A is the capped path.  Above 20,000 rows it is
+        SUPPOSED to disagree: recall 38% at 100k and 4% at 1M (FRAMING.md section 4.1) is
+        the correctness failure this whole project exists to fix.  Voiding it for that would
+        delete the same-session Python median that section 4.2's kill condition is DEFINED
+        against ("strictly below the same-session Python median"), leaving the run unable to
+        evaluate its own kill condition at the two sizes that decide it.  Section 6 item 6's
+        actual words scope identity to "arms where Python is correct (<= 20,000 rows)" and
+        to "ground truth computed by an uncapped query above the cap".  So arm A's agreement
+        is REQUIRED at and below the cap, and MEASURED as recall above it.
+    """
+    truth = _arm_rows_tiebroken(conn, table, spec, TRUTH_ARM)
+    truth_ids = [r.get("id") for r in truth]        # the reference is NOT perturbed
+    capped = SRC.MAX_SCAN
+    n_rows = read_row_count(conn, table)
+    out: Dict[str, Any] = {
+        "checked": True, "reference": TRUTH_ARM, "tiebroken": True,
+        "held_to_identity": list(UNCAPPED_ARMS),
+        "arms": {}, "arm_a_recall": None,
+    }
+    for arm in UNCAPPED_ARMS:
+        if arm == TRUTH_ARM:
             continue
-        ids = sorted(r.get("id") for r in perturb_rows(rows))
-        agree = ids == ref_ids
-        out["arms"][arm] = {"agree": agree, "n": len(ids),
-                            "detail": "identical id set" if agree
-                            else f"{len(set(ids) ^ set(ref_ids))} ids differ"}
+        ids = [r.get("id") for r in
+               perturb_rows(_arm_rows_tiebroken(conn, table, spec, arm), arm)]
+        agree = ids == truth_ids
+        out["arms"][arm] = {
+            "agree": agree, "n": len(ids),
+            "detail": "identical id list, tiebroken" if agree
+            else f"{len(set(ids) ^ set(truth_ids))} ids differ; "
+                 f"{sum(1 for a, b in zip(ids, truth_ids) if a != b)} positions differ",
+        }
     out["all_agree"] = all(v["agree"] for v in out["arms"].values()) if out["arms"] else None
+
+    # Arm A: measured, never gated.  This is the correctness number the run exists beside.
+    a_ids = [r.get("id") for r in
+             perturb_rows(_arm_rows_tiebroken(conn, table, spec, "A"), "A")]
+    hit = len(set(a_ids) & set(truth_ids))
+    out["arm_a_recall"] = {
+        "capped_at": capped, "rows_in_table": n_rows,
+        "cap_binds": n_rows > capped,
+        "overlap_with_truth": hit, "of": len(truth_ids),
+        "recall_pct": round(100.0 * hit / len(truth_ids), 1) if truth_ids else None,
+        "note": ("arm A is the capped path; above the cap it is EXPECTED to disagree and is "
+                 "not held to identity -- section 4.2 needs its median as the same-session "
+                 "Python baseline"),
+    }
+    if not out["arm_a_recall"]["cap_binds"]:
+        out["arms"]["A"] = {
+            "agree": a_ids == truth_ids, "n": len(a_ids),
+            "detail": "identical id list, tiebroken" if a_ids == truth_ids
+            else f"{len(set(a_ids) ^ set(truth_ids))} ids differ AT OR BELOW THE CAP, "
+                 f"where section 6 item 6 requires identity",
+        }
+        out["all_agree"] = all(v["agree"] for v in out["arms"].values())
     return out
 
 
@@ -639,6 +958,7 @@ def main(argv: List[str]) -> int:
     conn = connect()
     report: Dict[str, Any] = {
         "run": "T-4 timing run",
+        "builder_faithfulness": _assert_builder_faithful(),
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "bar_is": "ABSOLUTE MILLISECONDS, not a ratio (the owner's own correction, GA-3)",
         "gated_arm": GATED_ARM,
@@ -661,26 +981,54 @@ def main(argv: List[str]) -> int:
                 reps = NREPS.get(n, 9)
                 report["host"].append(host_state(conn, f"{wkey}/{n}/start"))
                 print(f"--- {wkey} / {table} (reps={reps}) ---", flush=True)
+
+                corpus = corpus_state(conn, table, spec, n)
+                print(f"   corpus: {corpus['rows']} rows, selectivity "
+                      f"{corpus['selectivity_pct']}% (band {corpus['selectivity_band']}), "
+                      f"{corpus['mean_stored_bytes']} stored bytes/row", flush=True)
+
                 per_arm: Dict[str, Any] = {}
-                for arm in ARMS:
-                    cell = run_cell(conn, table, n, spec, arm, reps)
-                    if is_measured(cell):
-                        last = ARMS[arm](conn, table, spec)
-                        cell["_rows"] = last["rows"]
-                        med = cell["stats"]["median"]
-                        print(f"   {arm:12s} median {med:10.2f} ms   (n={cell['stats']['n']})", flush=True)
-                    else:
-                        print(f"   {arm:12s} VOID  {cell['void_reason']}: {cell['void_detail']}", flush=True)
-                    per_arm[arm] = cell
-                ident = identity_across_arms(per_arm)
-                for cell in per_arm.values():
-                    cell.pop("_rows", None)
-                if ident.get("all_agree") is False:
-                    for arm, cell in per_arm.items():
-                        if is_measured(cell) and not ident["arms"].get(arm, {}).get("agree", True):
-                            per_arm[arm] = cell_void("arms_disagree",
-                                                     ident["arms"][arm]["detail"])
-                report["cells"][wkey][str(n)] = {"arms": per_arm, "identity": ident}
+                if not corpus["selectivity_in_band"]:
+                    # section 6 item 2: an out-of-band corpus voids the SIZE, and the fix is
+                    # to regenerate BEFORE timing -- never to tune until a timing looks good.
+                    det = (f"measured selectivity {corpus['selectivity_pct']}% outside "
+                           f"{corpus['selectivity_band']}")
+                    per_arm = {a: cell_void("corpus_incomplete", det) for a in ARMS}
+                    ident = {"checked": False, "detail": "size voided on corpus selectivity"}
+                    for a in ARMS:
+                        print(f"   {a:12s} VOID  corpus_incomplete: {det}", flush=True)
+                else:
+                    # T4_ARMS re-takes named cells after a void (section 6 item 1: "the cell
+                    # is void and re-run").  It selects WHICH cells run; it changes no gate.
+                    only = [a for a in os.environ.get("T4_ARMS", "").split(",") if a]
+                    for arm in (only or list(ARMS)):
+                        cell = run_cell(conn, table, n, spec, arm, reps)
+                        if is_measured(cell):
+                            s = cell["stats"]
+                            tail = (f"p95 {s['p95']:9.2f}" if "p95" in s
+                                    else f"worst of {s['n']} {s['worst_of_n']:9.2f}")
+                            print(f"   {arm:12s} median {s['median']:10.2f} ms   {tail}   "
+                                  f"(n={s['n']}, warmup {cell['warmup_ms']})", flush=True)
+                        else:
+                            print(f"   {arm:12s} VOID  {cell['void_reason']}: "
+                                  f"{cell['void_detail']}", flush=True)
+                        per_arm[arm] = cell
+
+                    # Identity ONCE per size, on the tiebroken arms, never on the timed rows.
+                    ident = identity_check(conn, table, spec)
+                    ra = ident["arm_a_recall"]
+                    print(f"   identity: all_agree={ident['all_agree']}  "
+                          f"armA recall {ra['recall_pct']}% "
+                          f"({'cap binds' if ra['cap_binds'] else 'cap does not bind'})",
+                          flush=True)
+                    for arm, cell in list(per_arm.items()):
+                        v = ident["arms"].get(arm)
+                        if v is not None and not v["agree"] and is_measured(cell):
+                            per_arm[arm] = cell_void("arms_disagree", v["detail"])
+                            print(f"   {arm:12s} VOID  arms_disagree: {v['detail']}", flush=True)
+
+                report["cells"][wkey][str(n)] = {"arms": per_arm, "identity": ident,
+                                                 "corpus": corpus}
                 report["host"].append(host_state(conn, f"{wkey}/{n}/end"))
 
     # sizes never attempted are a THIRD outcome, distinguishable from both others
@@ -692,7 +1040,9 @@ def main(argv: List[str]) -> int:
                              for a in ARMS}}
 
     report["finished_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    out = os.path.join(_HERE, "measurements.json")
+    # The negative control drives this same main() and must not leave its 1,000-row output
+    # sitting at the real run's path, where a later reader would take it for the run.
+    out = os.environ.get("T4_OUT") or os.path.join(_HERE, "measurements.json")
     with open(out, "w") as fh:
         json.dump(report, fh, indent=2, default=str)
     print(f"\nwrote {out}", flush=True)
