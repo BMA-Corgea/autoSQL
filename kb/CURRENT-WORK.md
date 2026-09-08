@@ -2,6 +2,67 @@
 
 ---
 
+> # START HERE — 2026-09-08 (T-4 RAN. Verdict FAIL. `sp_decide` is parked and is HIS)
+>
+> **T-4 is answered.** The compiled path is **2.5× slower than the Python path it would
+> replace**, at every size, and it misses every bar that was set in advance. It is parked at
+> `sp-decide` awaiting the owner's ruling — **not cleared in either direction**, per GA-24 Q2.
+> All work under **GA-24** (the decision form) and **GA-25** (authority to stop processes).
+>
+> | arm C (the gated arm), INVENTED widget | 20,000 | 100,000 | 1,000,000 |
+> |---|---:|---:|---:|
+> | median | **413.76 ms** | **2,004.61 ms** | *21,085.00 ms* |
+> | its bar (§4.1) | 350 ms | 1,000 ms | 5,500 ms |
+> | same-session Python (arm A) | 197.94 ms | 784.04 ms | *8,277.16 ms* |
+> | **C ÷ A** | **2.09×** | **2.56×** | *2.55×* |
+>
+> **The ratio is FLAT across a 50-fold row range**, so there is no crossover size — T-1's
+> finding confirmed by independent measurement rather than repeated. Against T-1's recorded
+> **3.79×–7.15×** this is a refinement *in the compiled path's favour*, and it still loses.
+> The verdict rests on 20,000 and 100,000, both taken on a clean host; the 1M cells were
+> disturbed (below) and are not leaned on.
+>
+> **Read `kb/wiki/decision-t4-timing-verdict.md`** — options A–D with a recommendation
+> (**C**: redesign around the measured cost, **B** as interim, explicitly not D). Evidence:
+> `spikes/T-4/FINDINGS-T4.md` at `1b78aef`, measurements in `.autodev/evidence/T-4/`.
+>
+> ## Three things a resuming session must not re-learn the hard way
+>
+> 1. **The harness was UNPROVEN and was broken in four ways**, each of which would have
+>    produced a confident wrong answer: arms C and B2 raised `KeyError` on the invented
+>    widget (the gated arm could not run on the widget the bar is about); the identity check
+>    compared the *timing* arms, so tie order would have voided arm C at every size; arm A
+>    was held to identity above its own cap, which would have deleted the baseline §4.2 is
+>    defined against; and `perturb_rows` was applied symmetrically, so **§6.1's injection 4
+>    could not fire at all**. A review then found 14 more, including buffer counts summed
+>    across Postgres' *cumulative* per-node lines (220,860 reads against a 700 MB table) and
+>    §6.1 exclusion checks that were **helper unit tests**, which §6.1 rules out by name.
+> 2. **`spikes/T-4/control_t4.py` is the negative control and it must pass BEFORE any
+>    millisecond is quoted.** 12/12. Re-run it after any harness change — it has already
+>    caught a regression in one of its own fixes.
+> 3. **§4.2 ships a host-quietness test and it passed to 0.65%.** Same-session Python at 1M
+>    landed 0.65% (invented) and 1.33% (control) from the pre-registered 8,331.43 ms — on
+>    rows that are 999-in-1000 different. Independent of any load average recorded here.
+>
+> ## The host, honestly
+>
+> Cleared at 17:58Z under GA-25: the AutoDev watch sidecar plus the GUTS dev stack (a
+> `--reload` API server, a vite front end, a bridge in a respawn wrapper) — all running
+> despite the machine having been reported clear. **At 18:14Z, mid-run, a browser and the
+> GUTS stack came back up** (GEDS spin-loop at 85.8%); load peaked 1.98 and the harness
+> **voided two cells at a 2.14 reading — the void path firing unprompted on live data for
+> the first time in this project's history.** Measured cost: **zero repetitions**,
+> `excluded_void_reps` 0 on every arm at every size, n intact at 25/25/9. `glp_strong` was
+> **not** idle — 354 commits across the 100k window, measured per §5.4 item 16.
+> `.autodev/notes/geds-reload-spin-loop.md` has the spin-loop diagnosis; it belongs in GUTS
+> and **no autoSQL ticket was opened for it**.
+>
+> ## Next
+>
+> The gate-ping seam (`gate_waiting` has fired zero times in this repo's history), then the
+> mutation pass (plan §8.2, 9 of 16 mutants never watched failing), the digit-mapping
+> regeneration, the guided tour over the demo screen, and the `raw`-mode re-run.
+
 > # START HERE — 2026-09-07 (T-4 is finally RUNNING; the demo got a skin system and two real bug fixes)
 >
 > All of today's work is under **GA-23** — the owner's *"Close everything you need on the machine and
@@ -300,7 +361,7 @@ always showing its derivation, always overturnable by one line from him.
   must be rebuilt into its own throwaway container first. **Worth noting after T-3:** a failed
   correctness run leaves the timing run with less to time — whether T-4 runs at all is now part of the
   `sp-decide` decision, not an automatic next step. Handoff: `.autodev/handoffs/T-4.md`.
-- **T-4** (spike) — *Timing run: how long does a person actually wait, generated SQL vs today's
+- **T-4** (spike) — Timing run: how long does a person actually wait, generated SQL vs today's Pyth… — sp-decide
   Python?* **Unblocked and running, 2026-09-07**, under **GA-23** ("Close everything you need on
   the machine and run T-4"). The host was made quiet and exclusive — 1-min load **0.41** against
   the framing's ≤ 2.0 bar — by stopping four uvicorn dev servers (one at 85% CPU for seven hours),
