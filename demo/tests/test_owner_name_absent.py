@@ -54,14 +54,19 @@ def test_the_check_actually_refuses_when_the_name_is_present():
     this, a script that had been broken into always returning 0 would keep the test above
     green forever — which is the class this whole file is about.
     """
+    # The probe string is ASSEMBLED, never written literally, because this file is itself
+    # in the tracked tree that the check scans. Spelling it out here would make the guard
+    # refuse its own test — which is exactly what happened on the first attempt, and the
+    # check caught it. The word-boundary grep cannot match `"ev" + "an"`.
+    probe = "human:" + "ev" + "an"
     r = subprocess.run(
         ["bash", "-c",
          # a throwaway git repo carrying the name, so the real tree is never touched
          'd=$(mktemp -d) && cd "$d" && git init -q . && mkdir -p ops design '
-         '&& cp "$1" ops/name-check.sh && printf "human:evan\\n" > design/probe.md '
+         '&& cp "$1" ops/name-check.sh && printf "%s\\n" "$2" > design/probe.md '
          '&& git add -A >/dev/null && git -c user.email=t -c user.name=t commit -qm x '
          '&& ./ops/name-check.sh; rc=$?; rm -rf "$d"; exit $rc',
-         "_", str(SCRIPT)],
+         "_", str(SCRIPT), probe],
         capture_output=True, text=True)
     assert r.returncode == 1, (
         "ops/name-check.sh did NOT refuse a tree containing the owner's name — "

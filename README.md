@@ -98,11 +98,28 @@ demo — that question belongs to work that has not run yet (see below).
 
 ## What is proven so far
 
-- **Zero wrong numbers over 11,367 expressions**, across three batteries, with zero unexplained
-  raises and zero nullness violations; the 130-case contract fixture is **130/130**
+- **Zero wrong numbers over 11,367 expressions — on `py`-mode data**, across three batteries, with
+  zero unexplained raises and zero nullness violations; the 130-case contract fixture is **130/130**
   (`kb/wiki/decision-t6-correctness-rerun.md`). The harness was separately driven with six
   deliberately wrong compilations and reported all six, so its failure paths were dead rather than
   broken (`kb/wiki/decision-expr-to-sql.md`).
+
+  **What that figure does not cover, stated because it leads this section.** Every one of those
+  11,367 expressions ran in `py` mode: the record is a Python object, so *every number had already
+  collapsed to an IEEE double before it reached the column*. The other ingestion mode, `raw` — a
+  row written as JSON text by anything that is not this Python process (ETL, migration, `psql`,
+  another service) — **can carry numbers a double cannot hold, and there the two engines
+  disagree.** T-23 measured **7 divergences in 204 expressions**, all of them equality or
+  inequality; for example `{"a": 0.1000000000000000000000001}` with `$.a == 0.1` is **True** in
+  Python and **False** in SQL, because jsonb compares an exact `numeric` while Python compares
+  after a `float` parse. Arithmetic does not diverge — it routes through `xpr.num`, which lands on
+  the same `float8` Python uses.
+
+  **This is a limit of the battery, not a regression in the compiler.** `py` mode cannot express
+  those inputs, so a larger `py` run would never find them: the gap is domain, not sample size.
+  It matters because T-7 found that **six of seven GIMS write paths never check the declared
+  type**, so non-Python writers are the norm. Full result, mechanism and what is *not* claimed:
+  `spikes/T-23/FINDINGS.md`.
 - **The numbers no longer depend on a session setting.** The pass above holds at
   `extra_float_digits = 1`; at 0 and −3 there were still 62 and 66 wrong numbers, from a
   value-channel truncation the pin cures (`kb/wiki/decision-t6-correctness-rerun.md`). Later work closed that: the shipping compiler routes float8 through `xpr.j`, which carries its own setting,
