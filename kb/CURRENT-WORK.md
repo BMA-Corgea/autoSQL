@@ -59,9 +59,10 @@
 >
 > ## Next
 >
-> The gate-ping seam (`gate_waiting` has fired zero times in this repo's history), then the
-> mutation pass (plan §8.2, 9 of 16 mutants never watched failing), the digit-mapping
-> regeneration, the guided tour over the demo screen, and the `raw`-mode re-run.
+> The gate-ping seam is DONE (T-18, merged) and plan §8.2's mutation pass is DONE (T-19):
+> `./run-demo test --mutants`, **16 killed, 0 survived**, all sixteen watched failing.
+> Next: the digit-mapping regeneration, the guided tour over the demo screen, and the
+> `raw`-mode re-run.
 
 > # START HERE — 2026-09-07 (T-4 is finally RUNNING; the demo got a skin system and two real bug fixes)
 >
@@ -244,7 +245,8 @@
 > `declared-types-are-not-a-guarantee.md` · `runtime/README.md` · `compiler/README.md`.
 >
 > **Standing:** never port **55433**. Nothing in either GIMS checkout has been changed (Q3 park).
-> Plan §8.2's mutation pass has **still never run** — 9 of 16 mutants never watched failing.
+> ~~Plan §8.2's mutation pass has **still never run** — 9 of 16 mutants never watched failing.~~
+> **Superseded 2026-09-08 (T-19): it runs. `./run-demo test --mutants` — 16 killed, 0 survived.**
 
 ---
 
@@ -325,8 +327,9 @@ always showing its derivation, always overturnable by one line from him.
   acceptance, and exactly what Q27's look sign-off existed to catch.
   **Still open on this ticket, all his:** AC-35; whether the demo should **adopt** T-3's corrected
   runtime (it pins the older 427-line version, so it currently demonstrates behaviour T-3 has since
-  proven wrong); and the clipped column. **Plan §8.2's mutation pass has still never run** — 4 of 16
-  hand-run and killed, 3 with standing detectors, **9 never watched failing** — now printed as a
+  proven wrong); and the clipped column. ~~**Plan §8.2's mutation pass has still never run** — 4 of 16 hand-run and killed, 3 with
+  standing detectors, **9 never watched failing**~~ — **discharged 2026-09-08 (T-19): all
+  sixteen are now driven mechanically, 16 killed / 0 survived** — now printed as a
   DISCLOSURE above every suite summary. Handoff: `.autodev/handoffs/T-2.md`.
   number?* — **at `sp-decide`, COMPLETE through synthesis, WAITING ON OWNER. The answer is NO: it does
   return wrong numbers.** The bar (zero wrong answers at each of `extra_float_digits` 1, 0 and −3,
@@ -369,7 +372,7 @@ always showing its derivation, always overturnable by one line from him.
   declared per framing §5.1 item 4: this session, one idle second session, the GUTS bridge, the
   openclaw gateway, and `glp-strong-db` (the owner's LIVE database — never written, read-only
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
-- **T-18** (techdebt) — A gate parked by arrival never pings: gate_waiting only fires on a refused adva… — auto-review
+- **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — plan
 
 ## Waiting on
 
@@ -424,6 +427,7 @@ T-3's and T-4's pings were delivered. Filing upstream stays his call
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-08 **T-18 COMPLETE** — A gate parked by arrival never pings: gate_waiting only fires on a refused adva…
 - 2026-09-06 **T-17 COMPLETE** — Nothing tests the demo's prose files against expected-answers.json, so they dri…
 - 2026-09-06 **T-15 COMPLETE** — demo/EVIDENCE.md documents step 11 as the old 1e300 number-range case, two gene…
 - 2026-09-05 **T-16 COMPLETE** — `main` had been red since `adf23bf` the same day: T-14 reworded a

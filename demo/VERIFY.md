@@ -475,3 +475,46 @@ Read this section as part of the evidence, not as an appendix.
 7. **This record verifies the demo, not the integration.** Nothing here says
    anything about GIMS itself — the demo runs on invented data, on its own
    database, behind its own fence, and that is all that was tested.
+
+
+---
+
+## ADDENDUM — 2026-09-08. §1.2's disclosure is discharged: the mutation pass has run.
+
+**Nothing above this line is edited.** This record was produced on 2026-08-22 and every
+statement in it was true when written; §1.2 and §6 item 3 say plainly that plan §8.2's
+mutation pass had never run, and on that date it had not.
+
+**It has now.** `demo/mutation_pass.py` implements it; `./run-demo test --mutants` is the
+command §8.2 names. First green run 2026-09-08:
+
+    mutation pass: 16 killed, 0 SURVIVED, 0 INVALID, of 16
+    Every criterion was watched failing against its own mutant.
+
+So §6 item 3's *"9 have never been watched failing"* no longer holds: **all sixteen have.**
+The four hand-run once (M1, M4, M8, M16) and the three with standing detectors (M6, M12,
+M13) are now driven mechanically alongside the other nine, every time the pass is run.
+
+**Three properties of that run, because the number alone is not the evidence:**
+
+1. **A criterion is checked GREEN before it is allowed to go red.** A test that was already
+   failing proves nothing by failing again, so each mutant runs its criterion on the clean
+   tree first. Outcomes are KILLED / SURVIVED / **INVALID**, and only KILLED counts.
+2. **A mutant that cannot be anchored fails the run.** It is never skipped — the original
+   reason this was not implemented in the launcher.
+3. **The fixture is guarded.** M16's defect *is* leaving a row behind, so reverting its
+   source does not undo it. The first run of this pass left a committed scratch row in
+   `demo.records`, and the next pytest session opened with `B10 CHECKSUM GUARD FAILED`.
+   That is recorded here rather than quietly repaired: the row was
+   `noun:__scratch__/scratch-00`, the three seeded collections were untouched, and the
+   digest was restored to the manifest's `65d83e81…`. The pass now reads the digest before
+   it starts and after **every** mutant, restores on drift, and aborts if it cannot.
+
+**Worth knowing before trusting the 16/16:** on the first complete run, six mutants
+SURVIVED and two were INVALID — and every one of those eight was a defect in the *mutant*,
+not a decorative criterion. A node id missing its class; a rounding mode overridden at the
+call site; an anchor inside an `except ImportError` branch that never executes; a grep
+aimed at the wrong module; the weaker of two halves of a criterion whose own docstring said
+so; and a detector matching the guard's internal state word rather than its printed banner.
+**The suite's catchers were alive the whole time.** The three-outcome design is what made
+that legible instead of eight accusations against a working suite.

@@ -573,59 +573,61 @@ SUMEOF
 
 # ── plan §8.2's mutation pass: NOT IMPLEMENTED, AND SAID OUT LOUD ────────
 #
-# AUTO-REVIEW ROUND 1, MEDIUM. Plan §8.2 promises, in those words, that
-# "the build runs a mutation pass before it hands over": sixteen one-line
-# defects, M1 to M16, each applied in turn, each naming the criterion that
-# must fail, each reverted. Risk rows 1 and 15 lean on that pass as THE
-# proof the catchers are alive rather than decorative — row 15 citing T-1's
-# own re-check, which found that every branch of its harness that reports a
-# failure had zero executions across a full run.
+# Plan §8.2 promises, in those words, that "the build runs a mutation pass
+# before it hands over": sixteen one-line defects, M1 to M16, each applied in
+# turn, each naming the criterion that must fail, each reverted. Risk rows 1
+# and 15 lean on that pass as THE proof the catchers are alive rather than
+# decorative — row 15 citing T-1's own re-check, which found that every branch
+# of its harness that reports a failure had zero executions across a full run.
 #
-# `./run-demo test --mutants` is the command that promise names. IT HAS
-# NEVER RUN. It is not implemented here and nothing under demo/ implements
-# it either. The build handed over anyway, and no evidence surface recorded
-# the gap — which is the actual defect. A refusal that only this file can
-# see is a gap disclosed to nobody.
+# IT NOW RUNS. `demo/mutation_pass.py` is the implementation and
+# `./run-demo test --mutants` is the command §8.2 names. First green run
+# 2026-09-08: 16 killed, 0 survived, 0 invalid.
 #
-# WHAT WAS DONE INSTEAD, AND WHY. Implementing the pass honestly means
-# sixteen anchored source edits across roughly ten files this launcher does
-# not own, each with a mapping from a plan criterion to a test node id, and
-# a mutant that cannot be anchored has to fail the run rather than be
-# skipped — otherwise the mutation pass becomes the very thing §8.2 was
-# written against. That is a work item, not a launcher fix. So the gap is
-# made LOUD instead, in the two places a reader actually looks:
+# THREE THINGS THAT RUN IS, AND IS NOT.
 #
-#   1. the flag itself says plainly that it is not implemented, names what
-#      IS known about each mutant, and still refuses (exit 2) so it can
-#      never pass vacuously; and
-#   2. EVERY `./run-demo test` prints the same disclosure immediately
-#      above its summary line — so the run that produces "N passed" is the
-#      same run that says the sixteen catchers were never watched as a set.
-#      The evidence and the disclaimer cannot be separated by a copy-paste.
+#   1. It is not a claim that sixteen edits went red. Each mutant's criterion
+#      is run on the CLEAN tree first, and a criterion that was not green
+#      before is reported INVALID rather than counted — because a test that
+#      was already red proves nothing by going red again. Three outcomes:
+#      KILLED, SURVIVED, INVALID. Only KILLED counts.
 #
-# What is known, and it is not nothing: M1, M4, M8 and M16 were each
-# hand-run once during the auto-review and each was killed; M6, M12 and
-# M13 have standing detector tests in this suite (test_gate.py, test_alias.py
-# and the bucket-cast grep) that are watched catching their own mutant.
-# The other nine have never been watched failing.
+#   2. A mutant that cannot be ANCHORED fails the whole run before anything is
+#      applied. It is never skipped. That was the original reason this was not
+#      implemented in a launcher: a mutation pass that skips what it cannot
+#      apply becomes the very thing §8.2 was written against.
 #
-# One line to overturn: *"implement §8.2 properly"* — then this whole
-# section, both printed disclosures and the exit-2 refusal go, and the flag
-# does what the plan says.
-MUTATION_PASS_STATE="not implemented — plan §8.2 has never run"
+#   3. It guards the fixture it measures against. M16's defect IS leaving a row
+#      behind, so reverting the source does not undo it — the first run of this
+#      pass left a committed scratch row in demo.records and the next pytest
+#      session opened with B10 CHECKSUM GUARD FAILED. The digest is now read
+#      before the pass and after EVERY mutant, restored on drift, and the run
+#      ABORTS if it cannot be restored.
+#
+# What the first green run cost, and it is worth knowing before trusting the
+# number: six of sixteen mutants initially SURVIVED, and every one was a defect
+# in the mutant rather than a decorative criterion — a node id missing its
+# class, a rounding mode overridden at the call site, an anchor inside an
+# `except ImportError` fallback that never executes, a grep pointed at the
+# wrong module, the weaker of two halves of a criterion, and a detector
+# matching the guard's internal state word instead of its printed banner. The
+# suite's catchers were alive throughout. The three-outcome design is what made
+# that legible instead of six false accusations.
+#
+MUTATION_PASS_STATE="implemented — demo/mutation_pass.py; run it with './run-demo test --mutants'"
 
 mutation_pass_disclosure() {
-  echo "run-demo test: DISCLOSURE — plan §8.2's mutation pass HAS NOT RUN. './run-demo test --mutants' is $MUTATION_PASS_STATE, here or anywhere under demo/."
-  echo "run-demo test:   M1, M4, M8, M16 were hand-run once and killed. M6, M12, M13 have standing detector tests in this suite."
-  echo "run-demo test:   The other nine of the sixteen have never been watched failing. The counts below are the ordinary suite and are not evidence for §8.2."
+  echo "run-demo test: plan §8.2's mutation pass IS $MUTATION_PASS_STATE."
+  echo "run-demo test:   The counts below are the ordinary suite; they are NOT the mutation pass."
+  echo "run-demo test:   './run-demo test --mutants' runs the sixteen and prints its own verdict."
 }
 
 run_suite() {
   if [[ "${1:-}" == "--mutants" ]]; then
-    echo "run-demo test: --mutants is plan §8.2's mutation pass and it is NOT IMPLEMENTED — not in this verb, not anywhere under demo/. It has never run." >&2
-    echo "run-demo test: sixteen mutants are named in plan §8.2. Four (M1, M4, M8, M16) were hand-run once and killed; three (M6, M12, M13) have standing detector tests in this suite; the other nine have never been watched failing." >&2
-    echo "run-demo test: refusing rather than running the ordinary suite and letting it look like a mutation run. './run-demo test' prints this same disclosure above its summary line, every run." >&2
-    exit 2
+    shift
+    echo "run-demo test: plan §8.2's mutation pass — sixteen mutants, each with the"
+    echo "run-demo test: criterion that must fail. A survivor is a BUILD FAILURE."
+    exec "$VENV_DIR/bin/python" "$REPO_ROOT/demo/tests/mutation_pass.py" "$@"
   fi
 
   # Before anything is brought up or connected to: this file has no
@@ -941,7 +943,7 @@ verbs:
   test       run the demo's test suite
 
 note:
-  ./run-demo test --mutants  plan §8.2's sixteen-mutant pass. NOT IMPLEMENTED
+  ./run-demo test --mutants  plan §8.2's sixteen-mutant pass (--dry-run, --only M6,M9)
                              and it has never run; the flag refuses, and every
                              ./run-demo test says so above its summary line.
 EOF

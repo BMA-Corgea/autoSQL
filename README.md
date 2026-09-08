@@ -126,9 +126,13 @@ What is **not** settled, stated plainly:
   reports absolute milliseconds, so it needs a 1-minute load average of 2.0 or below and an
   exclusive two-to-three-hour window, and the machine has not yet had that window
   (`kb/CURRENT-WORK.md`). Numbers taken under load are not weaker, they are void, so it waits.
-- The digit mapping is generated but **nothing regenerates it** on a Unicode bump, `raw`-mode data
-  was never re-run, and the planned mutation pass has never run — 9 of 16 mutants have never been
-  watched failing (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
+- The digit mapping is generated but **nothing regenerates it** on a Unicode bump, and `raw`-mode
+  data was never re-run (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
+- The planned mutation pass **now runs**: `./run-demo test --mutants` applies plan §8.2's sixteen
+  one-line defects, runs only the criterion each must break, and asserts it fails. First green
+  run 2026-09-08 — **16 killed, 0 survived**. Every one of the sixteen has now been watched
+  failing against its own mutant, which is the evidence that the suite's catchers are alive
+  rather than decorative.
 
 ## Status
 
