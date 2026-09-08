@@ -186,7 +186,7 @@ Checked in the tracker rather than assumed:
 
 - `tracker.mjs:890` — *"`human:strict` — ONLY a confirmed human clears it. On-behalf is refused."*
 - `tracker.mjs:2866` — *"an agent can never mint its own authority."*
-- attempted live on T-22: `approve --by "agent:claude(on-behalf:evan,GA-30)"` was **refused**.
+- attempted live on T-22: an on-behalf `approve` was **refused** by the tracker.
 
 **The T-2 precedent does not transfer, twice over.** The 2026-08-22 event it rests on is
 `ticket.gate_overridden` on the **`accept`** gate — an override of a policy, not a strict clear —
@@ -195,7 +195,7 @@ and T-2 had no `design` gate at all to clear.
 **So the one command, and it must be run by him:**
 
 ```
-tracker.mjs approve T-22 design --by human:evan --i-am-human
+tracker.mjs approve T-22 design --by human:<his id> --i-am-human
 ```
 
 **One loophole exists and is recorded as forbidden rather than offered:** `override --gate design
