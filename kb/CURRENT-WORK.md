@@ -369,7 +369,7 @@ always showing its derivation, always overturnable by one line from him.
   declared per framing §5.1 item 4: this session, one idle second session, the GUTS bridge, the
   openclaw gateway, and `glp-strong-db` (the owner's LIVE database — never written, read-only
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
-- **T-18** (techdebt) — A gate parked by arrival never pings: gate_waiting only fires on a refused adva… — plan
+- **T-18** (techdebt) — A gate parked by arrival never pings: gate_waiting only fires on a refused adva… — auto-review
 
 ## Waiting on
 
