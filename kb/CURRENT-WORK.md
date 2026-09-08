@@ -374,7 +374,6 @@ always showing its derivation, always overturnable by one line from him.
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
 - **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
-- **T-23** (spike) — The raw-mode re-run: the correctness claim has only ever been tested on py-mode… — sp-frame
 
 ## Waiting on
 
@@ -430,6 +429,7 @@ T-3's and T-4's pings were delivered. Filing upstream stays his call
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-08 **T-23 COMPLETE** — The raw-mode re-run: the correctness claim has only ever been tested on py-mode…
 - 2026-09-08 **T-21 COMPLETE** — The digit mapping regenerates on a Unicode bump, but nothing verifies the regen…
 - 2026-09-08 **T-18 COMPLETE** — A gate parked by arrival never pings: gate_waiting only fires on a refused adva…
 - 2026-09-06 **T-17 COMPLETE** — Nothing tests the demo's prose files against expected-answers.json, so they dri…
