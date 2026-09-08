@@ -30,6 +30,24 @@ found. Every instance below is the same sentence with different nouns, and in ev
 | **3** | §8.2's mutation pass (`--only <typo>`) | the whole pass: an empty selection | `0 of 0`, then *"Every criterion was watched failing against its own mutant"*, **exit 0** |
 | **4** | the digit mapping (T-21) | the **39** cases comparing `xpr.num` against the Python evaluator, behind `@needs_db` on a DSN nothing set | `8 passed, 50 skipped` — green. A Unicode bump would fire the staleness guard, you regenerate, the guard goes green, and **not one Unicode digit was ever compared between the two engines** |
 
+### A fifth member, and it is a different one
+
+| | the instrument | what did not run | how it read |
+|---|---|---|---|
+| **5** | `ops/name-check.sh` (T-14's rule) | **nothing** — the check's failure path works perfectly; **no hook, no CI, no suite invoked it** | a sound guard, documented as `ops/name-check.sh && git push`, i.e. someone remembering to type it. The name reached `origin/main` anyway |
+
+**The first four are checks whose failure path never executed. This one's failure path is
+fine — the invocation was missing.** Same family, and worth separating, because a reader who
+has only met the first four will look for a dead branch and find none.
+
+**It has a precursor worth naming too:** the arrangement it replaced was an inline
+`git grep … ; echo … && git add …`, where the grep *fired* and its exit status was never
+consumed. So the sequence was: a check that ran and was discarded → replaced by a better
+check that nothing called. **Both are the same failure at different distances from the code.**
+
+**The test:** *what would have to break for this check to stop protecting me, and would I
+notice?* If the answer is "someone stops typing it", it is not a guard yet.
+
 **Instance 2 is the sharpest and instance 4 is the most instructive.** Number 2 is a control
 whose job was proving failure paths fire, and its own failure path could not. Number 4 shows
 the class survives having a *correct, running* guard next door: detection worked perfectly,
@@ -51,6 +69,12 @@ was right.**
 - **Watch it fail, and keep the exercise.** `.autodev/evidence/T-18/watched-failing.mjs`,
   `.autodev/evidence/T-21/watched-failing.sh`, `.autodev/evidence/T-17/watched-failing.sh` —
   each breaks the thing on purpose and asserts the guard reacts, re-runnably.
+- **Put the invocation where it cannot be forgotten, and prefer the one that travels.**
+  A `.git/hooks/` hook does not travel with the repo, so a fresh clone is unprotected —
+  the case that matters for a public one. With no CI in this repo, the suite is the thing
+  that both travels and always runs: `demo/tests/test_owner_name_absent.py` *runs the
+  script* rather than reimplementing it, so one implementation is checked and the test also
+  fails if the script itself breaks.
 - **Give a known failure a name, a reason and a ticket, and give a NEW failure a different
   exit code.** Otherwise the known red masks the new one and the whole check becomes noise —
   `EXPECTED_SURVIVORS` in `demo/tests/mutation_pass.py`.
