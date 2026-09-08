@@ -172,33 +172,59 @@ def index_help_in_plan(plan: str) -> Optional[str]:
     Returns the offending line, or None if the plan is clean.  A primary-key lookup doing
     the `collection = ...` restriction is the one allowed index use.
     """
-    for raw in plan.splitlines():
+    for idx, raw in enumerate(plan.splitlines()):
         line = raw.strip()
         low = line.lower()
         if "index scan" not in low and "index only scan" not in low:
             continue
-        # "->  Index Scan using measure_instances_1000_pkey on ..."  is the allowed one.
+        # "->  Index Scan using measure_instances_1000_pkey on ..." is the allowed one --
+        # but ONLY when it is doing the `collection = ...` restriction section 6 item 4
+        # actually permits.  A bare `"_pkey" in line` test would wave through a pkey index
+        # used for anything at all, and the guard is the whole evidence for Q11's world.
         if "_pkey" in low:
-            continue
+            cond = " ".join(plan.splitlines()[idx + 1:idx + 3]).lower()
+            if "index cond" in cond and "collection" in cond:
+                continue
+            return f"{line}   [pkey index NOT doing the collection lookup]"
         return line
     return None
 
 
 def buffers_from_plan(plan: str) -> Dict[str, int]:
     """shared hit/read, per FRAMING.md section 5.4 item 13 -- cache state is MEASURED,
-    never claimed (section 6 item 8)."""
-    hit = read = 0
+    never claimed (section 6 item 8).
+
+    POSTGRES REPORTS BUFFER COUNTS CUMULATIVELY: a parent node's `Buffers:` line already
+    contains every child's.  Summing the lines therefore multiplies the true figure by the
+    plan depth.  Measured in this run's own committed evidence before the fix: the date
+    control's 1M B2 plan carries `shared hit=2465 read=55215` FOUR times and the cell
+    reported shared_read=220860 -- 1.7 GB of reads against a 700 MB table, which is not a
+    possible number.  Single-node plans (arm C has no ORDER BY, so no Limit/Sort above the
+    scan) were correct by accident, which is exactly how it survived review-by-reading.
+
+    The ROOT node is printed first in EXPLAIN text output, so its line -- the first one --
+    is the whole-plan total.  `temp read=`/`written=` share the line and are kept separate:
+    a sort spilling to disk is not a shared-buffer read.
+    """
+    out = {"shared_hit": 0, "shared_read": 0, "temp_read": 0, "temp_written": 0}
     for raw in plan.splitlines():
-        low = raw.lower()
-        if "shared" not in low:
+        if "buffers:" not in raw.lower():
             continue
-        toks = low.replace("=", " ").split()
+        section = None
+        toks = raw.lower().replace("=", " ").replace(",", " ").split()
         for i, t in enumerate(toks):
-            if t == "hit" and i + 1 < len(toks) and toks[i + 1].isdigit():
-                hit += int(toks[i + 1])
-            if t == "read" and i + 1 < len(toks) and toks[i + 1].isdigit():
-                read += int(toks[i + 1])
-    return {"shared_hit": hit, "shared_read": read}
+            if t in ("shared", "local", "temp"):
+                section = t
+            elif t in ("hit", "read", "written", "dirtied") and i + 1 < len(toks):
+                nxt = toks[i + 1]
+                if not nxt.isdigit():
+                    continue
+                if section == "shared" and t in ("hit", "read"):
+                    out[f"shared_{t}"] = int(nxt)
+                elif section == "temp" and t in ("read", "written"):
+                    out[f"temp_{t}"] = int(nxt)
+        break          # ROOT node only -- the counts are already cumulative
+    return out
 
 
 # =======================================================================================
@@ -602,6 +628,33 @@ def _assert_builder_faithful() -> Dict[str, Any]:
         if _sort_sql_dir(v, "asc") != B.sort_sql(v):
             raise AssertionError("t4 sort_sql(asc) diverges from the frozen sort_sql")
         out["sort_sql_asc"] = "byte-identical to frozen sort_sql"
+
+        # The two branches ABOVE are the only ones the date control exercises.  The invented
+        # widget takes two the frozen builder cannot build at all -- DESC ordering and an
+        # ABSENT filter -- so there is nothing to compare them against, and a defect in
+        # either would surface only as an arms-disagreement.  They are therefore checked
+        # DIFFERENTIALLY against the frozen output: same statement, one property changed.
+        desc = _sort_sql_dir(v, "desc")
+        if desc.count(" DESC") != 3:
+            raise AssertionError(
+                f"DESC must reach all THREE rank terms of the frozen sort, got "
+                f"{desc.count(' DESC')} -- a direction on only the last term silently "
+                f"orders by type-rank ascending")
+        if desc.replace(" DESC", "") != B.sort_sql(v):
+            raise AssertionError("t4 sort_sql(desc) is not the frozen sort plus directions")
+        out["sort_sql_desc"] = "frozen sort_sql + DESC on each of its 3 rank terms"
+
+        nofilter = {**WIDGET_DATE, "widget": {**WIDGET_DATE["widget"], "filters": {}}}
+        got, got_p = _t4_build_b2("T", nofilter)
+        want, want_p = B.build_b("B2", "T")
+        expect = want.replace(" AND (data -> 'status') = %(fstatus)s::jsonb", "")
+        if got != expect:
+            raise AssertionError(
+                f"the no-filter branch is not the frozen statement minus its filter "
+                f"conjunct.\n  expected: {expect}\n  got     : {got}")
+        if "fstatus" in got_p or set(want_p) - set(got_p) != {"fstatus"}:
+            raise AssertionError(f"no-filter params wrong: {sorted(got_p)}")
+        out["no_filter_branch"] = "frozen statement minus exactly its status conjunct"
     return out
 
 
@@ -666,10 +719,20 @@ def _build_b4_generic(table: str, spec, tie: bool = False) -> Tuple[str, Dict[st
     name = spec["derive_name"]
     params = {"coll": B.COLLECTION}
     where = spec["widget"]["where"]
-    # the invented widget's predicate is `$.load_score > 195`
-    thresh = where.rsplit(">", 1)[1].strip()
+    # `where.rsplit(">", 1)` is correct for `$.load_score > 195` and silently wrong for
+    # anything else: on `>=` it yields the threshold "= 195", and on a compound predicate it
+    # measures a different question.  Because B4 is held to identity, a mis-built B4 would
+    # surface as "arms disagree" rather than as the build error it is.  So the shape this
+    # builder can express is CHECKED, and anything else refuses to build.
+    import re as _re
+    m = _re.fullmatch(r"\s*\$\.(\w+)\s*(>|<|>=|<=)\s*(-?[0-9.]+)\s*", where)
+    if not m or m.group(1) != name:
+        raise ValueError(
+            f"_build_b4_generic can only express `$.{name} <op> <number>`; refusing to "
+            f"guess at {where!r}")
+    op, thresh = m.group(2), m.group(3)
     sql = (f"SELECT data || jsonb_build_object('{name}', to_jsonb({expr})) "
-           f"FROM {table} WHERE collection = %(coll)s AND {expr} > {thresh} "
+           f"FROM {table} WHERE collection = %(coll)s AND {expr} {op} {thresh} "
            f"ORDER BY {expr} {spec['b4_desc'].upper()}{B.TIE if tie else ''} "
            f"LIMIT {int(spec['widget']['limit'])}")
     return sql, params
@@ -769,16 +832,50 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
     # The frozen harness throws the warm-up away.  It is the closest thing to a cold
     # reading available and it costs nothing to keep, so it is labelled warmup_ms and
     # excluded from the median rather than discarded.
-    warm = fn(conn, table, spec)
+    try:
+        warm = fn(conn, table, spec)
+    except Exception as exc:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return cell_void("rep_error", f"warm-up raised {type(exc).__name__}: {exc}",
+                         {"arm": arm, "size": n, "reps": reps, "started_utc": started})
     warmup_ms = round(warm["ms"], 2)
+    # For C, B2 and B4 an EXPLAIN (ANALYZE) of the identical statement ran just above, which
+    # is a FULL execution -- so their warm-up is a second warm run, while A and A_uncapped
+    # (no plan captured) get a genuinely first one.  The field is captioned "the closest
+    # thing to a cold reading available" and would be read that way across all five.
+    warmup_preceded_by_explain = plan_text is not None
 
     # -- the repetitions ----------------------------------------------------------------
     per_rep: List[Dict[str, Any]] = []
     last = None
     for _ in range(reps):
-        r = fn(conn, table, spec)
+        try:
+            r = fn(conn, table, spec)
+        except Exception as exc:
+            # One raise used to end the run and discard every millisecond already measured,
+            # inside a 2-3 hour EXCLUSIVE window that cannot simply be re-booked (section 3).
+            # B4 is the documented candidate: `::numeric` RAISES where the language must
+            # return null.  psycopg2 also leaves the connection in a failed transaction, so
+            # every later statement would error until a rollback that never came.
+            #
+            # This is ALSO what makes section 6.1's exclusion clause reachable: it is the one
+            # mechanism by which a single REP can void, so `excluded_void_reps` and
+            # `no_admissible_reps` stop being dead surface.  It adds no gate -- a rep voids
+            # only when it actually failed.
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            per_rep.append(cell_void("rep_error", f"{type(exc).__name__}: {exc}"))
+            continue
         last = r
         per_rep.append(cell_measured({"ms": r["ms"]}))
+    if last is None:
+        return cell_void("rep_error", "every repetition raised",
+                         {"arm": arm, "size": n, "reps": reps, "started_utc": started})
 
     # -- gate: host load at end ---------------------------------------------------------
     l1_end, _, _ = read_loadavg()
@@ -788,6 +885,12 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
                          {"load_start": l1_start})
 
     agg = aggregate(per_rep)
+    if agg.get("outcome") == VOID:
+        # aggregate() can return a VOID verdict (no_admissible_reps).  Wrapping that in
+        # cell_measured() produced a cell whose top-level outcome read `measured` while its
+        # statistics said void -- is_measured() returned True and it would have counted.
+        return cell_void(agg["void_reason"], agg["void_detail"],
+                         {"arm": arm, "size": n, "reps": reps, "started_utc": started})
     out = cell_measured({
         "arm": arm,
         "size": n,
@@ -795,6 +898,7 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
         "started_utc": started,
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "warmup_ms": warmup_ms,
+        "warmup_preceded_by_explain": warmup_preceded_by_explain,
         "stats": agg,
         "load_start": l1_start,
         "load_end": l1_end,
@@ -813,7 +917,14 @@ def run_cell(conn, table: str, n: int, spec, arm: str, reps: int) -> Dict[str, A
 # The arms that are HELD TO IDENTITY.  Arm A is deliberately not among them -- see
 # identity_check.  A_uncapped is the correctness-matched Python baseline and is.
 UNCAPPED_ARMS = ("A_uncapped", "C", "B2", "B4")
-TRUTH_ARM = "B2"
+# The oracle is the REAL in-memory GIMS pipeline with the cap lifted -- NOT B2.
+# B2 and arm C are built by the same function (_t4_build_b2), so with B2 as the reference a
+# builder defect would make arm C agree BY CONSTRUCTION while the two independent
+# implementations -- A_uncapped (the actual Python the compiled path must reproduce) and B4
+# (native operators) -- disagreed and were voided as the dissenters.  The gate was oriented
+# to bless the arm under test.  Identity means "the compiled path reproduces Python", so
+# Python is the reference.
+TRUTH_ARM = "A_uncapped"
 
 
 def _t4_sorted_tiebroken(rows: List[dict], spec) -> List[dict]:
@@ -895,6 +1006,15 @@ def identity_check(conn, table: str, spec) -> Dict[str, Any]:
     truth_ids = [r.get("id") for r in truth]        # the reference is NOT perturbed
     capped = SRC.MAX_SCAN
     n_rows = read_row_count(conn, table)
+    # Whether the cap ACTUALLY truncated arm A, from the same expression the frozen
+    # path_a uses (`len(raw) > MAX_SCAN` over the COLLECTION, bench.py:146) -- not from the
+    # table's total row count, which includes any row outside `collection = noun:Sample`.
+    # This is the one place the arm-A exemption could leak: an over-count would set
+    # cap_binds True and silently exempt arm A at a size where identity IS required.
+    cur = conn.cursor()
+    cur.execute(f"SELECT count(*) FROM {table} WHERE collection = %s", (B.COLLECTION,))
+    n_in_collection = int(cur.fetchone()[0])
+    cap_binds = n_in_collection > capped
     out: Dict[str, Any] = {
         "checked": True, "reference": TRUTH_ARM, "tiebroken": True,
         "held_to_identity": list(UNCAPPED_ARMS),
@@ -903,15 +1023,25 @@ def identity_check(conn, table: str, spec) -> Dict[str, Any]:
     for arm in UNCAPPED_ARMS:
         if arm == TRUTH_ARM:
             continue
-        ids = [r.get("id") for r in
-               perturb_rows(_arm_rows_tiebroken(conn, table, spec, arm), arm)]
-        agree = ids == truth_ids
-        out["arms"][arm] = {
-            "agree": agree, "n": len(ids),
-            "detail": "identical id list, tiebroken" if agree
-            else f"{len(set(ids) ^ set(truth_ids))} ids differ; "
-                 f"{sum(1 for a, b in zip(ids, truth_ids) if a != b)} positions differ",
-        }
+        rows = perturb_rows(_arm_rows_tiebroken(conn, table, spec, arm), arm)
+        ids = [r.get("id") for r in rows]
+        # ROW-FOR-ROW, per section 6 item 6's actual words -- via the frozen comparator,
+        # which compares every field with the fixture's float epsilon.  An id-list check
+        # cannot see a wrong DERIVED VALUE: a compiled derive emitting 195.0 where Python
+        # has 195, or null where Python has 0, keeps top-50 membership and order identical
+        # while the two arms return different documents -- and the derived value is the
+        # number the widget puts on the screen.
+        same_rows, why = B.rows_match(rows, truth)
+        agree = (ids == truth_ids) and same_rows
+        if agree:
+            detail = "identical rows, tiebroken (every field, frozen rows_match)"
+        elif ids != truth_ids:
+            only = len(set(ids) - set(truth_ids))
+            detail = (f"{only} id(s) present here and not in the reference; "
+                      f"{sum(1 for a, b in zip(ids, truth_ids) if a != b)} positions differ")
+        else:
+            detail = f"same ids, DIFFERENT VALUES: {why}"
+        out["arms"][arm] = {"agree": agree, "n": len(ids), "detail": detail}
     out["all_agree"] = all(v["agree"] for v in out["arms"].values()) if out["arms"] else None
 
     # Arm A: measured, never gated.  This is the correctness number the run exists beside.
@@ -920,7 +1050,8 @@ def identity_check(conn, table: str, spec) -> Dict[str, Any]:
     hit = len(set(a_ids) & set(truth_ids))
     out["arm_a_recall"] = {
         "capped_at": capped, "rows_in_table": n_rows,
-        "cap_binds": n_rows > capped,
+        "rows_in_collection": n_in_collection,
+        "cap_binds": cap_binds,
         "overlap_with_truth": hit, "of": len(truth_ids),
         "recall_pct": round(100.0 * hit / len(truth_ids), 1) if truth_ids else None,
         "note": ("arm A is the capped path; above the cap it is EXPECTED to disagree and is "
@@ -1001,6 +1132,17 @@ def main(argv: List[str]) -> int:
                     # T4_ARMS re-takes named cells after a void (section 6 item 1: "the cell
                     # is void and re-run").  It selects WHICH cells run; it changes no gate.
                     only = [a for a in os.environ.get("T4_ARMS", "").split(",") if a]
+                    bad = [a for a in only if a not in ARMS]
+                    if bad:
+                        raise SystemExit(f"T4_ARMS names no such arm: {bad}; have {list(ARMS)}")
+                    # Arms not selected are the THIRD outcome, not absent.  Omitting them
+                    # produced a size block where four arms had no outcome key at all --
+                    # indistinguishable from a harness that forgot them, and a fourth state
+                    # section 4.5 does not define.
+                    for arm in ARMS:
+                        if only and arm not in only:
+                            per_arm[arm] = cell_not_attempted(
+                                "not selected by T4_ARMS on this re-take")
                     for arm in (only or list(ARMS)):
                         cell = run_cell(conn, table, n, spec, arm, reps)
                         if is_measured(cell):
@@ -1027,9 +1169,26 @@ def main(argv: List[str]) -> int:
                             per_arm[arm] = cell_void("arms_disagree", v["detail"])
                             print(f"   {arm:12s} VOID  arms_disagree: {v['detail']}", flush=True)
 
+                end_state = host_state(conn, f"{wkey}/{n}/end")
+                report["host"].append(end_state)
+                # Section 5.1 / 5.4 item 1 gate the load "when a size ENDS", and nothing
+                # compared it.  The per-arm check inside run_cell does not cover this: a
+                # cell that voids early never reads an end load at all, and identity_check
+                # re-executes every arm AFTER the last cell's reading -- the most expensive
+                # ungated stretch in the size.
+                l1_end = end_state["loadavg"]["1min"]
+                size_void = l1_end > LOAD_CEILING_END
+                if size_void:
+                    det = (f"1-min load {l1_end} > {LOAD_CEILING_END} at the END of size {n}"
+                           f" -- section 5.1's size-level ceiling")
+                    print(f"   SIZE VOID  host_load: {det}", flush=True)
+                    for arm, cell in list(per_arm.items()):
+                        if is_measured(cell):
+                            per_arm[arm] = cell_void("host_load", det, {"arm": arm})
                 report["cells"][wkey][str(n)] = {"arms": per_arm, "identity": ident,
-                                                 "corpus": corpus}
-                report["host"].append(host_state(conn, f"{wkey}/{n}/end"))
+                                                 "corpus": corpus,
+                                                 "size_load_end": l1_end,
+                                                 "size_voided_on_end_load": size_void}
 
     # sizes never attempted are a THIRD outcome, distinguishable from both others
     for wkey in which:
@@ -1043,6 +1202,7 @@ def main(argv: List[str]) -> int:
     # The negative control drives this same main() and must not leave its 1,000-row output
     # sitting at the real run's path, where a later reader would take it for the run.
     out = os.environ.get("T4_OUT") or os.path.join(_HERE, "measurements.json")
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w") as fh:
         json.dump(report, fh, indent=2, default=str)
     print(f"\nwrote {out}", flush=True)

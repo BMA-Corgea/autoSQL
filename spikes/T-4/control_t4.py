@@ -173,9 +173,14 @@ def main() -> int:
            "plan carries a GIN Bitmap Index Scan — Q11 put index help permanently off")
 
     # ---- I3b: the ALLOWED pkey lookup must NOT void ----------------------------------
+    # The shape Postgres actually prints for the ALLOWED use: the primary key doing the
+    # `collection = ...` restriction, Index Cond and all.  An earlier version of this fixture
+    # omitted the Index Cond line, and when the guard was tightened to require it this check
+    # went red -- the control catching a regression in the guard, which is its whole job.
     OK_PLAN = ("Limit (actual rows=50 loops=1)\n"
                "  ->  Index Scan using measure_instances_1000_pkey on"
                " measure_instances_1000 (actual rows=53 loops=1)\n"
+               "        Index Cond: (collection = 'noun:Sample'::text)\n"
                "        Buffers: shared hit=40 read=2\n")
     seen2 = []
     def ok_plan(conn_, sql, params, _s=seen2):
@@ -186,6 +191,26 @@ def main() -> int:
     record("I3b", T.MEASURED, outcome_of(cell), bool(seen2),
            "pkey collection lookup is the one allowed index use — the guard must "
            "discriminate, not merely refuse")
+
+    # ---- I3c: the pkey exemption must be the COLLECTION lookup, not the word "_pkey" ---
+    # §6 item 4 permits the primary key doing the `collection = ...` restriction, and
+    # nothing else.  A guard that skips any line containing "_pkey" would wave through the
+    # primary key being used to ANSWER THE WIDGET, which is precisely the index help Q11
+    # ruled permanently off.
+    SNEAKY = ("Limit (actual rows=50 loops=1)\n"
+              "  ->  Index Scan using measure_instances_1000_pkey on"
+              " measure_instances_1000 (actual rows=53 loops=1)\n"
+              "        Index Cond: (((data ->> 'queue_depth'))::numeric > 195::numeric)\n"
+              "        Buffers: shared hit=40 read=2\n")
+    seen3 = []
+    def sneaky_plan(conn_, sql, params, _s=seen3):
+        _s.append(sql)
+        return SNEAKY
+    with T.widget(SPEC), swap("capture_plan", sneaky_plan):
+        cell = T.run_cell(conn, TABLE, N, SPEC, "C", 3)
+    record("I3c", "void:index_help", outcome_of(cell), bool(seen3),
+           "a pkey index answering the PREDICATE is still index help — the exemption is "
+           "the collection lookup, not the substring '_pkey'")
 
     # ---- I4: one arm perturbed by a single row ---------------------------------------
     # Drives main() end to end, because the arms_disagree void is applied in main()'s
@@ -227,19 +252,48 @@ def main() -> int:
     record("I5", T.NOT_ATTEMPTED, sorted(set(missing.values()))[0] if missing else "?",
            all_na, f"sizes not in the run's size list: {missing}")
 
-    # ---- X: §6.1's exclusion clause ---------------------------------------------------
-    mixed = [T.cell_measured({"ms": 10.0}), T.cell_measured({"ms": 20.0}),
-             T.cell_measured({"ms": 30.0}),
-             T.cell_void("host_load", "injected, would have been 100000.0 ms")]
-    agg = T.aggregate(mixed)
-    ok = (agg["median"] == 20.0 and agg["n"] == 3 and agg["excluded_void_reps"] == 1)
-    record("X1", "median-from-measured-only",
-           "median-from-measured-only" if ok else f"median={agg.get('median')} n={agg.get('n')}",
-           True, "a voided rep that still moved the median would LOOK handled and be worse "
-                 "than one that never voided")
-    agg2 = T.aggregate([T.cell_void("host_load", "all of them")])
-    record("X2", "void:no_admissible_reps", outcome_of(agg2), True,
-           "a fully-voided set reports no_admissible_reps rather than an empty statistic")
+    # ---- I6/I7/X: §6.1's exclusion clause, driven through the REAL harness -------------
+    # These replace a pair of checks that called aggregate() on a hand-built list. That is
+    # a unit test of a helper function, which §6.1 rules out in as many words -- and it was
+    # passing while the exclusion path in run_cell stayed exactly as dead as conformance.py's
+    # three branches were, because no repetition could ever void. A rep that RAISES is now
+    # the mechanism, so the clause is reachable and is exercised where it lives.
+    real_c = T.ARMS["C"]
+
+    def raises_once(conn_, table_, spec_, _n=[0]):
+        _n[0] += 1
+        if _n[0] == 4:          # 1 = warm-up, 2.. = repetitions
+            raise RuntimeError("control-injected failure on one repetition")
+        return real_c(conn_, table_, spec_)
+
+    T.ARMS["C"] = raises_once
+    try:
+        with T.widget(SPEC):
+            cell = T.run_cell(conn, TABLE, N, SPEC, "C", 5)
+    finally:
+        T.ARMS["C"] = real_c
+    st = cell.get("stats", {})
+    ok = (outcome_of(cell) == T.MEASURED and st.get("n") == 4
+          and st.get("excluded_void_reps") == 1)
+    record("I6", "measured-minus-the-voided-rep",
+           "measured-minus-the-voided-rep" if ok
+           else f"outcome={outcome_of(cell)} n={st.get('n')} "
+                f"excluded={st.get('excluded_void_reps')}",
+           True, "5 reps, 1 raised: the median is computed from the OTHER 4 and the "
+                 "exclusion is counted, not silently absorbed")
+
+    def always_raises(conn_, table_, spec_):
+        raise RuntimeError("control-injected: every repetition fails")
+
+    T.ARMS["C"] = always_raises
+    try:
+        with T.widget(SPEC):
+            cell = T.run_cell(conn, TABLE, N, SPEC, "C", 3)
+    finally:
+        T.ARMS["C"] = real_c
+    record("I7", "void:rep_error", outcome_of(cell), True,
+           "when nothing survives, the cell voids rather than reporting an empty statistic "
+           "-- and one raise no longer discards the whole exclusive window")
 
     # ---- verdict ----------------------------------------------------------------------
     passed = not failures
