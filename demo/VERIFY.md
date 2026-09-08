@@ -488,8 +488,11 @@ mutation pass had never run, and on that date it had not.
 **It has now.** `demo/tests/mutation_pass.py` implements it; `./run-demo test --mutants` is the
 command §8.2 names. Current result, 2026-09-08:
 
-    mutation pass: 15 killed, 1 SURVIVED, 0 INVALID, of 16
-      SURVIVED M15 — still passed: tests/test_order.py::test_ac41b_ten_runs_of_one_pick_return_one_sequence
+    mutation pass: 15 killed, 1 survived (1 known, 0 NEW), 0 INVALID, of 16
+      KNOWN SURVIVOR M15 — tracked in T-20
+    Every criterion was watched failing against its own mutant, except the 1 known and
+    tracked above. Those are the pass WORKING: it found a criterion that only looks like
+    it works.
 
 **An earlier version of this addendum said 16/16. That was wrong and is corrected here rather
 than edited away.** Three mutants were being killed by something other than the criterion §8.2
@@ -549,3 +552,20 @@ out of scope in as many words: *"Changing any criterion to make a mutant die. If
 decorative, that is the finding — it is not licence to edit the test until it passes."* Scoring
 M15 KILLED on the strength of the grep alone would also work, and is a defensible reading of the
 plan's "and"; that choice belongs to whoever owns the bar, not to the author of the mutant.
+
+### The pass must not decay, so a known red cannot hide a new one
+
+A permanently-red check gets made green the easy way by whoever meets it next — which is
+the move §8.2 exists to prevent. So the pass distinguishes **a known survivor** from **a
+new one**:
+
+* `EXPECTED_SURVIVORS` in `demo/tests/mutation_pass.py` carries a **reason and a ticket**
+  per entry. M15 is the only one, tracked in T-20.
+* A survivor **not** on that list is reported as `*** NEW SURVIVOR ***` and the run exits
+  **3**, distinct from a structural refusal (2) and from green (0).
+* An entry that **stops** surviving is also reported, so a stale list cannot quietly hide a
+  regression behind an obsolete excuse.
+
+Proved rather than asserted: with M6's criterion temporarily weakened, the run printed both
+`KNOWN SURVIVOR M15` and `*** NEW SURVIVOR M6 ***` and exited 3. The known red did not mask
+the new one.

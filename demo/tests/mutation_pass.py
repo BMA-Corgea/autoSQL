@@ -231,6 +231,43 @@ MUTANTS = [
 
 KILLED, SURVIVED, INVALID = "KILLED", "SURVIVED", "INVALID"
 
+# ---------------------------------------------------------------------------------
+# KNOWN SURVIVORS — the reason this pass does not decay into noise.
+#
+# A permanently-red pass gets made green the easy way by whoever meets it next, which
+# is exactly the move §8.2 exists to prevent. But a pass that only prints a total
+# cannot tell "M15, known decorative, tracked" from "something that used to be killed
+# is surviving now" -- and this repo has already shipped a check that could not
+# distinguish "did not run" from "found nothing". This is the mirror image of that,
+# and it is not going to be shipped.
+#
+# So: a survivor listed HERE is expected and does not fail the run. A survivor that is
+# NOT listed is NEW, and exits 3. An entry that stops surviving is also reported --
+# quietly wrong lists are how this decays.
+#
+# Every entry carries a reason and a ticket. An entry without a ticket is a to-do
+# wearing a data structure.
+# ---------------------------------------------------------------------------------
+EXPECTED_SURVIVORS = {
+    "M15": dict(
+        ticket="T-20",
+        half="tests/test_order.py::test_ac41b_ten_runs_of_one_pick_return_one_sequence",
+        reason=(
+            "AC-41(b) cannot detect a dropped ORDER BY on this fixture. The mutant DOES "
+            "reach the statement it runs -- verified in clean subprocesses, the emitted SQL "
+            "goes from 'ORDER BY ( r.data #> %(sort_path)s ) DESC NULLS LAST, r.key ASC "
+            "LIMIT %(cap)s' to 'LIMIT %(cap)s' -- but ten runs still return one sequence. "
+            "T-2.md's 'why half (2) exists' lists what makes an unordered query reorder: a "
+            "different plan, a synchronised sequential scan joining mid-way, a parallel "
+            "worker finishing first. MEASURED: demo.records is 2,880 kB / 10,410 rows, and "
+            "with max_parallel_workers_per_gather=4, parallel_setup_cost=0 and "
+            "min_parallel_table_scan_size=0 the order is IDENTICAL -- LIMIT 10 stops the "
+            "scan before any of those effects can appear. AC-41(a)'s grep is the real "
+            "detector; AC-41(b) is a repeatability test, not an ORDER BY detector. "
+            "NOT edited to make the mutant die: T-19 spec, Out of scope."),
+    ),
+}
+
 
 def _write_atomic(path, text: str) -> None:
     """Temp file + os.replace. write_text() truncates before it writes, so a SIGKILL,
@@ -476,19 +513,51 @@ def run(dry_run: bool = False, only: list[str] | None = None) -> int:
     killed = [r for r in results if r[1] == KILLED]
     survived = [r for r in results if r[1] == SURVIVED]
     invalid = [r for r in results if r[1] == INVALID]
-    print(f"mutation pass: {len(killed)} killed, {len(survived)} SURVIVED, {len(invalid)} INVALID, "
+    expected = [r for r in survived if r[0]["id"] in EXPECTED_SURVIVORS]
+    new_survivors = [r for r in survived if r[0]["id"] not in EXPECTED_SURVIVORS]
+    # an entry that has stopped surviving: the list is now wrong, and a wrong list is
+    # how this decays back into noise
+    resurrected = [r for r in killed if r[0]["id"] in EXPECTED_SURVIVORS]
+
+    print(f"mutation pass: {len(killed)} killed, {len(survived)} survived "
+          f"({len(expected)} known, {len(new_survivors)} NEW), {len(invalid)} INVALID, "
           f"of {len(chosen)}")
-    for m, _, how in survived:
-        print(f"  SURVIVED {m['id']} — {m['criterion']}\n    {how}: the criterion is DECORATIVE")
+
+    for m, _, how in expected:
+        e = EXPECTED_SURVIVORS[m["id"]]
+        print(f"\n  KNOWN SURVIVOR {m['id']} — tracked in {e['ticket']}")
+        print(f"    criterion: {m['criterion']}")
+        print(f"    the half that does not fire: {e['half']}")
+        print(f"    why: {e['reason']}")
+    for m, _, how in new_survivors:
+        print(f"\n  *** NEW SURVIVOR {m['id']} *** — {m['criterion']}\n"
+              f"    {how}\n"
+              f"    This was not a known survivor. Either the criterion has been weakened,\n"
+              f"    or the mutant no longer reaches it. Do NOT add it to EXPECTED_SURVIVORS\n"
+              f"    to make this green -- that is the move §8.2 exists to prevent.")
     for m, _, how in invalid:
-        print(f"  INVALID  {m['id']} — {how}")
-    if survived or invalid:
-        print("\nplan §8.2: a mutant that survives is a BUILD FAILURE — it means the criterion\n"
+        print(f"\n  INVALID  {m['id']} — {how}")
+    for m, _, _ in resurrected:
+        e = EXPECTED_SURVIVORS[m["id"]]
+        print(f"\n  NOTE: {m['id']} is listed as a known survivor but was KILLED this run.\n"
+              f"    {e['ticket']} may be done — remove it from EXPECTED_SURVIVORS, or the list\n"
+              f"    starts hiding a real regression behind a stale entry.")
+
+    print()
+    if new_survivors or invalid:
+        print("plan §8.2: a mutant that survives is a BUILD FAILURE — it means the criterion\n"
               "is decorative. This pass does not pass.")
+        rc = 3 if new_survivors else 1
+    elif expected:
+        print(f"Every criterion was watched failing against its own mutant, except the "
+              f"{len(expected)} known and tracked above.\n"
+              "Those are the pass WORKING: it found a criterion that only looks like it works.")
+        rc = 0
     else:
-        print("\nEvery criterion was watched failing against its own mutant.")
+        print("Every criterion was watched failing against its own mutant.")
+        rc = 0
     print("=" * 78)
-    return 0 if (not survived and not invalid) else 1
+    return rc
 
 
 if __name__ == "__main__":

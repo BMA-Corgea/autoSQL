@@ -373,6 +373,7 @@ always showing its derivation, always overturnable by one line from him.
   openclaw gateway, and `glp-strong-db` (the owner's LIVE database — never written, read-only
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
+- **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
 
 ## Waiting on
 

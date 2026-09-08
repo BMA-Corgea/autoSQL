@@ -130,13 +130,15 @@ What is **not** settled, stated plainly:
   data was never re-run (`kb/wiki/decision-t6-correctness-rerun.md`, `kb/CURRENT-WORK.md`).
 - The planned mutation pass **now runs**: `./run-demo test --mutants` applies plan §8.2's sixteen
   one-line defects, runs only the criterion each must break, and asserts it fails
-  (2026-09-08). **15 of 16 are killed by their own criterion. M15 is not, and the pass reports
-  red because of it** — plan §8.2 names two halves for M15, `AC-41(a)`'s grep and `AC-41(b)`'s
-  ten runs; the grep kills it and the ten runs do not. That is a finding about `AC-41(b)`, not
-  a defect in the demo: the reordering it watches for needs a synchronised sequential scan, a
-  plan change or parallel workers, none of which an idle 8,400-row table produces, so it
-  cannot detect a dropped `ORDER BY`. Awaiting a ruling; the criterion has deliberately NOT
-  been edited to make the mutant die (`.autodev/specs/T-19.md`, Out of scope).
+  (2026-09-08). **15 killed, 1 known survivor, 0 new** — and the survivor is the pass doing
+  its job. §8.2 names two halves for M15; `AC-41(a)`'s grep kills it, `AC-41(b)`'s ten runs do
+  not, and that is a real discovery about `AC-41(b)` rather than a defect in the demo: the
+  reordering it watches for needs a synchronised sequential scan, a plan change or parallel
+  workers, and none of those occurs on a 2.8 MB table where `LIMIT 10` stops the scan first.
+  It is a repeatability test, not an `ORDER BY` detector. Tracked in **T-20**, and the
+  criterion was deliberately **not** edited to make the mutant die (`.autodev/specs/T-19.md`,
+  Out of scope). Known survivors are listed with a reason and a ticket each, and a **new**
+  survivor exits 3 — so a tracked red can never mask a fresh one.
 
 ## Status
 
