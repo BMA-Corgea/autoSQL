@@ -30,6 +30,37 @@ found. Every instance below is the same sentence with different nouns, and in ev
 | **3** | §8.2's mutation pass (`--only <typo>`) | the whole pass: an empty selection | `0 of 0`, then *"Every criterion was watched failing against its own mutant"*, **exit 0** |
 | **4** | the digit mapping (T-21) | the **39** cases comparing `xpr.num` against the Python evaluator, behind `@needs_db` on a DSN nothing set | `8 passed, 50 skipped` — green. A Unicode bump would fire the staleness guard, you regenerate, the guard goes green, and **not one Unicode digit was ever compared between the two engines** |
 
+### The sixth member, and the hardest to catch: a gate that performs being a gate
+
+| | the mechanism | what never ran | how it read |
+|---|---|---|---|
+| **6** | the `design` gate | **nothing consults it.** `.autodev/data/gates.json` defines it, `gates-policy.json` polices it `human:strict`, and `design@v1`'s `bands.gate` is **`None`** | it **refuses on-behalf clears when tested directly** — so it answers correctly every time you poke it, and holds nothing when you don't |
+
+**Measured 2026-09-08.** T-22 advanced `design → queue` on a validator pass with `design: false`.
+The gate had never held anything in its existence: T-2, the precedent everyone cites, was given
+the `design` *modifier* on 21 August and the gate was added to `gates.json` on **22 August** — a
+day later — so T-2's ticket has no `design` key at all and its mock was approved conversationally.
+
+**The cross-check nobody had run, and it generalises:** `gates-policy.json` defines **eight**
+gates. **Six are bound to a loop. `design` and `compliance` are not.** `compliance` is `human`
+policy and consulted by nothing; it has simply never been reached. `client-signoff@v1` and
+`sec-review@v1` are gateless stages in the same blueprint.
+
+**Why this member is worse than the other five.** They were *checks* nothing ran, and a check that
+never runs is at least silent. **This is a mechanism that answers convincingly when interrogated
+and never fires otherwise.** Asked directly, it refused an on-behalf clear with a correct,
+specific message. That refusal is what persuaded two people it was working — and one of them
+relayed a clearance command to the owner on the strength of it. He ran the command. Nothing
+happened, and nothing could have.
+
+> **A mechanism that refuses you when you test it, and never fires when you don't, is the hardest
+> member of this family to catch** — because the thing you would do to check it is the one thing
+> it still does correctly.
+
+**So the test for a gate is not "does it refuse me?" It is "what consults it, and when did that
+last fire?"** For an AutoDev gate: find the loop whose `bands.gate` names it, and confirm a ticket
+has actually been held there. If nothing names it, the policy is decoration.
+
 ### A fifth member, and it is a different one
 
 | | the instrument | what did not run | how it read |
@@ -46,7 +77,8 @@ consumed. So the sequence was: a check that ran and was discarded → replaced b
 check that nothing called. **Both are the same failure at different distances from the code.**
 
 **The test:** *what would have to break for this check to stop protecting me, and would I
-notice?* If the answer is "someone stops typing it", it is not a guard yet.
+notice?* If the answer is "someone stops typing it", it is not a guard yet — and if the answer is
+"nothing calls it at all", see the sixth member above.
 
 **Its first catch was its own author, on the day it was written.** With the guard now invoked by
 the suite, the next commit was refused — because `demo/tests/test_owner_name_absent.py` used the
