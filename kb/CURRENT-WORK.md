@@ -2,13 +2,19 @@
 
 ---
 
-> # START HERE — 2026-09-09 (T-22 is BUILT and mid-pipeline; ONE thing waits on his hand)
+> # START HERE — 2026-09-09 (the queue is EMPTY; ONE thing waits on his hand)
 >
-> **Six queue items: five closed, and T-22 unblocked on 2026-09-09 and now built.** Suites green —
-> **demo 1176 · runtime 58 (with a database) · compiler 34 · ops 14**, doctor **19/19**. The demo
-> count rose by 8: `demo/tests/test_tour.py`. Full detail for the six-item run, written for a
-> session with no memory: **`.autodev/handoffs/2026-09-08-run.md`**.
+> **All six queue items are closed. T-22 shipped** — merged `af4799e` (PR #4) and complete through
+> `monitor`. Suites green — **demo 1182 · runtime 58 (with a database) · compiler 34 · ops 14**,
+> doctor **19/19**, mutation pass **15 killed / 1 known / 0 NEW**. The demo count rose by 14:
+> `demo/tests/test_tour.py`. Full detail for the six-item run, written for a session with no
+> memory: **`.autodev/handoffs/2026-09-08-run.md`**; T-22's own record is
+> **`.autodev/evidence/T-22/`** (live-feedback, geometry, seven screenshots, suite logs),
+> `.autodev/reviews/T-22-auto-review.md` and `-uat.md`.
 > **Do not start new work without an instruction.**
+>
+> **THE ONE THING LEFT IS T-4's `sp_decide`, and it is HIS** — GA-24 Q2 excludes it from
+> on-behalf by name. Everything else is closed, deferred with a trigger, or at intake.
 >
 > | ticket | | |
 > |---|---|---|
@@ -17,10 +23,10 @@
 > | **T-19** | plan §8.2's mutation pass — 15 killed, 1 known survivor, 0 new | merged `a110378` |
 > | **T-21** | the digit mapping had detection without verification | merged `e18d9cc` |
 > | **T-23** | the raw-mode re-run — the headline claim has a scope | `33f0c33` |
-> | **T-22** | the guided tour — **BUILT**, under GA-32 | see the note below |
+> | **T-22** | the guided tour — **SHIPPED**, and three more witnesses of the class | merged `af4799e` |
 > | **T-20** | criteria that cannot detect what they name | deferred, with a trigger |
 >
-> ## The two things waiting on him, and the mechanics that will surprise you
+> ## The one thing waiting on him, and the mechanics that will surprise you
 >
 > **T-4's `sp_decide`** — uncleared in both directions, and GA-24 Q2 excludes it from on-behalf
 > by name. **The verdict is final; do not re-litigate the measurement** — he ruled the numbers
@@ -45,6 +51,15 @@
 > **NOTE FOR CONFORMANCE: `gates.design` remains FALSE and will stay false.** The gate cannot be
 > meaningfully cleared until **T-24** binds it. The authority for building is GA-32, in the ledger —
 > not a gate flag.
+>
+> **T-22 then shipped, and it is worth knowing what the shipping cost.** Three more witnesses of
+> *a check that never ran reads exactly like a check that passed* came out of it — the seventh
+> from a screenshot, the eighth and ninth from two parallel adversarial reviews of the commit
+> that recorded the seventh. `kb/wiki/lessons.md` carries all three. The one to read first is the
+> ninth: **I wrote an observation of something that did not exist into `demo/EVIDENCE.md`**, which
+> is frozen and append-only, in a table whose other rows were real measurements. It is corrected
+> there, dated. The rule that came out of it — *say what you measured, not what you configured* —
+> is the cheapest thing in this file to remember.
 >
 > ## The most reusable thing this run produced
 >
@@ -449,7 +464,6 @@ always showing its derivation, always overturnable by one line from him.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
 - **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
 - **T-24** (techdebt) — Two policed gates bind to no loop: design (human:strict) and compliance (human)… — intake
-- **T-22** (feature) — A guided spotlight tour over the demo screen, arriving at step 11 — auto-review
 
 ## Waiting on
 
@@ -504,6 +518,7 @@ T-3's and T-4's pings were delivered. Filing upstream stays his call
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-09-09 **T-22 COMPLETE** — A guided spotlight tour over the demo screen, arriving at step 11
 - 2026-09-08 **T-23 COMPLETE** — The raw-mode re-run: the correctness claim has only ever been tested on py-mode…
 - 2026-09-08 **T-21 COMPLETE** — The digit mapping regenerates on a Unicode bump, but nothing verifies the regen…
 - 2026-09-08 **T-18 COMPLETE** — A gate parked by arrival never pings: gate_waiting only fires on a refused adva…
