@@ -1915,3 +1915,84 @@ panes differ — nothing currently trips it.
 section and the 2026-09-01 note all still read as they did when they were written, because they are
 the record of what was measured on those dates. Read them as history; read this note, the suite, and
 `demo/expected-answers.json` for what is true now.
+
+---
+
+## The guided tour, driven in a real browser — 2026-09-09, T-22 (GA-32)
+
+**Appended, nothing above rewritten.** This section records a *browser* run, which is the only
+instrument that can settle the questions below; the suite cannot see any of them.
+
+**The instrument.** Firefox via `geckodriver`, driving `http://127.0.0.1:8787/` — the demo's own
+stack, the same one `./run-demo test` uses. Not a headless screenshot service and not a static
+render: the tour was stepped through by clicking its controls.
+
+### What the run confirmed
+
+| | |
+|---|---|
+| step 1 | `1 / 7`, the whole app spotlighted by **four dim panels** (not one sheet), gnome present at 62px, byline **GIMS** |
+| step 3 | `advanceOn: "target-click"` — **Next is hidden**, and a real click on the highlighted **Run this pick** both advanced the tour and ran the pick |
+| steps 2–5 | gnome **absent** (`data-tour-gnome="off"`), as designed — he introduces, gets out of the way, returns for the point |
+| step 6 | drove itself to `noun:EdgeCase` / `biggest = max($.m)`; row `edge-01` carries `["１２３", 1]` and **both panes read `123`**; header **10 OF 10 IDENTICAL** |
+| step 7 | gnome returns; `Replay the tour` present and wired |
+| console | **no CSP violations** — `script-src 'self'` with no `unsafe-inline`, and both tour scripts are same-origin files |
+
+### Three defects the browser found that no assertion could
+
+**1. The engine shadows three of its own tokens, and every skin's palette was inert.**
+`tour.js` `_build()` sets `--tour-dim`, `--tour-ring` and `--tour-radius` as **inline** custom
+properties on `.tour-root`. Custom properties inherit and an inline declaration beats any
+stylesheet, so the per-skin values authored at `:root` were correct, live, and painted on nothing.
+Measured on the **classic** skin, before the fix:
+
+| | `--tour-dim` | `--tour-ring` | `--tour-radius` |
+|---|---|---|---|
+| declared at `:root` | `rgba(0,0,32,.55)` | `#000080` | `0` |
+| **actually painted** | `rgba(6,10,20,0.74)` | `#4f6ef7` | `10px` |
+
+Those painted values are the engine's Nocturne defaults. **All seven skins** had been running them
+since the first build. Fixed by renaming the repo-side tokens to names the engine cannot shadow
+(`--tour-dim-skin`, `--tour-ring-skin`, `--tour-corner`) and re-driving `.tour-dimp` and
+`.tour-ring` from those — without forking the vendored engine. Measured after, one skin at a time
+with the 0.26s CSS transition allowed to settle:
+
+| skin | dim painted | ring | corner |
+|---|---|---|---|
+| `system` / `light` | `rgba(12,18,26,0.62)` | `#1d5fa8` | `8px` |
+| `dark` | `rgba(2,6,12,0.72)` | `#6aa9e8` | `8px` |
+| `gunmetal` | `rgba(12,18,26,0.62)` | `#35d6e6` | `8px` |
+| `titanium` | `rgba(12,18,26,0.62)` | `#0f6b6b` | `8px` |
+| `classic` | `rgba(0,0,32,0.55)` | `#000080` | `0px` |
+| `jrpg` | `rgba(6,32,38,0.66)` | `#e8c66a` | `4px` |
+
+**2. The bubble was themed and its text was not.** `tour.css` paints `.tour-bubble` a dark
+gradient and then picks text colours to sit on it (`.tour-text #c2d0e6`, `.tour-title #fff`). The
+first token layer overrode only the *background*, which left pale blue-grey text on a white bubble:
+present in the DOM, correct to every selector I had asserted, and washed out on screen. Every
+colour `tour.css` sets is now re-set from the tokens.
+
+**3. Two clamps collided at the bottom edge.** The engine clamps the narrator to
+`vh - narratorHeight - 14`, then pins the "View page" pill 8px *below* the bubble — clamped to
+`vh - pillHeight - 6`. At the bottom of the screen the pill landed on the bubble's footer, over
+**Next**. Fixed by padding the narrator's own bottom, so the height the engine clamps against grows
+and the pill gets the gap the engine already intended.
+
+**A fourth, found earlier in the same run and recorded here for completeness:** the skin picker
+intercepted a click on **Next**. WebDriver named it exactly — *"element click intercepted … another
+element `<div id=skin-picker>` obscures it"*. The cause is not z-index ordering: `.tour-root` is
+`position: fixed`, **which creates a stacking context regardless of `z-index`**, so the bubble's
+`z-index: 9003` was trapped inside it and competed against the picker at an effective `0`.
+
+### What is now guarded, and what is not
+
+`demo/tests/test_tour.py` (8 tests) pins the four *seams*, not the appearance: the token-shadowing
+collision, the invented-hook class (`onShow` — the engine defines `beforeShow`), the five
+`data-tour` anchors against the `.jsx` that carry them, and "vendored unmodified" against digests
+now recorded in `demo/vendor/tour/PROVENANCE.md`. Both new guards were **watched failing** on the
+exact defects they exist for before being accepted.
+
+**Stated plainly: the appearance itself is not asserted anywhere and cannot be.** The three defects
+above were all invisible to a correct assertion, because each was a question about what was
+*painted*, not about what was *declared*. The browser run is the evidence; this section is the
+record of it.

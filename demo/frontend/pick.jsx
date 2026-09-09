@@ -405,7 +405,7 @@ export function PickPanel({ contract, vocab, pick, answer, onChange, onCommit, o
 
   return (
     <div>
-      <section className="panel" aria-label="The pick">
+      <section className="panel" aria-label="The pick" data-tour="pick">
         <div className="panel-head">
           <Ic name="columns" />
           <span className="panel-title">The pick</span>
@@ -448,7 +448,7 @@ export function PickPanel({ contract, vocab, pick, answer, onChange, onCommit, o
               <b>Run this pick</b> to run the changed pick.
             </span>
           </div>
-          <button className="btn-primary" onClick={onRun} disabled={busy}>
+          <button className="btn-primary" onClick={onRun} disabled={busy} data-tour="run">
             <Ic name="play" />
             {busy ? "Running…" : "Run this pick"}
           </button>
