@@ -1407,6 +1407,18 @@ def test_ac32_the_walk_reaches_everything_the_screen_actually_loads(served_page)
         "/static/fonts/inter-latin-ext.woff2",
         "/static/icons.svg",
         "/static/icons-demo.svg",
+        # T-22's guided tour.  Named here for the reason in the docstring, and the
+        # security review of PR #4 was right that leaving them out was the gap: the
+        # crawler DOES reach them today — that is why gnome-tour.png needed an
+        # _AC32_UNSCANNED entry at all — but nothing asserted it MUST.  Typo an href
+        # in index.html and the walk quietly shrinks; the host check below still
+        # passes, because it only sweeps what was actually reached.  A remote URL
+        # reintroduced into steps.js or tour-tokens.css would then ship unseen.
+        "/vendor/tour/tour.css",
+        "/static/tour/tour-tokens.css",
+        "/vendor/tour/tour.js",
+        "/static/tour/steps.js",
+        "/vendor/tour/gnome-tour.png",
     }
     missing = sorted(required - reached)
     assert not missing, (

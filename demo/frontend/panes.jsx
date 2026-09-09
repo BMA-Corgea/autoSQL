@@ -143,7 +143,7 @@ export function Panes({ answer, hot, setHot }) {
   // ── before the first pick — GIMS's canonical empty state, verbatim ──
   if (!answer) {
     return (
-      <section className="panel cmp" aria-label="The same pick, two answers">
+      <section className="panel cmp" aria-label="The same pick, two answers" data-tour="panes">
         <div className="panel-head">
           <Ic name="columns" />
           <span className="panel-title">The same pick, two answers</span>

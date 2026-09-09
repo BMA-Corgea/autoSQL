@@ -12,11 +12,12 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ## A check that never ran reads exactly like a check that passed
 
-*Seven instances in this project. Six were found on 2026-09-08 and the seventh on
-2026-09-09, every one of them by someone re-driving a path for an unrelated reason. **None
-was found by reading the code, and none was found by the check itself.** The sections below
-were written as the witnesses arrived, so they read four, then six, then seven; that
-sequence is the record and is left as it is.*
+*Nine instances in this project. Six were found on 2026-09-08; the seventh, eighth and ninth
+on 2026-09-09. **None was found by reading the code, and none was found by the check itself.**
+Six through seven came from re-driving a path for an unrelated reason; eight and nine came
+from adversarial reviews told to hunt this class by name. The sections below were written as
+the witnesses arrived, so they read four, then six, then seven, then nine; that sequence is
+the record and is left as it is.*
 
 **The class.** A verification step that does not execute is indistinguishable, in its
 output, from one that executed and found nothing. Zero checks run renders as zero failures
@@ -160,6 +161,47 @@ the **painted element** found it in one call. So:
 - **A third-party library can shadow your configuration without forking anything.** Before
   theming a vendored component through variables, grep it for `setProperty` and for the names it
   writes. Two minutes, and it was the whole defect.
+
+### The eighth and ninth, found by a review of the ticket that recorded the seventh
+
+Two more arrived within hours, in the same change, from adversarial reviews run **against**
+the work rather than by the person who did it. Both are worth their own rows because neither
+resembles the others.
+
+| | the mechanism | what never applied | how it read |
+|---|---|---|---|
+| **8** | `data-tour="panes"` on `demo/frontend/panes.jsx` | the anchor sat on **one of the component's two return paths**. The `if (!answer)` empty state renders the same `<section aria-label="The same pick, two answers">` without it | the guard I had written did `re.findall(r'data-tour="…"', file)` and reported the anchor **present** — which it was, on one branch. Before the first pick resolves, and **permanently** if the API call fails, the tour's two most important steps would have spotlighted nothing and blacked out the screen |
+| **9** | `narrator: { image, name: "GIMS" }` | `tour.js` reads `narrator.image` and reads `name` **nowhere**. There was no byline element in the DOM at all | I then recorded in append-only evidence that a browser run had **confirmed** a bubble "bylined GIMS" |
+
+**Eight is the same shape as seven at one remove.** Seven was *a token declared where nothing
+consumes it*. Eight is *a check that inspects the file rather than the render path*. Both are
+the gap between **declaration and consumption**, and in both my assertion was accurate about
+the thing it looked at. The fix generalises: an element carrying an anchor establishes an
+**identity** (its `aria-label`, else its `className`), and every element in the file with that
+identity must carry the same anchor. Multi-branch components are the normal shape in React;
+"the file contains the string" was never the property I meant.
+
+**Nine is the one to be uncomfortable about.** A library accepted a config key and ignored it,
+which is indistinguishable from a key that worked — that is ordinary. What is not ordinary is
+that I wrote *"the run confirmed … byline GIMS"* into a **frozen, append-only evidence file**,
+in a table whose other rows were real measurements. **An unobservable claim placed among
+observations borrows their credibility.** The tests defer to that file explicitly ("only a
+browser can say that, and one did"), so the weakest link was the one thing nothing checks.
+
+- **Say what you measured, not what you configured.** If the reading came from
+  `getComputedStyle` or `getBoundingClientRect`, it is an observation. If it came from knowing
+  what you passed in, it is not — and it does not belong in a table of observations.
+- **Diff the config you send against the config the library reads.** Two greps. It is now
+  `test_the_config_steps_js_passes_uses_only_options_the_engine_reads`, and the keys this repo
+  consumes itself are listed by name, so "the engine ignores it" and "we render it ourselves"
+  cannot be confused again.
+
+**The habit that found all three of seven, eight and nine: reviews run by someone who did not
+do the work, told to hunt for this specific class by name.** Seven came from a screenshot,
+eight and nine from two parallel adversarial reviews of the commit that recorded seven. Every
+one was invisible to the person who wrote the code, and every one was found within an hour of
+being looked for on purpose. **Assume the work is not clean until a review says so** is not a
+posture; on this ticket it was worth three defects, one of them in the evidence record itself.
 
 ## The procedure transfers; the proof does not
 

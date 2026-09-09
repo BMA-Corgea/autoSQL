@@ -2017,3 +2017,46 @@ Re-measured after live resizes, tour running, on each: **500 × 694 · 1500 × 8
 1200 × 394**, and the `classic` skin (the 96px framed gnome) at **500 × 800**. Every one:
 narrator and pill fully inside the viewport, no overlap with the bubble, no horizontal body
 scroll, and the bubble's text not overflowing its box.
+
+---
+
+## Correction: I recorded an observation of something that did not exist — 2026-09-09, T-22
+
+**Appended, nothing above rewritten.** The section above, *"The guided tour, driven in a real
+browser"*, lists in its **"What the run confirmed"** table, for step 1:
+
+> gnome present at 62px, byline **GIMS**
+
+**There was no byline.** `steps.js` passed `narrator: { image, name: "GIMS" }` because that is
+what the engine's own usage comment documents — and `tour.js` reads `narrator.image` at line
+135 and reads `name` **nowhere**. There was no element for the string anywhere in the tour's
+DOM. Verified after the fact, in the same browser: `/GIMS/.test(tourRoot.innerText)` →
+**false**.
+
+So the row is an observation of something a browser could not have shown me. **A config key
+the library accepts and ignores looks exactly like a config key that worked** — which is this
+project's recurring class again, in the evidence record rather than in a test, and that is
+worse: the tests defer to this file precisely because "only a browser can say that, and one
+did."
+
+**What has been done about it.** The byline is a design decision, not decoration — autoSQL is
+a GIMS component, not a standalone product, so the narrator speaks *as* GIMS rather than as an
+invented identity, and `demo/vendor/tour/PROVENANCE.md` says so. It is now **built**, by this
+repo's own code (`ensureByline` in `steps.js`, themed as `.tour-byline`), appending to the
+bubble the same way the engine builds its own DOM. The engine is still not forked. Re-measured
+in the browser: `.tour-byline` present, text `GIMS`, colour taken from `--tour-muted`.
+
+**And a guard, because the correction is not the lesson.**
+`test_the_config_steps_js_passes_uses_only_options_the_engine_reads` now compares every key
+`steps.js` hands `Tour.start` against every key the engine actually reads, and fails on one it
+does not — naming it. Watched failing on a deliberately inert `onComplete` before it was
+accepted. The keys this repo consumes itself are listed explicitly, which is how `name` is
+allowed now that something reads it.
+
+### On the dates in this file
+
+The T-22 sections are dated **2026-09-09** while the commits carry a **2026-09-08** author
+date. Both are right: the machine's local zone is UTC−6, so the work spans local evening and
+UTC midnight. **The dates in this file follow the tracker**, whose own passport line for T-22's
+unblock reads `2026-09-09`, so the evidence and the ledger agree. Git author dates are local
+and will read a day earlier for anything done after 18:00 local.

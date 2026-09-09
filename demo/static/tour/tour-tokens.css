@@ -10,8 +10,23 @@
 
    ── The three states, not two ────────────────────────────────────────────────────────────
    `system` is the ABSENCE of a data-theme attribute, so the bare :root block below is the
-   light default and the prefers-color-scheme block covers the OS-dark case. An explicit
-   light choice must beat a dark OS, hence the :not([data-theme="light"]) guard.
+   light default and the prefers-color-scheme block covers the OS-dark case.
+
+   THE GUARD ON THAT BLOCK IS `:root:not([data-theme])`, AND IT MATTERS. An earlier draft
+   wrote `:not([data-theme="light"])`, which excludes only the light skin — so the OS-dark
+   values still applied to every OTHER explicit skin, for every token that skin did not
+   itself declare. Specificity is equal (0,2,0) and the media block is earlier in the file,
+   so a skin only wins the properties it states. gunmetal and titanium declare four tokens
+   each, and the other five flipped with the visitor's operating system: titanium ("built for
+   daylight", page #faf9f6) rendered a #111a24 bubble on a cream page whenever the OS was
+   dark, and gunmetal (page #14181e) rendered a #ffffff bubble on a near-black page whenever
+   it was light. Same skin, same code, opposite chrome depending on a setting the skin picker
+   does not control.
+
+   demo/static/skins/base.css:126-129 had already settled this, and says so in its own words:
+   "Scoped to :root:not([data-theme]) so an explicit pick from the switcher always wins, in
+   both directions." The repo's existing system is the one that wins; this file now follows
+   it rather than a generic rule about explicit-light-beating-dark-OS.
 
    ── What derives and what does not, stated honestly ──────────────────────────────────────
    TOKENS recolour per skin. THE GNOME IS A BITMAP AND CANNOT. So five skins share one
@@ -39,12 +54,12 @@
   --tour-gnome-bg: transparent;
 }
 
-/* ---- system, when the OS is dark. Guarded so an explicit light choice wins. --------- */
+/* ---- system, when the OS is dark. `:not([data-theme])` — the OS decides ONLY when the
+        visitor has not picked a skin. See the header. ------------------------------------ */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme]) {
     --tour-dim-skin: rgba(2, 6, 12, .72);
     --tour-ring-skin: #6aa9e8;
-  --tour-ring-glow: rgba(106, 169, 232, .30);
     --tour-ring-glow: rgba(106, 169, 232, .30);
     --tour-bubble-bg: #111a24;
     --tour-bubble-fg: #e6edf5;
@@ -69,7 +84,21 @@
 }
 
 /* ---- the three that derive, differing only in accent ------------------------------- */
-:root[data-theme="gunmetal"] { --tour-ring-skin: #35d6e6; --tour-ring-glow: rgba(53, 214, 230, .28); --tour-accent: #35d6e6; --tour-btn-fg: #06222a; }
+/* gunmetal's page is #14181e and titanium's is #faf9f6, so they do NOT derive the same way:
+   gunmetal needs the dark bubble stated outright (it used to arrive only when the visitor's
+   OS happened to be dark), and titanium is correct on the light base and needs only its
+   accent. This is the pair the leaking guard above was hiding. */
+:root[data-theme="gunmetal"] {
+  --tour-dim-skin: rgba(2, 6, 12, .72);
+  --tour-ring-skin: #35d6e6;
+  --tour-ring-glow: rgba(53, 214, 230, .28);
+  --tour-bubble-bg: #111a24;
+  --tour-bubble-fg: #e6edf5;
+  --tour-bubble-bd: #2b3947;
+  --tour-accent: #35d6e6;
+  --tour-btn-fg: #06222a;
+  --tour-muted: #8fa3b7;
+}
 :root[data-theme="titanium"] { --tour-ring-skin: #0f6b6b; --tour-ring-glow: rgba(15, 107, 107, .28); --tour-accent: #0f6b6b; --tour-btn-fg: #ffffff; }
 :root[data-theme="light"]    { --tour-ring-skin: #1d5fa8; --tour-ring-glow: rgba(29, 95, 168, .30); --tour-accent: #1d5fa8; }
 
@@ -171,6 +200,14 @@
   border: 1px solid var(--tour-bubble-bd);
   border-radius: calc(var(--tour-corner) + 2px);
 }
+/* The byline steps.js appends. It is the reason the gnome is this gnome: autoSQL is a GIMS
+   component, not a standalone product, so the narrator speaks as GIMS rather than as an
+   invented identity. Sized and coloured to sit UNDER the title's weight, never competing
+   with it — a source line, not a heading. */
+.tour-byline {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--tour-muted); margin-bottom: 3px;
+}
 .tour-title { color: var(--tour-bubble-fg); }
 .tour-text { color: var(--tour-bubble-fg); }
 .tour-text b { color: var(--tour-bubble-fg); font-weight: 700; }
@@ -237,8 +274,27 @@
    point, and signs off. */
 .tour-root[data-tour-gnome="off"] .tour-avatar { display: none; }
 
+/* Reduced motion, meant rather than gestured at. An earlier version disabled the gnome's bob
+   and nothing else, which left the narrator's pop-in keyframe, the peek pill's glow, and the
+   0.26s transitions the dim panels and the ring animate on every single step — i.e. almost
+   all of the movement a visitor who asked for less of it would still get. */
 @media (prefers-reduced-motion: reduce) {
-  .tour-avatar { animation: none; }
+  .tour-avatar,
+  .tour-narrator,
+  .tour-peek { animation: none !important; }
+  .tour-dimp,
+  .tour-ring,
+  .tour-narrator { transition: none !important; }
+}
+
+/* The engine shrinks the avatar on a narrow screen (`@media (max-width: 560px)`), and that
+   rule LOSES: a media query adds no specificity, and this file is loaded second, so the
+   unconditional `.tour-avatar { width: var(--tour-gnome-w) }` above wins everywhere. Under
+   classic and jrpg that left a 96px framed gnome beside a squeezed bubble on a phone. The
+   token is the thing to change, not the rule. */
+@media (max-width: 560px) {
+  :root { --tour-gnome-w: 56px; }
+  :root[data-theme="classic"], :root[data-theme="jrpg"] { --tour-gnome-w: 64px; }
 }
 
 /* The replay affordance steps.js appends. Kept here so it themes with everything else. */

@@ -1,4 +1,4 @@
-# demo/static/tour — what is vendored here, and from where
+# demo/vendor/tour — what is vendored here, and from where
 
 | file | origin | licence |
 |---|---|---|
@@ -12,7 +12,13 @@ private GIMS checkout is in no public tree. Taking the published one means the p
 never has to be answered after the fact.
 
 **Why the gnome at all.** autoSQL is a **GIMS component, not a standalone product**. The tour uses
-GIMS's own narrator rather than inventing an identity, and the bubble's byline reads GIMS.
+GIMS's own narrator rather than inventing an identity, and the bubble carries a **GIMS** byline.
+
+That byline is rendered by `steps.js` (`ensureByline`), **not** by the engine. `tour.js`'s usage
+comment documents `narrator: { image, name }`, and the engine reads `image` and ignores `name` —
+so the first version of this sentence described something that did not exist, and a browser-run
+record in `demo/EVIDENCE.md` claimed to have *confirmed* it. Both are corrected there, dated, and
+`demo/tests/test_tour.py` now fails on any config key the engine does not read.
 
 `tour.js` and `tour.css` are **not modified**. Everything specific to this UI lives in
 `steps.js` (content) and `tour-tokens.css` (palette and per-skin placement).
