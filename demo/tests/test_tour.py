@@ -155,9 +155,20 @@ def test_every_skin_that_changes_the_ring_gives_it_a_glow_to_match():
                 f'skin "{name}" sets --tour-ring-skin without --tour-ring-glow, so its '
                 f"ring keeps the previous skin's halo."
             )
-    # and the base, which every skin without an override inherits
-    base = re.search(r"^:root\s*\{([^}]*)\}", css, flags=re.M)
-    assert base and "--tour-ring-glow" in base.group(1), (
+    # And the base, which every skin without an override inherits. Find it by the token it
+    # must carry, NOT by "the first :root block" — this file legitimately has more than one
+    # bare :root (the peek height lives in its own), and a positional match would silently
+    # start asserting against the wrong block the moment their order changed. That is the
+    # same class of mistake this whole file exists to guard.
+    bases = [
+        body
+        for body in re.findall(r"(?<![\]\w]):root\s*\{([^}]*)\}", css)
+        if "--tour-ring-skin" in body
+    ]
+    assert len(bases) == 1, (
+        f"expected exactly one bare :root block to define the base ring, found {len(bases)}"
+    )
+    assert "--tour-ring-glow" in bases[0], (
         "the bare :root block (which IS the `system` skin) declares no --tour-ring-glow, "
         "so the outer ring layers fall back to nothing on the default look."
     )

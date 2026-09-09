@@ -202,8 +202,17 @@
    footer, over Next. Padding the narrator's own bottom is what fixes it without touching
    the engine: the height the engine clamps against grows, so the bubble rises and the pill
    gets the gap the engine already intended it to have. `align-items: flex-end` aligns to
-   the content box, so the gnome rises with it. */
-.tour-narrator { padding-bottom: 30px; }
+   the content box, so the gnome rises with it.
+
+   A FIXED 30px was not enough, and a narrow viewport proved it. The clamp reserves
+   `pillHeight + 6`, and the pill's height is not a constant: at 500x694 "View page" wrapped
+   to two lines and grew to 46px, the clamp bound again, and the pill landed back on the
+   bubble's footer. So the pill is pinned to one line — its height becomes predictable — and
+   the narrator reserves that height plus the engine's own 8px gap and a little air, from the
+   SAME token, so the two numbers cannot drift apart. */
+:root { --tour-peek-h: 32px; }
+.tour-peek { white-space: nowrap; height: var(--tour-peek-h); box-sizing: border-box; }
+.tour-narrator { padding-bottom: calc(var(--tour-peek-h) + 16px); }
 
 /* The engine leans the avatar 10px INTO the bubble (`margin: 0 -10px -2px 0`), which reads
    as a cartoon poking through a panel. On the sober skins the gnome is a byline mark and

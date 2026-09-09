@@ -1996,3 +1996,24 @@ exact defects they exist for before being accepted.
 above were all invisible to a correct assertion, because each was a question about what was
 *painted*, not about what was *declared*. The browser run is the evidence; this section is the
 record of it.
+
+### The narrow-viewport re-measure, which found the bottom-edge fix was not enough
+
+The first fix for the peek/narrator collision reserved a **fixed 30px**. Re-measuring at a
+narrow window — the guided-tour skill calls for exactly this, and it is the reason the check
+was run — showed the collision returning:
+
+| viewport | "View page" height | verdict |
+|---|---|---|
+| 1500 × 864 | 32px (one line) | clear |
+| **500 × 694** | **46px — the label wrapped to two lines** | **pill back on the bubble's footer** |
+
+The engine's clamp reserves `pillHeight + 6`, and the pill's height is **not a constant**. A
+fixed reservation cannot be right. The pill is now pinned to one line, so its height is
+predictable, and the narrator reserves that height from the **same token** — the two numbers
+cannot drift apart.
+
+Re-measured after live resizes, tour running, on each: **500 × 694 · 1500 × 814 · 760 × 514 ·
+1200 × 394**, and the `classic` skin (the 96px framed gnome) at **500 × 800**. Every one:
+narrator and pill fully inside the viewport, no overlap with the bubble, no horizontal body
+scroll, and the bubble's text not overflowing its box.
