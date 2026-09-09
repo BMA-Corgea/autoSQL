@@ -81,7 +81,7 @@ export function stopsFor(answer) {
 export function Rail({ answer }) {
   const stops = stopsFor(answer);
   return (
-    <div className="rail" aria-label="How far this pick got">
+    <div className="rail" aria-label="How far this pick got" data-tour="gate">
       {stops.map((s, i) => (
         <div className={"stop s-" + s[0]} key={i}>
           <span className="stop-dot"><Ic name={STOP_ICON[s[0]]} /></span>

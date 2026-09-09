@@ -1407,6 +1407,18 @@ def test_ac32_the_walk_reaches_everything_the_screen_actually_loads(served_page)
         "/static/fonts/inter-latin-ext.woff2",
         "/static/icons.svg",
         "/static/icons-demo.svg",
+        # T-22's guided tour.  Named here for the reason in the docstring, and the
+        # security review of PR #4 was right that leaving them out was the gap: the
+        # crawler DOES reach them today — that is why gnome-tour.png needed an
+        # _AC32_UNSCANNED entry at all — but nothing asserted it MUST.  Typo an href
+        # in index.html and the walk quietly shrinks; the host check below still
+        # passes, because it only sweeps what was actually reached.  A remote URL
+        # reintroduced into steps.js or tour-tokens.css would then ship unseen.
+        "/vendor/tour/tour.css",
+        "/static/tour/tour-tokens.css",
+        "/vendor/tour/tour.js",
+        "/static/tour/steps.js",
+        "/vendor/tour/gnome-tour.png",
     }
     missing = sorted(required - reached)
     assert not missing, (
@@ -1439,18 +1451,32 @@ def test_ac32_nothing_the_page_loads_names_another_host(served_page):
     )
 
 
+#: The binary carve-out, listed rather than pattern-matched.  Every entry is a file the
+#: sweep CANNOT read, so every entry is a place a document could hide — which is why this
+#: is a pinned list that must be edited deliberately, not a `*.woff2, *.png` rule that
+#: would swallow the next one silently.
+_AC32_UNSCANNED = [
+    # fonts: a font is not a document
+    "/static/fonts/inter-latin-ext.woff2",
+    "/static/fonts/inter-latin.woff2",
+    # T-22: the guided tour's narrator.  An image is not a document either, and this one is
+    # vendored from gims-oss (AGPL-3.0, verified on origin/main) with its provenance recorded
+    # at demo/vendor/tour/PROVENANCE.md.  Added by editing this list on purpose, because that
+    # is what the guard is for: a new unreadable asset should cost somebody a decision.
+    "/vendor/tour/gnome-tour.png",
+]
+
+
 def test_ac32_only_the_fonts_are_left_unscanned(served_page):
     """The binary carve-out, pinned.  A stylesheet that started arriving as
     `application/octet-stream` would otherwise skip the sweep entirely."""
     scanned = set(_text_assets(served_page))
     unscanned = sorted(set(served_page) - scanned)
-    assert unscanned == [
-        "/static/fonts/inter-latin-ext.woff2",
-        "/static/fonts/inter-latin.woff2",
-    ], (
-        "the set of assets AC-32's sweep does not read has changed. Only "
-        "the two committed woff2 files belong here — a font is not a "
-        f"document. Now unscanned: {unscanned}"
+    assert unscanned == sorted(_AC32_UNSCANNED), (
+        "the set of assets AC-32's sweep does not read has changed. Only fonts and the "
+        "tour's vendored narrator image belong here — neither is a document. Adding to "
+        "_AC32_UNSCANNED is a deliberate act; do it only when the new asset genuinely "
+        f"cannot carry prose. Now unscanned: {unscanned}"
     )
 
 

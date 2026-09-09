@@ -1915,3 +1915,148 @@ panes differ — nothing currently trips it.
 section and the 2026-09-01 note all still read as they did when they were written, because they are
 the record of what was measured on those dates. Read them as history; read this note, the suite, and
 `demo/expected-answers.json` for what is true now.
+
+---
+
+## The guided tour, driven in a real browser — 2026-09-09, T-22 (GA-32)
+
+**Appended, nothing above rewritten.** This section records a *browser* run, which is the only
+instrument that can settle the questions below; the suite cannot see any of them.
+
+**The instrument.** Firefox via `geckodriver`, driving `http://127.0.0.1:8787/` — the demo's own
+stack, the same one `./run-demo test` uses. Not a headless screenshot service and not a static
+render: the tour was stepped through by clicking its controls.
+
+### What the run confirmed
+
+| | |
+|---|---|
+| step 1 | `1 / 7`, the whole app spotlighted by **four dim panels** (not one sheet), gnome present at 62px, byline **GIMS** |
+| step 3 | `advanceOn: "target-click"` — **Next is hidden**, and a real click on the highlighted **Run this pick** both advanced the tour and ran the pick |
+| steps 2–5 | gnome **absent** (`data-tour-gnome="off"`), as designed — he introduces, gets out of the way, returns for the point |
+| step 6 | drove itself to `noun:EdgeCase` / `biggest = max($.m)`; row `edge-01` carries `["１２３", 1]` and **both panes read `123`**; header **10 OF 10 IDENTICAL** |
+| step 7 | gnome returns; `Replay the tour` present and wired |
+| console | **no CSP violations** — `script-src 'self'` with no `unsafe-inline`, and both tour scripts are same-origin files |
+
+### Three defects the browser found that no assertion could
+
+**1. The engine shadows three of its own tokens, and every skin's palette was inert.**
+`tour.js` `_build()` sets `--tour-dim`, `--tour-ring` and `--tour-radius` as **inline** custom
+properties on `.tour-root`. Custom properties inherit and an inline declaration beats any
+stylesheet, so the per-skin values authored at `:root` were correct, live, and painted on nothing.
+Measured on the **classic** skin, before the fix:
+
+| | `--tour-dim` | `--tour-ring` | `--tour-radius` |
+|---|---|---|---|
+| declared at `:root` | `rgba(0,0,32,.55)` | `#000080` | `0` |
+| **actually painted** | `rgba(6,10,20,0.74)` | `#4f6ef7` | `10px` |
+
+Those painted values are the engine's Nocturne defaults. **All seven skins** had been running them
+since the first build. Fixed by renaming the repo-side tokens to names the engine cannot shadow
+(`--tour-dim-skin`, `--tour-ring-skin`, `--tour-corner`) and re-driving `.tour-dimp` and
+`.tour-ring` from those — without forking the vendored engine. Measured after, one skin at a time
+with the 0.26s CSS transition allowed to settle:
+
+| skin | dim painted | ring | corner |
+|---|---|---|---|
+| `system` / `light` | `rgba(12,18,26,0.62)` | `#1d5fa8` | `8px` |
+| `dark` | `rgba(2,6,12,0.72)` | `#6aa9e8` | `8px` |
+| `gunmetal` | `rgba(12,18,26,0.62)` | `#35d6e6` | `8px` |
+| `titanium` | `rgba(12,18,26,0.62)` | `#0f6b6b` | `8px` |
+| `classic` | `rgba(0,0,32,0.55)` | `#000080` | `0px` |
+| `jrpg` | `rgba(6,32,38,0.66)` | `#e8c66a` | `4px` |
+
+**2. The bubble was themed and its text was not.** `tour.css` paints `.tour-bubble` a dark
+gradient and then picks text colours to sit on it (`.tour-text #c2d0e6`, `.tour-title #fff`). The
+first token layer overrode only the *background*, which left pale blue-grey text on a white bubble:
+present in the DOM, correct to every selector I had asserted, and washed out on screen. Every
+colour `tour.css` sets is now re-set from the tokens.
+
+**3. Two clamps collided at the bottom edge.** The engine clamps the narrator to
+`vh - narratorHeight - 14`, then pins the "View page" pill 8px *below* the bubble — clamped to
+`vh - pillHeight - 6`. At the bottom of the screen the pill landed on the bubble's footer, over
+**Next**. Fixed by padding the narrator's own bottom, so the height the engine clamps against grows
+and the pill gets the gap the engine already intended.
+
+**A fourth, found earlier in the same run and recorded here for completeness:** the skin picker
+intercepted a click on **Next**. WebDriver named it exactly — *"element click intercepted … another
+element `<div id=skin-picker>` obscures it"*. The cause is not z-index ordering: `.tour-root` is
+`position: fixed`, **which creates a stacking context regardless of `z-index`**, so the bubble's
+`z-index: 9003` was trapped inside it and competed against the picker at an effective `0`.
+
+### What is now guarded, and what is not
+
+`demo/tests/test_tour.py` (8 tests) pins the four *seams*, not the appearance: the token-shadowing
+collision, the invented-hook class (`onShow` — the engine defines `beforeShow`), the five
+`data-tour` anchors against the `.jsx` that carry them, and "vendored unmodified" against digests
+now recorded in `demo/vendor/tour/PROVENANCE.md`. Both new guards were **watched failing** on the
+exact defects they exist for before being accepted.
+
+**Stated plainly: the appearance itself is not asserted anywhere and cannot be.** The three defects
+above were all invisible to a correct assertion, because each was a question about what was
+*painted*, not about what was *declared*. The browser run is the evidence; this section is the
+record of it.
+
+### The narrow-viewport re-measure, which found the bottom-edge fix was not enough
+
+The first fix for the peek/narrator collision reserved a **fixed 30px**. Re-measuring at a
+narrow window — the guided-tour skill calls for exactly this, and it is the reason the check
+was run — showed the collision returning:
+
+| viewport | "View page" height | verdict |
+|---|---|---|
+| 1500 × 864 | 32px (one line) | clear |
+| **500 × 694** | **46px — the label wrapped to two lines** | **pill back on the bubble's footer** |
+
+The engine's clamp reserves `pillHeight + 6`, and the pill's height is **not a constant**. A
+fixed reservation cannot be right. The pill is now pinned to one line, so its height is
+predictable, and the narrator reserves that height from the **same token** — the two numbers
+cannot drift apart.
+
+Re-measured after live resizes, tour running, on each: **500 × 694 · 1500 × 814 · 760 × 514 ·
+1200 × 394**, and the `classic` skin (the 96px framed gnome) at **500 × 800**. Every one:
+narrator and pill fully inside the viewport, no overlap with the bubble, no horizontal body
+scroll, and the bubble's text not overflowing its box.
+
+---
+
+## Correction: I recorded an observation of something that did not exist — 2026-09-09, T-22
+
+**Appended, nothing above rewritten.** The section above, *"The guided tour, driven in a real
+browser"*, lists in its **"What the run confirmed"** table, for step 1:
+
+> gnome present at 62px, byline **GIMS**
+
+**There was no byline.** `steps.js` passed `narrator: { image, name: "GIMS" }` because that is
+what the engine's own usage comment documents — and `tour.js` reads `narrator.image` at line
+135 and reads `name` **nowhere**. There was no element for the string anywhere in the tour's
+DOM. Verified after the fact, in the same browser: `/GIMS/.test(tourRoot.innerText)` →
+**false**.
+
+So the row is an observation of something a browser could not have shown me. **A config key
+the library accepts and ignores looks exactly like a config key that worked** — which is this
+project's recurring class again, in the evidence record rather than in a test, and that is
+worse: the tests defer to this file precisely because "only a browser can say that, and one
+did."
+
+**What has been done about it.** The byline is a design decision, not decoration — autoSQL is
+a GIMS component, not a standalone product, so the narrator speaks *as* GIMS rather than as an
+invented identity, and `demo/vendor/tour/PROVENANCE.md` says so. It is now **built**, by this
+repo's own code (`ensureByline` in `steps.js`, themed as `.tour-byline`), appending to the
+bubble the same way the engine builds its own DOM. The engine is still not forked. Re-measured
+in the browser: `.tour-byline` present, text `GIMS`, colour taken from `--tour-muted`.
+
+**And a guard, because the correction is not the lesson.**
+`test_the_config_steps_js_passes_uses_only_options_the_engine_reads` now compares every key
+`steps.js` hands `Tour.start` against every key the engine actually reads, and fails on one it
+does not — naming it. Watched failing on a deliberately inert `onComplete` before it was
+accepted. The keys this repo consumes itself are listed explicitly, which is how `name` is
+allowed now that something reads it.
+
+### On the dates in this file
+
+The T-22 sections are dated **2026-09-09** while the commits carry a **2026-09-08** author
+date. Both are right: the machine's local zone is UTC−6, so the work spans local evening and
+UTC midnight. **The dates in this file follow the tracker**, whose own passport line for T-22's
+unblock reads `2026-09-09`, so the evidence and the ledger agree. Git author dates are local
+and will read a day earlier for anything done after 18:00 local.

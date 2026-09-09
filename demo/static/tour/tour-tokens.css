@@ -1,0 +1,341 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════
+   tour-tokens.css — the tour's palette and per-skin placement.
+
+   ── Why this is a SEPARATE FILE ──────────────────────────────────────────────────────────
+   demo/static/demo.css declares ZERO custom properties and may declare none (B18, asserted
+   twice). demo/vendor/styles/*.css are sha256-pinned to GIMS's (D1) and are untouchable.
+   tour.css is the vendored engine and is not forked. So everything skin-specific lives here,
+   which is exactly the contract demo/static/js/skin.js already documents for adding a skin:
+   one file, every rule scoped under :root[data-theme="<name>"].
+
+   ── The three states, not two ────────────────────────────────────────────────────────────
+   `system` is the ABSENCE of a data-theme attribute, so the bare :root block below is the
+   light default and the prefers-color-scheme block covers the OS-dark case.
+
+   THE GUARD ON THAT BLOCK IS `:root:not([data-theme])`, AND IT MATTERS. An earlier draft
+   wrote `:not([data-theme="light"])`, which excludes only the light skin — so the OS-dark
+   values still applied to every OTHER explicit skin, for every token that skin did not
+   itself declare. Specificity is equal (0,2,0) and the media block is earlier in the file,
+   so a skin only wins the properties it states. gunmetal and titanium declare four tokens
+   each, and the other five flipped with the visitor's operating system: titanium ("built for
+   daylight", page #faf9f6) rendered a #111a24 bubble on a cream page whenever the OS was
+   dark, and gunmetal (page #14181e) rendered a #ffffff bubble on a near-black page whenever
+   it was light. Same skin, same code, opposite chrome depending on a setting the skin picker
+   does not control.
+
+   demo/static/skins/base.css:126-129 had already settled this, and says so in its own words:
+   "Scoped to :root:not([data-theme]) so an explicit pick from the switcher always wins, in
+   both directions." The repo's existing system is the one that wins; this file now follows
+   it rather than a generic rule about explicit-light-beating-dark-OS.
+
+   ── What derives and what does not, stated honestly ──────────────────────────────────────
+   TOKENS recolour per skin. THE GNOME IS A BITMAP AND CANNOT. So five skins share one
+   conservative placement rule because they share a sober register, and classic and jrpg
+   carry explicit rules for SIZE, FRAMING and PRESENCE — never colour. An eighth skin
+   inherits the conservative treatment, which is the safe direction to fail in; it does not
+   get a look tuned to its own personality, and claiming otherwise would be untrue.
+   ══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- light / system default -------------------------------------------------------- */
+:root {
+  --tour-dim-skin: rgba(12, 18, 26, .62);
+  --tour-ring-skin: #1d5fa8;
+  --tour-ring-glow: rgba(29, 95, 168, .30);
+  --tour-corner: 8px;
+  --tour-bubble-bg: #ffffff;
+  --tour-bubble-fg: #16202c;
+  --tour-bubble-bd: #c9d4e0;
+  --tour-accent: #1d5fa8;
+  --tour-btn-fg: #ffffff;
+  --tour-muted: #64748b;
+  --tour-gnome-w: 62px;          /* the sober register: a byline mark, not a mascot */
+  --tour-gnome-frame: none;
+  --tour-gnome-pad: 0;
+  --tour-gnome-bg: transparent;
+}
+
+/* ---- system, when the OS is dark. `:not([data-theme])` — the OS decides ONLY when the
+        visitor has not picked a skin. See the header. ------------------------------------ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --tour-dim-skin: rgba(2, 6, 12, .72);
+    --tour-ring-skin: #6aa9e8;
+    --tour-ring-glow: rgba(106, 169, 232, .30);
+    --tour-bubble-bg: #111a24;
+    --tour-bubble-fg: #e6edf5;
+    --tour-bubble-bd: #2b3947;
+    --tour-accent: #6aa9e8;
+    --tour-btn-fg: #06131f;
+    --tour-muted: #8fa3b7;
+  }
+}
+
+/* ---- explicit dark, so the switcher wins in the other direction too ----------------- */
+:root[data-theme="dark"] {
+  --tour-dim-skin: rgba(2, 6, 12, .72);
+  --tour-ring-skin: #6aa9e8;
+  --tour-ring-glow: rgba(106, 169, 232, .30);
+  --tour-bubble-bg: #111a24;
+  --tour-bubble-fg: #e6edf5;
+  --tour-bubble-bd: #2b3947;
+  --tour-accent: #6aa9e8;
+  --tour-btn-fg: #06131f;
+  --tour-muted: #8fa3b7;
+}
+
+/* ---- the three that derive, differing only in accent ------------------------------- */
+/* gunmetal's page is #14181e and titanium's is #faf9f6, so they do NOT derive the same way:
+   gunmetal needs the dark bubble stated outright (it used to arrive only when the visitor's
+   OS happened to be dark), and titanium is correct on the light base and needs only its
+   accent. This is the pair the leaking guard above was hiding. */
+:root[data-theme="gunmetal"] {
+  --tour-dim-skin: rgba(2, 6, 12, .72);
+  --tour-ring-skin: #35d6e6;
+  --tour-ring-glow: rgba(53, 214, 230, .28);
+  --tour-bubble-bg: #111a24;
+  --tour-bubble-fg: #e6edf5;
+  --tour-bubble-bd: #2b3947;
+  --tour-accent: #35d6e6;
+  --tour-btn-fg: #06222a;
+  --tour-muted: #8fa3b7;
+}
+:root[data-theme="titanium"] { --tour-ring-skin: #0f6b6b; --tour-ring-glow: rgba(15, 107, 107, .28); --tour-accent: #0f6b6b; --tour-btn-fg: #ffffff; }
+:root[data-theme="light"]    { --tour-ring-skin: #1d5fa8; --tour-ring-glow: rgba(29, 95, 168, .30); --tour-accent: #1d5fa8; }
+
+/* ---- CLASSIC: Win9x. Square corners and a hard border ARE the look — a rounded glowing
+        ring reads as a foreign object. Pixel art is native here, so the gnome gets room
+        and an inset frame instead of being kept small. ------------------------------- */
+:root[data-theme="classic"] {
+  --tour-dim-skin: rgba(0, 0, 32, .55);
+  --tour-ring-skin: #000080;
+  --tour-ring-glow: transparent;
+  --tour-corner: 0;
+  --tour-bubble-bg: #c0c0c0;
+  --tour-bubble-fg: #000000;
+  --tour-bubble-bd: #000000;
+  --tour-accent: #000080;
+  --tour-btn-fg: #ffffff;
+  --tour-muted: #404040;
+  --tour-gnome-w: 96px;
+  --tour-gnome-frame: 2px solid #808080;
+  --tour-gnome-pad: 3px;
+  --tour-gnome-bg: #c0c0c0;
+}
+/* classic kept its ring by `box-shadow: none`, which was only ever right while the engine's
+   indigo glow was winning. With the ring re-driven above, "no glow" is `--tour-ring-glow:
+   transparent` and the navy 2px edge survives — killing the shadow outright would now kill
+   the ring itself. */
+:root[data-theme="classic"] .tour-avatar { border-top-color: #ffffff; border-left-color: #ffffff; }
+
+/* ---- JRPG: gold frames on a teal field. A neutral grey dim turns the palette to mud. -- */
+:root[data-theme="jrpg"] {
+  --tour-dim-skin: rgba(6, 32, 38, .66);
+  --tour-ring-skin: #e8c66a;
+  --tour-ring-glow: rgba(232, 198, 106, .26);
+  --tour-corner: 4px;
+  --tour-bubble-bg: #0e3b45;
+  --tour-bubble-fg: #f4ead2;
+  --tour-bubble-bd: #e8c66a;
+  --tour-accent: #e8c66a;
+  --tour-btn-fg: #0e3b45;
+  --tour-muted: #9fc3c9;
+  --tour-gnome-w: 96px;
+  --tour-gnome-frame: 2px solid #e8c66a;
+  --tour-gnome-pad: 3px;
+  --tour-gnome-bg: rgba(232, 198, 106, .08);
+}
+
+/* ══ THE ENGINE SHADOWS THREE OF ITS OWN TOKENS, AND THE SKIN NEVER APPLIED ═══════════════
+   tour.js:114-116, inside _build(), on the .tour-root element itself:
+
+       root.style.setProperty("--tour-dim",    this.cfg.dim);      // "rgba(6,10,20,0.74)"
+       root.style.setProperty("--tour-ring",   this.cfg.ring);     // "#4f6ef7"
+       root.style.setProperty("--tour-radius", this.cfg.radius+"px");  // "10px"
+
+   Those are INLINE custom properties on the element every dim panel, ring and bubble is a
+   descendant of. Custom properties inherit, and an inline declaration beats any stylesheet
+   rule — so the values authored per skin at :root were correct, live, and shadowed for the
+   entire subtree that consumes them. Measured on the classic skin:
+
+       :root  --tour-dim rgba(0,0,32,.55)   ring #000080   radius 0
+       used   dim panel  rgba(6,10,20,0.74) ring #4f6ef7   radius 10px
+
+   So EVERY skin's dim, ring colour and corner has been the engine's Nocturne default since
+   the first build, on all seven. Nothing was broken enough to look broken, which is the
+   whole difficulty: the navy dim and square ring were declared, they were simply never the
+   values painted.
+
+   This is the SEVENTH witness of the class, and the first one where my check is not even
+   wrong — the tokens ARE correct at :root, which is exactly what a :root assertion reads.
+   The check inspected the declaration. Only the consumption was ever in doubt, and only a
+   getComputedStyle on the painted element could tell me. See kb/wiki/lessons.md.
+
+   THE FIX, without forking the vendored engine: the per-skin tokens are named so the engine
+   cannot shadow them — `--tour-dim-skin`, `--tour-ring-skin`, `--tour-corner` — and the three
+   engine elements are re-driven from those names here. This file loads after tour.css
+   (index.html:97-98) at equal specificity, so these win. `--tour-ring-glow` is new: the
+   engine's ring is a three-layer shadow and the outer two need the ring colour at alpha,
+   which classic sets to `transparent` because a glow is not a Win9x object. */
+.tour-dimp { background: var(--tour-dim-skin); }
+.tour-ring {
+  border-radius: var(--tour-corner);
+  box-shadow: 0 0 0 2px var(--tour-ring-skin),
+              0 0 0 6px var(--tour-ring-glow),
+              0 0 22px 4px var(--tour-ring-glow);
+}
+
+/* ══ theming the engine's own elements through the tokens ══════════════════════════════
+   THE ENGINE IS THEMED FOR A DARK BUBBLE. tour.css paints .tour-bubble
+   `linear-gradient(#16223c, #111a2c)` and then picks text colours to sit on it —
+   .tour-text #c2d0e6, .tour-title #fff, .tour-progress #647a9e, .tour-btn #c2d0e6.
+   An earlier version of this file overrode only the BACKGROUND, which left pale
+   blue-grey text on a white bubble: legible in the DOM, washed out on screen, and
+   invisible to every assertion I had written. It took a screenshot to see it.
+
+   So every colour tour.css sets is re-set here. If the engine is ever updated, this
+   list is the thing to re-check against it. */
+.tour-bubble {
+  background: var(--tour-bubble-bg);
+  color: var(--tour-bubble-fg);
+  border: 1px solid var(--tour-bubble-bd);
+  border-radius: calc(var(--tour-corner) + 2px);
+}
+/* The byline steps.js appends. It is the reason the gnome is this gnome: autoSQL is a GIMS
+   component, not a standalone product, so the narrator speaks as GIMS rather than as an
+   invented identity. Sized and coloured to sit UNDER the title's weight, never competing
+   with it — a source line, not a heading. */
+.tour-byline {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--tour-muted); margin-bottom: 3px;
+}
+.tour-title { color: var(--tour-bubble-fg); }
+.tour-text { color: var(--tour-bubble-fg); }
+.tour-text b { color: var(--tour-bubble-fg); font-weight: 700; }
+.tour-text code, .tour-text .fw { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tour-progress, .tour-skip { color: var(--tour-muted); }
+.tour-skip:hover { color: var(--tour-bubble-fg); }
+.tour-btn {
+  border: 1px solid var(--tour-bubble-bd); background: transparent; color: var(--tour-bubble-fg);
+}
+.tour-btn:hover { color: var(--tour-bubble-fg); border-color: var(--tour-accent); }
+.tour-btn.tour-primary {
+  background: var(--tour-accent); border-color: var(--tour-accent); color: var(--tour-btn-fg);
+}
+.tour-btn.tour-primary:hover { color: var(--tour-btn-fg); }
+/* the engine's own "View page" peek control — same treatment, or it arrives in Nocturne */
+.tour-peek {
+  background: var(--tour-bubble-bg); color: var(--tour-bubble-fg);
+  border: 1px solid var(--tour-bubble-bd);
+}
+.tour-peek:hover { color: var(--tour-bubble-fg); }
+.tour-btn:focus-visible, .tour-peek:focus-visible {
+  outline: 2px solid var(--tour-ring-skin); outline-offset: 2px;
+}
+
+/* ══ two collisions at the bottom edge, both found in a screenshot ════════════════════════
+   The engine clamps the narrator to `vh - narratorHeight - 14`, then pins the "View page"
+   peek pill 8px BELOW the bubble's bottom-right corner — clamped to `vh - pillHeight - 6`.
+   At the bottom of the screen those two clamps collide and the pill lands ON the bubble's
+   footer, over Next. Padding the narrator's own bottom is what fixes it without touching
+   the engine: the height the engine clamps against grows, so the bubble rises and the pill
+   gets the gap the engine already intended it to have. `align-items: flex-end` aligns to
+   the content box, so the gnome rises with it.
+
+   A FIXED 30px was not enough, and a narrow viewport proved it. The clamp reserves
+   `pillHeight + 6`, and the pill's height is not a constant: at 500x694 "View page" wrapped
+   to two lines and grew to 46px, the clamp bound again, and the pill landed back on the
+   bubble's footer. So the pill is pinned to one line — its height becomes predictable — and
+   the narrator reserves that height plus the engine's own 8px gap and a little air, from the
+   SAME token, so the two numbers cannot drift apart. */
+:root { --tour-peek-h: 32px; }
+.tour-peek { white-space: nowrap; height: var(--tour-peek-h); box-sizing: border-box; }
+.tour-narrator { padding-bottom: calc(var(--tour-peek-h) + 16px); }
+
+/* The engine leans the avatar 10px INTO the bubble (`margin: 0 -10px -2px 0`), which reads
+   as a cartoon poking through a panel. On the sober skins the gnome is a byline mark and
+   stands beside the bubble; on classic and jrpg he is framed, and a frame crossing the
+   bubble's border is just two borders fighting. Either way: set him down, don't lean him. */
+.tour-avatar { margin: 0 8px 0 0; }
+
+/* The gnome. `image-rendering: pixelated` is not decoration: this is pixel art with a hard
+   black outline, and smooth scaling fringes that outline into grey — which is exactly what
+   would make him read as a smudge on the sober skins where the tonal risk lives. */
+.tour-avatar {
+  width: var(--tour-gnome-w);
+  height: auto;
+  image-rendering: pixelated;
+  border: var(--tour-gnome-frame);
+  padding: var(--tour-gnome-pad);
+  background: var(--tour-gnome-bg);
+}
+
+/* He is not in every step. steps.js sets data-tour-gnome="off" on the working steps, so he
+   introduces, gets out of the way while the visitor is reading numbers, returns for the
+   point, and signs off. */
+.tour-root[data-tour-gnome="off"] .tour-avatar { display: none; }
+
+/* Reduced motion, meant rather than gestured at. An earlier version disabled the gnome's bob
+   and nothing else, which left the narrator's pop-in keyframe, the peek pill's glow, and the
+   0.26s transitions the dim panels and the ring animate on every single step — i.e. almost
+   all of the movement a visitor who asked for less of it would still get. */
+@media (prefers-reduced-motion: reduce) {
+  .tour-avatar,
+  .tour-narrator,
+  .tour-peek { animation: none !important; }
+  .tour-dimp,
+  .tour-ring,
+  .tour-narrator { transition: none !important; }
+}
+
+/* The engine shrinks the avatar on a narrow screen (`@media (max-width: 560px)`), and that
+   rule LOSES: a media query adds no specificity, and this file is loaded second, so the
+   unconditional `.tour-avatar { width: var(--tour-gnome-w) }` above wins everywhere. Under
+   classic and jrpg that left a 96px framed gnome beside a squeezed bubble on a phone. The
+   token is the thing to change, not the rule. */
+@media (max-width: 560px) {
+  :root { --tour-gnome-w: 56px; }
+  :root[data-theme="classic"], :root[data-theme="jrpg"] { --tour-gnome-w: 64px; }
+}
+
+/* The replay affordance steps.js appends. Kept here so it themes with everything else. */
+.tour-replay {
+  position: fixed; right: 14px; bottom: 56px; z-index: 40;
+  font: inherit; font-size: 12px; padding: 5px 11px;
+  border-radius: var(--tour-corner);
+  border: 1px solid var(--tour-bubble-bd);
+  background: var(--tour-bubble-bg); color: var(--tour-bubble-fg);
+  cursor: pointer; opacity: .85;
+}
+.tour-replay:hover { opacity: 1; }
+.tour-replay:focus-visible { outline: 2px solid var(--tour-ring-skin); outline-offset: 2px; }
+
+/* ══ the skin picker collision — found by driving it, not by reading it ═══════════════════
+   demo/static/js/skin.js appends #skin-picker fixed at bottom-right with z-index 60. Two
+   real collisions came out of a browser run and neither is visible in the source:
+
+     1. WebDriver refused a click on the tour's Next button —
+        "element click intercepted: <button class=tour-btn tour-primary> is not clickable
+         at point (1442,821) because another element <div id=skin-picker> obscures it"
+        A visitor pressing Next where the bubble lands bottom-right would hit the switcher.
+     2. .tour-replay shipped at z-index 40 — BELOW the picker's 60 — and overlapping its
+        rect, so the replay affordance sat underneath the switcher.
+
+   While the tour is running the switcher is not on the path (it is introduced at step 7),
+   so it drops below the dim and stops intercepting. `body.tour-on` is the engine's own
+   hook, so nothing here forks it. */
+/* THE ACTUAL MECHANISM, which is not z-index ordering and cost a browser run to find:
+   .tour-root is `position: fixed` with `z-index: auto`, and **position:fixed creates a
+   stacking context regardless of z-index**. So the bubble's own z-index: 9003 is trapped
+   INSIDE that context, which competes against the picker at an effective 0 — and the
+   picker won at 60. Raising the picker's neighbour, or lowering the picker, cannot fix
+   that; the root is what has to carry the z-index. Verified with elementFromPoint at the
+   Next button's centre, which returned DIV.skin-picker while the picker sat at z-index 1. */
+.tour-root { z-index: 9000; }
+
+/* The switcher is still dropped below while the tour runs: it is not on the tour's path
+   until step 7, and a stray click on it mid-tour re-skins the screen under the visitor. */
+body.tour-on #skin-picker { z-index: 1; }
+
+/* And the replay button clears the picker's band outright rather than relying on stacking:
+   above it in z, and lifted above its 39px-tall strip. */
+.tour-replay { z-index: 61; bottom: 62px; }

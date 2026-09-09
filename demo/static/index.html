@@ -90,6 +90,13 @@
 <link rel="stylesheet" href="/static/skins/classic.css">
 <link rel="stylesheet" href="/static/skins/jrpg.css">
 
+<!-- The guided tour (T-22). tour.css is the vendored engine's stylesheet; tour-tokens.css is
+     this repo's palette and per-skin placement, and it is loaded AFTER so it wins. The tour's
+     custom properties live there and NOT in demo.css, which declares none and may declare
+     none (B18). -->
+<link rel="stylesheet" href="/vendor/tour/tour.css">
+<link rel="stylesheet" href="/static/tour/tour-tokens.css">
+
 <!--
   Synchronous, in <head>, and NOT deferred: the stored skin has to be on <html>
   before the first paint or a reader who chose a light skin gets a dark flash on
@@ -118,5 +125,11 @@
 
   <script src="/static/js/vendor.js" defer></script>
   <script src="/static/js/app.js" defer></script>
+
+  <!-- The tour loads AFTER the app so its controls exist to anchor to. Both files are
+       self-hosted: the CSP above is script-src 'self' with no unsafe-inline, so an inline
+       script would be refused and the tour would silently never start. -->
+  <script src="/vendor/tour/tour.js" defer></script>
+  <script src="/static/tour/steps.js" defer></script>
 </body>
 </html>

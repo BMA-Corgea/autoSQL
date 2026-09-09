@@ -324,7 +324,7 @@ function App() {
   };
 
   return (
-    <div className="wrap">
+    <div className="wrap" data-tour="screen">
       <header className="masthead">
         <div className="brand">
           <span className="brand-mark"><Ic name="drop" /></span>
