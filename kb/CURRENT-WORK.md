@@ -18,7 +18,7 @@
 >
 > | ticket | | |
 > |---|---|---|
-> | **T-4** | the timing run — **verdict FAIL**, ~2.5× slower than Python at every size | **PARKED at `sp_decide` — HIS** |
+> | **T-4** | the timing run — **verdict FAIL**, ~2.5× slower than Python at every size | **PARKED at `sp_decide` — HIS.** Ruling it also **triggers the `autosql-corpus` teardown** — see below |
 > | **T-18** | a gate parked by *arrival* never announced itself | merged `a1a54cb` |
 > | **T-19** | plan §8.2's mutation pass — 15 killed, 1 known survivor, 0 new | merged `a110378` |
 > | **T-21** | the digit mapping had detection without verification | merged `e18d9cc` |
@@ -31,6 +31,17 @@
 > **T-4's `sp_decide`** — uncleared in both directions, and GA-24 Q2 excludes it from on-behalf
 > by name. **The verdict is final; do not re-litigate the measurement** — he ruled the numbers
 > pristine. He rules from `kb/wiki/decision-t4-timing-verdict.md`.
+>
+> > **AND IT CARRIES A TRIGGER.** The scratch container **`autosql-corpus`** (`127.0.0.1:55434`,
+> > `autosql_spike` 875 MB + `t23_raw`) is **deliberately still up**, ruled 2026-09-09. The
+> > moment `sp_decide` is ruled — **in either direction** — that container **and its volume**
+> > go, per `spikes/T-1/proto/REGENERATE-CORPUS.md` **§9** (frozen: read it, do not edit it).
+> > **The `-v` in `docker rm -f -v` is not optional** — the Postgres image leaves an anonymous
+> > volume that survives a plain `rm -f` and does not appear in `docker ps -a`; §9 has the
+> > recovery recipe. Afterwards confirm **`glp-strong-db` on 55433 is still running and
+> > untouched — that is the live database.** Full instruction:
+> > `.autodev/handoffs/T-4.md`, last section. **Do not tear it down before the ruling**: it is
+> > cheap optionality on an open question, and destroying it is irreversible.
 >
 > **T-22's `design` gate** — he has already ruled the step list and the narrator (the GIMS gnome);
 > the look sign-off remains. **Two mechanics:** his *words are not the clearance* — `human:strict`
