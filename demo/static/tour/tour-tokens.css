@@ -339,3 +339,15 @@ body.tour-on #skin-picker { z-index: 1; }
 /* And the replay button clears the picker's band outright rather than relying on stacking:
    above it in z, and lifted above its 39px-tall strip. */
 .tour-replay { z-index: 61; bottom: 62px; }
+
+/* Slate stays light regardless of the operating system preference. */
+:root[data-theme="slate"] {
+  --tour-ring-skin: #3b6ea5;
+  --tour-ring-glow: rgba(59, 110, 165, .22);
+  --tour-accent: #3b6ea5;
+  --tour-btn-fg: #ffffff;
+  --tour-bubble-bg: #ffffff;
+  --tour-bubble-fg: #1d2530;
+  --tour-bubble-bd: #dde1e6;
+  --tour-muted: #5f6a78;
+}

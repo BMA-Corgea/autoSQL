@@ -104,3 +104,11 @@ document — no measurement, no comparison, no indication of how long
 anything here takes to run. That question hasn't been asked yet, belongs to
 a separate piece of work, and nothing here should be read as answering it
 either way.
+
+## Skins
+
+The demo now opens in **Slate**, migrated from GIMS: light gray, white panels,
+and steel-blue controls. The bottom-right Skin picker retains the other looks,
+including System, Light, and Dark. Explicit saved choices still take precedence;
+choose Slate in the picker to change an existing preference. The skin lives in
+`static/skins/slate.css`, leaving the checksum-pinned vendor assets unchanged.

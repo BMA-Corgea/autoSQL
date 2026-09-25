@@ -61,9 +61,9 @@ FRONTEND = REPO_ROOT / "demo/frontend"
 # (§9.7's contract), never a silent pass.
 SKILL_REFERENCE = Path.home() / ".claude/skills/guided-tour/reference"
 
-# The seven skins demo/static/js/skin.js offers.  `system` is the ABSENCE of a
+# The skins demo/static/js/skin.js offers.  `system` is the ABSENCE of a
 # data-theme attribute, so it is the bare :root block rather than a selector.
-SKINS_WITH_ATTR = ["light", "dark", "gunmetal", "titanium", "classic", "jrpg"]
+SKINS_WITH_ATTR = ["slate", "light", "dark", "gunmetal", "titanium", "classic", "jrpg"]
 
 
 def _sha256(path: Path) -> str:

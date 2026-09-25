@@ -25,10 +25,10 @@
 (function () {
   "use strict";
 
-  /* The first row is the base: `system` is not a file, it is the ABSENCE of a data-theme
-     attribute, which lets base.css's prefers-color-scheme block decide. It is first because
-     a tool that opens in the wrong brightness for someone's desk is a tool they close. */
+  /* Slate is the default. System remains available and follows the OS through
+     the absence of a data-theme attribute. Explicit stored choices still win. */
   var SKINS = [
+    { name: "slate",    label: "Slate",    note: "Light gray, white workspaces, and a restrained steel-blue accent." },
     { name: "system",   label: "System",   note: "Follows your OS light or dark setting." },
     { name: "light",    label: "Light",    note: "The base palette, always light." },
     { name: "dark",     label: "Dark",     note: "The base palette, always dark." },
@@ -38,7 +38,7 @@
     { name: "jrpg",     label: "JRPG",     note: "A console menu: teal field, gold frames, cream text." }
   ];
 
-  var DEFAULT_SKIN = "system";
+  var DEFAULT_SKIN = "slate";
   var STORAGE_KEY = "autosql-demo-skin";
 
   /* localStorage throws outright in some contexts (a browser set to block site data, some

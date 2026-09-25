@@ -1,0 +1,135 @@
+/* Migrated from GIMS-Project/static/styles/slate.css; scoped to the autoSQL skin registry.
+   Keep the pinned vendor sheets untouched. */
+/* ══════════════════════════════════════════════════════════════
+   SLATE — alternate GIMS skin (plain, gray-white, professional).
+   Neutral light-gray canvas, white cards, hairline borders, a single
+   restrained STEEL-BLUE accent, small radii, soft low shadows. No
+   ambient glow, no shimmer, no hover-lift, no gradient title text — a
+   calm enterprise look that references no product (the deliberate
+   opposite of Classic's Win/XP homage and Watery's underwater color).
+
+   ── How it works (same contract as classic.css) ──
+   Everything is scoped under :root[data-theme="slate"], so this file is
+   inert until the header skin switcher (or the pre-paint script in
+   theming.THEME_BOOT_JS) sets that attribute. Two layers:
+     1. TOKENS — redefines the watery.css :root variables (light gray
+        palette, steel accent, glows→transparent, soft flat shadows,
+        radii→small). Zeroing the glow tokens flattens every ambient
+        body/shell/launcher background automatically, and re-skins every
+        token-driven rule across watery.css, components.css, and all 22
+        page stylesheets with no per-page work.
+     2. FIXUPS — a short override layer for the handful of rules that
+        hardcode a color or set white-on-hover text (invisible on a light
+        surface), plus removing Watery's decorative motion (shimmer, lift,
+        drift) to land the "restrained/professional" motion level.
+   The class names (.panel, .btn, .input, .rail, plus page .nc-, .lb-, .tut-
+   primitives) are the same contract Watery styles; recolour a token, not
+   40 rules. Slate Dark (slate-dark.css) is the same file with a dark
+   graphite palette.
+══════════════════════════════════════════════════════════════ */
+
+:root[data-theme="slate"] {
+  /* ── surfaces — light neutral gray canvas + white client areas ── */
+  --bg:#eceef1; --bg2:#e3e6ea; --surface:#ffffff; --surface2:#f6f7f9;
+  --card:#ffffff; --card-2:#f6f7f9;
+  --card-border:#dde1e6; --card-edge:#dfe3e8; --card-edge-strong:#c4cad2;
+  --border:#e0e4e9; --border2:#ced4db;
+
+  /* ── text — deep slate (soft near-black, not pure #000) ── */
+  --text:#1d2530; --text-mid:#3f4855; --text-soft:#5f6a78; --text-mute:#98a1ad;
+
+  /* ── accent — one restrained STEEL BLUE (focus, links, active nav, icons) ── */
+  --accent:#3b6ea5; --accent-2:#5988bd; --accent-light:rgba(59,110,165,0.10); --accent-glow:rgba(59,110,165,0.22);
+
+  /* ── system blue = the same steel family; CTA is a near-flat steel fill ── */
+  --blue:#3b6ea5; --blue-2:#5988bd; --blue-deep:#2f5a86;
+  --blue-light:rgba(59,110,165,0.10); --blue-glow:rgba(59,110,165,0.20); --blue-border:rgba(59,110,165,0.40); --blue-text:#2f5a86;
+  --blue-cta-1:#3f74ab; --blue-cta-2:#335f8d;
+
+  /* ── warm-light tokens repurposed as a subtle steel (kills tan flourishes) ── */
+  --warm:#5988bd; --warm-2:#3b6ea5; --warm-glow:transparent;
+
+  /* ── ambient glow → off (flattens body/shell/launcher backgrounds) ── */
+  --glow-aqua:transparent; --glow-floor:transparent;
+
+  /* ── semantic — muted, professional ── */
+  --green:#2f9e5f; --green-light:rgba(47,158,95,0.12); --green-glow:transparent; --green-text:#227a48;
+  --amber:#b7791f; --amber-light:rgba(183,121,31,0.12);
+  --red:#c0453f; --red-light:rgba(192,69,63,0.10); --red-border:rgba(192,69,63,0.40); --red-text:#9c332e;
+
+  /* ── elevation — subtle, soft, low (modern SaaS) ── */
+  --shadow-sm:0 1px 2px rgba(24,38,58,0.06), 0 1px 1px rgba(24,38,58,0.04);
+  --shadow-md:0 2px 8px rgba(24,38,58,0.08), 0 1px 3px rgba(24,38,58,0.06);
+  --shadow-lg:0 10px 28px rgba(24,38,58,0.14), 0 4px 10px rgba(24,38,58,0.08);
+
+  /* ── small radii ── */
+  --radius:7px; --radius-sm:5px; --radius-lg:10px;
+}
+
+/* ── kill the ambient drift layer (its gradients are already transparent) ── */
+:root[data-theme="slate"] body.watery-bg::before { display:none; }
+:root[data-theme="slate"] .rail-brand-mark .icon { filter:none; }
+
+/* ════════ BUTTONS — restrained: keep dark text on hover, drop lift/glow ════════ */
+:root[data-theme="slate"] .btn:hover:not(:disabled) {
+  color:var(--text); background:var(--accent-light); border-color:var(--accent); transform:none; box-shadow:none;
+}
+:root[data-theme="slate"] .btn:active:not(:disabled) { transform:none; }
+:root[data-theme="slate"] .btn.blue:hover:not(:disabled) { color:var(--blue-text); background:var(--blue-light); border-color:var(--blue); box-shadow:none; }
+:root[data-theme="slate"] .btn.green:hover:not(:disabled) { color:var(--green-text); background:var(--green-light); border-color:var(--green); box-shadow:none; }
+:root[data-theme="slate"] .btn.red:hover:not(:disabled) { color:var(--red-text); background:var(--red-light); border-color:var(--red); box-shadow:none; }
+
+/* primary CTA — solid steel fill + white text; no shimmer, no lift ── */
+:root[data-theme="slate"] .btn-primary { box-shadow:var(--shadow-sm); }
+:root[data-theme="slate"] .btn-primary::before { display:none; }
+:root[data-theme="slate"] .btn-primary:hover:not(:disabled) { transform:none; box-shadow:var(--shadow-md); filter:brightness(1.05); }
+:root[data-theme="slate"] .btn-primary.loading { animation:none; }
+
+/* ════════ FIELDS — neutral focus (drop the hardcoded aqua focus tint) ════════ */
+:root[data-theme="slate"] .input:focus,
+:root[data-theme="slate"] .select:focus,
+:root[data-theme="slate"] textarea.input:focus { background:var(--surface); box-shadow:0 0 0 3px var(--accent-glow); }
+
+/* ════════ CHIPS / TOGGLE / SCROLLBARS — neutralize hardcoded seafoam ════════ */
+:root[data-theme="slate"] .chip.accent { border-color:var(--accent); }
+:root[data-theme="slate"] .toggle .track { background:var(--surface2); border-color:var(--border2); }
+:root[data-theme="slate"] .toggle .track::after { background:var(--text-mute); }
+:root[data-theme="slate"] .toggle input:checked + .track { background:var(--accent); border-color:var(--accent); }
+:root[data-theme="slate"] .toggle input:checked + .track::after { background:#fff; }
+:root[data-theme="slate"] ::-webkit-scrollbar-thumb { background:var(--border2); }
+:root[data-theme="slate"] ::-webkit-scrollbar-thumb:hover { background:var(--card-edge-strong); }
+
+/* ════════ MODAL SCRIM — neutral slate (drop the teal overlay) ════════ */
+:root[data-theme="slate"] .overlay { background:rgba(20,26,34,0.55); }
+
+/* ════════ TITLES — solid slate (drop the gradient-fill text) ════════ */
+:root[data-theme="slate"] .rail-brand-text,
+:root[data-theme="slate"] .shell-title,
+:root[data-theme="slate"] .launcher-header h1,
+:root[data-theme="slate"] .tut-h2 { background:none; -webkit-text-fill-color:var(--text); color:var(--text); }
+
+/* ════════ TABLES — neutral hover / zebra (drop hardcoded aqua/seafoam) ════════ */
+:root[data-theme="slate"] .ui-mx-table tbody tr:hover td { background:var(--accent-light); }
+:root[data-theme="slate"] .tab.active { border-color:var(--accent); }
+:root[data-theme="slate"] .datagrid tbody tr:nth-child(odd) td { background:rgba(29,37,48,0.025); }
+
+/* ════════ LAUNCHER — plain white workspace buttons (kill vivid-blue + white-on-hover) ════════ */
+:root[data-theme="slate"] .launcher-button { background:var(--surface); border-color:var(--border); box-shadow:var(--shadow-sm); transform:none; }
+:root[data-theme="slate"] .launcher-button:hover { background:var(--card-2); border-color:var(--accent); color:var(--text); transform:none; box-shadow:var(--shadow-md); }
+:root[data-theme="slate"] .lb-text { color:var(--text); }
+:root[data-theme="slate"] .lb-icon { color:var(--accent); }
+:root[data-theme="slate"] .launcher-button:hover .lb-icon { color:#fff; background:var(--accent); border-color:var(--accent); box-shadow:none; }
+:root[data-theme="slate"] .lb-arrow,
+:root[data-theme="slate"] .launcher-button:hover .lb-arrow { color:var(--accent); }
+
+/* ════════ TUTORIAL — no card lift ════════ */
+:root[data-theme="slate"] .tut-card:hover { transform:none; box-shadow:var(--shadow-md); }
+
+:root[data-theme="slate"] {
+  color-scheme: light;
+  --text-mute: #667384;
+  --chart-1: #3b6ea5; --chart-2: #227a48; --chart-3: #b7791f;
+  --chart-4: #9c332e; --chart-5: #755a9b; --chart-6: #357b88;
+  --chart-axis: var(--text-soft); --chart-grid: #e0e4e9;
+}
+:root[data-theme="slate"] .btn-primary:hover:not(:disabled) { color: #fff; background: var(--blue); }
