@@ -2,6 +2,41 @@
 
 ---
 
+> # START HERE — 2026-09-26 (WOUND DOWN at the owner's request; T-4 is RULED C, but its gate is not yet cleared)
+>
+> **The run stood down on the evening of 2026-09-26, at the owner's request, before any ruling work
+> began.** Nothing is mid-flight: no gate is half-cleared, no ticket is mid-stage, the machine was
+> not taken, and no spike has run.
+>
+> | ticket | state |
+> |---|---|
+> | **T-4** | **RULED C, "test a faster design first"** (decision form, recorded as GA-34, 2026-09-27T03:54Z). **`sp_decide` is still UNCLEARED, and no child spike is filed.** Next: the ADR → pass sp-decide → clear it on-behalf, citing GA-34 → spawn the child at sp-spawn |
+> | **T-24** | parked at `spec_ready`. Both of its design questions are **ruled by the foreman**: D1, bind `design` and keep `human:strict`, on the owner's GA-6 words; D2, correct the `compliance` record and bind nothing. GA-34 covers its gates |
+> | **T-25** | parked at `spec_ready`: a teardown that leaves an anonymous volume behind (`ops/runtime-check.sh`, measured) |
+> | **T-26** | parked at `spec_ready`: the public docs are stale (the README's speed section, "21 functions", the suite counts, three headers, the live edge) |
+> | **T-27** | parked at `spec_ready`: gate holds are never paged. The Stop hook's pager has never run (0 of 16 holds), and `gate-ping` adopts holds on its word |
+>
+> **T-25, T-26 and T-27 are NOT covered by GA-34.** They were filed after the form, and the foreman
+> puts them to the owner.
+>
+> > **THE CORPUS TEARDOWN IS HELD, and this overrides the 2026-09-09 trigger below.** The ruling
+> > alone no longer fires it: `autosql-corpus` stays until T-4's child spike has re-timed against it
+> > (the foreman's charter). It is **down**, not up: Exited since the 2026-09-08 23:45 MDT shutdown
+> > (`restart=no`), with its anonymous volume (1.55 GB) attached and intact. **Never 55433.**
+>
+> **Where the child spike's preparation stopped:** research only, and nothing was run against a
+> database. The design (an inline type check in place of per-row `xpr.num` calls, with exact
+> fallbacks for the rare paths), the harness wiring, the interpreter setup and a *proposed* bar are
+> written down in `.autodev/handoffs/T-4.md`, in its wind-down section. **The bar is proposed, not
+> fixed.** The child's framing must fix it before anything runs.
+>
+> **Also this session:** the strong and fallback model tiers now resolve to `opus` (`9bc06ab`,
+> pushed). The baseline at `6c628ae` is unchanged: demo 1182 · runtime 58 · compiler 34 (28 plus 6
+> skipped without a DSN) · ops 14 · mutants 15 / 1 known / 0 new · doctor 19/19. The demo stack was
+> brought up for the baseline and stopped again at wind-down, with its volume kept.
+
+---
+
 > # START HERE — 2026-09-09 (the queue is EMPTY; ONE thing waits on his hand)
 >
 > **All six queue items are closed. T-22 shipped** — merged `af4799e` (PR #4) and complete through
@@ -474,7 +509,6 @@ always showing its derivation, always overturnable by one line from him.
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
 - **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
-- **T-24** (techdebt) — Two policed gates bind to no loop: design (human:strict) and compliance (human)… — intake
 
 ## Waiting on
 
@@ -523,6 +557,10 @@ a session that parks a ticket at a human gate should still confirm a packet reac
 `.autodev/outbox/`, and write one and run `ops/notify-telegram.sh` by hand if not** — that is how
 T-3's and T-4's pings were delivered. Filing upstream stays his call
 (`.autodev/notes/upstream-bugs.md` Defect 4).
+- **T-25** — waiting at spec_ready on human:owner since 2026-09-26
+- **T-26** — waiting at spec_ready on human:owner since 2026-09-26
+- **T-24** — waiting at spec_ready on human:owner since 2026-09-26
+- **T-27** — waiting at spec_ready on human:owner since 2026-09-26
 
 ## Recent past (~15 items / ~30 days)
 
