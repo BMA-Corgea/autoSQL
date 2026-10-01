@@ -217,3 +217,40 @@ test("T-53 — could not tell: no upstream and no origin/main, or a range that n
   const a = cloneWithUpstream();
   couldNotTell(runIn(a.dir, ["--commits", "nosuch..HEAD"], a.base), "a range that names no commit");
 });
+
+// ---- T-59: called from ANOTHER checkout, the script used to scan its own repo and say clean ------
+test("T-59 — checkout A's script, called from checkout B (which carries the name): could not tell, not A's clean", () => {
+  const a = sandbox({ files: { "notes.md": "clean\n" } });
+  const b = sandbox({ files: { "probe.md": `human:${NAME}\n` } });
+  const r = spawnSync(BASH, [path.join(a, "ops", "name-check.sh")], { cwd: b, encoding: "utf8" });
+  fs.rmSync(a, { recursive: true, force: true }); fs.rmSync(b, { recursive: true, force: true });
+  assert.equal(r.status, 2, (r.stdout || "") + (r.stderr || ""));
+  assert.match(r.stderr, /COULD NOT TELL/);
+  assert.doesNotMatch(r.stdout + r.stderr, /name-check: clean/);
+});
+
+test("T-59 — the main checkout's script, called from one of its git worktrees: could not tell (--commits too)", () => {
+  const a = sandbox({ files: { "notes.md": "clean\n" } });
+  const wt = a + "-wt";
+  execFileSync("git", ["-C", a, "worktree", "add", "-q", "-b", "side", wt], { stdio: "pipe" });
+  fs.writeFileSync(path.join(wt, "probe.md"), `human:${NAME}\n`);
+  execFileSync("git", ["-C", wt, "add", "probe.md"], { stdio: "pipe" });
+  execFileSync("git", ["-C", wt, "-c", "user.name=t", "-c", "user.email=t@invalid", "commit", "-qm", "probe"], { stdio: "pipe" });
+  for (const args of [[], ["--commits", "HEAD~1..HEAD"]]) {
+    const r = spawnSync(BASH, [path.join(a, "ops", "name-check.sh"), ...args], { cwd: wt, encoding: "utf8" });
+    assert.equal(r.status, 2, `${args.join(" ") || "tree"}: ${(r.stdout || "") + (r.stderr || "")}`);
+    assert.match(r.stderr, /COULD NOT TELL/);
+  }
+  fs.rmSync(wt, { recursive: true, force: true }); fs.rmSync(a, { recursive: true, force: true });
+});
+
+test("T-59 — called from a subfolder of its OWN checkout: still checks, and says which checkout it scanned", () => {
+  const a = sandbox({ files: { "notes.md": "clean\n" } });
+  fs.mkdirSync(path.join(a, "sub"));
+  const r = spawnSync(BASH, [path.join(a, "ops", "name-check.sh")], { cwd: path.join(a, "sub"), encoding: "utf8" });
+  const real = fs.realpathSync(a);
+  fs.rmSync(a, { recursive: true, force: true });
+  assert.equal(r.status, 0, (r.stdout || "") + (r.stderr || ""));
+  assert.match(r.stdout, /clean \(the tracked tree\)/);
+  assert.ok(r.stdout.includes(real), `the scanned path is printed: ${r.stdout}`);
+});

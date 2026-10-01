@@ -31,6 +31,11 @@ could_not_tell() {
   echo "name-check: COULD NOT TELL: $1. Nothing was checked, and this is not a pass (T-47)." >&2
   exit 2
 }
+# T-59: which checkout called us, read BEFORE the cd below. The script scans its OWN repository,
+# so checkout A's copy run from checkout B (a second clone, or a git worktree) used to scan A and
+# say clean while B went unread. Outside any work tree there is no caller checkout to compare.
+caller_top="$(git rev-parse --show-toplevel 2>/dev/null)"; [ $? -eq 0 ] || caller_top=""
+[ -z "$caller_top" ] || caller_top="$(cd "$caller_top" && pwd -P)"
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || could_not_tell "cannot enter the repository root"
 
 # .autodev/ is gitignored and is where the true actor grammar belongs, so it is not scanned.
@@ -46,6 +51,9 @@ esac
   || could_not_tell "$(pwd) is not inside a git work tree, or git is not available"
 [ -z "$(git rev-parse --show-prefix 2>/dev/null)" ] \
   || could_not_tell "$(pwd) is inside some work tree but is not its top level, so this is not its checkout"
+own_top="$(pwd -P)"
+[ -z "$caller_top" ] || [ "$caller_top" = "$own_top" ] \
+  || could_not_tell "called from the checkout $caller_top, but this script belongs to $own_top and would scan that one instead; run $caller_top/ops/name-check.sh"
 
 # Each step's status is taken on its own, and git's stderr counts too: git grep exits 1 ("no
 # match") even when it could not read a tracked file. Tree mode searches the work tree AND the
@@ -95,11 +103,11 @@ else
 fi
 
 if [ -n "$hits" ]; then
-  echo "name-check: REFUSING — the owner's name is in $where (T-14)." >&2
+  echo "name-check: REFUSING — the owner's name is in $where (T-14), in $own_top." >&2
   echo "$hits" | sed 's/^/  /' >&2
   echo >&2
   echo "name-check: this repo is public. The actor grammar belongs in .autodev/ (gitignored)" >&2
   echo "name-check: and the ledger, not in tracked files. Use human:<his id> in examples." >&2
   exit 1
 fi
-echo "name-check: clean ($where)"
+echo "name-check: clean ($where) in $own_top"
