@@ -309,9 +309,9 @@ def run_cell(conn, n: int, encoding: str, rounds: int = ROUNDS,
                      if T4.is_measured(x) and x["round"] in a_by_round]
                 arm_out[arm]["paired_minus_A_ms"] = ({"n": len(d), "median": round(statistics.median(d), 2)}
                                                      if d else None)
-            if arm in last and "shape" in last[arm]:
-                arm_out[arm]["shape"] = last[arm]["shape"]
-                arm_out[arm]["split_last"] = last[arm]["split"]
+            if arm in last:
+                arm_out[arm]["shape"] = last[arm].get("shape")
+                arm_out[arm]["split_last"] = last[arm].get("split")     # arms A and B4 have none
     cell["arms"] = arm_out
     cell["host_end"] = host_snapshot(f"{n}/{encoding}/end")
     cell["outcome"] = T4.MEASURED
