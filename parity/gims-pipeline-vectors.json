@@ -1,6 +1,6 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 8,
+ "version": 9,
  "source": {
   "autosql": "fc25060",
   "compiler_sha256": "4ec9e6132618f39567000ed66520d1acf2b68ae3099563738cf579381e55013c",
@@ -2379,6 +2379,144 @@
     "folded": "agrees"
    },
    "note": "T-63: the review's own where"
+  },
+  {
+   "group": "letter_v",
+   "name": "number_of_v_prefixed_string_is_none",
+   "kind": "record",
+   "stored": {
+    "a": "v2"
+   },
+   "expr": "number($.a)",
+   "expect": null,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: float('v2') fails, so number() is None (expr.py:305-319)."
+  },
+  {
+   "group": "letter_v",
+   "name": "number_of_v_suffixed_string_is_none",
+   "kind": "record",
+   "stored": {
+    "a": "12v"
+   },
+   "expr": "number($.a)",
+   "expect": null,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: a voltage written as '12v' is not a number to GIMS."
+  },
+  {
+   "group": "letter_v",
+   "name": "number_of_v_wrapped_decimal_is_none",
+   "kind": "record",
+   "stored": {
+    "a": "vv3.5v"
+   },
+   "expr": "number($.a)",
+   "expect": null,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: the old trim made this 3.5."
+  },
+  {
+   "group": "letter_v",
+   "name": "number_trims_the_vertical_tab",
+   "kind": "record",
+   "stored": {
+    "a": "\u000b2\u000b"
+   },
+   "expr": "number($.a)",
+   "expect": 2,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 control: U+000B IS Python whitespace, and E'\\x0b' is what the trim set meant."
+  },
+  {
+   "group": "letter_v",
+   "name": "where_number_keeps_only_real_numbers",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "volt": "12v"
+    },
+    {
+     "id": "b",
+     "volt": "12"
+    },
+    {
+     "id": "c",
+     "volt": "v12"
+    },
+    {
+     "id": "d",
+     "volt": "\u000b12"
+    }
+   ],
+   "filter": "number($.volt) > 10",
+   "expect_ids": [
+    "b",
+    "d"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: the where kept a and c, rows GIMS drops."
+  },
+  {
+   "group": "letter_v",
+   "name": "days_between_a_v_prefixed_date_is_none",
+   "kind": "record",
+   "stored": {
+    "due": "v2026-10-20"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": null,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: _parse_date_ms('v2026-10-20') is None (expr.py:409-431)."
+  },
+  {
+   "group": "letter_v",
+   "name": "date_add_to_a_v_prefixed_date_is_none",
+   "kind": "record",
+   "stored": {
+    "d": "v2024-02-29"
+   },
+   "expr": "date_add($.d, 1)",
+   "expect": null,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 (the T-60/61/63 refute-review, F60-1): Postgres E-strings have no \\v escape, so the runtime's trim set E' \\t\\n\\r\\f\\v' held the LETTER v and stripped it from both ends. GIMS strips only str.isspace() characters: pdate_ms and pdate_only both trimmed it, so SQL printed a date."
+  },
+  {
+   "group": "letter_v",
+   "name": "days_between_trims_the_vertical_tab",
+   "kind": "record",
+   "stored": {
+    "due": "\u000b2026-10-20\u000b"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-66 control: U+000B around a date is whitespace to GIMS."
   }
  ]
 }
