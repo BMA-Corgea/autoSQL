@@ -407,10 +407,24 @@ DECLARE
   off text; dim int; sec numeric; ms numeric; sgn int; dig text;
 BEGIN
   IF j IS NULL OR jsonb_typeof(j) <> 'string' THEN RETURN NULL; END IF;  -- expr.py:411-412
+  -- [0-9], never \d: what \d matches depends on the database's locale (T-60).
   s := btrim(j #>> '{}', E' \t\n\r\f\v');
   m := regexp_match(s,
-        '^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?(Z|[+-]\d{2}:?\d{2})?)?$');
-  IF m IS NULL THEN RETURN NULL; END IF;
+        '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$');
+  IF m IS NULL THEN
+    -- ── T-60 (T-37 review F3): MATCH _parse_date_ms on Unicode, exactly as xpr.num does ──
+    -- Python strips its own isspace set (v.strip()) and its \d reads any Nd digit, which int()
+    -- then reads by value. So a date with a trailing NBSP, a leading U+3000, Arabic-Indic or
+    -- full-width digits, or a trailing U+001F parses in GIMS and used to be NULL here, flipping
+    -- days_between() between a value and NULL. The SAME generated tables xpr.num uses (Python's
+    -- 29-code-point whitespace set; Nd mapped onto '0'-'9') make the two engines agree, and they
+    -- cannot drift apart, because one generator writes both. Nested here, like xpr.num's, so an
+    -- ordinary ASCII date never pays translate()'s cost.
+    s := translate(btrim(j #>> '{}', E'{{PY_WS}}'), E'{{ND_MAP_FROM}}', '{{ND_MAP_TO}}');
+    m := regexp_match(s,
+          '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$');
+    IF m IS NULL THEN RETURN NULL; END IF;
+  END IF;
   y := m[1]::int; mo := m[2]::int; d := m[3]::int;
   hh := coalesce(m[4], '0')::int; mi := coalesce(m[5], '0')::int; ss := coalesce(m[6], '0')::int;
   us := rpad(coalesce(m[7], '0'), 6, '0')::int;                          -- expr.py:422
@@ -441,8 +455,13 @@ $$;
 CREATE OR REPLACE FUNCTION xpr.pdate_only(j jsonb) RETURNS boolean
 LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE WHEN xpr.pdate_ms(j) IS NULL THEN NULL::boolean
-              ELSE (regexp_match(btrim(j #>> '{}', E' \t\n\r\f\v'),
-                     '^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?(Z|[+-]\d{2}:?\d{2})?)?$'
+              -- the same two steps as pdate_ms (T-60): the ASCII path, then Python's whitespace
+              -- set and the Nd map; COALESCE evaluates the second only when the first missed
+              ELSE (coalesce(
+                     regexp_match(btrim(j #>> '{}', E' \t\n\r\f\v'),
+                       '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$'),
+                     regexp_match(translate(btrim(j #>> '{}', E'{{PY_WS}}'), E'{{ND_MAP_FROM}}', '{{ND_MAP_TO}}'),
+                       '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$')
                    ))[4] IS NULL                                          -- has_time == hh is not None
   END
 $$;

@@ -1,10 +1,10 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 5,
+ "version": 6,
  "source": {
-  "autosql": "37bbb1e",
+  "autosql": "dbfb773",
   "compiler_sha256": "d15fb92ea0709b225f137afb1b80526c0effcdcd403364b7cfad875ef1ec3180",
-  "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
+  "runtime_sha256": "ae892d2a45bc13487e00da007a72f960f28148537ca29aada597036701e48f8a",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
  "noun": "parity_case",
@@ -1796,6 +1796,156 @@
     "folded": "diverges",
     "folded_gives": []
    }
+  },
+  {
+   "group": "dates",
+   "name": "pdate_trailing_nbsp",
+   "kind": "record",
+   "stored": {
+    "due": "2026-10-20 "
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): a trailing no-break space, as a spreadsheet copy-paste leaves. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_leading_ideographic_space",
+   "kind": "record",
+   "stored": {
+    "due": "　2026-10-20"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): a leading U+3000 ideographic space. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_arabic_indic_digits",
+   "kind": "record",
+   "stored": {
+    "due": "٢٠٢٦-١٠-٢٠"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): Arabic-Indic digits. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_fullwidth_digits",
+   "kind": "record",
+   "stored": {
+    "due": "２０２６-１０-２０"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): full-width digits. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_plain_ascii",
+   "kind": "record",
+   "stored": {
+    "due": "2026-10-20"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): the control: plain ASCII. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_trailing_unit_separator",
+   "kind": "record",
+   "stored": {
+    "due": "2026-10-20\u001f"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60 (T-37 review F3): a trailing U+001F, which Python's str.strip() removes. GIMS's _parse_date_ms does v.strip() and its \\d reads any Nd digit"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_datetime_with_arabic_indic_time_and_offset",
+   "kind": "record",
+   "stored": {
+    "due": "٢٠٢٦-١٠-٢٠T١٢:٠٠:٠٠+٠١:٠٠"
+   },
+   "expr": "days_between('2026-10-01', $.due)",
+   "expect": 19.458333333333332,
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60: digits in the time and the offset too; 12:00+01:00 is 11:00 UTC"
+  },
+  {
+   "group": "dates",
+   "name": "pdate_where_keeps_every_date_python_reads",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "trailing_nbs0",
+     "due": "2026-10-20 "
+    },
+    {
+     "id": "leading_ideo1",
+     "due": "　2026-10-20"
+    },
+    {
+     "id": "arabic_indic2",
+     "due": "٢٠٢٦-١٠-٢٠"
+    },
+    {
+     "id": "fullwidth_di3",
+     "due": "２０２６-１０-２０"
+    },
+    {
+     "id": "plain_ascii4",
+     "due": "2026-10-20"
+    },
+    {
+     "id": "trailing_uni5",
+     "due": "2026-10-20\u001f"
+    }
+   ],
+   "filter": "days_between('2026-10-01', $.due) > 0",
+   "expect_ids": [
+    "trailing_nbs0",
+    "leading_ideo1",
+    "arabic_indic2",
+    "fullwidth_di3",
+    "plain_ascii4",
+    "trailing_uni5"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-60: the review's table, `days_between(...) > 0` keeps all six in Python"
   }
  ]
 }
