@@ -2,7 +2,7 @@
  "format": "gims-pipeline-vectors/1",
  "version": 3,
  "source": {
-  "autosql": "pending: the commit that adds T-48's compiler (the sha256 digests are exact)",
+  "autosql": "929b7ce",
   "compiler_sha256": "aa9fc4dd4802b08bb105f562e3d90f213042e81f8663b2edb9ecb98d3546e46e",
   "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
