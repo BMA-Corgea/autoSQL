@@ -10,6 +10,54 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ---
 
+## A teardown removes exactly what its own run created: no less, no more (T-25)
+
+**The class.** A teardown must remove exactly what its own run created. **No less** (T-25): if
+an image declares `VOLUME` and the run mounts nothing at that path, Docker creates an
+**anonymous volume**, and `docker rm -f <c>` removes the container and leaves that volume
+dangling, invisible to `docker ps -a`. Both Postgres images this repo uses declare
+`VOLUME /var/lib/postgresql/data`. For a container the run created, the cure is `-v` on
+`docker rm`, which removes only that container's own anonymous volumes, or `docker run --rm`,
+which was measured clean. **No more** (T-45): `--volumes` on `compose … down` is not that cure.
+It also deletes the **named** volumes the compose file declares, including one the run did not
+create. That is how `./run-demo test` deletes a deliberately kept demo volume (found 2026-10-01;
+T-45 is the fix). A service whose data path is a named volume cannot leak an anonymous one
+there, so `--volumes` buys it nothing and costs it the kept data.
+
+**Paid for twice.** First by the corpus: about 1 GiB left on disk after a plain `docker rm -f`
+(`spikes/T-1/proto/REGENERATE-CORPUS.md` §9, which wrote `-v` into its own teardown). Then by
+`ops/runtime-check.sh`, written 18 days later (2026-08-21 → 2026-09-08) without it. Measured 2026-10-01: one normal run
+took the machine's dangling count from 74 to 75, and the survivor was the run's own data-dir
+mount, about 48 MB. With `docker rm -f -v` the count stayed at 74.
+
+**How it got past its own check.** T-21's criterion was "the throwaway container is destroyed".
+That was true, and it was the only thing measured; nobody asked about the volume. It is
+witness 7's shape below: the check was right about what it inspected.
+
+**What stops it coming back, and what does not.** `ops/tests/test_volume_teardown.mjs` enforces
+the default rule: every teardown it recognises in a tracked shell script outside `spikes/` must
+pass `-v`/`--volumes`. It recognises `docker rm`, `docker container rm|remove`,
+`docker compose … down|rm` and `docker-compose … down|rm`, plus `docker system prune` (it must
+pass `--volumes`) and `docker container prune` (always flagged, because it cannot remove volumes).
+Docker can be written as `docker`, `$DOCKER` or `${DOCKER}`, after global flags such as
+`--context` or `-H`, inside `$( … )`, or after `sudo` or `xargs`. It does **not** see docker
+behind a wrapper function or an alias (`dk() { docker "$@"; }`), in an array or another
+variable, or in an `eval`. It also misses Python's list-form calls, files that are not shell
+scripts, and a container started with no teardown at all. The rule is a default, not a law: a
+deliberate keep of a volume the run did not create needs a reasoned exemption, which T-45 adds.
+The guard was watched failing against the unfixed script and planted leaks, and with each of its
+own checks broken.
+
+**Cleaning up a volume a run leaked.** If the container still exists, remove it with
+`docker rm -f -v <container>`. Docker takes the container's own anonymous volume with it, and
+nothing else. If the container is already gone, so is the link, and the volume's creation time
+and labels are all that is left. Use `spikes/T-1/proto/REGENERATE-CORPUS.md` §9's recipe: list
+the dangling volumes by `CreatedAt`, take the one created when you started the container, check
+that its labels say `com.docker.volume.anonymous`, and `docker volume rm` that one id. **Never
+prune**: other projects' volumes sit in the same dangling list, and a prune cannot be undone.
+
+---
+
 ## A check that never ran reads exactly like a check that passed
 
 *Nine instances in this project. Six were found on 2026-09-08; the seventh, eighth and ninth
