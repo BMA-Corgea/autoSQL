@@ -77,11 +77,42 @@ def test_the_promotion_changed_nothing_but_the_float8_wrapper(src):
     unrelated edit rides along unnoticed.
     """
     frozen = _sql(FROZEN, src)
-    shipping = _sql(SHIPPING, src)
+    shipping = _sql_with_t61_undone(src)
     # Undo the one intended change, then the two must be identical.
     assert shipping.replace("xpr.j(", "to_jsonb(") == frozen, (
         "the shipping compiler differs from the frozen one by more than the "
         "to_jsonb -> xpr.j swap, for %r" % src)
+
+
+def _sql_with_t61_undone(src):
+    """T-61 (2026-10-01) made the SECOND intended change: `==` / `!=` compare numbers as
+    doubles (Python's _eq) instead of jsonb's exact numeric. To keep this test about the
+    promotion, compile with that one change undone: ==/!= emitted exactly as before T-61.
+    test_t61_equality_compares_numbers_as_doubles pins what ships instead."""
+    real = SHIPPING._Compiler._t_cmp
+
+    def before_t61(self, node):
+        op = node[1]
+        if op in ("==", "!="):
+            l, r = self._j(node[2]), self._j(node[3])
+            return (f"to_jsonb({l} IS NOT DISTINCT FROM {r})" if op == "=="
+                    else f"to_jsonb({l} IS DISTINCT FROM {r})")
+        return real(self, node)
+
+    SHIPPING._Compiler._t_cmp = before_t61
+    try:
+        return _sql(SHIPPING, src)
+    finally:
+        SHIPPING._Compiler._t_cmp = real
+
+
+def test_t61_equality_compares_numbers_as_doubles():
+    """What ships for == and != since T-61: numbers through xpr.f8 (NaN-aware), lists and
+    dicts through xpr.eq_deep, everything else IS NOT DISTINCT FROM; != is the NOT of ==."""
+    eq, ne = _sql(SHIPPING, "$.a == $.b"), _sql(SHIPPING, "$.a != $.b")
+    for part in ("xpr.f8(", "<> 'NaN'::float8", "xpr.eq_deep(", "IS NOT DISTINCT FROM"):
+        assert part in eq, (part, eq)
+    assert ne.startswith("to_jsonb(NOT (CASE"), ne
 
 
 def test_text_and_boolean_results_still_use_to_jsonb():

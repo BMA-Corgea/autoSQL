@@ -1,15 +1,15 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 6,
+ "version": 7,
  "source": {
-  "autosql": "dbfb773",
-  "compiler_sha256": "d15fb92ea0709b225f137afb1b80526c0effcdcd403364b7cfad875ef1ec3180",
-  "runtime_sha256": "ae892d2a45bc13487e00da007a72f960f28148537ca29aada597036701e48f8a",
+  "autosql": "342ce67",
+  "compiler_sha256": "c1ed58fcb235108c3570c6d680f16995ac30ddd67cb393602e86553137a73532",
+  "runtime_sha256": "91a1842eaca53926b23d551609f0e15b54eec45cd0c686fdaabf10aa77171f53",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
  "noun": "parity_case",
  "key_order": "jsonb",
- "float_epsilon": 1e-09,
+ "float_epsilon": 1E-9,
  "note": "GIMS dashboard PIPELINE cases for autoSQL (T-46): what a stored record becomes between instances.data and the screen (key copies, the _noun_type tag, the forgiving field lookup, the sort order, the where filter). A superset of GIMS's tests/fixtures/expr_vectors.json: the same top keys and case keys, plus `kind` (expr | record | sort | filter) and `autosql` (what autoSQL's shipping compiler and runtime do on the case). Expected values are hand-authored from GIMS's code and confirmed by GIMS's own Python pipeline (parity/check_gims_pipeline.py); do NOT regenerate them from either side. A divergence is kept and explained, never deleted. Source of truth: autoSQL parity/; GIMS pins a vendored copy by sha256.",
  "cases": [
   {
@@ -1082,11 +1082,11 @@
    "rows": [
     {
      "id": "a",
-     "v": 1e+300
+     "v": 1E+300
     },
     {
      "id": "b",
-     "v": -1e+300
+     "v": -1E+300
     },
     {
      "id": "c",
@@ -1094,7 +1094,7 @@
     },
     {
      "id": "d",
-     "v": 1e-300
+     "v": 1E-300
     }
    ],
    "sort": {
@@ -1946,6 +1946,265 @@
     "folded": "agrees"
    },
    "note": "T-60: the review's table, `days_between(...) > 0` keeps all six in Python"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_long_integer_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "n": 12345678901234567
+    },
+    {
+     "id": "B",
+     "n": 12345678901234568
+    },
+    {
+     "id": "C",
+     "n": 9007199254740993
+    },
+    {
+     "id": "D",
+     "n": 0.1234567890123456789
+    }
+   ],
+   "filter": "$.n == 12345678901234567",
+   "expect_ids": [
+    "A",
+    "B"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-61 (T-37 review F4): Python compares doubles; A and B are the same double, 1.2345678901234568e16"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "ne_long_integer_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "n": 12345678901234567
+    },
+    {
+     "id": "B",
+     "n": 12345678901234568
+    },
+    {
+     "id": "C",
+     "n": 9007199254740993
+    },
+    {
+     "id": "D",
+     "n": 0.1234567890123456789
+    }
+   ],
+   "filter": "$.n != 12345678901234568",
+   "expect_ids": [
+    "C",
+    "D"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   }
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_beyond_two_to_the_53",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "n": 12345678901234567
+    },
+    {
+     "id": "B",
+     "n": 12345678901234568
+    },
+    {
+     "id": "C",
+     "n": 9007199254740993
+    },
+    {
+     "id": "D",
+     "n": 0.1234567890123456789
+    }
+   ],
+   "filter": "$.n == 9007199254740993",
+   "expect_ids": [
+    "C"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "9007199254740993 (2^53 + 1) and the literal both round to the double 2^53"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_long_decimal_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "n": 12345678901234567
+    },
+    {
+     "id": "B",
+     "n": 12345678901234568
+    },
+    {
+     "id": "C",
+     "n": 9007199254740993
+    },
+    {
+     "id": "D",
+     "n": 0.1234567890123456789
+    }
+   ],
+   "filter": "$.n == 0.1234567890123456789",
+   "expect_ids": [
+    "D"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "the stored decimal and the literal are the same double; jsonb keeps the exact numeric"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "arithmetic_result_vs_stored_long_number",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "n": 12345678901234567
+    },
+    {
+     "id": "B",
+     "n": 12345678901234568
+    },
+    {
+     "id": "C",
+     "n": 9007199254740993
+    },
+    {
+     "id": "D",
+     "n": 0.1234567890123456789
+    }
+   ],
+   "filter": "$.n + 0 == $.n",
+   "expect_ids": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "the review's last row: any arithmetic result compared with such a stored number"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_lists_holding_long_numbers",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "l": [
+      12345678901234567
+     ],
+     "m": [
+      12345678901234568
+     ]
+    },
+    {
+     "id": "b",
+     "l": [
+      1
+     ],
+     "m": [
+      2
+     ]
+    }
+   ],
+   "filter": "$.l == $.m",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "Python's _eq recurses into lists, comparing numbers as doubles"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_objects_holding_long_numbers",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "o": {
+      "k": 12345678901234567
+     },
+     "p": {
+      "k": 12345678901234568
+     }
+    },
+    {
+     "id": "b",
+     "o": {
+      "k": 1
+     },
+     "p": {
+      "k": 2
+     }
+    }
+   ],
+   "filter": "$.o == $.p",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "and into dicts, with the same keys required"
+  },
+  {
+   "group": "numeric_equality",
+   "name": "eq_two_numbers_beyond_double_range_refuses",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "x": 1E+400,
+     "y": 2E+400
+    },
+    {
+     "id": "b",
+     "x": 1,
+     "y": 2
+    }
+   ],
+   "filter": "$.x == $.y",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "refuses",
+    "folded": "refuses",
+    "why": "R2-2 (T-36 review): Python reads both as inf, and inf == inf. No float8 can hold them, so xpr.f8 RAISES its named refusal (XPR01) and the adapter falls back to Python. Never a quiet false, never a 500."
+   },
+   "note": "the expectation is GIMS's own: both rows are read by json.loads, and 1E+400 becomes inf"
   }
  ]
 }

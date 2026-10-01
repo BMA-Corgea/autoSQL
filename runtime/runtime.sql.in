@@ -294,6 +294,51 @@ $$;
 --   bool operands, and any mixed pair, are NULL (not an error, not a coercion).
 --   String comparison pinned to COLLATE "C" == Python codepoint ordering.
 -- ----------------------------------------------------------------------------
+-- eq_deep : implements _eq (expr.py:363-378) for a LIST or DICT pair (T-61).
+--   Python compares numbers as DOUBLES at every depth; jsonb compares exact
+--   numeric. So [12345678901234567] == [12345678901234568] is True in GIMS and
+--   was False here. The compiler calls this only when both sides are arrays or
+--   both are objects; numbers and scalars stay inline (compile.py _eq_sql).
+--   Numbers go through xpr.f8, which RAISES its named refusal (XPR01) beyond
+--   DBL_MAX, where Python would compare inf with inf: refuse, never guess.
+--   Never NULL, like _eq: two-valued.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.eq_deep(a jsonb, b jsonb) RETURNS boolean
+LANGUAGE plpgsql IMMUTABLE AS $$
+DECLARE ta text; tb text; n int; k text; fa float8;
+BEGIN
+  IF a IS NULL OR b IS NULL THEN RETURN a IS NULL AND b IS NULL; END IF;
+  ta := jsonb_typeof(a); tb := jsonb_typeof(b);
+  IF ta = 'null' OR tb = 'null' THEN RETURN ta = 'null' AND tb = 'null'; END IF;      -- None == None
+  IF ta = 'boolean' OR tb = 'boolean' THEN RETURN ta = tb AND a = b; END IF;          -- a bool is never a number
+  IF ta = 'number' AND tb = 'number' THEN
+    fa := xpr.f8(a);
+    RETURN fa = xpr.f8(b) AND fa <> 'NaN'::float8;                                   -- Python: NaN != NaN
+  END IF;
+  IF ta = 'string' AND tb = 'string' THEN RETURN a = b; END IF;
+  IF ta = 'array' AND tb = 'array' THEN
+    n := jsonb_array_length(a);
+    IF n <> jsonb_array_length(b) THEN RETURN false; END IF;
+    FOR i IN 0 .. n - 1 LOOP
+      IF NOT xpr.eq_deep(a -> i, b -> i) THEN RETURN false; END IF;
+    END LOOP;
+    RETURN true;
+  END IF;
+  IF ta = 'object' AND tb = 'object' THEN
+    IF (SELECT array_agg(x ORDER BY x) FROM jsonb_object_keys(a) x)
+       IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM jsonb_object_keys(b) x) THEN
+      RETURN false;                                                                  -- a.keys() == b.keys()
+    END IF;
+    FOR k IN SELECT jsonb_object_keys(a) LOOP
+      IF NOT xpr.eq_deep(a -> k, b -> k) THEN RETURN false; END IF;
+    END LOOP;
+    RETURN true;
+  END IF;
+  RETURN false;                                                                      -- different types
+END
+$$;
+
+-- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.ord(op text, a jsonb, b jsonb) RETURNS boolean
 LANGUAGE sql IMMUTABLE AS $$
   SELECT CASE
