@@ -10,6 +10,33 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ---
 
+## A teardown that leaves an anonymous volume behind (T-25)
+
+**The class.** If an image declares `VOLUME` and the run mounts nothing at that path, Docker
+creates an **anonymous volume**. `docker rm -f <c>` removes the container and leaves that volume
+dangling, invisible to `docker ps -a`. Both Postgres images this repo uses declare
+`VOLUME /var/lib/postgresql/data`. The cure is `-v` on `docker rm` (or `--volumes` on
+`compose … down`), or `docker run --rm`, which was measured clean.
+
+**Paid for twice.** First by the corpus: about 1 GiB left on disk after a plain `docker rm -f`
+(`spikes/T-1/proto/REGENERATE-CORPUS.md` §9, which wrote `-v` into its own teardown). Then by
+`ops/runtime-check.sh`, written 18 days later (2026-08-21 → 2026-09-08) without it. Measured 2026-10-01: one normal run
+took the machine's dangling count from 74 to 75, and the survivor was the run's own data-dir
+mount, about 48 MB. With `docker rm -f -v` the count stayed at 74.
+
+**How it got past its own check.** T-21's criterion was "the throwaway container is destroyed".
+That was true, and it was the only thing measured; nobody asked about the volume. It is
+witness 7's shape below: the check was right about what it inspected.
+
+**What stops it coming back:** `ops/tests/test_volume_teardown.mjs` fails on any tracked shell
+script outside `spikes/` that runs `docker rm` without `-v`, or `compose … down` without
+`--volumes`. It was watched failing against the unfixed script, against a planted leak, and with
+its own flag check broken. **To clean up a volume one of your runs leaked, name it from the
+container's own mount while the container exists** (`docker inspect -f '{{range .Mounts}}…'`).
+Never pick it from the dangling list by date or size: other projects' volumes sit in that list too.
+
+---
+
 ## A check that never ran reads exactly like a check that passed
 
 *Nine instances in this project. Six were found on 2026-09-08; the seventh, eighth and ninth

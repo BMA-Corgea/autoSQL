@@ -20,7 +20,7 @@
 # WHAT IT DOES
 #   Brings up a throwaway container, creates a scratch database, installs the CURRENT
 #   runtime/runtime.sql into it, runs the whole runtime suite with the DSN set, and
-#   destroys the database afterwards.
+#   removes the container AND its volume afterwards (T-25: without -v, every run left ~48 MB).
 #
 #   It NEVER touches port 55433 — that is the owner's live glp-strong-db, and the role
 #   that owns the scratch database owns the real one too.
@@ -82,8 +82,12 @@ AUTOSQL_RUNTIME_DSN="host=127.0.0.1 port=$PORT user=$USER password=$PASS dbname=
 status=$?
 
 if [ "$KEEP" = "0" ] && [ "$started_here" = "1" ]; then
-  docker rm -f "$CONTAINER" >/dev/null 2>&1
-  echo "runtime-check: throwaway container removed"
+  # -v is not optional (T-25). postgres:16-alpine declares VOLUME /var/lib/postgresql/data and
+  # nothing is mounted there, so the run above got an ANONYMOUS volume. A plain `docker rm -f`
+  # removes the container and leaves that volume dangling, about 48 MB a run. Measured: one run
+  # took the machine's dangling count from 74 to 75 before this flag, and left it at 74 after.
+  docker rm -f -v "$CONTAINER" >/dev/null 2>&1
+  echo "runtime-check: throwaway container and its volume removed"
 else
   echo "runtime-check: --keep — $CONTAINER left on 127.0.0.1:$PORT"
 fi
