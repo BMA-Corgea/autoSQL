@@ -1,8 +1,9 @@
 # Decision — T-4's timing verdict: the compiled path is 2.5× slower, and what to do about it
 
-**Status: OPEN. This is the packet for `sp_decide`, not the ruling.** `sp_decide` is the
-owner's under GA-24 Q2 and is parked for his hand — it is the decision this repo exists to
-produce, and a clean result is not the same as a delegated one.
+**Status: RULED — C, "test a faster design first".** The owner ruled on the decision form
+`autosql-foreman-2026-09-26` (submitted 2026-09-27 03:50 UTC), recorded in the ledger as
+**GA-34**. `sp_decide` was cleared on that authority on 2026-10-01. The packet below is kept
+exactly as he ruled on it; **the ADR is the last section.**
 
 **Evidence:** `spikes/T-4/FINDINGS-T4.md` at `1b78aef` · measurements and negative control
 in `.autodev/evidence/T-4/`.
@@ -86,3 +87,75 @@ recommendation is to spend a small timeboxed spike finding out — not to assume
   Python path is already exactly right and the gap is smallest (2.09×).
 - Evidence that the 1,000,000-row size is not a real use case, which would remove the
   binding bar and leave only 100,000 — where the miss is still 2.0× on the absolute bar.
+
+---
+
+## ADR — the ruling, recorded 2026-10-01 at `sp-decide`
+
+**Decided by:** the owner, on the decision form `autosql-foreman-2026-09-26` (submitted
+2026-09-27 03:50 UTC, 7 of 7 questions answered, no notes), recorded in the ledger as
+**GA-34**. **Recorded by:** an agent on that authority. The true actor is in the ledger,
+which is not public.
+
+**Context.** T-4 measured the compiled path at about 2.5× slower than Python at every
+size, and it failed a bar fixed before the run. The cost sits in the per-row runtime
+functions. Native operators (B4) answered the same predicate in 28 ms at 100,000 rows,
+against 2,005 ms for arm C. But native operators raise an error on a malformed value,
+where the language must return a blank.
+
+### Decision
+
+**C — test a faster design first.** In the form's own words: *"write the safety checks
+inline instead of as per-row functions, and confirm it still gives zero wrong numbers. The
+pass bar is written down before it runs."*
+
+1. **The compiled path is neither closed (A) nor shipped as measured (B).**
+2. **A child spike tests a faster design**, filed at `sp-spawn`. It covers two levers,
+   cheapest first. (a) Mark the runtime functions that are genuinely safe for parallel
+   query. None is marked today, so Postgres ran arm C in one process while plain SQL used
+   two workers. (b) Write the number checks inline, in place of per-row `xpr.num` calls.
+3. **The pass bar is fixed in the child's framing before anything runs.** The target the
+   owner saw when he ruled: **under ~0.3 s at 100,000 rows**. The rule he set on 5 Sep
+   still stands: **it must beat Python**, measured in the same session.
+4. **Who rules the child's verdict (GA-34 Q2 = A).** A *clear* pass against that bar is
+   cleared on the owner's behalf, and it moves to building the shipping change. A fail or
+   a near-miss goes back to him as A or B, "with the answer in hand".
+
+### Consequences
+
+- **T-4's FAIL stands as a measurement.** Nobody re-litigates it, and the child does not
+  re-run T-4.
+- **The corpus teardown is held.** `autosql-corpus` stays until the child has re-timed
+  against it. This overrides the 2026-09-09 trigger, under which this ruling would have
+  fired it. After the child's verdict, the teardown is a question for the owner.
+- **T-4 timed the frozen spike compiler, not the shipping one.** This was found while
+  writing this record. Every T-4 measurement file fingerprints
+  `spikes/T-1/proto/compile.py` (`b71b1538…`) and `spikes/T-1/proto/runtime.sql`
+  (`1c58d548…`). The shipping compiler (`compiler/compile.py`, promoted by T-11) differs
+  in one deliberate way. Every number it returns goes through `xpr.j(...)`, a SQL function
+  that carries its own `SET extra_float_digits = 1` (T-9). A function with a `SET` clause
+  cannot be inlined, so the shipping path makes more per-row calls than arm C did.
+  **The shipping path's latency has never been measured.** The verdict is unaffected,
+  because a slower shipping path fails by more. But the child's baseline must be the
+  shipping compiler and runtime, timed in the child's own session. Those have also never
+  been through the correctness batteries: `differ.py` imports the frozen spike compiler.
+  The child runs the batteries on the shipping pair first, so that any later divergence
+  can be traced to the lever that caused it.
+- **T-23's deferred question is not a prerequisite of the child, but it is one of any
+  shipping change.** T-23 asked whether `==` should route through `xpr.f8`, and named this
+  ruling as its trigger (`decision-t23-raw-mode.md`). Ruling C keeps the compiled path
+  alive only on a condition. The child leaves equality untouched by design: it changes
+  only how a value becomes a number and how two numbers are ordered. So the question stays
+  deferred through the child. If the child passes, it becomes a prerequisite of the
+  shipping change, and it is recorded there.
+- **GIMS is not changed by this ruling.** A later go-ahead, GA-35 (2026-10-01), replaced
+  GA-34 Q4 ("stop before GIMS") and Q7 (the budget park) for the overnight run. It does
+  not change this ruling.
+
+### Alternatives rejected, by the owner, on the form
+
+- **A — close the SQL path.** Dashboards stay fast, and they stay wrong above 20,000
+  records.
+- **B — ship the slow-but-right path.** It overrides the "must beat Python" rule from 5 Sep.
+- **D — re-run the missing 1M size.** About 50 minutes of exclusive machine time to fill
+  one table cell. It cannot change the verdict.
