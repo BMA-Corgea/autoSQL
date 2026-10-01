@@ -36,7 +36,7 @@ const GATES = {
   },
 };
 
-function tree(tickets, routes, { seen = null, ledger = [] } = {}) {
+function tree(tickets, routes, { seen = null, seenRecs = null, ledger = [], sent = null } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateping-"));
   for (const d of [["tickets"], ["data"], ["outbox", "sent"], ["notify"]]) {
     fs.mkdirSync(path.join(dir, ".autodev", ...d), { recursive: true });
@@ -48,9 +48,14 @@ function tree(tickets, routes, { seen = null, ledger = [] } = {}) {
   }
   fs.writeFileSync(path.join(dir, ".autodev", "events.jsonl"),
     ledger.map((e) => JSON.stringify({ type: "gate_waiting", ...e })).join("\n") + (ledger.length ? "\n" : ""));
-  if (seen) {
+  if (seen || seenRecs) {
+    const recs = [...(seen ?? []).map((k) => ({ key: k })), ...(seenRecs ?? [])];
     fs.writeFileSync(path.join(dir, ".autodev", "notify", "gate-ping.jsonl"),
-      seen.map((k) => JSON.stringify({ key: k })).join("\n") + "\n");
+      recs.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  }
+  if (sent) {      // the plugin pager's own record (notify.mjs:55-81): occurrence identity + status
+    fs.writeFileSync(path.join(dir, ".autodev", "notify", "sent.jsonl"),
+      sent.map((r) => JSON.stringify(r)).join("\n") + "\n");
   }
   fs.writeFileSync(path.join(dir, "tracker-stub.mjs"),
     `const R=${JSON.stringify(routes)};const i=process.argv[3];` +
@@ -177,21 +182,71 @@ test("AC7 — never pings a finished ticket, by any of the ways it can be finish
   assert.match(runTool(viaTracker, ["--dry-run"]).out, /nothing parked/);
 });
 
-test("AC8 — an occurrence the PLUGIN already emitted is adopted, not repeated", () => {
-  // watched failing first: no ledger entry -> it announces
+const DELIVERED = (status = "sent", stage = "sp-decide") => [{
+  key: `T-4|${stage}|gate_waiting|2026-09-08T19:00:00Z`, ticket: "T-4", stage, type: "gate_waiting",
+  at: "2026-09-08T19:00:00Z", status, ts: "2026-09-08T19:00:01Z" }];
+
+test("AC8 (T-27) — an occurrence with a RECORDED DELIVERY is adopted, not repeated", () => {
+  // watched failing first: no delivery record -> it announces
   assert.match(runTool(tree([T4], ROUTE_PARKED), ["--dry-run"]).out, /WOULD SEND/);
 
-  const dir = tree([T4], ROUTE_PARKED,
-    { ledger: [{ ticket: "T-4", stage: "sp-decide", gate: "sp_decide" }] });
+  const dir = tree([T4], ROUTE_PARKED, { sent: DELIVERED() });
   const { out } = runTool(dir, ["--no-send"]);
   assert.match(out, /adopted/);
-  assert.equal(packets(dir).length, 0, "the plugin's own pager already has this occurrence");
-  // and --dry-run must SAY it would adopt, not claim it would send. A FRESH tree: the
-  // run above already recorded the occurrence, so re-running on `dir` correctly sees
-  // nothing at all.
-  const fresh = tree([T4], ROUTE_PARKED,
-    { ledger: [{ ticket: "T-4", stage: "sp-decide", gate: "sp_decide" }] });
-  assert.match(runTool(fresh, ["--dry-run"]).out, /would ADOPT \(not send\)/);
+  assert.equal(packets(dir).length, 0, "the plugin's pager recorded a delivery of this occurrence");
+  // --dry-run must SAY it would adopt. A FRESH tree: the run above recorded the occurrence.
+  assert.match(runTool(tree([T4], ROUTE_PARKED, { sent: DELIVERED() }), ["--dry-run"]).out,
+               /would ADOPT \(not send\)/);
+});
+
+test("T-27 — a DECLARATION alone is announced: a gate_waiting event is not a delivery", () => {
+  // The old rule: an event in the ledger meant "the plugin's own pager has it". The pager never
+  // ran in this repo (0 delivery records over 16 holds), so every such hold was muted for good.
+  const dir = tree([T4], ROUTE_PARKED, { ledger: [{ ticket: "T-4", stage: "sp-decide", gate: "sp_decide" }] });
+  const { out } = runTool(dir, ["--no-send"]);
+  assert.doesNotMatch(out, /adopted/);
+  assert.deepEqual(packets(dir), ["T-4_sp_decide_gate.md"]);
+  const body = fs.readFileSync(path.join(dir, ".autodev", "outbox", "T-4_sp_decide_gate.md"), "utf8");
+  assert.ok(body.includes("no delivery of it was ever recorded"), "the packet says why it came from here");
+});
+
+test("T-27 — a FAILED delivery, or one at ANOTHER stage, is not a delivery of this occurrence", () => {
+  for (const sent of [DELIVERED("failed"), DELIVERED("sent", "sp-investigate")]) {
+    const dir = tree([T4], ROUTE_PARKED, { sent });
+    const { out } = runTool(dir, ["--no-send"]);
+    assert.doesNotMatch(out, /adopted/, JSON.stringify(sent));
+    assert.deepEqual(packets(dir), ["T-4_sp_decide_gate.md"]);
+  }
+});
+
+test("T-27 — a hold adopted under the OLD rule is re-examined, and announced ONCE", () => {
+  const old = { key: "T-4|sp-decide|sp_decide", how: "adopted: plugin emitted this occurrence" };
+  const dir = tree([T4], ROUTE_PARKED, { seenRecs: [old] });
+  runTool(dir, ["--no-send"]);
+  assert.deepEqual(packets(dir), ["T-4_sp_decide_gate.md"], "re-examined: no delivery was ever recorded");
+  fs.unlinkSync(path.join(dir, ".autodev", "outbox", "T-4_sp_decide_gate.md"));   // simulate a drain
+  const { out } = runTool(dir, ["--no-send"]);
+  assert.equal(packets(dir).length, 0, "once, not on every Stop");
+  assert.match(out, /nothing parked/);
+  // and an old adoption that DID get a delivery stays adopted
+  const delivered = tree([T4], ROUTE_PARKED, { seenRecs: [old], sent: DELIVERED() });
+  runTool(delivered, ["--no-send"]);
+  assert.equal(packets(delivered).length, 0);
+});
+
+test("T-27 — whether the plugin pager can run is reported from inside the hook, every time", () => {
+  // The Stop hook runs the pager as node "$CLAUDE_PLUGIN_ROOT/scripts/notify.mjs" with its output
+  // discarded, so a pager that cannot run is silent. This tool runs in the same hook, with the
+  // same environment, and says so.
+  const dir = tree([T4], ROUTE_PARKED);
+  assert.match(runTool(dir, ["--dry-run"], { CLAUDE_PLUGIN_ROOT: "" }).out,
+               /plugin pager CANNOT RUN here \(CLAUDE_PLUGIN_ROOT is unset\)/);
+  assert.match(runTool(dir, ["--dry-run"], { CLAUDE_PLUGIN_ROOT: "/nonexistent-T-27" }).out,
+               /plugin pager CANNOT RUN here \(.*notify\.mjs does not exist\)/);
+  const plugin = fs.mkdtempSync(path.join(os.tmpdir(), "t27-plugin-"));
+  fs.mkdirSync(path.join(plugin, "scripts"));
+  fs.writeFileSync(path.join(plugin, "scripts", "notify.mjs"), "// stand-in\n");
+  assert.match(runTool(dir, ["--dry-run"], { CLAUDE_PLUGIN_ROOT: plugin }).out, /plugin pager can run/);
 });
 
 test("AC6+AC8 TOGETHER — a past occurrence must not mute a NEW one", () => {
