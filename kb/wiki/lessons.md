@@ -10,6 +10,78 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ---
 
+## "Read-only" isn't: a read-only open of a WAL-mode SQLite file writes beside it (GIMS T-33)
+
+*2026-10-01 · GIMS T-33's adversarial review, F1 · fixed in GIMS `9d15c5c`*
+
+**The class.** A read-only flag is a promise about the file you named, not about the files a
+library keeps beside it. SQLite in WAL mode opens `-wal` and `-shm` read-write even under
+`mode=ro` (Python's `sqlite3` included), CREATES them when they are missing, and writes
+read-marks into `-shm`. The main `.db` stays byte-identical, so checking the main file shows
+nothing happened.
+
+**Witness.** A `mode=ro` dashboards query at 01:11:24 MDT created `nodes.db-wal` (0 B) and
+`nodes.db-shm` (32 KiB) inside the LIVE GIMS project-nodes folder; `nodes.db` was unchanged.
+Nothing was removed: deleting a `-shm` that a live process may have mapped is itself unsafe.
+
+**The rule (a NEVER since that night).** Never open a live SQLite file, not even `mode=ro`, not
+even for one query. Copy the `.db` and any `-wal` into a fresh `mktemp -d` (re-copy if their
+stats moved) and open the copy. Never delete a live `-wal` or `-shm`, even one you created:
+report it. GIMS T-33's fix does exactly this (RED `5e9f549`, failing on `a4faf72`; GREEN
+`3834889`; landed `9d15c5c`).
+
+---
+
+## A test that can only pass proves nothing (GIMS T-58, GIMS T-39, T-55)
+
+*2026-10-01 · three finds in one night, two by adversarial review and one by a watched-failing run*
+
+**The class.** A test proves a behaviour only if some wrong implementation would fail it. Three
+shapes of a test that cannot fail:
+
+1. **It hand-builds the only input that works.** GIMS T-58 F1: every backup GIMS writes restored
+   ZERO rows while answering `200 ok:true` (the producers write `dir:"<key>"` and the restore
+   read it without `db/`). T-58's test passed because it built the one shape the restore could
+   read, not the shape the producers write. Ruled: T-58's merge reverted on the GIMS trunk; the
+   rework is safe-by-refusal.
+2. **Its lane accepts any fallback.** GIMS T-39 F1: Lane S counted a fallback to Python as a pass,
+   so a compiler that refused EVERYTHING passed 119/119. Fixed in `54b3a3f` (Lane S must push
+   down unless the case documents a refusal; strict compare); the refuse-everything mutant now
+   fails 65/66. Round 2, F1': the refusal oracle shared the adapter's own helpers, so a lying
+   `_calls` passed 135/135; fixed in `6baab03` with an independent AST walk.
+3. **Its probe cannot say no.** T-55 (this repo): the regression test's stub checked the lock with
+   `flock -n <file> true` on a curated PATH that had no `true`, so `flock` failed and "held" read
+   yes on every run; one test passed against the unfixed script. Caught only by the
+   watched-failing run, and fixed before landing (`540eb76`) with a descriptor probe and a
+   conflict code of its own (`-E 75`), so an error can never read as "held".
+
+**The rule.** Feed a test what the PRODUCER writes, not what the consumer can read. Keep every
+oracle independent of the code under test. Watch every assertion fail at least once: the unfixed
+code, or a mutant that refuses everything, must turn it red.
+
+---
+
+## A fixed port inside the kernel's ephemeral range can be taken by anyone, briefly (T-62)
+
+*2026-10-01 · two collisions on 55440 in one night · T-62's retry, `052508e`*
+
+**The class.** Linux gives client connections source ports from `net.ipv4.ip_local_port_range`
+(here 32768–60999). Every dev database port on this machine (5544x–5547x) lies inside it and
+none is reserved, so ANY local client can hold 127.0.0.1:55440 as its own source port for a few
+seconds. A port check that passes, followed by a bind, is a race that no lock can win.
+
+**Witness.** At 08:29:20Z something bound 127.0.0.1:55440 for about 10 s, between a seat's port
+check and its compose start, and Docker refused to start the demo database. No seat's process
+held it (checked). Nothing was lost: T-45's launcher re-attached the lost network and kept the
+container and its volume.
+
+**The rule.** Treat "address already in use" at start as possibly transient: retry with backoff,
+and say why (T-62's `up` retries five times and re-attaches the network: `052508e`). "Port is
+already allocated" means a real holder: fail at once. The durable fix is reserving the ports
+(`net.ipv4.ip_local_reserved_ports`), a sudo change, put to the owner as a question.
+
+---
+
 ## A teardown removes exactly what its own run created: no less, no more (T-25)
 
 **The class.** A teardown must remove exactly what its own run created. **No less** (T-25): if
@@ -56,6 +128,26 @@ the dangling volumes by `CreatedAt`, take the one created when you started the c
 that its labels say `com.docker.volume.anonymous`, and `docker volume rm` that one id. **Never
 prune**: other projects' volumes sit in the same dangling list, and a prune cannot be undone.
 
+
+### 2026-10-01: the "no more" half, three times, and a fourth rule: one run at a time
+
+- **T-45 (`eb076e7`):** `./run-demo test`'s teardown (`compose down --volumes`) deleted a demo
+  volume somebody had kept. It now takes an inventory first and puts back exactly what it found.
+- **The live witness, ~07:24Z (a near-miss, no loss):** one seat's `docker start autosql-demo-db`
+  failed because another seat's throwaway held 55440 (crossed slot messages). Its chained
+  `./run-demo test` ran anyway, found the database down, and ran `up` itself: exactly the path
+  to `down --volumes` over the kept volume. The volume survived by luck.
+- **T-55 (`540eb76`):** `ops/checks/neighbour-ports.sh` cycled `up`/`down` over a kept stack and
+  deleted its volume while printing PASS (watched on a throwaway). It now refuses, exit 2, when
+  the demo's container, volume or network already exists.
+- **T-62 (`9773300`):** two seats ran the demo suite against one stack, kept apart only by a
+  person sequencing them. Now `test`, `up` and `down` take one host-wide flock
+  (`/tmp/run-demo.<container>.lock`), and a caller that holds it says so (`RUN_DEMO_LOCK_HELD`).
+
+**The rule, extended.** Decide what is yours by looking BEFORE you create anything (an
+inventory, taken under the lock), remove only that, and hold the lock until the teardown is
+done. A teardown that cannot tell what it created must refuse.
+
 ---
 
 ## A check that never ran reads exactly like a check that passed
@@ -80,6 +172,25 @@ found. Every instance below is the same sentence with different nouns, and in ev
 | **2** | T-4's §6.1 negative control | the exclusion clause was asserted by calling `aggregate()` on a hand-built list — a **unit test of a helper**, which §6.1 rules out in as many words — while the real path in `run_cell` stayed dead | a passing control, over the very code it existed to prove |
 | **3** | §8.2's mutation pass (`--only <typo>`) | the whole pass: an empty selection | `0 of 0`, then *"Every criterion was watched failing against its own mutant"*, **exit 0** |
 | **4** | the digit mapping (T-21) | the **39** cases comparing `xpr.num` against the Python evaluator, behind `@needs_db` on a DSN nothing set | `8 passed, 50 skipped` — green. A Unicode bump would fire the staleness guard, you regenerate, the guard goes green, and **not one Unicode digit was ever compared between the two engines** |
+
+### 2026-10-01: four more, one shape: a check that cannot look must say so, never "clean"
+
+- **T-47 (`b846172`):** `ops/name-check.sh` run outside a git work tree printed
+  `name-check: clean`, exit 0, with the owner's name planted beside it. Now exit 2, "could not tell".
+- **T-59 (`4c8a516`):** run from another checkout, it answered "clean" for a tree it had not been
+  asked about. It now refuses when the caller's checkout is not its own, and every "clean" names
+  the checkout it scanned.
+- **T-55 (`540eb76`):** `ops/checks/neighbour-ports.sh` read a failed `docker ps`, a missing `ss`
+  and a failing `ss` as empty halves that compared clean: PASS in six blind cases. And `ss`
+  prints its header and exits 0 even with no socket table to read, so a command that SUCCEEDS can
+  be blind too. While the demo is up, the check must now see the demo's own :55440 mapping and
+  its app on :8787, or exit 2.
+- **T-46 (`d13bfb9`):** `parity/check_gims_pipeline.py` with no DSN printed a loud "DID NOT RUN"
+  banner and exited 0, which is all a caller reads. Now exit 3 unless `--gims-only`.
+
+**The rule.** Three answers, not two. 0 means looked and clean, 1 means looked and found, and
+anything that could not look, or could not see what it knows is there, gets its own exit with
+the words "could not tell". A banner is not an exit code.
 
 ### The sixth member, and the hardest to catch: a gate that performs being a gate
 
