@@ -245,18 +245,29 @@ test("delivery is attempted only when a packet was actually written", () => {
   assert.equal(delivered(live), true);
 });
 
-test("CONTRACT — the REAL tracker still returns the shape this tool reads", { skip: false }, () => {
+test("CONTRACT — the REAL tracker still returns the shape this tool reads", (t) => {
   // Every other test stubs the tracker, so a plugin upgrade that renames `gate.policy` or
   // nests `gate` would produce zero pings forever with all of them green. This is the one
   // test that pins the actual contract.
+  //
+  // T-47: when it cannot run, it says so as a SKIP with the reason. Until T-47 it returned
+  // early and counted as a PASS: the class this repo keeps finding, in its own test suite.
+  // The ledger lives only in the main checkout (.autodev/ is git-ignored), so in a worktree
+  // point AUTOSQL_LEDGER_ROOT at the main checkout. The call below only reads it.
   let bin;
   try {
     bin = execFileSync("node", ["-e",
       `import(${JSON.stringify(TOOL)}).then(m=>process.stdout.write(m.findTracker()))`],
       { encoding: "utf8" }).trim();
-  } catch { return; }            // plugin not installed here — nothing to pin
-  if (!bin || !fs.existsSync(bin)) return;
-  const out = execFileSync("node", [bin, "next", "T-4", "--root", REPO],
+  } catch (e) {
+    return t.skip(`DID NOT RUN: the AutoDev plugin's tracker was not found here (${String(e.message).split("\n")[0]})`);
+  }
+  if (!bin || !fs.existsSync(bin)) return t.skip(`DID NOT RUN: findTracker() gave ${JSON.stringify(bin)}`);
+  const ledger = process.env.AUTOSQL_LEDGER_ROOT || REPO;
+  if (!fs.existsSync(path.join(ledger, ".autodev", "tickets"))) {
+    return t.skip(`DID NOT RUN: no ledger at ${ledger}/.autodev (a worktree has none; set AUTOSQL_LEDGER_ROOT)`);
+  }
+  const out = execFileSync("node", [bin, "next", "T-4", "--root", ledger],
     { encoding: "utf8", maxBuffer: 32 << 20 });
   const r = JSON.parse(out);
   assert.ok("stage" in r, "tracker `next` must return .stage");
