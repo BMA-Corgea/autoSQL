@@ -41,13 +41,17 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 VECTORS = ROOT / "parity" / "gims-pipeline-vectors.json"
 FORMAT = "gims-pipeline-vectors/1"
+EXACT_DOC: Optional[Dict[str, Any]] = None   # the vectors with exact numbers, for the SQL half (T-61)
 KINDS = {
     "expr": {"expr", "expect"},
     "record": {"stored", "expr", "expect"},
     "sort": {"rows", "sort", "expect_ids"},
     "filter": {"rows", "filter", "expect_ids"},
 }
-STATUSES = ("agrees", "diverges")
+STATUSES = ("agrees", "diverges", "refuses")
+# "refuses" (T-61): the SQL half must RAISE a named refusal (SQLSTATE XPR01, or 22003 out of range), which
+# the adapter turns into a fallback to Python. "Match GIMS's Python, or refuse": never a quiet wrong answer.
+NAMED_REFUSALS = ("XPR01", "22003")
 # Which side must change, seen from T-37's design (SQL runs the where; Python shapes the rows, then
 # applies the filters map, the sort and the limit). Every divergence carries one.
 FIX_SIDES = ("adapter-shaping", "where-clause", "filters-map", "sort-pushdown", "browser", "accepted")
@@ -129,8 +133,8 @@ def validate(doc: Dict[str, Any]) -> List[str]:
         a = c.get("autosql")
         if not isinstance(a, dict) or a.get("status") not in STATUSES:
             errs.append(f"{where}: autosql.status must be one of {STATUSES}")
-        elif a["status"] == "diverges" and not (isinstance(a.get("why"), str) and a["why"].strip()):
-            errs.append(f"{where}: a divergence must say why")
+        elif a["status"] in ("diverges", "refuses") and not (isinstance(a.get("why"), str) and a["why"].strip()):
+            errs.append(f"{where}: a {'divergence' if a['status'] == 'diverges' else 'refusal'} must say why")
         elif a["status"] == "diverges" and a.get("fix_side") not in FIX_SIDES:
             errs.append(f"{where}: a divergence must name its fix_side, one of {FIX_SIDES}")
         elif a["status"] == "diverges" and "sql_gives" not in a:
@@ -149,6 +153,26 @@ def validate(doc: Dict[str, Any]) -> List[str]:
 # Value comparison: GIMS's own rule (tests/test_dashboard_expr.py), applied at every depth
 # (T-6 FRAMING section 4), so [True] and [1] stay distinct inside containers too.
 # ---------------------------------------------------------------------------------------
+def dumps_exact(obj: Any) -> str:
+    """JSON text with every number exactly as the vector file wrote it (T-61). The vectors are
+    loaded twice: with floats for the GIMS half (as psycopg hands Postgres rows to GIMS), and with
+    Decimal for the SQL half, so a stored 0.1234567890123456789 reaches jsonb unrounded."""
+    from decimal import Decimal
+    if isinstance(obj, bool) or obj is None:
+        return json.dumps(obj)
+    if isinstance(obj, Decimal):
+        return str(obj)
+    if isinstance(obj, (int, str)):
+        return json.dumps(obj, ensure_ascii=False)
+    if isinstance(obj, list):
+        return "[" + ",".join(dumps_exact(x) for x in obj) + "]"
+    if isinstance(obj, dict):
+        return "{" + ",".join(json.dumps(k, ensure_ascii=False) + ":" + dumps_exact(v) for k, v in obj.items()) + "}"
+    if isinstance(obj, float):
+        return json.dumps(obj)
+    raise TypeError(type(obj))
+
+
 def matches(actual: Any, expected: Any, eps: float) -> bool:
     if isinstance(expected, bool) or isinstance(actual, bool):
         return actual is expected or (actual == expected and type(actual) is type(expected))
@@ -235,7 +259,7 @@ class Sql:
 
     def value(self, sql: str, params: Dict[str, Any], record: Any, ctx: Dict[str, Any]) -> Tuple[str, Any]:
         """('value', v) | ('sql-null', None) | ('raised', 'SQLSTATE message')."""
-        p = dict(params, rec=json.dumps(record), ctx=json.dumps(ctx or {}))
+        p = dict(params, rec=dumps_exact(record), ctx=dumps_exact(ctx or {}))
         q = ("SELECT (v IS NULL), jsonb_typeof(v), v::text FROM (SELECT " + sql +
              " AS v FROM (SELECT (%(rec)s)::jsonb AS data) t) q")
         try:
@@ -249,7 +273,7 @@ class Sql:
     def ids(self, select_sql: str, params: Dict[str, Any], rows: List[Dict[str, Any]],
             ctx: Dict[str, Any]) -> Tuple[str, Any]:
         """Run a statement over the rows as a VALUES table r(id, data); ('ids', [...]) or ('raised', ...)."""
-        p = dict(params, rows=json.dumps(rows), ctx=json.dumps(ctx or {}))
+        p = dict(params, rows=dumps_exact(rows), ctx=dumps_exact(ctx or {}))
         q = ("WITH r AS (SELECT e->>'id' AS id, e AS data, o AS ord "
              "FROM jsonb_array_elements((%(rows)s)::jsonb) WITH ORDINALITY AS x(e, o)) " + select_sql)
         try:
@@ -272,7 +296,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                          "case's recorded autosql.folded to re-measure")
     args = ap.parse_args(argv)
 
-    doc = json.loads(Path(args.vectors).read_text())
+    global EXACT_DOC
+    text = Path(args.vectors).read_text()
+    doc = json.loads(text)
+    from decimal import Decimal
+    EXACT_DOC = json.loads(text, parse_float=Decimal)
     errs = validate(doc)
     if errs:
         print("FORMAT: the vector file is malformed:")
@@ -424,8 +452,8 @@ def recheck(label: str, c: Dict[str, Any], how: str, ans: Any, want: Any, eps: f
     must-fix 1): a recorded divergence is confirmed only by the SAME answer it recorded, so an SQL
     error, or a different wrong answer, can never pass for the divergence on file."""
     measured = measured_status(how, ans, want, eps)
-    if how == "raised":
-        return f"{label}: SQL RAISED {ans!r} (recorded {recorded!r})"
+    if how == "raised" and measured != "refuses":
+        return f"{label}: SQL RAISED {ans!r}, not a named refusal (recorded {recorded!r})"
     if measured != recorded:
         return f"{label}: recorded {recorded!r}, measured {measured!r} ({how}: {ans!r})"
     if measured == "diverges":
@@ -437,6 +465,8 @@ def recheck(label: str, c: Dict[str, Any], how: str, ans: Any, want: Any, eps: f
 
 
 def measured_status(how: str, ans: Any, want: Any, eps: float) -> str:
+    if how == "raised" and str(ans).split(" ", 1)[0] in NAMED_REFUSALS:
+        return "refuses"
     # SQL NULL and jsonb null both reach the adapter's Python as None, and xpr.truthy treats
     # both as false, so for the pipeline they are the same blank. The outcome file keeps which
     # one it was ("sql-null"), for the representation record.
@@ -470,6 +500,7 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
         db, comp = Sql(dsn), load_compiler()
         print(f"SQL: runtime/runtime.sql installed fresh ({db.functions} xpr functions); compiler/compile.py")
     outcomes, gims_bad, stale, fstale, folded_n = [], 0, 0, 0, 0
+    exact = {c["name"]: c for c in EXACT_DOC["cases"]} if EXACT_DOC else {}
     for c in doc["cases"]:
         o: Dict[str, Any] = {"name": c["name"], "kind": c["kind"], "group": c["group"]}
         want = c["expect"] if "expect" in c else c["expect_ids"]
@@ -484,7 +515,8 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
             print(f"GIMS DISAGREES  {c['group']}/{c['name']}: GIMS gives {o['gims']!r}, the vector expects {want!r}")
         if db is not None:
             a = c["autosql"]
-            how, ans = sql_answer(db, comp, g.m["expr"].parse, c)
+            ce = exact.get(c["name"], c)
+            how, ans = sql_answer(db, comp, g.m["expr"].parse, ce)
             o["sql"] = [how, ans]
             o["sql_status"] = measured_status(how, ans, want, eps)
             why = recheck("SQL STATUS STALE  " + f"{c['group']}/{c['name']}", c, how, ans, want, eps,
@@ -493,7 +525,7 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
                 stale += 1
                 print(why)
             if fold and foldable(c):
-                fhow, fans = sql_answer(db, comp, g.m["expr"].parse, c, fold)
+                fhow, fans = sql_answer(db, comp, g.m["expr"].parse, ce, fold)
                 o["sql_folded"] = [fhow, fans]
                 o["folded_status"] = measured_status(fhow, fans, want, eps)
                 folded_n += 1
@@ -516,13 +548,15 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
         print("=" * 78)
     else:
         nc = sum(1 for c in doc["cases"] if c["autosql"].get("sql_gives") == UNCOMPILABLE)
+        ref = sum(1 for c in doc["cases"] if c["autosql"]["status"] == "refuses")
         print(f"SQL half: {n - stale}/{n} recorded statuses confirmed "
-              f"({n - div} agree, {div} diverge, as recorded; {nc} of the divergences are cases autoSQL's "
-              f"shipping compiler has no translation for, so they were not compiled)")
+              f"({n - div - ref} agree, {div} diverge, {ref} refuse, as recorded; {nc} of the divergences are "
+              f"cases autoSQL's shipping compiler has no translation for, so they were not compiled)")
         if fold:
             fdiv = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "diverges")
+            fref = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "refuses")
             print(f"fold={fold}: {folded_n - fstale}/{folded_n} recorded folded statuses confirmed "
-                  f"({folded_n - fdiv} agree folded, {fdiv} diverge folded, as recorded)")
+                  f"({folded_n - fdiv - fref} agree folded, {fdiv} diverge folded, {fref} refuse folded, as recorded)")
     if json_out:
         Path(json_out).write_text(json.dumps(outcomes, indent=1, default=str) + "\n")
     return 1 if (gims_bad or stale or fstale) else 0

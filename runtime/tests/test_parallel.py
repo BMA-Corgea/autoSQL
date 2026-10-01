@@ -33,7 +33,7 @@ def test_no_function_opens_an_exception_block():
 
 def test_every_function_is_labelled_parallel_safe():
     headers = re.findall(r"^LANGUAGE (?:sql|plpgsql) (?:IMMUTABLE|STABLE)( PARALLEL SAFE)?", SQL, re.M)
-    assert len(headers) == SQL.count("CREATE OR REPLACE FUNCTION") == 23
+    assert len(headers) == SQL.count("CREATE OR REPLACE FUNCTION") >= 23
     assert all(headers), "a function lost its PARALLEL SAFE label"
 
 
@@ -48,7 +48,7 @@ def conn():
 def test_every_installed_function_is_parallel_safe(conn):
     rows = conn.execute("select p.proname, p.proparallel from pg_proc p join pg_namespace n "
                         "on n.oid = p.pronamespace where n.nspname = 'xpr'").fetchall()
-    assert len(rows) == 23 and {r[1] for r in rows} == {"s"}, rows
+    assert len(rows) == SQL.count("CREATE OR REPLACE FUNCTION") and {r[1] for r in rows} == {"s"}, rows
 
 
 @needs_db
