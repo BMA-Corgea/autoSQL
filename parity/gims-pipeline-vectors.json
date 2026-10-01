@@ -1,12 +1,14 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 3,
+ "version": 4,
  "source": {
   "autosql": "929b7ce",
   "compiler_sha256": "aa9fc4dd4802b08bb105f562e3d90f213042e81f8663b2edb9ecb98d3546e46e",
   "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
+ "noun": "parity_case",
+ "key_order": "jsonb",
  "float_epsilon": 1e-09,
  "note": "GIMS dashboard PIPELINE cases for autoSQL (T-46): what a stored record becomes between instances.data and the screen (key copies, the _noun_type tag, the forgiving field lookup, the sort order, the where filter). A superset of GIMS's tests/fixtures/expr_vectors.json: the same top keys and case keys, plus `kind` (expr | record | sort | filter) and `autosql` (what autoSQL's shipping compiler and runtime do on the case). Expected values are hand-authored from GIMS's code and confirmed by GIMS's own Python pipeline (parity/check_gims_pipeline.py); do NOT regenerate them from either side. A divergence is kept and explained, never deleted. Source of truth: autoSQL parity/; GIMS pins a vendored copy by sha256.",
  "cases": [
@@ -23,7 +25,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    }
   },
   {
@@ -39,7 +42,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    }
   },
   {
@@ -129,7 +133,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    },
    "note": "'lot_no 2' gets two copies: 'lot no 2' (underscores to spaces) and 'lot_no_2' (spaces to underscores)"
   },
@@ -146,7 +151,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    }
   },
   {
@@ -163,7 +169,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    },
    "note": "Both stored keys copy to 'a b c'; setdefault keeps the first one processed. In Postgres mode GIMS receives keys in jsonb order (shorter first, then bytewise): 'a b_c' precedes 'a_b c', so its value wins. In SQLite mode insertion order would decide instead, so the two modes can disagree."
   },
@@ -224,7 +231,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    }
   },
   {
@@ -240,7 +248,8 @@
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    }
   },
   {
@@ -287,7 +296,12 @@
    "autosql": {
     "status": "diverges",
     "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "a",
+     "b",
+     "c"
+    ]
    }
   },
   {
@@ -319,7 +333,11 @@
    "autosql": {
     "status": "diverges",
     "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "a",
+     "b"
+    ]
    }
   },
   {
@@ -378,8 +396,12 @@
    ],
    "autosql": {
     "status": "diverges",
-    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies. (The forgiving lookup would also find 'Dry Weight' for 'Dry_Weight', so either GIMS step alone gives this order.)",
+    "fix_side": "adapter-shaping",
+    "sql_gives": [
+     "a",
+     "b"
+    ]
    }
   },
   {
@@ -405,7 +427,8 @@
    "autosql": {
     "status": "diverges",
     "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included.",
-    "fix_side": "filters-map"
+    "fix_side": "filters-map",
+    "sql_gives": "uncompilable"
    }
   },
   {
@@ -441,7 +464,8 @@
    "autosql": {
     "status": "diverges",
     "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included.",
-    "fix_side": "filters-map"
+    "fix_side": "filters-map",
+    "sql_gives": "uncompilable"
    },
    "note": "Python's == makes True == 1 == 1.0; the expression language's == does not (bool is never a number)"
   },
@@ -472,7 +496,8 @@
    "autosql": {
     "status": "diverges",
     "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included.",
-    "fix_side": "filters-map"
+    "fix_side": "filters-map",
+    "sql_gives": "uncompilable"
    }
   },
   {
@@ -483,14 +508,21 @@
     {
      "id": "a",
      "Status": "ok"
+    },
+    {
+     "id": "b",
+     "status": "ok"
     }
    ],
    "filter": "$.status == 'ok'",
-   "expect_ids": [],
+   "expect_ids": [
+    "b"
+   ],
    "autosql": {
     "status": "agrees",
     "folded": "agrees"
-   }
+   },
+   "note": "the evaluator's lookup is exact: 'Status' is not 'status' (no case folding, no copy), so only row b is kept"
   },
   {
    "group": "sort",
@@ -565,7 +597,20 @@
    "autosql": {
     "status": "diverges",
     "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42.",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "f",
+     "t",
+     "n2",
+     "n10",
+     "se",
+     "sa",
+     "sb",
+     "obj",
+     "lst",
+     "nul",
+     "miss"
+    ]
    },
    "note": "bool < number < string < other < blank; str([1]) = '[1]' sorts before str({'k': 1}) = \"{'k': 1}\""
   },
@@ -642,7 +687,20 @@
    "autosql": {
     "status": "diverges",
     "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42.",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "nul",
+     "miss",
+     "lst",
+     "obj",
+     "sb",
+     "sa",
+     "se",
+     "n10",
+     "n2",
+     "t",
+     "f"
+    ]
    },
    "note": "reverse=True keeps equal keys in input order (Python's sort is stable), so nul stays before miss"
   },
@@ -1138,7 +1196,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "where-clause",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": []
    }
   },
   {
@@ -1164,7 +1223,8 @@
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag.",
     "fix_side": "where-clause",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": []
    }
   },
   {
@@ -1403,7 +1463,11 @@
    "autosql": {
     "status": "diverges",
     "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "x",
+     "y"
+    ]
    },
    "note": "find_actual_key('a.b') matches 'A.B' (dots are kept, case folds) before the dotted path a -> b is tried"
   },
@@ -1434,9 +1498,13 @@
    "autosql": {
     "status": "diverges",
     "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "a",
+     "b"
+    ]
    },
-   "note": "both keys fold to 'sampleid'; find_actual_key returns the first in key order. In Postgres mode that is jsonb order: same length, and 'S' (0x53) sorts before 's' (0x73), so 'Sample ID' decides"
+   "note": "both stored keys fold to 'sampleid', and so does the copy 'Sample_ID', which carries 'Sample ID's value; so this case shows the forgiving lookup works, but NOT which match wins. The two cases below pin that."
   },
   {
    "group": "sort",
@@ -1482,7 +1550,13 @@
    "autosql": {
     "status": "diverges",
     "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42.",
-    "fix_side": "sort-pushdown"
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "o",
+     "l9",
+     "l12",
+     "l10"
+    ]
    },
    "note": "str([1, 2]) = '[1, 2]' < '[10]' < '[9]' < \"{'k': 1}\" (code points: ',' < '0' < '9', and '[' < '{')"
   },
@@ -1541,7 +1615,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "where-clause",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": []
    }
   },
   {
@@ -1568,7 +1643,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "where-clause",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": []
    },
    "note": "per row, 'a b c' is copied from 'a b_c' (first in jsonb order): 2 in row a, 1 in row b"
   },
@@ -1594,7 +1670,8 @@
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
     "fix_side": "where-clause",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": []
    }
   },
   {
@@ -1610,9 +1687,118 @@
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag. Here the key copy runs first: get_noun_items turns the stored ' noun type' into '_noun_type' (spaces to underscores), so the tag's setdefault finds it present.",
     "fix_side": "adapter-shaping",
-    "folded": "agrees"
+    "folded": "agrees",
+    "sql_gives": null
    },
    "note": "order: the stored key, then its copy sources, then the tag"
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_forgiving_lookup_first_match_wins_not_last",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "Sample-ID": 2,
+     "sample-id": 1
+    },
+    {
+     "id": "b",
+     "Sample-ID": 1,
+     "sample-id": 2
+    }
+   ],
+   "sort": {
+    "field": "SAMPLEID",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "a",
+     "b"
+    ]
+   },
+   "note": "hyphens make no copies, so the only candidates are the two stored keys, same length; jsonb order is bytewise, 'S' (0x53) before 's' (0x73); the FIRST, 'Sample-ID', decides (b=1, a=2). The last match would give [a, b]"
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_forgiving_lookup_shorter_key_first_in_jsonb_order",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "SampleID": 2,
+     "Sample-ID": 1
+    },
+    {
+     "id": "b",
+     "SampleID": 1,
+     "Sample-ID": 2
+    }
+   ],
+   "sort": {
+    "field": "sample id",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42).",
+    "fix_side": "sort-pushdown",
+    "sql_gives": [
+     "a",
+     "b"
+    ]
+   },
+   "note": "jsonb orders keys shorter first: 'SampleID' (8) before 'Sample-ID' (9), though bytewise 'Sample-ID' sorts first ('-' 0x2D < 'I' 0x49). GIMS in Postgres mode takes 'SampleID' (b=1, a=2); plain byte order would give [a, b]"
+  },
+  {
+   "group": "filter",
+   "name": "where_over_a_derived_column",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "x": 1,
+     "y": 2
+    },
+    {
+     "id": "b",
+     "x": 4,
+     "y": 3
+    },
+    {
+     "id": "c",
+     "x": 5,
+     "y": 5
+    }
+   ],
+   "derive": {
+    "total": "$.x + $.y"
+   },
+   "filter": "$.total > 5",
+   "expect_ids": [
+    "b",
+    "c"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "fix_side": "where-clause",
+    "why": "GIMS evaluates derive BEFORE the where (sources.py resolve: derive, then filters and where), so a where can name a derived column. Compiled over the stored row, $.total does not exist. Folding cannot help: a derived column is not a copy. Fix side: T-37 must not push down a where that names a derive output (or must inline the derive expression).",
+    "sql_gives": [],
+    "folded": "diverges",
+    "folded_gives": []
+   }
   }
  ]
 }
