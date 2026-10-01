@@ -49,6 +49,28 @@ gates. **Six are bound to a loop. `design` and `compliance` are not.** `complian
 policy and consulted by nothing; it has simply never been reached. `client-signoff@v1` and
 `sec-review@v1` are gateless stages in the same blueprint.
 
+> **Corrected 2026-10-01 (T-24).** `compliance` *is* bound: `compliance-review@v1` names it,
+> and the engine loads that loop from the plugin's full set. The cross-check above read only the
+> blueprint's loop list, which lacks it. Only `feature-regulated@v1` routes to that loop, and no
+> ticket here has that type, so `compliance` is **unreached, not unbound** (a ticket filed as, or
+> rerouted to, `feature-regulated` would reach it). It is dormant, and it misleads nobody until
+> someone relies on it. **`design` was the only gate that performed.** T-24's release step binds
+> it: it publishes `design@v2`, with `bands.gate = "design"` and the policy left at
+> `human:strict`, into this shop's git-ignored `.autodev/data/loops/`. To see whether it holds
+> today, ask the tracker for a new design ticket's journey, or run
+> `.autodev/evidence/T-24/watched-hold.sh --expect-real bound`.
+>
+> **The binding is forward-only.** Read from `loopFor` alone, a new loop version looked as if it
+> would bind every ticket carrying the modifier at once, because no pipeline pins `design`. The
+> tracker's own comments say otherwise (a modifier-inserted stage is pinned on the ticket when the
+> modifier is applied: `tracker.mjs` around `resolveRoute` and `create`), and a run on a throwaway
+> copy confirmed it: a ticket created before the publish walked straight through after it
+> (`pins: {"design": "design@v1"}`). So the publish holds tickets created, or given the modifier,
+> after it. **And it does not simply survive a plugin update:** if a plugin release ships its own
+> `design@v3`, that becomes the latest loop and new tickets are unbound again. After any plugin
+> update, run the check above. This is the shape of *The procedure transfers; the proof does not*,
+> below: the reading transferred, and the proof had to be run.
+
 **Why this member is worse than the other five.** They were *checks* nothing ran, and a check that
 never runs is at least silent. **This is a mechanism that answers convincingly when interrogated
 and never fires otherwise.** Asked directly, it refused an on-behalf clear with a correct,
