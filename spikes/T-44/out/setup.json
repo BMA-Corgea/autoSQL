@@ -1,0 +1,112 @@
+{
+ "runtimes": {
+  "xpr_ship": {
+   "source": "runtime/runtime.sql",
+   "source_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
+   "functions": 23,
+   "proparallel": [
+    "u"
+   ],
+   "provolatile": [
+    "i",
+    "s"
+   ],
+   "installed_sha256_schema_normalized": "1e35a4933f915b81fc3fd2820ec36b8683b2b827b2214f45a568785898a1d69e"
+  },
+  "xpr_par": {
+   "source": "spikes/T-44/runtime-par.sql",
+   "source_sha256": "b2faad118bf0d4951f1a3a69c0d6ffc120c971438bbcb55494a721a53226042f",
+   "functions": 23,
+   "proparallel": [
+    "s"
+   ],
+   "provolatile": [
+    "i",
+    "s"
+   ],
+   "installed_sha256_schema_normalized": "2db77df142dde34c7da5f66b6d5b218f0fe4e0ef1da69f4a1dd9ad6b77e613dc"
+  },
+  "xpr (T-4's, untouched)": {
+   "functions": 21,
+   "proparallel": "u"
+  }
+ },
+ "tables": {
+  "measure_instances_1000": {
+   "rows": 1000,
+   "rows_in_collection": 1000,
+   "selectivity_pct": 5.3,
+   "avg_data_bytes": 403.7,
+   "queue_depth_strings": 0,
+   "queue_depth_numbers": 1000,
+   "with_retest_count": 158,
+   "heap_bytes": 475136
+  },
+  "t44_text_1000": {
+   "rows": 1000,
+   "rows_in_collection": 1000,
+   "selectivity_pct": 5.3,
+   "avg_data_bytes": 397.2,
+   "queue_depth_strings": 1000,
+   "queue_depth_numbers": 0,
+   "with_retest_count": 158,
+   "heap_bytes": 458752,
+   "indexes": [
+    "CREATE INDEX t44_text_1000_data_idx ON public.t44_text_1000 USING gin (data jsonb_path_ops)",
+    "CREATE UNIQUE INDEX t44_text_1000_pkey ON public.t44_text_1000 USING btree (collection, key)"
+   ],
+   "rows_identical_apart_from_encoding": 1000
+  },
+  "measure_instances_20000": {
+   "rows": 20000,
+   "rows_in_collection": 20000,
+   "selectivity_pct": 5.385,
+   "avg_data_bytes": 404.6,
+   "queue_depth_strings": 0,
+   "queue_depth_numbers": 20000,
+   "with_retest_count": 3073,
+   "heap_bytes": 9347072
+  },
+  "t44_text_20000": {
+   "rows": 20000,
+   "rows_in_collection": 20000,
+   "selectivity_pct": 5.385,
+   "avg_data_bytes": 398.0,
+   "queue_depth_strings": 20000,
+   "queue_depth_numbers": 0,
+   "with_retest_count": 3073,
+   "heap_bytes": 9166848,
+   "indexes": [
+    "CREATE INDEX t44_text_20000_data_idx ON public.t44_text_20000 USING gin (data jsonb_path_ops)",
+    "CREATE UNIQUE INDEX t44_text_20000_pkey ON public.t44_text_20000 USING btree (collection, key)"
+   ],
+   "rows_identical_apart_from_encoding": 20000
+  },
+  "measure_instances_100000": {
+   "rows": 100000,
+   "rows_in_collection": 100000,
+   "selectivity_pct": 5.311,
+   "avg_data_bytes": 404.1,
+   "queue_depth_strings": 0,
+   "queue_depth_numbers": 100000,
+   "with_retest_count": 14910,
+   "heap_bytes": 46792704
+  },
+  "t44_text_100000": {
+   "rows": 100000,
+   "rows_in_collection": 100000,
+   "selectivity_pct": 5.311,
+   "avg_data_bytes": 397.6,
+   "queue_depth_strings": 100000,
+   "queue_depth_numbers": 0,
+   "with_retest_count": 14910,
+   "heap_bytes": 45727744,
+   "indexes": [
+    "CREATE INDEX t44_text_100000_data_idx ON public.t44_text_100000 USING gin (data jsonb_path_ops)",
+    "CREATE UNIQUE INDEX t44_text_100000_pkey ON public.t44_text_100000 USING btree (collection, key)"
+   ],
+   "rows_identical_apart_from_encoding": 100000
+  }
+ },
+ "server": "PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)"
+}
