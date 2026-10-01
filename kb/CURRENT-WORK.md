@@ -2,7 +2,28 @@
 
 ---
 
-> # START HERE — 2026-10-01 (T-44 PASSED; T-52, the change that ships it, holds for one review)
+> # START HERE — 2026-10-01 (T-44 PASSED, and T-52 SHIPPED it; T-51 landed right after)
+>
+> **The faster path is on `main`.** T-52 landed as `e1da5c5` (PR #5, merged 09:30Z):
+> - an independent review found 0 differences in 209,594 per-row comparisons against the compiler before it;
+> - every runtime function is labelled parallel safe, and a test proves it inside a forced worker.
+>
+> **T-52 waits only for your acceptance.** That is your form's Q3 ("keep the faster path"); the foreman records it when
+> you answer. **T-51** (the runtime header, T-26's deferred claim 3) landed right after as `7181373`, header only, and is
+> complete.
+>
+> **GIMS re-vendors ONCE, for both** (gims-w2's morning step). The final pins:
+> - runtime `944d42fd…395e`;
+> - compiler `4ec9e613…013c`.
+>
+> | ticket | state |
+> |---|---|
+> | **T-52** | landed `e1da5c5`; at **accept**, for you (Q3) |
+> | **T-51** | **COMPLETE**, landed `7181373` (accept cleared under GA-48) |
+>
+> The T-44 block below still stands for the numbers. Its T-52 row is superseded by this table.
+
+> # T-44 — 2026-10-01 (T-44 PASSED; T-52, the change that ships it, held for one review — superseded above)
 >
 > **The faster design passed its speed test on a quiet machine.** For the invented 100,000-row
 > widget, T-44 timed it at **108.69 ms**:
@@ -537,11 +558,11 @@ always showing its derivation, always overturnable by one line from him.
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
 - **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
-- **T-51** (techdebt) — runtime.sql.in still calls itself a spike artifact: rewrite the header and rege… — intake
 - **T-57** (bug) — GIMS /deep_search/projects lists, for a signed-in superuser, only the projects … — intake
-- **T-58** (bug) — Postgres restore of non-record tables passes the CSV as COPY params, and swallo… — release
+- **T-58** (bug) — Postgres restore of non-record tables passes the CSV as COPY params, and swallo… — auto-review
 - **T-32** (bug) — The GIMS Postgres backup skips instances: a backup of a Postgres-mode GIMS hold… — release
-- **T-33** (feature) — A staging GIMS on Postgres: a local copy of the owner's data, served from the w… — auto-review
+- **T-52** (feature) — Ship T-44's faster compiled path: inline number checks and a parallel-safe runt… — uat
+- **T-64** (feature) — staging: nodes_db (dashboards, nodes, the compliance trail) on Postgres: a node… — intake
 
 ## Waiting on
 
@@ -608,13 +629,14 @@ T-3's and T-4's pings were delivered. Filing upstream stays his call
 - **T-39** — blocked: Held off the GIMS trunk by the foreman's ruling (B): the count-floor band has n…
 - **T-56** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
 - **T-37** — blocked: NO open review findings. Held ONLY by the count-floor band (Q8): no legal windo…
-- **T-52** — blocked: MERGE WAITS FOR THE DELTA REVIEW. The foreman holds the main merge until asql-w…
+- **T-33** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-10-01 **T-51 COMPLETE** — runtime.sql.in still calls itself a spike artifact: rewrite the header and rege…
 - 2026-10-01 **T-44 COMPLETE** — A faster compiled path: parallel-safe labels and inline number checks, timed ag…
 - 2026-10-01 **T-55 COMPLETE** — ops/checks/neighbour-ports.sh cycles ./run-demo up and down, and its snapshot s…
 - 2026-10-01 **T-62 COMPLETE** — ./run-demo test has no lock: a concurrent run can adopt and delete another run'…
