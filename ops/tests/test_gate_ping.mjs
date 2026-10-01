@@ -260,7 +260,11 @@ test("CONTRACT — the REAL tracker still returns the shape this tool reads", (t
       `import(${JSON.stringify(TOOL)}).then(m=>process.stdout.write(m.findTracker()))`],
       { encoding: "utf8" }).trim();
   } catch (e) {
-    return t.skip(`DID NOT RUN: the AutoDev plugin's tracker was not found here (${String(e.message).split("\n")[0]})`);
+    // Only "the plugin is not installed here" is a skip. Any other failure of discovery is a FAILURE
+    // (review round 1: a bug in findTracker used to read as a skip, exit 0).
+    const why = String(e.stderr || "") + String(e.message || "");
+    if (/cannot find tracker\.mjs/.test(why)) return t.skip("DID NOT RUN: the AutoDev plugin is not installed here");
+    throw e;
   }
   if (!bin || !fs.existsSync(bin)) return t.skip(`DID NOT RUN: findTracker() gave ${JSON.stringify(bin)}`);
   const ledger = process.env.AUTOSQL_LEDGER_ROOT || REPO;
