@@ -100,3 +100,40 @@ def test_ecma_num_ignores_the_session_setting(conn):
     finally:
         conn.execute("RESET extra_float_digits")
     assert got == "0.30000000000000004"
+
+
+#: T-52 after merging T-60, T-61 and T-63: the functions the battery never reaches. The subset
+#: battery discards `==` over containers (xpr.eq_deep) and has no date builtins (pdate_ms,
+#: fmt_date_ms). Each is run FROM A ROW SOURCE inside a forced worker, and must give exactly
+#: the answers a serial run gives.
+WORKER_CASES = [
+    ("xpr.eq_deep(x -> 0, x -> 1)", [
+        '[[1, 2], [1, 2.0]]', '[[1], [2]]', '[{"a": 1}, {"a": 1.0}]', '[[], []]', '[{}, {}]',
+        '[{"a": [1, {"b": null}]}, {"a": [1, {"b": null}]}]', '[{"a": 1}, {"b": 1}]',
+        '[[12345678901234567], [12345678901234568]]', '[[true], [1]]', '[["x"], ["x"]]']),
+    ("xpr.pdate_ms(x)", [
+        '"2024-01-01"', '" 2024-01-01T12:30:00Z "', '"2024-02-29T23:59:59.123456+05:30"',
+        '"٢٠٢٤-01-01"', '"2024-13-45"', '"not a date"', '5', 'null']),
+    ("xpr.fmt_date_ms(xpr.pdate_ms(x), true)", ['"2024-01-01"', '"1999-12-31T23:59:59Z"', '"0001-01-01"']),
+    ("xpr.fmt_date_ms((x)::float8, false)", [
+        '1704067200000', '1704067200123.4567', '-62135596800000', '253402300799999', '0.5']),
+]
+
+
+@needs_db
+@pytest.mark.parametrize("expr,values", WORKER_CASES, ids=[c[0] for c in WORKER_CASES])
+def test_the_answer_is_the_same_inside_a_worker(conn, expr, values):
+    q = (f"SELECT ({expr})::text FROM jsonb_array_elements(%s::jsonb) "
+         f"WITH ORDINALITY AS t(x, n) ORDER BY n")
+    arg = "[" + ", ".join(values) + "]"
+    serial = conn.execute(q, (arg,)).fetchall()
+    conn.execute("SET debug_parallel_query = on")
+    try:
+        plan = "\n".join(r[0] for r in conn.execute(
+            "EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY OFF) " + q, (arg,)).fetchall())
+        assert "Workers Launched: 1" in plan, "no worker launched -- the test proves nothing:\n" + plan
+        parallel = conn.execute(q, (arg,)).fetchall()
+    finally:
+        conn.execute("RESET debug_parallel_query")
+    assert parallel == serial
+    assert any(v[0] is not None for v in serial), "every answer NULL -- the inputs reach nothing"

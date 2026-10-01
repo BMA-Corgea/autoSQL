@@ -245,6 +245,7 @@ class _Compiler:
         self.noun = noun
         self.params: Dict[str, Any] = {}
         self._n = 0
+        self._eq_depth = 0    # T-52: > 0 while compiling an operand of == / != (see _num)
 
     # -- bind parameters ----------------------------------------------------------
     def _bind(self, value: Any, cast: str) -> str:
@@ -275,7 +276,12 @@ class _Compiler:
         if self._is_num(node):
             return self._f8(node)
         j = self._j(node)
-        if self._is_cheap(node) and len(j) <= _INLINE_MAX_CHARS:
+        # Inside an operand of == / != the compact runtime call is used: T-61's _eq_sql writes
+        # each operand five times, and the inline form nine times its argument, so nested
+        # equalities multiplied past MAX_SQL_CHARS (a battery case reached 594,235 chars).
+        # xpr.num is the exact old path, so this keeps every answer and never makes the SQL
+        # larger than the compiler without T-52 would.
+        if self._is_cheap(node) and len(j) <= _INLINE_MAX_CHARS and not self._eq_depth:
             return self._inline_coerce(j)
         return f"xpr.num({j})"
 
@@ -384,7 +390,14 @@ class _Compiler:
             # T-52 change 3: xpr.ord on two numbers IS the float8 comparison, NULL when
             # either side is NULL -- so compare natively and skip both jsonb round trips.
             return f"to_jsonb(({self._f8(left)} {op} {self._f8(right)}))"
-        l, r = self._j(left), self._j(right)
+        if op in ("==", "!="):
+            self._eq_depth += 1
+            try:
+                l, r = self._j(left), self._j(right)
+            finally:
+                self._eq_depth -= 1
+        else:
+            l, r = self._j(left), self._j(right)
         if op == "==":
             return f"to_jsonb({self._eq_sql(l, r)})"
         if op == "!=":
