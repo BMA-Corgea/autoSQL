@@ -7,7 +7,11 @@ bare `to_jsonb(...)`, so they stop reading the session's `extra_float_digits`.
 Three things have to stay true, and each has a test that would notice:
 
   * the promotion changed NOTHING ELSE -- asserted by compiling the same
-    expressions with both modules and diffing, allowing only that one swap;
+    expressions with both modules and diffing, allowing only that one swap.
+    T-52 (T-44's C_both) then rewrote the NUMERIC families on purpose: the number
+    checks are written inline and numbers stay float8 between operations.  Those
+    families are pinned by VALUE against the frozen compiler instead, in
+    test_inline.py; every other family keeps the byte-for-byte check here;
   * the shipping compiler's output is immune to the session setting, with the
     FROZEN one asserted to still move as the control;
   * the frozen spike copy is byte-identical to the digest its findings cite.
@@ -61,6 +65,14 @@ EXPRESSIONS = [
     "$.flag or $.c", "lower($.s)", "upper($.s)", "string($.a)", '"literal"',
 ]
 
+#: The families T-52 rewrote ON PURPOSE (inline number checks, the float8 channel).
+#: Their text differs from the frozen compiler's by design; their VALUES must not, and
+#: compiler/tests/test_inline.py pins that against the frozen compiler, row by row.
+T52_REWRITTEN = {
+    "1 / 3", "1787169706037 * 1", "$.a + 1", "$.a - $.b", "- $.a", "$.a * 2",
+    "abs($.a)", "floor($.a)", "ceil($.a)", "number($.s)",
+}
+
 
 def _sql(mod, src):
     return mod.compile_ast(EXPR.parse(src))[0]
@@ -68,13 +80,14 @@ def _sql(mod, src):
 
 # ── the promotion changed exactly one thing ───────────────────────────────
 
-@pytest.mark.parametrize("src", EXPRESSIONS)
+@pytest.mark.parametrize("src", [e for e in EXPRESSIONS if e not in T52_REWRITTEN])
 def test_the_promotion_changed_nothing_but_the_float8_wrapper(src):
     """Compile with both modules; the only permitted difference is to_jsonb -> xpr.j.
 
     This is the test that makes the promotion trustworthy. Copying a 464-line
     compiler and editing 18 call sites is exactly the kind of change where an
-    unrelated edit rides along unnoticed.
+    unrelated edit rides along unnoticed.  The families T-52 rewrote on purpose are
+    excluded HERE and pinned by value in test_inline.py.
     """
     frozen = _sql(FROZEN, src)
     shipping = _sql(SHIPPING, src)
