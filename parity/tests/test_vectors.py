@@ -54,6 +54,8 @@ def test_the_source_digests_name_the_compiler_and_runtime_in_this_tree():
     (lambda d: next(c for c in d["cases"] if c["autosql"]["status"] == "diverges")["autosql"].pop("why"),
      "a divergence must say why"),
     (lambda d: d["cases"][0]["autosql"].update(status="maybe"), "autosql.status must be"),
+    (lambda d: next(c for c in d["cases"] if c["autosql"]["status"] == "diverges")["autosql"].update(fix_side="later"),
+     "must name its fix_side"),
 ])
 def test_the_validator_would_actually_catch_one(break_it, says):
     broken = copy.deepcopy(DOC)

@@ -49,8 +49,10 @@ A superset of GIMS's `tests/fixtures/expr_vectors.json`. The top keys are the sa
 | `sort` | `rows` (each with `id`), `sort: {field, dir}`, `expect_ids` | the row order after `resolve`'s sort |
 | `filter` | `rows`, `filter`, `expect_ids` | the rows kept, in order. A string `filter` is a `where` expression; an object is a `filters` map |
 
-- per case, `autosql: {status: "agrees" | "diverges", why}`. A divergence is **kept and explained**,
-  never deleted: it says which side must change.
+- per case, `autosql: {status: "agrees" | "diverges", why, fix_side}`. A divergence is **kept and
+  explained**, never deleted. `fix_side` says which side must change, seen from T-37's design (SQL runs
+  the `where`; Python shapes the rows, then applies the `filters` map, the sort and the limit):
+  `adapter-shaping`, `where-clause`, `filters-map`, `sort-pushdown`, `browser` or `accepted`.
 
 Expected values are **hand-authored** from GIMS's code and then confirmed by GIMS's own pipeline.
 Never regenerate them from either side: a vector that encodes a misreading of GIMS would make GIMS's
@@ -62,11 +64,23 @@ sha256 and the autoSQL commit in the same manifest. Its pin test can then also c
 match, the recorded statuses describe exactly the autoSQL GIMS runs. GIMS never edits its copy;
 changes come here first. T-39 (GIMS's three-way parity gate) loads the vendored copy.
 
-## Findings, first cut (v1: 54 cases, 34 agree, 20 diverge; measured at `69efb20`, GIMS `9bf7b24`)
+## Findings (v2: 58 cases, 34 agree, 24 diverge; measured at `69efb20`, GIMS `9bf7b24`)
+
+| fix side | cases | what must change |
+|---|---|---|
+| `adapter-shaping` | 9 | T-37 gives SQL-picked rows GIMS's key copies and the `_noun_type` tag before derive, filters and sort |
+| `where-clause` | 5 | a pushed-down `where` must see the copies and the tag. Shaping returned rows cannot fix this: **T-48** (compile-time key folding) |
+| `filters-map` | 3 | only if the `filters` map moves into SQL. T-37 keeps it in Python, after SQL's `where` |
+| `sort-pushdown` | 7 | only if sort moves into SQL (T-42). T-37 sorts in Python |
+| `browser`, `accepted` | 0 | none among these cases. The browser's own differences are listed at the end |
+
+One difference T-37 accepts on purpose, outside the vectors: Python caps a noun at 20,000 rows BEFORE
+filtering, and SQL's `where` runs before any cap. Above 20,000 raw rows the pushed-down answer includes
+rows Python's cap was dropping.
 
 ### Where autoSQL diverges, and the side that must change
 
-1. **Key copies (8 cases).** `get_noun_items` (`api/iostore/nouns.py:41-50`, `_normalize_row`) adds,
+1. **Key copies (7 shaping cases and 4 where-clause cases).** `get_noun_items` (`api/iostore/nouns.py:41-50`, `_normalize_row`) adds,
    for every top-level key, a copy with underscores turned to spaces and one with spaces turned to
    underscores, through `setdefault`: a stored key always wins, and between two stored keys that
    produce the same copy, the first in key order wins. **In Postgres mode that is jsonb's key order**
@@ -76,8 +90,9 @@ changes come here first. T-39 (GIMS's three-way parity gate) loads the vendored 
    `"S-1"` in GIMS. **The adapter (T-37) must give SQL-picked rows the same copies before derive,
    filter and sort.** A `where` pushed into SQL must see them too, either by copying in SQL first or
    by having the compiler resolve a key to its copies with the same precedence.
-2. **The `_noun_type` tag (2 cases).** `_noun_records` tags every noun row with
-   `_noun_type = <noun>` (setdefault: a stored `_noun_type` wins). Rows read straight from SQL lack
+2. **The `_noun_type` tag (3 cases).** `_noun_records` tags every noun row with
+   `_noun_type = <noun>` (setdefault: a stored `_noun_type` wins, and so does a stored `" noun type"`,
+   because the key copies run first and copy it to `_noun_type`). Rows read straight from SQL lack
    it. **T-37 must add it**, and a pushed-down `where` must see it.
 3. **The forgiving field lookup (7 cases).** Sort fields and the `filters` map go through
    `_field_value` (`api/dashboard/sources.py:67-85`): the exact key, then `find_actual_key`

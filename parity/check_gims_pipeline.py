@@ -48,6 +48,9 @@ KINDS = {
     "filter": {"rows", "filter", "expect_ids"},
 }
 STATUSES = ("agrees", "diverges")
+# Which side must change, seen from T-37's design (SQL runs the where; Python shapes the rows, then
+# applies the filters map, the sort and the limit). Every divergence carries one.
+FIX_SIDES = ("adapter-shaping", "where-clause", "filters-map", "sort-pushdown", "browser", "accepted")
 SOURCE_KEYS = ("autosql", "compiler_sha256", "runtime_sha256", "gims")
 
 
@@ -106,6 +109,8 @@ def validate(doc: Dict[str, Any]) -> List[str]:
             errs.append(f"{where}: autosql.status must be one of {STATUSES}")
         elif a["status"] == "diverges" and not (isinstance(a.get("why"), str) and a["why"].strip()):
             errs.append(f"{where}: a divergence must say why")
+        elif a["status"] == "diverges" and a.get("fix_side") not in FIX_SIDES:
+            errs.append(f"{where}: a divergence must name its fix_side, one of {FIX_SIDES}")
     return errs
 
 
