@@ -20,8 +20,15 @@
 --   * Nested JSON nulls (inside arrays/objects) stay as jsonb 'null'; that is also
 --     faithful, because Python keeps them as None inside the list/dict.
 --
--- This is a SPIKE artifact. It is not a library, nothing imports it, and it is
--- installed only into the scratch database `autosql_spike`, schema `xpr`.
+-- WHO INSTALLS IT (T-51). Into schema `xpr`, by:
+--   * the demo seed (demo/seed/load.py), from demo/vendor/runtime.sql, a byte-identical
+--     copy whose sha256 demo/manifest.json pins;
+--   * ops/runtime-check.sh, into a throwaway Postgres, for the runtime suite;
+--   * parity/check_gims_pipeline.py, fresh into a scratch database, for the parity
+--     vectors (parity/gims-pipeline-vectors.json pins its sha256 as source.runtime_sha256).
+-- GIMS vendors a copy and pins it by sha256. So every change, even to a comment, moves
+-- every pin: edit this template, regenerate, then re-copy and re-pin all of them in the
+-- same pass. Never edit a copy.
 --
 -- NO SESSION DEPENDENCY (T-52): xpr.ecma_num() and xpr.j() read float8's text output,
 -- and each pins its own SET extra_float_digits = 1, so neither follows the session's
