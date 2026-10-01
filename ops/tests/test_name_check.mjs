@@ -153,3 +153,67 @@ test("--staged ignores user diff settings that can hide a line (colour, an exter
     assert.equal(r.code, 1, `${JSON.stringify(env)}: ${r.out}`);
   }
 });
+
+// ---- T-53: a push sends COMMITS, so --commits scans every commit about to be pushed --------------
+/** A clone with an upstream (a throwaway bare remote), the script copied into its root, and one
+ *  pushed commit. Returns { dir, commit(msg, files) } where files maps path -> body (null deletes). */
+function cloneWithUpstream() {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "t53-"));
+  const remote = path.join(base, "remote.git"), dir = path.join(base, "clone");
+  execFileSync("git", ["init", "-q", "--bare", remote]);
+  execFileSync("git", ["clone", "-q", remote, dir], { stdio: "pipe" });
+  const g = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@invalid", ...a], { cwd: dir, stdio: "pipe" });
+  fs.mkdirSync(path.join(dir, "ops"));
+  fs.copyFileSync(SCRIPT, path.join(dir, "ops", "name-check.sh"));
+  fs.chmodSync(path.join(dir, "ops", "name-check.sh"), 0o755);
+  const commit = (msg, files) => {
+    for (const [rel, body] of Object.entries(files)) {
+      if (body === null) fs.rmSync(path.join(dir, rel)); else fs.writeFileSync(path.join(dir, rel), body);
+    }
+    g("add", "-A", "--", ...Object.keys(files));
+    g("commit", "-qm", msg);
+  };
+  commit("start", { "notes.md": "hello\n" });
+  g("push", "-q", "-u", "origin", "HEAD");
+  return { base, dir, commit };
+}
+const runIn = (dir, args, base) => {
+  const r = spawnSync(BASH, [path.join(dir, "ops", "name-check.sh"), ...args], { cwd: dir, encoding: "utf8" });
+  fs.rmSync(base, { recursive: true, force: true });
+  return { code: r.status, stdout: r.stdout || "", stderr: r.stderr || "", out: (r.stdout || "") + (r.stderr || "") };
+};
+
+test("T-53 — a name added in one unpushed commit and removed in the next: tree says clean, --commits refuses", () => {
+  const a = cloneWithUpstream();
+  a.commit("add a probe", { "probe.md": `human:${NAME}\n` });
+  a.commit("remove the probe", { "probe.md": null });
+  const tree = spawnSync(BASH, [path.join(a.dir, "ops", "name-check.sh")], { cwd: a.dir, encoding: "utf8" });
+  assert.equal(tree.status, 0, "tree mode cannot see history: that is the hole");
+  const r = runIn(a.dir, ["--commits"], a.base);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSING/);
+  assert.match(r.out, /add a probe/, "it names the commit that carries the name");
+});
+
+test("T-53 — a name only in a commit MESSAGE is refused too (messages are published)", () => {
+  const a = cloneWithUpstream();
+  a.commit(`a message naming human:${NAME}`, { "x.md": "x\n" });
+  const r = runIn(a.dir, ["--commits"], a.base);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /REFUSING/);
+});
+
+test("T-53 — clean unpushed commits: 0", () => {
+  const a = cloneWithUpstream();
+  a.commit("plain", { "x.md": "nothing here\n" });
+  const r = runIn(a.dir, ["--commits"], a.base);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /clean \(the commits in /);
+});
+
+test("T-53 — could not tell: no upstream and no origin/main, or a range that names no commits", () => {
+  const plain = sandbox({ files: { "notes.md": "x\n" } });   // a repo with no remote at all
+  couldNotTell(run(plain, ["--commits"]), "no upstream, no origin/main");
+  const a = cloneWithUpstream();
+  couldNotTell(runIn(a.dir, ["--commits", "nosuch..HEAD"], a.base), "a range that names no commit");
+});
