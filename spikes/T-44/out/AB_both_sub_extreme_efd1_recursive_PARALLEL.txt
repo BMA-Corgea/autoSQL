@@ -1,0 +1,91 @@
+=== H. broad AST fuzz -- profile=sub_extreme  N=4000  seed=2026 ===
+    SUBSET battery: every counted expression mechanically verified inside
+    the corrected 32-construct subset (closure_subset_coverage walker);
+    ==/!= draws whose operands reached _eq as containers: DISCARDED, counted.
+
+    AGREE                      3756   93.900%
+    SQL_REFUSAL                  11    0.275%
+    PARSE_ERROR                 148    3.700%
+    DISCARDED_container_eq       85    2.125%
+    ran =                      3767   (agree+diverge+refusal+raise+nullness; refusals stay IN)
+      refusal:overflow            8
+      refusal:underflow           3
+
+    divergence classes (auto-clustered):
+
+    ALL wrong-answer cases (classes 1-4), in full -- 0 found:
+
+    domain-gate witnesses (framing 5.3 half two; py-mode rows):
+      REACHED   old guard boundary, below (1.79769313486231551e296) e.g. max(max($.o.c[2]), - (if(length($.s), ($.b or $.b), (-1e+248
+      REACHED   old guard boundary, above (1.79769313486231587e296) e.g. $.a
+      REACHED   real limit DBL_MAX (1.7976931348623157e308)    e.g. min(count(max(max($.e[-2][-2], $.b), if("true", $.d, $.l)), 
+      REACHED   real limit, just below (1.7976931348623155e308) e.g. $.a
+      REACHED   1e200 (infinity composable: 1e200*1e200)       e.g. min($.flag, length(($.l + count($.flag[2].c.n, $.e))))
+      REACHED   subnormal 5e-324                               e.g. min(count(max(max($.e[-2][-2], $.b), if("true", $.d, $.l)), 
+      REACHED   subnormal 1e-320                               e.g. min(- ($.a.t), $.o[1])
+      REACHED   2**53                                          e.g. $.o
+      REACHED   2**53 + 2                                      e.g. min(count(max(max($.e[-2][-2], $.b), if("true", $.d, $.l)), 
+      REACHED   0.0                                            e.g. $.o
+      REACHED   -0.0                                           e.g. 1e+22
+      REACHED   coercing string ' 7 '                          e.g. $.n
+      REACHED   coercing string '1e3'                          e.g. (max("abc", max(($.e and null), - (1e-261))) >= - (count(- (
+      REACHED   coercing string '１２３' (full-width)             e.g. $.o
+
+    fingerprints (inadmissibility item 5):
+      expr.py     sha256=90cbb56d04b08b82
+      compile.py  sha256=b71b153802d0df94  (file)
+      runtime.sql sha256=1c58d548a6045aa6  (file on disk)
+      xpr schema  sha256=2db77df142dde34c  (INSTALLED -- this is what ran)
+      NOTE: installed runtime differs from /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/proto/runtime.sql.
+            That is EXPECTED when a ticket installs its own build;
+            it is a DEFECT if you believed they were the same.
+      efd requested=1 read-back=1  seed=2026  N=4000  wall=160.7s
+
+=== T-44 driver: what ACTUALLY ran (read back, not assumed) ===
+{
+ "tag": "AB_both_sub_extreme_efd1_recursive_PARALLEL",
+ "compiler": "inline",
+ "compiler_file": "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-44/compile_inline.py",
+ "compiler_sha256": "1aa7f21cb01e92840b68d74aa70394b3c5f2eb77d5c70f2d6f0c050cb9614205",
+ "loaded_module_file": "/home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-44/compile_inline.py",
+ "installed_runtime_sha256": "2db77df142dde34c7da5f66b6d5b218f0fe4e0ef1da69f4a1dd9ad6b77e613dc",
+ "xpr_labels(proparallel,provolatile,count)": [
+  [
+   "s",
+   "i",
+   21
+  ],
+  [
+   "s",
+   "s",
+   2
+  ]
+ ],
+ "database": "t44_par",
+ "server": "PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)",
+ "debug_parallel_query": "on",
+ "parallel": {
+  "requested": "on",
+  "readback": "on",
+  "positive_control": {
+   "probe": "coalesce($.a, 0) + 1 > 2",
+   "plan": "Gather (actual rows=1 loops=1)\n  Workers Planned: 1\n  Workers Launched: 1\n  Single Copy: true\n  ->  Result (actual rows=1 loops=1)",
+   "workers_launched": [
+    "Workers Launched: 1"
+   ]
+  },
+  "gather_planned": true
+ },
+ "efd_requested": "1",
+ "efd_readback": "1",
+ "match_mode": "recursive",
+ "profile": "sub_extreme",
+ "n": 4000,
+ "seed": 2026,
+ "predicate_verdicts": {
+  "AGREE": 3756,
+  "SQL_RAISE": 11
+ },
+ "wall_s": 160.7,
+ "exit": 0
+}
