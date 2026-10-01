@@ -60,13 +60,16 @@ B, SRC = T4.B, T4.SRC
 SPIKE = B.CC                                                     # the frozen spike compiler
 SHIP = _load("t44_ship_compile", os.path.join(ROOT, "compiler", "compile.py"))
 INLINE = _load("t44_inline_compile", os.path.join(HERE, "compile_inline.py"))
+# T-52's head (dc088f7), frozen in t52_head/: the SHIPPING candidate after main was merged in.
+# Timed as a REPORTED arm beside C_both, which the pre-registered verdict reads on.
+T52HEAD = _load("t44_t52_head_compile", os.path.join(HERE, "t52_head", "compile.py"))
 
 SPEC = T4.WIDGET_INVENTED
 ENCODINGS = {"num": "measure_instances_{n}", "text": "t44_text_{n}"}
 ROUNDS = 25
 CANDIDATES = ("C_par", "C_inline", "C_both")
-REPORTED = ("C_spike", "C_ship", "B4")
-ARM_ORDER = ("A", "B4", "C_spike", "C_ship", "C_par", "C_inline", "C_both")
+REPORTED = ("C_spike", "C_ship", "B4", "C_t52")
+ARM_ORDER = ("A", "B4", "C_spike", "C_ship", "C_par", "C_inline", "C_both", "C_t52")
 
 _CALL = re.compile(r"\bxpr\.(\w+)\(")
 
@@ -92,7 +95,7 @@ def build_classic(table: str, spec, compiler, schema: str) -> Tuple[str, Dict[st
     return in_schema(sql, schema), params
 
 
-def build_inline(table: str, spec, schema: str) -> Tuple[str, Dict[str, Any]]:
+def build_inline(table: str, spec, schema: str, compiler=None) -> Tuple[str, Dict[str, Any]]:
     """The same statement shape as T-4's _t4_build_b2(order=False). Two things differ: the
     derive is compiled by lever (b), and the predicate is compile_predicate() in place of
     xpr.truthy(<jsonb>)."""
@@ -111,8 +114,9 @@ def build_inline(table: str, spec, schema: str) -> Tuple[str, Dict[str, Any]]:
             sql = sql.replace(f"%({k})s", f"%({tag}_{k})s")
         return sql
 
-    w_sql = take(INLINE.compile_predicate(B.subst(w_ast, name, d_ast), column="data"), "w")
-    d_out = take(INLINE.compile_ast(d_ast, column="data"), "o")
+    comp = compiler or INLINE
+    w_sql = take(comp.compile_predicate(B.subst(w_ast, name, d_ast), column="data"), "w")
+    d_out = take(comp.compile_ast(d_ast, column="data"), "o")
     sql = (f"SELECT (data || jsonb_build_object('{name}', {d_out})) FROM {table} "
            f"WHERE collection = %(coll)s AND {w_sql}")
     return in_schema(sql, schema), params
@@ -124,6 +128,7 @@ BUILDERS: Dict[str, Callable[[str, Any], Tuple[str, Dict[str, Any]]]] = {
     "C_par": lambda t, s: build_classic(t, s, SHIP, "xpr_par"),
     "C_inline": lambda t, s: build_inline(t, s, "xpr_ship"),
     "C_both": lambda t, s: build_inline(t, s, "xpr_par"),
+    "C_t52": lambda t, s: build_inline(t, s, "xpr_t52", T52HEAD),
 }
 
 

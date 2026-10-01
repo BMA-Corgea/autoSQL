@@ -10,7 +10,48 @@ owner's recorded authority (GA-34, GA-35; the true actor is in the ledger, which
 
 ---
 
-## 1. The verdict
+## 0. THE QUIET RE-TIME — PASS (2026-10-01, 09:00–09:09Z)
+
+**PASS on `C_both` under the bar as written** (§4, read under §10). The run went the moment the host
+went quiet: the foreman called a quiet window, and the watcher (`quiet_retime.sh`) saw ten
+consecutive 1-minute loads under 2.0, 30 seconds apart, the last 1.19 at 08:59:54Z. The negative
+control ran first: **25/25** with all eight arms (`out/negative-control-quiet.json`). Numbers:
+`out/timing-quiet.json`.
+
+| widget INVENTED · median / p95, ms | 20,000 · num | 20,000 · text | 100,000 · num | 100,000 · text |
+|---|---:|---:|---:|---:|
+| **C_both** (the verdict arm) | **29.20 / 30.38** | **37.36 / 39.21** | **108.69 / 123.28** | **136.71 / 151.52** |
+| C_t52 (T-52's head, the SHIPPING candidate; reported) | 28.84 / 33.35 | 37.24 / 38.69 | 108.46 / 123.88 | 135.69 / 149.98 |
+| C_inline | 44.24 | 60.29 | 226.10 | 311.89 |
+| C_par | 232.15 | 254.93 | 804.08 | 868.08 |
+| arm A, today's Python, same session | 203.66 | 212.62 | 829.46 | 833.76 |
+| C_ship, the shipping path before T-52 | 452.17 | 513.66 | 2,237.26 | 2,550.64 |
+| the bar | Python +100 | Python +100 | ≤ 300 / ≤ 600 | ≤ 300 / ≤ 600 |
+
+- **C_both meets every condition:**
+  - S1 at 100k: ≤ 300 / ≤ 600 ms on both encodings.
+  - S2: it beats same-session Python in paired rounds, by a median 719 / 690 ms at 100k (number /
+    text) and 173 / 175 ms at 20k.
+  - S3 at 20k: well inside Python + 100 ms.
+  - K5: identity row for row against the uncapped Python oracle, in every cell.
+  - K1–K4 already PASS (`out/K_summary.json`).
+- **C_inline is a NEAR-MISS.** Its 100k text-encoded median is 311.89 ms, inside the 25% margin.
+- **C_par FAILS.** On text-encoded rows at 100k it is slower than Python.
+- **The run's verdict is its best candidate's: PASS.**
+- **The number that ships:** T-52's head (`C_t52`, `dc088f7`) emits byte-identical SQL to C_both for
+  this widget. It measured the same: 108.46 / 135.69 ms at 100k.
+- **Host check.** Python took 829.46 ms against T-4's quiet record of 784.04 ms (+6%). T-4's own arm C
+  (C_spike) took 2,122.37 ms against 2,004.61 ms (+6%). This is a quiet host.
+- **Disclosure.** Per repetition, the 20k cells ran at 1-minute load 1.73–1.89 and the 100k cells at
+  2.11–2.81. The 100k text-encoded cell STARTED at load 2.35. T-4's original §5.1 start ceiling
+  (≤ 2.0) would have voided it, and the text encoding would then read INCOMPLETE. §10, written
+  before both runs, replaced that ceiling with "recorded, never voids". The margins are 2.2–2.8×
+  under the median bar and 4.0–4.9× under the p95 bar.
+- **The loaded run below stands as measured.** It is what a load of 27–40 on 20 cores costs.
+
+---
+
+## 1. The verdict OF THE LOADED RUN (superseded by §0 for the decision)
 
 **FAIL, as the bar reads tonight. Every candidate gives zero wrong numbers and beats Python
 by seconds at 100,000 rows. None meets ≤ 300 ms on this host, which is loaded to about 35 on 20
