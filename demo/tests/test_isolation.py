@@ -515,7 +515,8 @@ def test_ac3s_grep_would_actually_catch_one(tmp_path):
 # *"A grep for timing vocabulary (`ms`, `faster`, `benchmark`, `elapsed`,
 # `latency`, `throughput`, `speed`) over the demo tree, plus a reviewer's
 # read."* This demo makes no claim about how fast it is, anywhere, because
-# the speed question is T-4's and T-4 has not run yet — a stray "fast" here
+# the speed question belongs to the timing runs (T-4 ran and failed its bar;
+# its child, T-44, is running), not to the demo — a stray "fast" here
 # would be the demo asserting something no measurement backs.
 #
 # A NARROWER "the demo tree" than AC-3's directly above, and why
