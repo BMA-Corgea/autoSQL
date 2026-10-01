@@ -21,6 +21,27 @@ WHAT CHANGED IN THE PROMOTION, and nothing else did:
 
 Everything else -- every construct, every refusal, every parameter binding, the
 whole shape of the emitted SQL -- is byte-identical to the spike's.
+
+T-52 (T-44's C_both): THE NUMBER CHECKS ARE WRITTEN INLINE.  Measured in
+spikes/T-44: zero wrong numbers against the same batteries, and ~10x faster than the
+per-row function calls it replaces.  Four changes, each exact against the compiler
+before it (proved case by case over 11,367 battery expressions, spikes/T-44/FINDINGS.md):
+
+  1. A FLOAT8 CHANNEL.  A node that is always a number or null (_is_num) keeps its
+     value as float8 between operations instead of round-tripping through jsonb
+     (xpr.j then xpr.num) at every step.  For finite x that round trip is the
+     identity, and Postgres float8 arithmetic raises rather than make an infinity,
+     so nothing non-finite enters the channel.  The one difference -- jsonb has no
+     -0 -- cannot be observed: -0.0 and 0.0 compare equal, are both refused as a
+     divisor, and both print "0".  The value becomes jsonb ONCE, at the boundary.
+  2. AN INLINE COERCION (_inline_coerce) where a cheap jsonb value must become a
+     number: a JSON number in range and a plain ASCII decimal string take the native
+     cast, a boolean becomes 1/0, and every other path -- beyond DBL_MAX, whitespace,
+     an exponent, non-ASCII digits -- calls the unchanged xpr.f8 / xpr.num, so the
+     named refusals survive.
+  3. NATIVE ORDERING when both sides of < <= > >= are in the channel.
+  4. compile_predicate(): the boolean a WHERE filters with.  xpr.truthy(to_jsonb(b))
+     is exactly COALESCE(b, false); only an ordering comparison is rewritten.
 """
 
 from __future__ import annotations
@@ -33,6 +54,29 @@ MS_PER_DAY_SQL = "86400000.0"
 # Hard cap on generated SQL size.  Nothing in expr_vectors.json comes near it; the cap
 # exists so a pathological AST produces an honest Uncompilable rather than a monster.
 MAX_SQL_CHARS = 200_000
+
+# xpr.f8's refusal boundary (runtime/runtime.sql.in, `abs(n) > ...::numeric`): the
+# shortest round-trip decimal of DBL_MAX written out in full.  The inline coercion must
+# use THE SAME literal, or the two would disagree about where the named refusal starts;
+# compiler/tests pin the equality against the runtime file.
+DBL_MAX_LITERAL = "17976931348623157" + "0" * 292
+
+# A string the inline coercion may cast natively: no surrounding space, no exponent,
+# ASCII digits only.  Under 300 characters (checked beside it) such a value lies between
+# 1e-299 and 1e299, so the cast can neither overflow nor underflow -- and it is exactly
+# what xpr.num returns for it.  Everything else goes to xpr.num.
+_PLAIN_DECIMAL = r"^[+-]?([0-9]+[.]?[0-9]*|[.][0-9]+)$"
+
+# _inline_coerce writes its argument NINE times into the SQL (and evaluates it up to four
+# times per row), so it is used only for an argument at most this long.  Longer -- a deep
+# path, or a GIMS-folded key with many separator variants (T-48) -- takes the unchanged
+# xpr.num(...) instead: exact either way, and the generated SQL stays far from the
+# MAX_SQL_CHARS cap (the T-52 review measured 12 folded uses crossing it unbounded).
+_INLINE_MAX_CHARS = 512
+
+# Builtins whose value is always a number or null (the float8 channel).
+_NUM_FUNCS = frozenset({"number", "abs", "floor", "ceil", "round", "length", "count",
+                        "sum", "avg", "min", "max", "days_between"})
 
 
 class Uncompilable(Exception):
@@ -157,10 +201,23 @@ KNOWN_DIVERGENCES = [
         "expr_behaviour": "_num_to_str uses repr() == shortest round-trip (expr.py:334)",
         "sql_behaviour": "xpr.ecma_num reads float8's text output, which is the shortest "
                          "round-trip only while extra_float_digits >= 0 (PG12+ default 1)",
-        "guarded": False,
+        "guarded": True,
         "in_fixture": True,
-        "note": "The functions are declared IMMUTABLE despite depending on a GUC. "
-                "A production deployment would have to pin it.",
+        "note": "T-52: xpr.ecma_num now carries its own SET extra_float_digits = 1, as "
+                "xpr.j does (T-9), so string() no longer follows the session's setting "
+                "and its IMMUTABLE label is true.",
+    },
+    {
+        "id": "parallel_refusal_order",
+        "construct": "a query in which more than one row would raise",
+        "expr_behaviour": "Python never raises a refusal; it returns inf / None per row",
+        "sql_behaviour": "T-52 made the runtime PARALLEL SAFE, so a large scan may run in "
+                         "workers, and WHICH row's error surfaces first (XPR01 or 22003) "
+                         "depends on worker timing",
+        "guarded": False,
+        "in_fixture": False,
+        "note": "A caller deciding to fall back to the Python path must treat ANY raise as "
+                "the fallback signal, not only XPR01.",
     },
     {
         "id": "wall_clock_granularity",
@@ -188,6 +245,7 @@ class _Compiler:
         self.noun = noun
         self.params: Dict[str, Any] = {}
         self._n = 0
+        self._eq_depth = 0    # T-52: > 0 while compiling an operand of == / != (see _num)
 
     # -- bind parameters ----------------------------------------------------------
     def _bind(self, value: Any, cast: str) -> str:
@@ -210,8 +268,22 @@ class _Compiler:
 
     # -- helpers ------------------------------------------------------------------
     def _num(self, node: Tuple) -> str:
-        """Compile a node and coerce it through _to_num (expr.py:305-319)."""
-        return f"xpr.num({self._j(node)})"
+        """Compile a node and coerce it through _to_num (expr.py:305-319), as float8.
+
+        A channel node is already a number (T-52 change 1).  A cheap jsonb value is
+        coerced inline (change 2).  Anything else calls the runtime's xpr.num, unchanged.
+        """
+        if self._is_num(node):
+            return self._f8(node)
+        j = self._j(node)
+        # Inside an operand of == / != the compact runtime call is used: T-61's _eq_sql writes
+        # each operand five times, and the inline form nine times its argument, so nested
+        # equalities multiplied past MAX_SQL_CHARS (a battery case reached 594,235 chars).
+        # xpr.num is the exact old path, so this keeps every answer and never makes the SQL
+        # larger than the compiler without T-52 would.
+        if self._is_cheap(node) and len(j) <= _INLINE_MAX_CHARS and not self._eq_depth:
+            return self._inline_coerce(j)
+        return f"xpr.num({j})"
 
     def _truthy(self, node: Tuple) -> str:
         """Compile a node and coerce it through _truthy (expr.py:282-293)."""
@@ -226,6 +298,9 @@ class _Compiler:
         if not isinstance(node, tuple) or not node:
             raise Uncompilable(f"not an AST node: {node!r}")
         tag = node[0]
+        if tag != "num" and self._is_num(node):
+            # T-52: a channel node becomes jsonb once, here, at the boundary.
+            return f"xpr.j({self._f8(node)})"
         fn = getattr(self, f"_t_{tag}", None)
         if fn is None:
             # expr.py:636 says parse() guarantees the tag universe; anything else is a
@@ -296,9 +371,6 @@ class _Compiler:
         return sql, path[1:]
 
     # ---- unary ------------------------------------------------------------------
-    def _t_neg(self, node):                                   # expr.py:179, 590-592
-        return f"xpr.j(- {self._num(node[1])})"
-
     def _t_not(self, node):                                   # expr.py:151, 593-594
         return f"to_jsonb(NOT {self._truthy(node[1])})"
 
@@ -314,7 +386,18 @@ class _Compiler:
     # ---- comparison -------------------------------------------------------------
     def _t_cmp(self, node):                                   # expr.py:599-607
         op, left, right = node[1], node[2], node[3]
-        l, r = self._j(left), self._j(right)
+        if op in ("<", "<=", ">", ">=") and self._is_num(left) and self._is_num(right):
+            # T-52 change 3: xpr.ord on two numbers IS the float8 comparison, NULL when
+            # either side is NULL -- so compare natively and skip both jsonb round trips.
+            return f"to_jsonb(({self._f8(left)} {op} {self._f8(right)}))"
+        if op in ("==", "!="):
+            self._eq_depth += 1
+            try:
+                l, r = self._j(left), self._j(right)
+            finally:
+                self._eq_depth -= 1
+        else:
+            l, r = self._j(left), self._j(right)
         if op == "==":
             return f"to_jsonb({self._eq_sql(l, r)})"
         if op == "!=":
@@ -345,25 +428,119 @@ class _Compiler:
                 f"THEN xpr.eq_deep({l}, {r}) "
                 f"ELSE ({l} IS NOT DISTINCT FROM {r}) END)")
 
-    # ---- arithmetic -------------------------------------------------------------
-    def _t_bin(self, node):                                   # expr.py:608-624
-        op, left, right = node[1], node[2], node[3]
-        ln, rn = self._num(left), self._num(right)
-        if op == "+":
-            return f"xpr.j({ln} + {rn})"
-        if op == "-":
-            return f"xpr.j({ln} - {rn})"
-        if op == "*":
-            return f"xpr.j({ln} * {rn})"
-        if op == "/":
-            # expr.py:620-621: zero divisor -> None. Postgres would RAISE division_by_zero.
-            return f"xpr.j(xpr.div({ln}, {rn}))"
-        if op == "%":
-            # expr.py:622-624 is math.fmod, not Python's %.  Postgres has NO % operator
-            # and no mod() for double precision at all, so xpr.fmod computes the exact
-            # IEEE truncated remainder.
-            return f"xpr.j(xpr.fmod({ln}, {rn}))"
-        raise Uncompilable(f"unknown arithmetic operator {op!r}")
+
+    # ---- the float8 channel (T-52 changes 1 and 2) ---------------------------------
+    def _is_num(self, node) -> bool:
+        """Always a number or null, whatever the record holds."""
+        if not isinstance(node, tuple) or not node:
+            return False
+        tag = node[0]
+        if tag in ("num", "neg", "bin"):
+            return True
+        if tag == "call":
+            name, args = node[1], node[2]
+            if name in _NUM_FUNCS:
+                return True
+            if name == "coalesce":
+                return all(self._is_num(a) for a in args)
+            if name == "if":
+                return len(args) != 3 or (self._is_num(args[1]) and self._is_num(args[2]))
+        return False
+
+    def _is_cheap(self, node) -> bool:
+        """Cheap enough for _inline_coerce: written nine times, evaluated at most four per row."""
+        tag = node[0] if isinstance(node, tuple) and node else None
+        if tag in ("field", "num", "str", "bool", "null"):
+            return True
+        if tag == "call" and node[1] == "coalesce":
+            return all(isinstance(a, tuple) and a and a[0] in ("field", "num", "str", "bool", "null")
+                       for a in node[2])
+        return False
+
+    def _f8(self, node) -> str:
+        """float8 SQL for an _is_num node.  Arity rules are expr.py's, as before T-52."""
+        tag = node[0]
+        if tag == "num":                                      # expr.py:193, 580-581
+            v = float(node[1])
+            if v != v or math.isinf(v):
+                raise Uncompilable(
+                    "numeric literal overflows to inf/nan; jsonb has no representation for it")
+            return self._bind(v, "float8")
+        if tag == "neg":                                      # expr.py:179, 590-592
+            return f"(- {self._num(node[1])})"
+        if tag == "bin":                                      # expr.py:608-624
+            op, left, right = node[1], node[2], node[3]
+            ln, rn = self._num(left), self._num(right)
+            if op in ("+", "-", "*"):
+                return f"({ln} {op} {rn})"
+            if op == "/":
+                # expr.py:620-621: zero divisor -> None. Postgres would RAISE division_by_zero.
+                return f"xpr.div({ln}, {rn})"
+            if op == "%":
+                # expr.py:622-624 is math.fmod, not Python's %.  Postgres has NO % operator
+                # and no mod() for double precision at all, so xpr.fmod computes the exact
+                # IEEE truncated remainder.
+                return f"xpr.fmod({ln}, {rn})"
+            raise Uncompilable(f"unknown arithmetic operator {op!r}")
+        name, args = node[1], node[2]
+        if name == "number":                                  # expr.py:540
+            return self._num(args[0]) if args else "NULL::float8"
+        if name in ("abs", "floor", "ceil"):                  # expr.py:544-546
+            return f"{name}({self._num(args[0])})" if args else "NULL::float8"
+        if name == "round":                                   # expr.py:517-527
+            if not args:
+                return "NULL::float8"
+            x = self._num(args[0])
+            nd = self._num(args[1]) if len(args) > 1 else "NULL::float8"
+            return f"xpr.round({x}, {nd})"
+        if name == "length":                                  # expr.py:543
+            return f"xpr.length({self._j(args[0])})" if args else "NULL::float8"
+        # count / sum / avg / min / max all route through _as_list (expr.py:462-466):
+        # exactly ONE list argument is unwrapped; anything else is used as-is.
+        if name == "count":                                   # expr.py:548
+            if len(args) == 1:
+                return f"xpr.count_one({self._j(args[0])})"
+            return f"xpr.count_arr({self._build_array(args)})"
+        if name in ("sum", "avg", "min", "max"):              # expr.py:502-514, 549-552
+            if len(args) == 1:
+                return f"xpr.reduce_one({self._bind(name, 'text')}, {self._j(args[0])})"
+            return f"xpr.reduce_arr({self._bind(name, 'text')}, {self._build_array(args)})"
+        if name == "days_between":                            # expr.py:469-475
+            if len(args) != 2:
+                return "NULL::float8"
+            a, b = self._j(args[0]), self._j(args[1])
+            return f"((xpr.pdate_ms({b}) - xpr.pdate_ms({a})) / {MS_PER_DAY_SQL}::float8)"
+        if name == "coalesce":                                # expr.py:535
+            if not args:
+                return "NULL::float8"
+            return "COALESCE(" + ", ".join(self._f8(a) for a in args) + ")"
+        if name == "if":                                      # expr.py:627-632
+            if len(args) != 3:
+                return "NULL::float8"
+            return (f"CASE WHEN {self._truthy(args[0])} "
+                    f"THEN {self._f8(args[1])} ELSE {self._f8(args[2])} END")
+        raise AssertionError(f"_f8 called on a node _is_num does not admit: {node!r}")
+
+    def _inline_coerce(self, j: str) -> str:
+        """xpr.num(j) written inline for a cheap j; the rare paths still call the runtime."""
+        s = f"({j} #>> '{{}}')"
+        return (f"(CASE jsonb_typeof({j}) "
+                f"WHEN 'number' THEN (CASE WHEN abs(({j})::numeric) <= {DBL_MAX_LITERAL}::numeric "
+                f"THEN ({j})::float8 ELSE xpr.f8({j}) END) "
+                f"WHEN 'string' THEN (CASE WHEN {s} ~ '{_PLAIN_DECIMAL}' AND length({s}) < 300 "
+                f"THEN {s}::float8 ELSE xpr.num({j}) END) "
+                f"WHEN 'boolean' THEN (CASE WHEN ({j}) = 'true'::jsonb "
+                f"THEN 1.0::float8 ELSE 0.0::float8 END) "
+                f"ELSE NULL::float8 END)")
+
+    # ---- the predicate (T-52 change 4) ---------------------------------------------
+    def predicate(self, node) -> str:
+        """Boolean SQL, true exactly where expr's _truthy(evaluate(node)) is."""
+        if (isinstance(node, tuple) and node and node[0] == "cmp"
+                and node[1] in ("<", "<=", ">", ">=")
+                and self._is_num(node[2]) and self._is_num(node[3])):
+            return f"COALESCE(({self._f8(node[2])} {node[1]} {self._f8(node[3])}), false)"
+        return f"xpr.truthy({self._j(node)})"
 
     # ---- calls ------------------------------------------------------------------
     def _t_call(self, node):                                  # expr.py:625-635
@@ -379,13 +556,6 @@ class _Compiler:
 
     def _f_now(self, args):
         return f"to_jsonb(xpr.fmt_date_ms(xpr.now_ms({self._ctx()}), false))"
-
-    def _f_days_between(self, args):                          # expr.py:469-475
-        if len(args) != 2:
-            return "NULL::jsonb"                              # expr.py:470-471
-        a, b = self._j(args[0]), self._j(args[1])
-        return (f"xpr.j((xpr.pdate_ms({b}) - xpr.pdate_ms({a})) "
-                f"/ {MS_PER_DAY_SQL}::float8)")
 
     def _f_date_add(self, args):                              # expr.py:478-485
         if len(args) != 2:
@@ -425,11 +595,6 @@ class _Compiler:
             return "NULL::jsonb"
         return f"to_jsonb(xpr.contains({self._j(args[0])}, {self._j(args[1])}))"
 
-    def _f_number(self, args):                                # expr.py:540
-        if not args:
-            return "NULL::jsonb"
-        return f"xpr.j({self._num(args[0])})"
-
     def _f_string(self, args):                                # expr.py:541
         if not args:
             return "NULL::jsonb"
@@ -442,58 +607,6 @@ class _Compiler:
             return "to_jsonb(''::text)"
         parts = " || ".join(f"coalesce({self._str(a)}, '')" for a in args)
         return f"to_jsonb({parts})"
-
-    def _f_length(self, args):                                # expr.py:543
-        if not args:
-            return "NULL::jsonb"
-        return f"xpr.j(xpr.length({self._j(args[0])}))"
-
-    def _f_abs(self, args):                                   # expr.py:544
-        if not args:
-            return "NULL::jsonb"
-        return f"xpr.j(abs({self._num(args[0])}))"
-
-    def _f_floor(self, args):                                 # expr.py:545
-        if not args:
-            return "NULL::jsonb"
-        return f"xpr.j(floor({self._num(args[0])}))"
-
-    def _f_ceil(self, args):                                  # expr.py:546
-        if not args:
-            return "NULL::jsonb"
-        return f"xpr.j(ceil({self._num(args[0])}))"
-
-    def _f_round(self, args):                                 # expr.py:517-527
-        if not args:
-            return "NULL::jsonb"
-        nd = self._num(args[1]) if len(args) > 1 else "NULL::float8"
-        return f"xpr.j(xpr.round({self._num(args[0])}, {nd}))"
-
-    # count / sum / avg / min / max all route through _as_list (expr.py:462-466):
-    # exactly ONE list argument is unwrapped; anything else is used as-is.
-    def _f_count(self, args):                                 # expr.py:548
-        if len(args) == 1:
-            return f"xpr.j(xpr.count_one({self._j(args[0])}))"
-        return f"xpr.j(xpr.count_arr({self._build_array(args)}))"
-
-    def _reduce(self, op: str, args):                         # expr.py:502-514, 549-552
-        if len(args) == 1:
-            return (f"xpr.j(xpr.reduce_one({self._bind(op, 'text')}, "
-                    f"{self._j(args[0])}))")
-        return (f"xpr.j(xpr.reduce_arr({self._bind(op, 'text')}, "
-                f"{self._build_array(args)}))")
-
-    def _f_sum(self, args):
-        return self._reduce("sum", args)
-
-    def _f_avg(self, args):
-        return self._reduce("avg", args)
-
-    def _f_min(self, args):
-        return self._reduce("min", args)
-
-    def _f_max(self, args):
-        return self._reduce("max", args)
 
     def _build_array(self, args) -> str:
         if not args:
@@ -521,6 +634,26 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.
         pass
+    return Compiled(sql=sql, params=c.params)
+
+
+def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
+                      fold: Any = None, noun: Any = None) -> Compiled:
+    """Compile an expr AST to a Postgres BOOLEAN: true exactly where expr's
+    _truthy(evaluate(ast)) is.  For a WHERE.  Same arguments and refusals as compile_ast.
+
+    The pre-T-52 form, xpr.truthy(<compile_ast>), is what this replaces; the two are
+    identical case by case (spikes/T-44, the predicate verdicts on all 11,367 battery
+    expressions).  An ordering comparison between two numbers becomes a native compare.
+    """
+    if fold not in (None, "gims"):
+        raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
+    if fold == "gims" and not (isinstance(noun, str) and noun):
+        raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
+    c = _Compiler(column, ctx_param, fold, noun)
+    sql = c.predicate(ast)
+    if len(sql) > MAX_SQL_CHARS:
+        raise Uncompilable(f"generated SQL is {len(sql)} chars, over the {MAX_SQL_CHARS} cap")
     return Compiled(sql=sql, params=c.params)
 
 

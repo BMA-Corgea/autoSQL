@@ -562,8 +562,13 @@ class TestB2InlineReemission:
         assert '"loadx"' not in built.sql
         assert built.columns == ("agg",)
         # the compiled expression appears twice, inside the numeric read
-        # (jsonb_typeof guard + the cast), under the agg prefix.
-        assert built.sql.count("%(agg_p0)s") == 2
+        # (jsonb_typeof guard + the cast), under the agg prefix.  T-52: the
+        # expression reads its field more than once on its own (the number
+        # check is written inline), so count whole re-emissions: twice the
+        # mentions in ONE compilation of it, never one more.
+        once = builder.compile_ast(builder._expr.parse("$.payload.load * 2")).sql.count("%(p0)s")
+        assert once >= 1
+        assert built.sql.count("%(agg_p0)s") == 2 * once
         # and it RUNS, and the number is the generator's, doubled.
         expected = q6(Decimal(
             2 * sum(r["payload"]["load"] for _k, r in hb_model)

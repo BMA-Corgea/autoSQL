@@ -25,13 +25,25 @@
 -- This is a SPIKE artifact. It is not a library, nothing imports it, and it is
 -- installed only into the scratch database `autosql_spike`, schema `xpr`.
 --
--- KNOWN GUC DEPENDENCY: xpr.ecma_num() reads float8's text output, which is the
--- shortest-round-trip representation only when extra_float_digits >= 0 (the PG12+
--- default is 1). The functions are declared IMMUTABLE anyway (a production
--- deployment would have to pin the GUC); this is recorded as a caveat, not hidden.
+-- NO SESSION DEPENDENCY (T-52): xpr.ecma_num() and xpr.j() read float8's text output,
+-- and each pins its own SET extra_float_digits = 1, so neither follows the session's
+-- setting and their IMMUTABLE labels are true. Every function is PARALLEL SAFE; T-44
+-- measured why xpr.num had to lose its EXCEPTION block first (spikes/T-44/FINDINGS.md).
+-- REQUIRES PostgreSQL 16+ (xpr.num uses pg_input_is_valid); checked at install below.
 -- ============================================================================
 
 CREATE SCHEMA IF NOT EXISTS xpr;
+
+-- T-52: refuse to install where xpr.num cannot work, loudly, instead of failing later
+-- on every numeric string with 42883 (pg_input_is_valid does not exist before PG 16).
+DO $pgguard$
+BEGIN
+  IF current_setting('server_version_num')::int < 160000 THEN
+    RAISE EXCEPTION 'the autoSQL runtime needs PostgreSQL 16 or newer; this server is %',
+      current_setting('server_version') USING ERRCODE = 'XPR04';
+  END IF;
+END
+$pgguard$;
 
 -- ----------------------------------------------------------------------------
 -- f8 : jsonb number -> float8.
@@ -44,7 +56,7 @@ CREATE SCHEMA IF NOT EXISTS xpr;
 -- class, so the caller can report a fallback to the Python path.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.f8(j jsonb) RETURNS float8
-LANGUAGE plpgsql IMMUTABLE AS $fn$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $fn$
 DECLARE n numeric;
 BEGIN
   IF j IS NULL OR jsonb_typeof(j) <> 'number' THEN
@@ -74,7 +86,7 @@ $fn$;
 -- native 22003, the pre-existing unguarded-underflow behaviour T-3 measures but,
 -- per the framing's scope, does not redesign.
 CREATE OR REPLACE FUNCTION xpr.num(j jsonb) RETURNS float8
-LANGUAGE plpgsql IMMUTABLE AS $fn$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $fn$
 DECLARE t text; n numeric;
 BEGIN
   IF j IS NULL THEN
@@ -122,9 +134,17 @@ BEGIN
         RETURN NULL;
       END IF;
     END IF;
-    BEGIN
-      n := t::numeric;
-    EXCEPTION WHEN numeric_value_out_of_range THEN
+    -- T-44 LEVER (a): the same check WITHOUT an EXCEPTION block.  A block with a handler
+    -- opens a subtransaction, which PostgreSQL 16 refuses in parallel mode ("cannot start
+    -- subtransactions during a parallel operation") -- so the block made this function,
+    -- and every query that calls it, parallel UNSAFE.  pg_input_is_valid (PG16, parallel
+    -- safe) asks numeric_in the same question as a soft error.  For a string that passed
+    -- the regex above, numeric_in can fail only on range, so "not valid" here is exactly
+    -- the numeric_value_out_of_range the handler used to catch.  Below 1001 characters
+    -- with an exponent of at most 3 digits numeric cannot overflow (dscale <= 1999 against
+    -- a limit of 16383; weight <= 1999 decimal digits against 131072), so the common path
+    -- skips the second parse.  Equivalence is MEASURED, not argued: spikes/T-44/num_diff.py; runtime/tests pins it.
+    IF (length(t) > 1000 OR t ~ '[eE][+-]?[0-9]{4}') AND NOT pg_input_is_valid(t, 'numeric') THEN
       IF t ~ '[eE]-' THEN
         RETURN t::float8;   -- tiny beyond numeric: float8's own native raise surfaces
       END IF;
@@ -132,7 +152,8 @@ BEGIN
         USING ERRCODE = 'XPR01',
               DETAIL  = 'value (truncated): ' || left(t, 40),
               HINT    = 'named refusal -- fall back to the Python evaluator and report which path ran';
-    END;
+    END IF;
+    n := t::numeric;
     IF abs(n) > 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000::numeric THEN
       RAISE EXCEPTION 'xpr.num refusal: numeric string magnitude exceeds float8 range (DBL_MAX)'
         USING ERRCODE = 'XPR01',
@@ -170,7 +191,7 @@ $fn$;
 -- back float8, the honest move is to refuse rather than return a short number.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.j(x float8) RETURNS jsonb
-LANGUAGE sql IMMUTABLE
+LANGUAGE sql IMMUTABLE PARALLEL SAFE
 SET extra_float_digits = 1
 AS $$ SELECT to_jsonb(x) $$;
 
@@ -181,7 +202,7 @@ AS $$ SELECT to_jsonb(x) $$;
 -- back directly. Raises XPR03 rather than letting a short number through.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.assert_float_digits() RETURNS void
-LANGUAGE plpgsql STABLE AS $fn$
+LANGUAGE plpgsql STABLE PARALLEL SAFE AS $fn$
 DECLARE got text;
 BEGIN
   got := current_setting('extra_float_digits');
@@ -198,7 +219,7 @@ $fn$;
 -- truthy : implements _truthy (expr.py:282-293). Never NULL.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.truthy(j jsonb) RETURNS boolean
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE
     WHEN j IS NULL THEN false
     WHEN jsonb_typeof(j) = 'null'    THEN false
@@ -216,7 +237,9 @@ $$;
 --   Digit source is float8's own shortest-round-trip text (== Python repr()).
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.ecma_num(x float8) RETURNS text
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE
+SET extra_float_digits = 1   -- T-44: the label was false; this makes it true (T-52; see spikes/T-44/FINDINGS.md 2.2)
+AS $$
 DECLARE
   t text; mpart text; epart int; ipart text; fpart text;
   alld text; pointpos int; lz int; s text; k int; n int; e int; mant text; out text;
@@ -270,7 +293,7 @@ $$;
 -- str : implements _to_str (expr.py:351-360). list/dict -> NULL.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.str(j jsonb) RETURNS text
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE
     WHEN j IS NULL THEN NULL::text
     WHEN jsonb_typeof(j) = 'null'    THEN NULL::text
@@ -287,7 +310,7 @@ $$;
 --   integer subscripting ('5'::jsonb -> 0  ==  5), which _resolve_field does not.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.idx(j jsonb, i int) RETURNS jsonb
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN jsonb_typeof(j) = 'array' THEN j -> i END
 $$;
 
@@ -306,7 +329,7 @@ $$;
 --   Never NULL, like _eq: two-valued.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.eq_deep(a jsonb, b jsonb) RETURNS boolean
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$   -- T-52: no exception block, no write, read-only SPI only
 DECLARE ta text; tb text; n int; k text; fa float8;
 BEGIN
   IF a IS NULL OR b IS NULL THEN RETURN a IS NULL AND b IS NULL; END IF;
@@ -342,7 +365,7 @@ $$;
 
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.ord(op text, a jsonb, b jsonb) RETURNS boolean
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE
     WHEN a IS NULL OR b IS NULL THEN NULL::boolean
     WHEN jsonb_typeof(a) = 'number' AND jsonb_typeof(b) = 'number' THEN
@@ -368,7 +391,7 @@ $$;
 --   never Postgres's division_by_zero error.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.div(a float8, b float8) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN a IS NULL OR b IS NULL OR b = 0 THEN NULL::float8 ELSE a / b END
 $$;
 
@@ -377,7 +400,7 @@ $$;
 --   |v| == mantissa * 2^exponent exactly. Used only by xpr.fmod.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr._bits(v float8) RETURNS bigint[]
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE b bytea; u bigint := 0; i int; expo int; mant bigint;
 BEGIN
   b := float8send(abs(v));                    -- abs() clears the sign bit -> u fits int8
@@ -402,7 +425,7 @@ $$;
 --   fmod is always exactly representable, so the final float8 product is exact.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.fmod(x float8, y float8) RETURNS float8
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE
   bx bigint[]; byv bigint[]; s int; xn numeric; yn numeric; r numeric; res float8;
 BEGIN
@@ -429,7 +452,7 @@ $$;
 -- round : implements _fn_round (expr.py:517-527) -- half AWAY from zero.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.round(x float8, nd float8) RETURNS float8
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE ndig int; factor float8; scaled float8; t float8;
 BEGIN
   IF x IS NULL THEN RETURN NULL; END IF;
@@ -448,7 +471,7 @@ $$;
 --   UTC assumed when no offset; totally NULL on any failure.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.pdate_ms(j jsonb) RETURNS float8
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE
   s text; m text[]; y int; mo int; d int; hh int; mi int; ss int; us int;
   off text; dim int; sec numeric; ms numeric; sgn int; dig text;
@@ -503,7 +526,7 @@ END
 $$;
 
 CREATE OR REPLACE FUNCTION xpr.pdate_only(j jsonb) RETURNS boolean
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN xpr.pdate_ms(j) IS NULL THEN NULL::boolean
               -- the same two steps as pdate_ms (T-60): the ASCII path, then Python's whitespace
               -- set and the Nd map; COALESCE evaluates the second only when the first missed
@@ -522,7 +545,7 @@ $$;
 --   Python bounds: datetime.min .. datetime.max, i.e. year 1 .. 9999 UTC.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.fmt_date_ms(ms float8, date_only boolean) RETURNS text
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE t float8; ip float8; us float8; ts timestamp;
 BEGIN
   IF ms IS NULL OR date_only IS NULL THEN RETURN NULL; END IF;
@@ -558,7 +581,7 @@ $$;
 --   evaluate() call. NOT exercised by the fixture (all clock cases inject "now").
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.now_ms(ctx jsonb) RETURNS float8
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE PARALLEL SAFE AS $$
   SELECT COALESCE(
     CASE WHEN jsonb_typeof(ctx -> 'now') = 'string' THEN xpr.pdate_ms(ctx -> 'now') END,
     CASE WHEN jsonb_typeof(ctx -> 'now') = 'number' THEN xpr.f8(ctx -> 'now') END,
@@ -571,7 +594,7 @@ $$;
 --   NOTE the exception to null-propagation: a NULL haystack yields FALSE, not NULL.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.contains(hay jsonb, needle jsonb) RETURNS boolean
-LANGUAGE plpgsql IMMUTABLE AS $$
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE hs text; ns text;
 BEGIN
   IF hay IS NULL OR jsonb_typeof(hay) = 'null' THEN RETURN false; END IF;   -- expr.py:492-493
@@ -589,7 +612,7 @@ $$;
 -- length : implements the `length` builtin (expr.py:543).
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.length(j jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE jsonb_typeof(j)
     WHEN 'string' THEN length(j #>> '{}')::float8
     WHEN 'array'  THEN jsonb_array_length(j)::float8
@@ -604,13 +627,13 @@ $$;
 --   -- the OPPOSITE convention from sum/avg/min/max below.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.count_arr(arr jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT (SELECT count(*) FROM jsonb_array_elements(arr) e
            WHERE jsonb_typeof(e) <> 'null')::float8
 $$;
 
 CREATE OR REPLACE FUNCTION xpr.count_one(j jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE WHEN j IS NOT NULL AND jsonb_typeof(j) = 'array' THEN xpr.count_arr(j)
               WHEN j IS NULL THEN 0::float8
               WHEN jsonb_typeof(j) = 'null' THEN 0::float8
@@ -622,7 +645,7 @@ $$;
 --   (expr.py:502-514) -- _to_num filter, and NULL (not 0) on an empty result set.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.reduce_arr(op text, arr jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT CASE op
            WHEN 'sum' THEN sum(v ORDER BY ord)
            WHEN 'avg' THEN sum(v ORDER BY ord) / nullif(count(*), 0)
@@ -635,7 +658,7 @@ LANGUAGE sql IMMUTABLE AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION xpr.reduce_one(op text, j jsonb) RETURNS float8
-LANGUAGE sql IMMUTABLE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
   SELECT xpr.reduce_arr(op,
     CASE WHEN j IS NOT NULL AND jsonb_typeof(j) = 'array' THEN j
          ELSE jsonb_build_array(j) END)

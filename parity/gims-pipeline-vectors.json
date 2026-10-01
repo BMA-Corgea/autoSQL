@@ -2,9 +2,9 @@
  "format": "gims-pipeline-vectors/1",
  "version": 8,
  "source": {
-  "autosql": "a59b945",
-  "compiler_sha256": "c1ed58fcb235108c3570c6d680f16995ac30ddd67cb393602e86553137a73532",
-  "runtime_sha256": "65bb6173790f668dcf28363c7b37360a5c4786988ea02a273a46ba0844ad78c7",
+  "autosql": "3d516e2",
+  "compiler_sha256": "4ec9e6132618f39567000ed66520d1acf2b68ae3099563738cf579381e55013c",
+  "runtime_sha256": "2526e29308aaea4cd4708c66fb644b2f0aafa63f20371cc4f3f8a05a359f8ea3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
  "noun": "parity_case",
