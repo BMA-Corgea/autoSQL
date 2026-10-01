@@ -3,8 +3,8 @@
     "defaultMode": "bypassPermissions"
   },
   "env": {
-    "AUTODEV_MODEL_FAST": "claude-haiku-4-5",
-    "AUTODEV_MODEL_STANDARD": "claude-sonnet-5",
+    "AUTODEV_MODEL_FAST": "haiku",
+    "AUTODEV_MODEL_STANDARD": "sonnet",
     "AUTODEV_MODEL_STRONG": "opus",
     "AUTODEV_MODEL_FALLBACK": "opus"
   },
