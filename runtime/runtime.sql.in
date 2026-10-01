@@ -23,13 +23,25 @@
 -- This is a SPIKE artifact. It is not a library, nothing imports it, and it is
 -- installed only into the scratch database `autosql_spike`, schema `xpr`.
 --
--- KNOWN GUC DEPENDENCY: xpr.ecma_num() reads float8's text output, which is the
--- shortest-round-trip representation only when extra_float_digits >= 0 (the PG12+
--- default is 1). The functions are declared IMMUTABLE anyway (a production
--- deployment would have to pin the GUC); this is recorded as a caveat, not hidden.
+-- NO SESSION DEPENDENCY (T-52): xpr.ecma_num() and xpr.j() read float8's text output,
+-- and each pins its own SET extra_float_digits = 1, so neither follows the session's
+-- setting and their IMMUTABLE labels are true. Every function is PARALLEL SAFE; T-44
+-- measured why xpr.num had to lose its EXCEPTION block first (spikes/T-44/FINDINGS.md).
+-- REQUIRES PostgreSQL 16+ (xpr.num uses pg_input_is_valid); checked at install below.
 -- ============================================================================
 
 CREATE SCHEMA IF NOT EXISTS xpr;
+
+-- T-52: refuse to install where xpr.num cannot work, loudly, instead of failing later
+-- on every numeric string with 42883 (pg_input_is_valid does not exist before PG 16).
+DO $pgguard$
+BEGIN
+  IF current_setting('server_version_num')::int < 160000 THEN
+    RAISE EXCEPTION 'the autoSQL runtime needs PostgreSQL 16 or newer; this server is %',
+      current_setting('server_version') USING ERRCODE = 'XPR04';
+  END IF;
+END
+$pgguard$;
 
 -- ----------------------------------------------------------------------------
 -- f8 : jsonb number -> float8.

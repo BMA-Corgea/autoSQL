@@ -67,6 +67,13 @@ DBL_MAX_LITERAL = "17976931348623157" + "0" * 292
 # what xpr.num returns for it.  Everything else goes to xpr.num.
 _PLAIN_DECIMAL = r"^[+-]?([0-9]+[.]?[0-9]*|[.][0-9]+)$"
 
+# _inline_coerce writes its argument NINE times into the SQL (and evaluates it up to four
+# times per row), so it is used only for an argument at most this long.  Longer -- a deep
+# path, or a GIMS-folded key with many separator variants (T-48) -- takes the unchanged
+# xpr.num(...) instead: exact either way, and the generated SQL stays far from the
+# MAX_SQL_CHARS cap (the T-52 review measured 12 folded uses crossing it unbounded).
+_INLINE_MAX_CHARS = 512
+
 # Builtins whose value is always a number or null (the float8 channel).
 _NUM_FUNCS = frozenset({"number", "abs", "floor", "ceil", "round", "length", "count",
                         "sum", "avg", "min", "max", "days_between"})
@@ -193,10 +200,23 @@ KNOWN_DIVERGENCES = [
         "expr_behaviour": "_num_to_str uses repr() == shortest round-trip (expr.py:334)",
         "sql_behaviour": "xpr.ecma_num reads float8's text output, which is the shortest "
                          "round-trip only while extra_float_digits >= 0 (PG12+ default 1)",
-        "guarded": False,
+        "guarded": True,
         "in_fixture": True,
-        "note": "The functions are declared IMMUTABLE despite depending on a GUC. "
-                "A production deployment would have to pin it.",
+        "note": "T-52: xpr.ecma_num now carries its own SET extra_float_digits = 1, as "
+                "xpr.j does (T-9), so string() no longer follows the session's setting "
+                "and its IMMUTABLE label is true.",
+    },
+    {
+        "id": "parallel_refusal_order",
+        "construct": "a query in which more than one row would raise",
+        "expr_behaviour": "Python never raises a refusal; it returns inf / None per row",
+        "sql_behaviour": "T-52 made the runtime PARALLEL SAFE, so a large scan may run in "
+                         "workers, and WHICH row's error surfaces first (XPR01 or 22003) "
+                         "depends on worker timing",
+        "guarded": False,
+        "in_fixture": False,
+        "note": "A caller deciding to fall back to the Python path must treat ANY raise as "
+                "the fallback signal, not only XPR01.",
     },
     {
         "id": "wall_clock_granularity",
@@ -254,7 +274,7 @@ class _Compiler:
         if self._is_num(node):
             return self._f8(node)
         j = self._j(node)
-        if self._is_cheap(node):
+        if self._is_cheap(node) and len(j) <= _INLINE_MAX_CHARS:
             return self._inline_coerce(j)
         return f"xpr.num({j})"
 
@@ -397,7 +417,7 @@ class _Compiler:
         return False
 
     def _is_cheap(self, node) -> bool:
-        """Cheap enough to evaluate up to three times per row in _inline_coerce."""
+        """Cheap enough for _inline_coerce: written nine times, evaluated at most four per row."""
         tag = node[0] if isinstance(node, tuple) and node else None
         if tag in ("field", "num", "str", "bool", "null"):
             return True

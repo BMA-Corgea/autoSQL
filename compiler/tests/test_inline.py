@@ -64,7 +64,17 @@ RECORDS = [
     {"a": -0.0, "b": 0}, {"a": "12.5", "b": "+3.", "l": [1, "2", " 3 ", None, "x"]},
     {"s": "12", "d": "2024-01-01", "e": "2024-03-01", "flag": True, "a": 1, "b": 3, "l": [1, 2]},
     {"a": "0.000000001", "b": "000123", "s": " 4 ", "flag": False},
+    # the guards, reached (T-52 review finding 6): a JSON number beyond the DBL_MAX literal
+    # (Python ints serialize exactly), strings at and past the 300-character fast-path limit
+    {"a": 10 ** 400, "b": -(10 ** 400)}, {"a": "1" * 400, "b": "1" * 299},
+    {"a": "9" * 298 + ".5", "s": "1" * 300},
 ]
+
+
+#: Records are read from a ROW SOURCE, never bound as one constant row: with a constant,
+#: Postgres folds the whole expression at plan time and the executor path the timed
+#: queries take never runs (T-52 review finding 4).
+ROW_SOURCE = "FROM jsonb_array_elements(%(recs)s::jsonb) AS t(data)"
 
 
 def test_the_boundary_literal_is_the_runtimes():
@@ -100,16 +110,18 @@ def test_an_ordering_between_numbers_is_native_and_the_rest_keep_xpr_ord():
         assert "xpr.ord(" in SHIPPING.compile_ast(EXPR.parse(src)).sql, src
 
 
-def _value(cx, mod, src, rec):
+def _run(cx, sql, params, rec):
     import psycopg
-    c = mod.compile_ast(EXPR.parse(src))
-    params = dict(c.params, ctx="{}", rec=json.dumps(rec))
+    p = dict(params, ctx="{}", recs=json.dumps([rec]))
     try:
-        row = cx.execute("SELECT (" + c.sql + ")::text FROM (SELECT (%(rec)s)::jsonb AS data) t",
-                         params).fetchone()
-        return ("value", row[0])
+        return ("value", cx.execute("SELECT (" + sql + ")::text " + ROW_SOURCE, p).fetchone()[0])
     except psycopg.Error as exc:
         return ("raised", exc.sqlstate)
+
+
+def _value(cx, mod, src, rec):
+    c = mod.compile_ast(EXPR.parse(src))
+    return _run(cx, c.sql, c.params, rec)
 
 
 @needs_db
@@ -124,19 +136,25 @@ def test_the_rewritten_families_compute_what_the_frozen_compiler_computes(src):
 
 @needs_db
 @pytest.mark.parametrize("src", EXPRESSIONS)
-def test_compile_predicate_is_the_truthiness_of_compile_ast(src):
+def test_compile_predicate_is_the_truthiness_the_old_compiler_computed(src):
+    """Against the FROZEN compiler's xpr.truthy(<jsonb>) -- the pre-T-52 form, xpr.ord and
+    all -- not against this compiler's own compile_ast (T-52 review finding 7)."""
     import psycopg
     ast = EXPR.parse(src)
-    pred = SHIPPING.compile_predicate(ast)
-    val = SHIPPING.compile_ast(ast)
+    new = SHIPPING.compile_predicate(ast)
+    old = FROZEN.compile_ast(ast)
     with psycopg.connect(DSN, autocommit=True) as cx:
+        cx.execute("SET extra_float_digits = 1")
         for rec in RECORDS:
-            got = []
-            for sql, params in ((pred.sql, pred.params), ("xpr.truthy(" + val.sql + ")", val.params)):
-                p = dict(params, ctx="{}", rec=json.dumps(rec))
-                try:
-                    got.append(cx.execute("SELECT " + sql + " FROM (SELECT (%(rec)s)::jsonb AS data) t",
-                                          p).fetchone()[0])
-                except psycopg.Error as exc:
-                    got.append(exc.sqlstate)
-            assert got[0] == got[1], (src, rec, got)
+            assert (_run(cx, new.sql, new.params, rec)
+                    == _run(cx, "xpr.truthy(" + old.sql + ")", old.params, rec)), (src, rec)
+
+
+def test_a_long_argument_takes_the_runtime_path_not_the_inline_one():
+    """T-52 review finding 2: the inline form writes its argument nine times, so a long
+    one (a deep path, a GIMS-folded key) must fall back to xpr.num -- exact either way."""
+    c = SHIPPING._Compiler("data", "ctx")
+    short = c._num(("field", [("key", "a")]))
+    deep = c._num(("field", [("key", "k%d" % i) for i in range(40)]))
+    assert short.startswith("(CASE jsonb_typeof(")
+    assert deep.startswith("xpr.num(") and "CASE jsonb_typeof(" not in deep

@@ -57,14 +57,22 @@ def test_every_installed_function_is_parallel_safe(conn):
     ('"abc"', None), ("5", 5.0),
 ])
 def test_string_coercion_runs_inside_a_parallel_worker(conn, raw, expect):
-    """The exact path that raised 25000 before the rewrite, forced into a worker."""
+    """The exact path that raised 25000 before the rewrite, forced into a worker.
+
+    The value comes from a ROW SOURCE: a constant argument is folded at plan time in the
+    leader, and the worker would only return the constant (T-52 review finding 5).
+    Verified the other way round: against the shipping bodies merely labelled safe, the
+    string cases here raise 25000.
+    """
+    q = "SELECT xpr.num(x) FROM jsonb_array_elements(%s::jsonb) AS t(x)"
+    arg = "[" + raw + "]"
     conn.execute("SET debug_parallel_query = on")
     try:
         plan = "\n".join(r[0] for r in conn.execute(
-            "EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY OFF) SELECT xpr.num(%s::jsonb)",
-            (raw,)).fetchall())
+            "EXPLAIN (ANALYZE, VERBOSE, COSTS OFF, TIMING OFF, SUMMARY OFF) " + q, (arg,)).fetchall())
         assert "Workers Launched: 1" in plan, "no worker launched -- the test proves nothing:\n" + plan
-        assert conn.execute("SELECT xpr.num(%s::jsonb)", (raw,)).fetchone()[0] == expect
+        assert "xpr.num(" in plan, "the call was folded away:\n" + plan
+        assert conn.execute(q, (arg,)).fetchone()[0] == expect
     finally:
         conn.execute("RESET debug_parallel_query")
 
