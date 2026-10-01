@@ -1,0 +1,310 @@
+{
+ "control": "T-44 negative control",
+ "passed": true,
+ "n": 25,
+ "failed": [],
+ "results": [
+  {
+   "injection": "I0 unmodified harness, 1000/num",
+   "expected": "every arm measured, identity agrees, K5 PASS x3",
+   "got": {
+    "A": [
+     "measured",
+     "-"
+    ],
+    "B4": [
+     "measured",
+     "-"
+    ],
+    "C_spike": [
+     "measured",
+     "-"
+    ],
+    "C_ship": [
+     "measured",
+     "-"
+    ],
+    "C_par": [
+     "measured",
+     "PASS"
+    ],
+    "C_inline": [
+     "measured",
+     "PASS"
+    ],
+    "C_both": [
+     "measured",
+     "PASS"
+    ],
+    "C_t52": [
+     "measured",
+     "-"
+    ]
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I0 unmodified harness, 1000/text",
+   "expected": "every arm measured, identity agrees, K5 PASS x3",
+   "got": {
+    "A": [
+     "measured",
+     "-"
+    ],
+    "B4": [
+     "measured",
+     "-"
+    ],
+    "C_spike": [
+     "measured",
+     "-"
+    ],
+    "C_ship": [
+     "measured",
+     "-"
+    ],
+    "C_par": [
+     "measured",
+     "PASS"
+    ],
+    "C_inline": [
+     "measured",
+     "PASS"
+    ],
+    "C_both": [
+     "measured",
+     "PASS"
+    ],
+    "C_t52": [
+     "measured",
+     "-"
+    ]
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I1 1-min load 40 injected",
+   "expected": "cell MEASURED, every rep records load1=40.0",
+   "got": {
+    "outcome": "measured",
+    "reps_with_load_40": 16,
+    "reps": 16
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I2 row count short by one",
+   "expected": "cell VOID corpus_incomplete, no arms/stats",
+   "got": {
+    "outcome": "void",
+    "reason": "corpus_incomplete",
+    "has_arms": false
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I3 a GIN index scan in every compiled plan",
+   "expected": "every compiled arm VOID index_help, untimed; A measured",
+   "got": {
+    "A": "measured",
+    "B4": "index_help",
+    "C_spike": "index_help",
+    "C_ship": "index_help",
+    "C_par": "index_help",
+    "C_inline": "index_help",
+    "C_both": "index_help",
+    "C_t52": "index_help"
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I3b judge over index-voided cells",
+   "expected": "every candidate INCOMPLETE (never PASS, never FAIL)",
+   "got": {
+    "C_par": "INCOMPLETE",
+    "C_inline": "INCOMPLETE",
+    "C_both": "INCOMPLETE"
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_ship",
+   "expected": "C_ship VOID arms_disagree; every other arm agrees",
+   "got": {
+    "outcome": "void",
+    "reason": "arms_disagree",
+    "K5": "-",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_par",
+   "expected": "C_par K5 FAIL (wrong number), still timed; every other arm agrees",
+   "got": {
+    "outcome": "measured",
+    "reason": null,
+    "K5": "FAIL",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4b judge: K5 failed but 1 ms everywhere",
+   "expected": "C_par FAIL (a wrong number is never fast enough)",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_inline",
+   "expected": "C_inline K5 FAIL (wrong number), still timed; every other arm agrees",
+   "got": {
+    "outcome": "measured",
+    "reason": null,
+    "K5": "FAIL",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_both",
+   "expected": "C_both K5 FAIL (wrong number), still timed; every other arm agrees",
+   "got": {
+    "outcome": "measured",
+    "reason": null,
+    "K5": "FAIL",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_spike",
+   "expected": "C_spike VOID arms_disagree; every other arm agrees",
+   "got": {
+    "outcome": "void",
+    "reason": "arms_disagree",
+    "K5": "-",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in B4",
+   "expected": "B4 VOID arms_disagree; every other arm agrees",
+   "got": {
+    "outcome": "void",
+    "reason": "arms_disagree",
+    "K5": "-",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I4 one row perturbed in C_t52",
+   "expected": "C_t52 VOID arms_disagree; every other arm agrees",
+   "got": {
+    "outcome": "void",
+    "reason": "arms_disagree",
+    "K5": "-",
+    "others_agree": true
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I5 one C_both repetition raises",
+   "expected": "excluded_void_reps=1, n=2 of 3, still measured",
+   "got": {
+    "excluded": 1,
+    "n": 2
+   },
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: bar met exactly-ish",
+   "expected": "PASS",
+   "got": "PASS",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: median 301 (within 25%)",
+   "expected": "NEAR-MISS",
+   "got": "NEAR-MISS",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: median 375 (the 25% edge)",
+   "expected": "NEAR-MISS",
+   "got": "NEAR-MISS",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: median 376 (beyond 25%)",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: p95 751 (beyond 25%)",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: under 300 but slower than Python",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: 20k regression > +100 ms",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: a required cell missing, nothing failed",
+   "expected": "INCOMPLETE",
+   "got": "INCOMPLETE",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: a decisive miss plus a missing cell",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "injection": "I6 judge: fast but K5 failed",
+   "expected": "FAIL",
+   "got": "FAIL",
+   "pass": true,
+   "detail": ""
+  }
+ ],
+ "rounds_per_cell": 2,
+ "table_size": 1000
+}

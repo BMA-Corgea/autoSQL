@@ -55,7 +55,7 @@ def main():
               and all(a.get("outcome") == "measured" for a in arms.values())
               and all(arms[c].get("K5") == "PASS" for c in H.CANDIDATES)
               and all(cell["identity"]["arms"][a]["agree"] for a in cell["identity"]["arms"]))
-        record(f"I0 unmodified harness, {N}/{enc}", "all 7 arms measured, identity agrees, K5 PASS x3",
+        record(f"I0 unmodified harness, {N}/{enc}", "every arm measured, identity agrees, K5 PASS x3",
                {a: (v.get("outcome"), v.get("K5", "-")) for a, v in arms.items()}, ok)
 
     # I1 -- load 40 is RECORDED and NEVER voids (the inverse of T-4's injection 1).
@@ -82,7 +82,7 @@ def main():
     ok = (all(cell["arms"][a].get("outcome") == "void" and cell["arms"][a].get("void_reason") == "index_help"
               and "stats" not in cell["arms"][a] for a in compiled)
           and cell["arms"]["A"].get("outcome") == "measured")
-    record("I3 a GIN index scan in every compiled plan", "6 compiled arms VOID index_help, untimed; A measured",
+    record("I3 a GIN index scan in every compiled plan", "every compiled arm VOID index_help, untimed; A measured",
            {a: cell["arms"][a].get("void_reason") or cell["arms"][a].get("outcome") for a in H.ARM_ORDER}, ok)
     j = H.judge({f"{n}/{e}": copy.deepcopy(cell) for n in (20000, 100000) for e in ("num", "text")})
     ok = all(v["speed_verdict"] == "INCOMPLETE" for v in j["per_candidate"].values())
@@ -91,7 +91,7 @@ def main():
 
     # I4 -- one row perturbed in ONE arm: a candidate fails K5 (a wrong number); a reported
     #       arm voids. One injection per arm this harness adds.
-    for target in ("C_ship", "C_par", "C_inline", "C_both", "C_spike", "B4"):
+    for target in ("C_ship", "C_par", "C_inline", "C_both", "C_spike", "B4", "C_t52"):
         def perturb(rows, arm, target=target):
             if arm != target or not rows:
                 return rows
