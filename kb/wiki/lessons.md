@@ -21,7 +21,7 @@ copied across languages kept its spelling and lost its meaning, and nothing comp
 a letter is a perfectly valid member of a trim set.
 
 **Witness.** From T-1 until T-66, `runtime.sql.in` trimmed with `btrim(..., E' \t\n\r\f\v')` in
-`xpr.num`, `pdate_ms` and (since T-60) `pdate_only`. So `xpr.num('"v2"')` was 2 and `"12v"` was 12,
+`xpr.num`, `pdate_ms` and `pdate_only`. So `xpr.num('"v2"')` was 2 and `"12v"` was 12,
 where GIMS gives no number. A correctness battery of 11,367 expressions reported zero wrong
 numbers the whole time: whatever its inputs were, none reached the defect. An adversarial
 differential found it, by sweeping 6.9 million inputs against GIMS's own Python.

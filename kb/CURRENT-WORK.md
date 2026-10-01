@@ -2,7 +2,34 @@
 
 ---
 
-> # START HERE — 2026-10-01 (T-44 PASSED, and T-52 SHIPPED it; T-51 landed right after)
+> # START HERE — 2026-10-01 (the faster path SHIPPED; two wrong-number bugs found and FIXED; GIMS re-vendors once)
+>
+> **Two wrong-number bugs were found and fixed tonight**, by an independent review set to break asql-w2's
+> T-60, T-61 and T-63 (`.autodev/reviews/T-60-61-63-independent-review-asql-w1.md`):
+> - **T-66 (since T-1):** the runtime trimmed the LETTER `v` as if it were whitespace. Postgres has no `\v` escape. So
+>   `"v2"` and `"12v"` became numbers where GIMS gives none, and `"v2024-02-29"` became a date. The fix landed as
+>   `d06c312`. The README's "zero wrong numbers" claim now carries a dated correction.
+> - **T-67:** `contains()` compared long numbers exactly where GIMS compares doubles. The fix landed as `238c29d`.
+> - Both are complete. Their accept was cleared under GA-50, your fix-defects rule.
+>
+> **T-27 (gate holds never paged), the ops half, landed as `df65cb5`. It waits on you at accept (Q6).**
+> - Every hold is now announced to the outbox unless a delivery is recorded.
+> - The phone sender is now CLOSED by default.
+> - Two things are yours, both in `.autodev/handoffs/T-27.md`: Q6 itself, and the `.claude/settings.json` hook change.
+>   A peer session may not edit Claude Code configuration, so the hook change is written there as a QUESTION with the
+>   exact diff.
+> - **Before anyone opens the switch, drain or re-date the outbox backlog (S3).**
+>
+> **The FINAL pins GIMS re-vendors to, once** (gims-w2, morning):
+> - runtime `1624ae40…3ede`;
+> - compiler `4ec9e613…013c`;
+> - parity vectors `3a241c3f…b562` (v10, 98 cases).
+>
+> **Morning items** are in the handoffs of T-66 (T-60's `[.]` and offset should-fixes, T-63's two vectors that never
+> failed, the launcher's "0 wrong numbers") and T-67 (a vector that cannot fail, the eq_deep comment). Bundle them into
+> the next runtime change, so GIMS re-vendors once.
+
+> # 2026-10-01, earlier (T-44 PASSED, and T-52 SHIPPED it; T-51 landed right after — the pins below are superseded above)
 >
 > **The faster path is on `main`.** T-52 landed as `e1da5c5` (PR #5, merged 09:30Z):
 > - an independent review found 0 differences in 209,594 per-row comparisons against the compiler before it;
@@ -12,9 +39,7 @@
 > you answer. **T-51** (the runtime header, T-26's deferred claim 3) landed right after as `7181373`, header only, and is
 > complete.
 >
-> **GIMS re-vendors ONCE, for both** (gims-w2's morning step). The final pins:
-> - runtime `944d42fd…395e`;
-> - compiler `4ec9e613…013c`.
+> **The pins at that point** (superseded by the FINAL pins above): runtime `944d42fd…395e`, compiler `4ec9e613…013c`.
 >
 > | ticket | state |
 > |---|---|
@@ -558,11 +583,13 @@ always showing its derivation, always overturnable by one line from him.
   `pg_stat_database` sampling only, per §5.4 item 16). Now at **sp-investigate**.
 - **T-19** (techdebt) — Implement plan 8.2's mutation pass: ./run-demo test --mutants, sixteen mutants,… — auto-review
 - **T-20** (techdebt) — Criteria that name a defect they cannot detect on the available data (AC-41(b),… — intake
-- **T-57** (bug) — GIMS /deep_search/projects lists, for a signed-in superuser, only the projects … — intake
-- **T-58** (bug) — Postgres restore of non-record tables passes the CSV as COPY params, and swallo… — auto-review
-- **T-32** (bug) — The GIMS Postgres backup skips instances: a backup of a Postgres-mode GIMS hold… — release
 - **T-52** (feature) — Ship T-44's faster compiled path: inline number checks and a parallel-safe runt… — uat
 - **T-64** (feature) — staging: nodes_db (dashboards, nodes, the compliance trail) on Postgres: a node… — intake
+- **T-27** (bug) — Gate holds are never paged: the Stop hook's pager has never run, and gate-ping … — uat
+- **T-57** (bug) — GIMS /deep_search/projects lists, for a signed-in superuser, only the projects … — gate
+- **T-65** (bug) — GIMS authorization and authentication can read different user databases: the lo… — auto-review
+- **T-68** (bug) — GIMS backup: in self-hosted Postgres mode a sqlite-type backup leaves the proje… — intake
+- **T-69** (bug) — GIMS backup: a project's legacy-table prefix match also takes a sibling project… — intake
 
 ## Waiting on
 
@@ -630,12 +657,18 @@ T-3's and T-4's pings were delivered. Filing upstream stays his call
 - **T-56** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
 - **T-37** — blocked: NO open review findings. Held ONLY by the count-floor band (Q8): no legal windo…
 - **T-33** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
+- **T-57** — waiting at spec_ready on human:owner since 2026-10-01
+- **T-65** — waiting at spec_ready on human:owner since 2026-10-01
+- **T-58** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
+- **T-32** — blocked: Stopped before release by the overnight charter: merged into the GIMS trunk bra…
 
 ## Recent past (~15 items / ~30 days)
 
 <!-- One line per completed item, WITH the why. Newest first. Prune from the
      bottom; the permanent record lives in tickets, events.jsonl, and wiki. -->
 
+- 2026-10-01 **T-67 COMPLETE** — contains() still compares numbers as exact numerics where GIMS compares doubles…
+- 2026-10-01 **T-66 COMPLETE** — Wrong numbers since T-1: btrim(..., E' \t\n\r\f\v') trims the LETTER v (Postgre…
 - 2026-10-01 **T-51 COMPLETE** — runtime.sql.in still calls itself a spike artifact: rewrite the header and rege…
 - 2026-10-01 **T-44 COMPLETE** — A faster compiled path: parallel-safe labels and inline number checks, timed ag…
 - 2026-10-01 **T-55 COMPLETE** — ops/checks/neighbour-ports.sh cycles ./run-demo up and down, and its snapshot s…
