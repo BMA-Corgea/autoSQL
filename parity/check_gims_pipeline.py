@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+"""Check autoSQL against GIMS's REAL dashboard pipeline, case by case (T-46).
+
+    python parity/check_gims_pipeline.py --gims <GIMS source tree> [--dsn <libpq DSN>]
+
+The cases live in ``parity/gims-pipeline-vectors.json`` (format ``gims-pipeline-vectors/1``,
+described in ``parity/README.md``). Every case is checked twice:
+
+  GIMS half   the hand-authored expectation is recomputed by GIMS's OWN Python functions,
+              imported from the GIMS tree given by --gims (never a copy). Any disagreement
+              fails the run: a vector that misreads GIMS must never reach GIMS's parity gate.
+              No database is needed.
+
+  SQL half    the case goes through autoSQL's SHIPPING compiler (compiler/compile.py) and
+              runtime (runtime/runtime.sql, installed fresh into a scratch schema) on a real
+              Postgres, and the measured outcome must equal the case's recorded
+              ``autosql.status`` ("agrees" or "diverges"). A recorded "agrees" that now
+              diverges fails, and so does the reverse, so the file cannot go stale quietly.
+              Without a DSN the SQL half does not run, and the run SAYS SO, loudly: a run
+              that compared nothing must never read like a run that found nothing.
+
+Read only toward GIMS: modules are imported with bytecode writing off, so nothing lands in the
+GIMS tree. The one GIMS dependency the pipeline functions never call, ``boto3`` (imported at
+module load by ``api/i_o``), is replaced by an inert stand-in, and the run names it.
+Port 55433 is refused: it is a live database.
+"""
+from __future__ import annotations
+
+import argparse
+import importlib
+import json
+import math
+import os
+import sys
+import types
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+sys.dont_write_bytecode = True
+
+ROOT = Path(__file__).resolve().parents[1]
+VECTORS = ROOT / "parity" / "gims-pipeline-vectors.json"
+FORMAT = "gims-pipeline-vectors/1"
+KINDS = {
+    "expr": {"expr", "expect"},
+    "record": {"stored", "expr", "expect"},
+    "sort": {"rows", "sort", "expect_ids"},
+    "filter": {"rows", "filter", "expect_ids"},
+}
+STATUSES = ("agrees", "diverges")
+# Which side must change, seen from T-37's design (SQL runs the where; Python shapes the rows, then
+# applies the filters map, the sort and the limit). Every divergence carries one.
+FIX_SIDES = ("adapter-shaping", "where-clause", "filters-map", "sort-pushdown", "browser", "accepted")
+SOURCE_KEYS = ("autosql", "compiler_sha256", "runtime_sha256", "gims")
+UNCOMPILABLE = "uncompilable"   # sql_gives for a case autoSQL's shipping compiler has no translation for
+
+
+# ---------------------------------------------------------------------------------------
+# The format (AC1)
+# ---------------------------------------------------------------------------------------
+def validate(doc: Dict[str, Any]) -> List[str]:
+    """Every structural problem in the vector file; [] means it is well formed."""
+    errs: List[str] = []
+    if doc.get("format") != FORMAT:
+        errs.append(f"format must be {FORMAT!r}, got {doc.get('format')!r}")
+    if not isinstance(doc.get("version"), int) or isinstance(doc.get("version"), bool) or doc["version"] < 1:
+        errs.append("version must be a positive integer")
+    src = doc.get("source")
+    if not isinstance(src, dict) or not all(isinstance(src.get(k), str) and src[k] for k in SOURCE_KEYS):
+        errs.append(f"source must carry {SOURCE_KEYS}: the autoSQL commit, the sha256 of the compiler and "
+                    "runtime the statuses were measured with, and the GIMS commit that confirmed the expectations")
+    elif not all(len(src[k]) == 64 and all(ch in "0123456789abcdef" for ch in src[k])
+                 for k in ("compiler_sha256", "runtime_sha256")):
+        errs.append("source.compiler_sha256 and source.runtime_sha256 must be 64 lowercase hex digits")
+    # Round 2 (review should-fix 7): what any consumer must reproduce to get GIMS's answers.
+    if not isinstance(doc.get("noun"), str) or not doc["noun"]:
+        errs.append("noun must name the noun type every row is served under (the _noun_type tag)")
+    if doc.get("key_order") != "jsonb":
+        errs.append("key_order must be 'jsonb': rows are handed to GIMS in jsonb key order (Postgres mode)")
+    if not isinstance(doc.get("float_epsilon"), (int, float)) or isinstance(doc.get("float_epsilon"), bool):
+        errs.append("float_epsilon must be a number")
+    if not isinstance(doc.get("note"), str) or not doc["note"].strip():
+        errs.append("note must be a non-empty string")
+    cases = doc.get("cases")
+    if not isinstance(cases, list) or not cases:
+        return errs + ["cases must be a non-empty list"]
+    seen = set()
+    for i, c in enumerate(cases):
+        where = f"case {i} ({c.get('name', '?') if isinstance(c, dict) else '?'})"
+        if not isinstance(c, dict):
+            errs.append(f"{where}: not an object")
+            continue
+        for k in ("group", "name", "kind"):
+            if not isinstance(c.get(k), str) or not c[k]:
+                errs.append(f"{where}: missing {k}")
+        if c.get("name") in seen:
+            errs.append(f"{where}: duplicate name")
+        seen.add(c.get("name"))
+        kind = c.get("kind")
+        if kind not in KINDS:
+            errs.append(f"{where}: kind must be one of {sorted(KINDS)}")
+            continue
+        missing = KINDS[kind] - c.keys()
+        if missing:
+            errs.append(f"{where}: kind {kind!r} needs {sorted(missing)}")
+        if kind in ("sort", "filter"):
+            rows = c.get("rows")
+            if not isinstance(rows, list) or not rows or not all(isinstance(r, dict) and isinstance(r.get("id"), str) for r in rows):
+                errs.append(f"{where}: rows must be a non-empty list of objects that each carry a string 'id'")
+            elif len({r["id"] for r in rows}) != len(rows):
+                errs.append(f"{where}: row ids must be unique")
+            if not (isinstance(c.get("expect_ids"), list) and all(isinstance(i, str) for i in c["expect_ids"])):
+                errs.append(f"{where}: expect_ids must be a list of row ids")
+            if "expect" in c:
+                errs.append(f"{where}: a {kind} case answers with expect_ids, not expect")
+        if kind == "filter":
+            if not isinstance(c.get("filter"), (str, dict)):
+                errs.append(f"{where}: filter must be a where expression (string) or a filters map (object)")
+            if "derive" in c and not (isinstance(c["derive"], dict) and all(isinstance(v, str) for v in c["derive"].values())):
+                errs.append(f"{where}: derive must map column names to expressions")
+        if kind == "record" and not isinstance(c.get("stored"), dict):
+            errs.append(f"{where}: stored must be an object")
+        if "context" in c and not isinstance(c["context"], dict):
+            errs.append(f"{where}: context must be an object")
+        if kind == "sort" and (not isinstance(c.get("sort"), dict)
+                               or c["sort"].get("dir") not in ("asc", "desc")
+                               or not isinstance(c["sort"].get("field"), str)):
+            errs.append(f"{where}: sort must be {{'field': str, 'dir': 'asc'|'desc'}}")
+        a = c.get("autosql")
+        if not isinstance(a, dict) or a.get("status") not in STATUSES:
+            errs.append(f"{where}: autosql.status must be one of {STATUSES}")
+        elif a["status"] == "diverges" and not (isinstance(a.get("why"), str) and a["why"].strip()):
+            errs.append(f"{where}: a divergence must say why")
+        elif a["status"] == "diverges" and a.get("fix_side") not in FIX_SIDES:
+            errs.append(f"{where}: a divergence must name its fix_side, one of {FIX_SIDES}")
+        elif a["status"] == "diverges" and "sql_gives" not in a:
+            errs.append(f"{where}: a divergence must record sql_gives, what autoSQL actually returns")
+        if isinstance(a, dict) and a.get("folded") == "diverges" and "folded_gives" not in a:
+            errs.append(f"{where}: a folded divergence must record folded_gives")
+        if isinstance(a, dict) and kind in KINDS:
+            if foldable(c) and a.get("folded") not in STATUSES:
+                errs.append(f"{where}: a pipeline expression case must record autosql.folded (T-48), one of {STATUSES}")
+            if not foldable(c) and "folded" in a:
+                errs.append(f"{where}: autosql.folded applies only to record cases and where filters")
+    return errs
+
+
+# ---------------------------------------------------------------------------------------
+# Value comparison: GIMS's own rule (tests/test_dashboard_expr.py), applied at every depth
+# (T-6 FRAMING section 4), so [True] and [1] stay distinct inside containers too.
+# ---------------------------------------------------------------------------------------
+def matches(actual: Any, expected: Any, eps: float) -> bool:
+    if isinstance(expected, bool) or isinstance(actual, bool):
+        return actual is expected or (actual == expected and type(actual) is type(expected))
+    if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
+        return math.isclose(float(actual), float(expected), rel_tol=0, abs_tol=eps)
+    if isinstance(expected, list) and isinstance(actual, list):
+        return len(actual) == len(expected) and all(matches(a, e, eps) for a, e in zip(actual, expected))
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        return actual.keys() == expected.keys() and all(matches(actual[k], expected[k], eps) for k in expected)
+    return actual == expected
+
+
+# ---------------------------------------------------------------------------------------
+# GIMS, imported from its own tree (the GIMS half)
+# ---------------------------------------------------------------------------------------
+class _Inert(types.ModuleType):
+    """Stand-in for a module GIMS imports at load time but the pipeline functions never call.
+    Any attribute is another inert stand-in; calling one returns an inert stand-in."""
+
+    def __getattr__(self, name: str):
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return _Inert(f"{self.__name__}.{name}")
+
+    def __call__(self, *args, **kwargs):
+        return _Inert(f"{self.__name__}()")
+
+
+STUBBED = ("boto3",)
+
+
+def load_gims(gims: Path) -> Dict[str, Any]:
+    if not (gims / "core" / "dashboard" / "expr.py").is_file():
+        raise SystemExit(f"--gims {gims}: not a GIMS source tree (no core/dashboard/expr.py)")
+    for name in STUBBED:
+        sys.modules.setdefault(name, _Inert(name))
+    sys.path.insert(0, str(gims))
+    mods = {
+        "expr": importlib.import_module("core.dashboard.expr"),
+        "sources": importlib.import_module("api.dashboard.sources"),
+        "nouns": importlib.import_module("api.iostore.nouns"),
+    }
+    return mods
+
+
+# ---------------------------------------------------------------------------------------
+# autoSQL's shipping compiler and runtime, on a real Postgres (the SQL half)
+# ---------------------------------------------------------------------------------------
+def load_compiler():
+    spec = importlib.util.spec_from_file_location("autosql_compile", ROOT / "compiler" / "compile.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["autosql_compile"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class Sql:
+    """One connection with the CURRENT runtime/runtime.sql installed fresh, and the session
+    pinned the way the runtime requires (extra_float_digits = 1)."""
+
+    def __init__(self, dsn: str):
+        import psycopg
+        self.psycopg = psycopg
+        self.cx = psycopg.connect(dsn, autocommit=True)
+        # Round 2 (review must-fix 3): the guard reads the port libpq actually connected to. A test
+        # of the DSN text let PGPORT, quoting, leading zeros and multi-host lists through. It runs
+        # before ANY statement, because the first one below is DROP SCHEMA xpr CASCADE.
+        if int(self.cx.info.port) == 55433:
+            self.cx.close()
+            raise SystemExit("refusing port 55433: it is a live database (connected, sent nothing, closed)")
+        ver = int(self.cx.info.server_version)
+        enc = self.cx.execute("SHOW server_encoding").fetchone()[0]
+        if ver < 160000 or str(enc).upper() != "UTF8":
+            self.cx.close()
+            raise SystemExit(f"the SQL half needs Postgres 16+ with UTF8 (got {ver}, {enc}): the runtime "
+                             "and COLLATE \"C\" text ordering assume both")
+        # A scratch database only: the runtime is reinstalled fresh, so a stale one can't answer.
+        self.cx.execute("DROP SCHEMA IF EXISTS xpr CASCADE")
+        self.cx.execute((ROOT / "runtime" / "runtime.sql").read_text())
+        self.cx.execute("SET extra_float_digits = 1")
+        self.functions = self.cx.execute(
+            "SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace "
+            "WHERE n.nspname = 'xpr'").fetchone()[0]
+
+    def value(self, sql: str, params: Dict[str, Any], record: Any, ctx: Dict[str, Any]) -> Tuple[str, Any]:
+        """('value', v) | ('sql-null', None) | ('raised', 'SQLSTATE message')."""
+        p = dict(params, rec=json.dumps(record), ctx=json.dumps(ctx or {}))
+        q = ("SELECT (v IS NULL), jsonb_typeof(v), v::text FROM (SELECT " + sql +
+             " AS v FROM (SELECT (%(rec)s)::jsonb AS data) t) q")
+        try:
+            is_null, jt, vt = self.cx.execute(q, p).fetchone()
+        except self.psycopg.Error as e:
+            return "raised", f"{e.sqlstate} {str(e).strip().splitlines()[0]}"
+        if is_null:
+            return "sql-null", None
+        return "value", (None if jt == "null" else json.loads(vt))
+
+    def ids(self, select_sql: str, params: Dict[str, Any], rows: List[Dict[str, Any]],
+            ctx: Dict[str, Any]) -> Tuple[str, Any]:
+        """Run a statement over the rows as a VALUES table r(id, data); ('ids', [...]) or ('raised', ...)."""
+        p = dict(params, rows=json.dumps(rows), ctx=json.dumps(ctx or {}))
+        q = ("WITH r AS (SELECT e->>'id' AS id, e AS data, o AS ord "
+             "FROM jsonb_array_elements((%(rows)s)::jsonb) WITH ORDINALITY AS x(e, o)) " + select_sql)
+        try:
+            return "ids", [row[0] for row in self.cx.execute(q, p).fetchall()]
+        except self.psycopg.Error as e:
+            return "raised", f"{e.sqlstate} {str(e).strip().splitlines()[0]}"
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--gims", default=os.environ.get("GIMS_SRC"), help="a GIMS source tree (or GIMS_SRC)")
+    ap.add_argument("--dsn", default=os.environ.get("AUTOSQL_PARITY_DSN"),
+                    help="a scratch Postgres 16 for the SQL half (or AUTOSQL_PARITY_DSN)")
+    ap.add_argument("--vectors", default=str(VECTORS))
+    ap.add_argument("--json-out", help="write every case's outcome here")
+    ap.add_argument("--gims-only", action="store_true",
+                    help="run the GIMS half alone and exit 0 if it passes; without this, a run with no DSN exits 3")
+    ap.add_argument("--fold", choices=["gims"],
+                    help="also compile with compile_ast(fold='gims', noun=...) (T-48) and require every "
+                         "case's recorded autosql.folded to re-measure")
+    args = ap.parse_args(argv)
+
+    doc = json.loads(Path(args.vectors).read_text())
+    errs = validate(doc)
+    if errs:
+        print("FORMAT: the vector file is malformed:")
+        for e in errs:
+            print("  -", e)
+        return 2
+    print(f"format {doc['format']} v{doc['version']}: {len(doc['cases'])} cases, source {doc['source']}")
+    if not args.gims:
+        print("NO GIMS TREE: pass --gims <path> (or GIMS_SRC); nothing was checked")
+        return 2
+    if args.fold and not args.dsn:
+        print("--fold needs the SQL half: pass --dsn (or AUTOSQL_PARITY_DSN)")
+        return 2
+    rc = run(doc, Path(args.gims).resolve(), args.dsn, args.json_out, args.fold)
+    if rc == 0 and not args.dsn and not args.gims_only:
+        return 3   # round 2 (review must-fix 2): compared nothing on the SQL side; never a plain pass
+    return rc
+
+
+# ---------------------------------------------------------------------------------------
+# The GIMS half: GIMS's real resolve(), end to end, over the case's stored rows
+# ---------------------------------------------------------------------------------------
+class GimsPipeline:
+    """Drives GIMS's own ``api.dashboard.sources.resolve`` for a noun source.
+
+    Only the record store is replaced: ``get_noun_items`` asks the unified instances store for
+    the collection's rows, and here that store answers with the case's ``stored`` rows. So the
+    rows still pass through GIMS's own ``_normalize_row`` (the key copies), the ``_noun_type``
+    tag, derive, filters, where, sort and limit, exactly as on a dashboard. Rows are handed
+    over in jsonb's key order (shorter keys first, then bytewise), because in Postgres mode
+    that is the order GIMS receives them in, and ``_normalize_row``'s setdefault makes the
+    first of two colliding keys win.
+    """
+
+    NOUN = "parity_case"
+
+    def __init__(self, gims: Path):
+        self.m = load_gims(gims)
+        self.rows: List[Dict[str, Any]] = []
+        self.reads = 0
+        import core.storage.factory as factory
+        outer = self
+
+        class _Store:
+            def list_records(self, collection):
+                outer.reads += 1
+                return [dict(r) for r in outer.rows]
+
+        factory.get_record_store = lambda project_path: _Store()
+        factory.collection_for_noun = lambda noun: f"noun:{noun}"
+        # get_noun_items asks this before reading the store, and the answer only steers the
+        # fallbacks that a non-empty store never reaches. Pinned so the run reads no config.
+        self.m["nouns"]._get_objects_db_target = lambda project_path: ("sqlite", "/nonexistent/objects.db")
+        self.project = Path("/nonexistent/parity-project")
+
+    @staticmethod
+    def jsonb_order(row: Dict[str, Any]) -> Dict[str, Any]:
+        return {k: row[k] for k in sorted(row, key=lambda k: (len(k.encode()), k.encode()))}
+
+    def resolve(self, rows: List[Dict[str, Any]], spec: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
+        self.rows = [self.jsonb_order(r) for r in rows]
+        self.reads = 0
+        source = {"type": "noun", "noun_type": self.NOUN, **spec}
+        out = self.m["sources"].resolve(source, self.project, ctx)
+        # Round 2 (review should-fix 6): a case only counts if GIMS's pipeline read THESE rows. A
+        # lost patch or a swallowed store error would otherwise "confirm" an empty expectation.
+        if self.reads != 1:
+            raise RuntimeError(f"the replaced record store was read {self.reads} times, not once: "
+                               "GIMS's pipeline did not run on this case's rows")
+        return out
+
+
+def gims_answer(g: GimsPipeline, c: Dict[str, Any]) -> Any:
+    ctx = c.get("context", {})
+    kind = c["kind"]
+    if kind == "expr":
+        return g.m["expr"].evaluate_str(c["expr"], c.get("record", {}), ctx)
+    if kind == "record":
+        out = g.resolve([c["stored"]], {"derive": {"__value": c["expr"]}}, ctx)["records"]
+        return out[0]["__value"] if out else "NO ROW"
+    if kind == "sort":
+        return [r.get("id") for r in g.resolve(c["rows"], {"sort": c["sort"]}, ctx)["records"]]
+    if kind == "filter":
+        spec = {"where": c["filter"]} if isinstance(c["filter"], str) else {"filters": c["filter"]}
+        if "derive" in c:
+            spec["derive"] = c["derive"]
+        return [r.get("id") for r in g.resolve(c["rows"], spec, ctx)["records"]]
+    raise ValueError(kind)
+
+
+# ---------------------------------------------------------------------------------------
+# The SQL half: what autoSQL computes for the same case
+# ---------------------------------------------------------------------------------------
+def sort_rank_sql(v: str, direction: str) -> str:
+    """GIMS's _sort_key as SQL: autoSQL's candidate translation, term for term as in
+    spikes/T-1/proto/bench.py (sort_sql) and spikes/T-4/bench_t4.py (_sort_sql_dir): rank
+    (bool 0 < number 1 < string 2 < other 3 < null 4), then the number, then the string."""
+    d = " DESC" if direction == "desc" else ""
+    ty = f"jsonb_typeof({v})"
+    r1 = (f"(CASE WHEN {v} IS NULL OR {ty}='null' THEN 4 WHEN {ty}='boolean' THEN 0 "
+          f"WHEN {ty}='number' THEN 1 WHEN {ty}='string' THEN 2 ELSE 3 END)")
+    r2 = (f"(CASE WHEN {ty}='boolean' THEN (CASE WHEN {v}='true'::jsonb THEN 1.0 ELSE 0.0 END) "
+          f"WHEN {ty}='number' THEN xpr.f8({v}) ELSE 0.0 END)")
+    r3 = f"(CASE WHEN {ty}='string' THEN ({v} #>> '{{}}') ELSE '' END) COLLATE \"C\""
+    return f"{r1}{d}, {r2}{d}, {r3}{d}"
+
+
+def foldable(c: Dict[str, Any]) -> bool:
+    """The cases T-48's folding applies to: an expression over a row as the PIPELINE serves it
+    (record, and a string `where` filter). Not `expr`: GIMS evaluates those over the record as
+    given, with no copies and no tag (T-48 review nit 7). Sort and the filters map are not
+    expressions (T-42; Python). Safe on a malformed case (review should-fix 1)."""
+    return c.get("kind") == "record" or (c.get("kind") == "filter" and isinstance(c.get("filter"), str))
+
+
+def sql_answer(db: "Sql", comp, parse: Callable, c: Dict[str, Any], fold: Optional[str] = None) -> Tuple[str, Any]:
+    """('value'|'ids', answer) or ('raised'|'uncompilable'|'sql-null', detail)."""
+    ctx = c.get("context", {})
+    kind = c["kind"]
+    opts = {"column": "data", **({"fold": fold, "noun": GimsPipeline.NOUN} if fold else {})}
+    try:
+        if kind in ("expr", "record"):
+            compiled = comp.compile_ast(parse(c["expr"]), **opts)
+            return db.value(compiled.sql, compiled.params, c.get("record", {}) if kind == "expr" else c["stored"], ctx)
+        if kind == "sort":
+            # The field as the adapter would read it from instances.data: an exact key.
+            field = c["sort"]["field"]
+            q = (f"SELECT id FROM r ORDER BY {sort_rank_sql('(data -> %(sort_field)s)', c['sort']['dir'])}, ord")
+            return db.ids(q, {"sort_field": field}, c["rows"], ctx)
+        if kind == "filter":
+            if not isinstance(c["filter"], str):
+                return "uncompilable", "a filters object (exact-equality map) has no SQL translation in autoSQL"
+            compiled = comp.compile_ast(parse(c["filter"]), **opts)
+            return db.ids(f"SELECT id FROM r WHERE xpr.truthy({compiled.sql}) ORDER BY ord", compiled.params, c["rows"], ctx)
+    except comp.Uncompilable as e:
+        return "uncompilable", e.reason
+    raise ValueError(kind)
+
+
+def gives(how: str, ans: Any) -> Any:
+    """What autoSQL returned, as recorded in sql_gives/folded_gives: the value or ids (SQL NULL and
+    jsonb null both as null), or "uncompilable". A raised error has no recordable form."""
+    return UNCOMPILABLE if how == "uncompilable" else (None if how == "sql-null" else ans)
+
+
+def recheck(label: str, c: Dict[str, Any], how: str, ans: Any, want: Any, eps: float,
+            recorded: Any, recorded_gives: Any) -> Optional[str]:
+    """None when the measurement re-confirms the recorded status, else why not. Round 2 (review
+    must-fix 1): a recorded divergence is confirmed only by the SAME answer it recorded, so an SQL
+    error, or a different wrong answer, can never pass for the divergence on file."""
+    measured = measured_status(how, ans, want, eps)
+    if how == "raised":
+        return f"{label}: SQL RAISED {ans!r} (recorded {recorded!r})"
+    if measured != recorded:
+        return f"{label}: recorded {recorded!r}, measured {measured!r} ({how}: {ans!r})"
+    if measured == "diverges":
+        got = gives(how, ans)
+        same = (got == recorded_gives) if UNCOMPILABLE in (got, recorded_gives) else matches(got, recorded_gives, eps)
+        if not same:
+            return f"{label}: diverges, but now gives {got!r} where {recorded_gives!r} was recorded"
+    return None
+
+
+def measured_status(how: str, ans: Any, want: Any, eps: float) -> str:
+    # SQL NULL and jsonb null both reach the adapter's Python as None, and xpr.truthy treats
+    # both as false, so for the pipeline they are the same blank. The outcome file keeps which
+    # one it was ("sql-null"), for the representation record.
+    agree = (how in ("value", "ids") and matches(ans, want, eps)) or (how == "sql-null" and want is None)
+    return "agrees" if agree else "diverges"
+
+
+def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[str],
+        fold: Optional[str] = None) -> int:
+    eps = float(doc["float_epsilon"])
+    GimsPipeline.NOUN = doc["noun"]
+    g = GimsPipeline(gims)
+    print(f"GIMS tree {gims} (stand-ins for modules the pipeline never calls: {', '.join(STUBBED)})")
+    import subprocess
+    head = subprocess.run(["git", "-C", str(gims), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+    confirmed_at = doc["source"]["gims"].split()[0]
+    if head.returncode != 0:
+        print(f"NOTE: the GIMS tree is not a git checkout, so which GIMS it is can't be told; the expectations "
+              f"were confirmed against {doc['source']['gims']}")
+    elif not confirmed_at.startswith(head.stdout.strip()[:7]):
+        print(f"NOTE: the GIMS tree is at {head.stdout.strip()}; the expectations were confirmed against "
+              f"{doc['source']['gims']}. A disagreement below may be GIMS having changed.")
+    import hashlib
+    for key, rel in (("compiler_sha256", "compiler/compile.py"), ("runtime_sha256", "runtime/runtime.sql")):
+        now = hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
+        if now != doc["source"][key]:
+            print(f"NOTE: {rel} is not the one the statuses were recorded with "
+                  f"({now[:16]} here, {doc['source'][key][:16]} in source). The SQL half re-measures every case.")
+    db = comp = None
+    if dsn:
+        db, comp = Sql(dsn), load_compiler()
+        print(f"SQL: runtime/runtime.sql installed fresh ({db.functions} xpr functions); compiler/compile.py")
+    outcomes, gims_bad, stale, fstale, folded_n = [], 0, 0, 0, 0
+    for c in doc["cases"]:
+        o: Dict[str, Any] = {"name": c["name"], "kind": c["kind"], "group": c["group"]}
+        want = c["expect"] if "expect" in c else c["expect_ids"]
+        try:
+            got = gims_answer(g, c)
+            o["gims"] = got
+            o["gims_ok"] = matches(got, want, eps)
+        except Exception as e:  # GIMS raising IS a finding: its pipeline claims to be total
+            o["gims"], o["gims_ok"] = f"RAISED {type(e).__name__}: {e}", False
+        if not o["gims_ok"]:
+            gims_bad += 1
+            print(f"GIMS DISAGREES  {c['group']}/{c['name']}: GIMS gives {o['gims']!r}, the vector expects {want!r}")
+        if db is not None:
+            a = c["autosql"]
+            how, ans = sql_answer(db, comp, g.m["expr"].parse, c)
+            o["sql"] = [how, ans]
+            o["sql_status"] = measured_status(how, ans, want, eps)
+            why = recheck("SQL STATUS STALE  " + f"{c['group']}/{c['name']}", c, how, ans, want, eps,
+                          a["status"], a.get("sql_gives"))
+            if why:
+                stale += 1
+                print(why)
+            if fold and foldable(c):
+                fhow, fans = sql_answer(db, comp, g.m["expr"].parse, c, fold)
+                o["sql_folded"] = [fhow, fans]
+                o["folded_status"] = measured_status(fhow, fans, want, eps)
+                folded_n += 1
+                fwhy = recheck("FOLDED STATUS STALE  " + f"{c['group']}/{c['name']}", c, fhow, fans, want, eps,
+                               a.get("folded"), a.get("folded_gives"))
+                if fwhy:
+                    fstale += 1
+                    print(fwhy)
+        outcomes.append(o)
+    n = len(doc["cases"])
+    div = sum(1 for c in doc["cases"] if c["autosql"]["status"] == "diverges")
+    print()
+    print(f"GIMS half: {n - gims_bad}/{n} expectations confirmed by GIMS's own pipeline")
+    if db is None:
+        print("=" * 78)
+        print("SQL half: DID NOT RUN. No DSN (--dsn or AUTOSQL_PARITY_DSN), so autoSQL was")
+        print("  compared against NOTHING. The recorded autosql statuses are unverified by this")
+        print("  run. Run it against a scratch Postgres 16 (never port 55433). Exit 3 unless")
+        print("  --gims-only was asked for.")
+        print("=" * 78)
+    else:
+        nc = sum(1 for c in doc["cases"] if c["autosql"].get("sql_gives") == UNCOMPILABLE)
+        print(f"SQL half: {n - stale}/{n} recorded statuses confirmed "
+              f"({n - div} agree, {div} diverge, as recorded; {nc} of the divergences are cases autoSQL's "
+              f"shipping compiler has no translation for, so they were not compiled)")
+        if fold:
+            fdiv = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "diverges")
+            print(f"fold={fold}: {folded_n - fstale}/{folded_n} recorded folded statuses confirmed "
+                  f"({folded_n - fdiv} agree folded, {fdiv} diverge folded, as recorded)")
+    if json_out:
+        Path(json_out).write_text(json.dumps(outcomes, indent=1, default=str) + "\n")
+    return 1 if (gims_bad or stale or fstale) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
