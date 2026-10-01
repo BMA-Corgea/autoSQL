@@ -1,10 +1,10 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 7,
+ "version": 8,
  "source": {
-  "autosql": "342ce67",
+  "autosql": "a59b945",
   "compiler_sha256": "c1ed58fcb235108c3570c6d680f16995ac30ddd67cb393602e86553137a73532",
-  "runtime_sha256": "91a1842eaca53926b23d551609f0e15b54eec45cd0c686fdaabf10aa77171f53",
+  "runtime_sha256": "65bb6173790f668dcf28363c7b37360a5c4786988ea02a273a46ba0844ad78c7",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
  "noun": "parity_case",
@@ -2205,6 +2205,180 @@
     "why": "R2-2 (T-36 review): Python reads both as inf, and inf == inf. No float8 can hold them, so xpr.f8 RAISES its named refusal (XPR01) and the adapter falls back to Python. Never a quiet false, never a 500."
    },
    "note": "the expectation is GIMS's own: both rows are read by json.loads, and 1E+400 becomes inf"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_five_microseconds_before_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "2023-12-31T23:59:59.999995Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "2023-12-31T23:59:59Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): the review's row A. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_ten_microseconds_before_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "2023-12-31T23:59:59.999990Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "2023-12-31T23:59:59Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): row B. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_one_microsecond_before_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "2023-12-31T23:59:59.999999Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "2023-12-31T23:59:59Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): row C. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_half_second",
+   "kind": "record",
+   "stored": {
+    "ts": "2023-12-31T12:00:00.500000Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "2023-12-31T12:00:00Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): row D. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_one_microsecond_after_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "2024-01-01T00:00:00.000001Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "2024-01-01T00:00:00Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): the other side of the boundary. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_negative_epoch_five_microseconds_before_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "1969-12-31T23:59:59.999995Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "1969-12-31T23:59:59Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): before 1970 (negative epoch): the fraction is negative, rounds, and borrows a second. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_negative_epoch_one_microsecond_after_a_second",
+   "kind": "record",
+   "stored": {
+    "ts": "1969-12-31T23:59:59.000001Z"
+   },
+   "expr": "date_add($.ts, 0)",
+   "expect": "1969-12-31T23:59:59Z",
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63 (T-37 review F7): before 1970, just after a second boundary. GIMS formats with datetime.fromtimestamp(ms / 1000.0): the fraction rounds to whole microseconds, half-even, then whole seconds print"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_where_equals_a_whole_second",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "ts": "2023-12-31T23:59:59.999995Z"
+    },
+    {
+     "id": "B",
+     "ts": "2023-12-31T23:59:59.999990Z"
+    },
+    {
+     "id": "C",
+     "ts": "2023-12-31T23:59:59.999999Z"
+    },
+    {
+     "id": "D",
+     "ts": "2023-12-31T12:00:00.500000Z"
+    }
+   ],
+   "filter": "date_add($.ts, 0) == '2023-12-31T23:59:59Z'",
+   "expect_ids": [
+    "A",
+    "B",
+    "C"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63: the review's own where"
+  },
+  {
+   "group": "date_format",
+   "name": "fmt_where_before_the_new_year",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "A",
+     "ts": "2023-12-31T23:59:59.999995Z"
+    },
+    {
+     "id": "B",
+     "ts": "2023-12-31T23:59:59.999990Z"
+    },
+    {
+     "id": "C",
+     "ts": "2023-12-31T23:59:59.999999Z"
+    },
+    {
+     "id": "D",
+     "ts": "2023-12-31T12:00:00.500000Z"
+    }
+   ],
+   "filter": "date_add($.ts, 0) < '2024-01-01'",
+   "expect_ids": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-63: the review's own where"
   }
  ]
 }
