@@ -1,10 +1,10 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 9,
+ "version": 10,
  "source": {
-  "autosql": "8e0bd50",
+  "autosql": "e2f1ecd",
   "compiler_sha256": "4ec9e6132618f39567000ed66520d1acf2b68ae3099563738cf579381e55013c",
-  "runtime_sha256": "33e6358091f38ff6a04501699e0de050d12ca5c8d86f09557ebe126b1f43e852",
+  "runtime_sha256": "1624ae40e63124de8874242b5b13e027e6c3bf5d4b0c734e3aa25e9c268b3ede",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
  "noun": "parity_case",
@@ -2517,6 +2517,142 @@
     "folded": "agrees"
    },
    "note": "T-66 control: U+000B around a date is whitespace to GIMS."
+  },
+  {
+   "group": "contains_doubles",
+   "name": "contains_long_integer_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "l": [
+      12345678901234568
+     ]
+    },
+    {
+     "id": "b",
+     "l": [
+      1,
+      2
+     ]
+    },
+    {
+     "id": "c",
+     "l": [
+      12345678901234567
+     ]
+    }
+   ],
+   "filter": "contains($.l, 12345678901234567)",
+   "expect_ids": [
+    "a",
+    "c"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-67 (the T-60/61/63 refute-review, F61-1): GIMS's contains is any(_eq(needle, x) for x in hay), and _eq compares numbers as doubles at every depth; xpr.contains compared list elements as exact jsonb numerics. 12345678901234567 and 12345678901234568 are the same double, so a is kept."
+  },
+  {
+   "group": "contains_doubles",
+   "name": "contains_nested_list_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "l": [
+      [
+       12345678901234568
+      ]
+     ],
+     "n": [
+      12345678901234567
+     ]
+    },
+    {
+     "id": "b",
+     "l": [
+      [
+       1
+      ]
+     ],
+     "n": [
+      2
+     ]
+    }
+   ],
+   "filter": "contains($.l, $.n)",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-67 (the T-60/61/63 refute-review, F61-1): GIMS's contains is any(_eq(needle, x) for x in hay), and _eq compares numbers as doubles at every depth; xpr.contains compared list elements as exact jsonb numerics. the comparison is deep: a nested list holding the same double matches."
+  },
+  {
+   "group": "contains_doubles",
+   "name": "contains_long_decimal_compares_as_doubles",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "l": [
+      0.1
+     ]
+    },
+    {
+     "id": "b",
+     "l": [
+      0.2
+     ]
+    }
+   ],
+   "filter": "contains($.l, 0.1000000000000000055511151231257827)",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-67 (the T-60/61/63 refute-review, F61-1): GIMS's contains is any(_eq(needle, x) for x in hay), and _eq compares numbers as doubles at every depth; xpr.contains compared list elements as exact jsonb numerics. the literal is the double 0.1 written out in full."
+  },
+  {
+   "group": "contains_doubles",
+   "name": "contains_strings_unchanged",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "tags": [
+      "x",
+      "y"
+     ]
+    },
+    {
+     "id": "b",
+     "tags": [
+      "y"
+     ]
+    },
+    {
+     "id": "c",
+     "tags": "xyz"
+    }
+   ],
+   "filter": "contains($.tags, 'x')",
+   "expect_ids": [
+    "a",
+    "c"
+   ],
+   "autosql": {
+    "status": "agrees",
+    "folded": "agrees"
+   },
+   "note": "T-67 control: string elements, and the substring branch for a string haystack, are unchanged."
   }
  ]
 }
