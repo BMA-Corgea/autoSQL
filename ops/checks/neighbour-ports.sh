@@ -118,9 +118,11 @@ snapshot() {
     echo "neighbour-ports: \`ss -ltn\` printed no header, so what it printed is not its listing" >&2
     return 1
   fi
+  # `&&`, not a newline: a group's status is its LAST command's, so a failed
+  # docker half would otherwise vanish behind a good ss half.
   {
-    printf '%s\n' "$containers" | awk -v demo="${DEMO_PORTS_PATTERN}->" 'NF && $0 !~ demo'
-    printf '%s\n' "$listeners" | awk -v demo="${DEMO_PORTS_PATTERN}\$" 'NR > 1 && $4 !~ demo {print $4}'
+    printf '%s\n' "$containers" | awk -v demo="${DEMO_PORTS_PATTERN}->" 'NF && $0 !~ demo' \
+      && printf '%s\n' "$listeners" | awk -v demo="${DEMO_PORTS_PATTERN}\$" 'NR > 1 && $4 !~ demo {print $4}'
   } | sort
 }
 
