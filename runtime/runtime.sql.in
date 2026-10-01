@@ -604,8 +604,11 @@ DECLARE hs text; ns text;
 BEGIN
   IF hay IS NULL OR jsonb_typeof(hay) = 'null' THEN RETURN false; END IF;   -- expr.py:492-493
   IF jsonb_typeof(hay) = 'array' THEN                                       -- expr.py:494-495
+    -- T-67: _eq(needle, x) exactly, via T-61's xpr.eq_deep: numbers compare as doubles at every
+    -- depth (jsonb equality is exact numeric), None == None, and beyond DBL_MAX it refuses (XPR01)
+    -- where Python raises OverflowError.
     RETURN EXISTS (SELECT 1 FROM jsonb_array_elements(hay) e
-                    WHERE nullif(e, 'null'::jsonb) IS NOT DISTINCT FROM needle);
+                    WHERE xpr.eq_deep(needle, nullif(e, 'null'::jsonb)));
   END IF;
   hs := xpr.str(hay); ns := xpr.str(needle);                                -- expr.py:496-499
   IF hs IS NULL OR ns IS NULL THEN RETURN false; END IF;
