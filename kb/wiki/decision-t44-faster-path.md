@@ -1,7 +1,10 @@
 # Decision — T-44: the faster compiled path is right and 9× faster than Python, but missed 300 ms on a loaded host
 
-**Status: OPEN. This is the packet for T-44's `sp_decide`, not the ruling.** The verdict
-against the pre-written bar is **FAIL**, and GA-34 Q2 = A sends a fail to the owner.
+**Status: OPTION A WAS TAKEN, AND IT PASSED.** The foreman called a quiet window, and the re-time
+ran on 2026-10-01 at 09:00–09:09Z. **PASS on C_both:** 108.69 ms at 100,000 rows (text-encoded
+136.71 ms), against Python's 829.46 ms and the 300 ms target. Full detail is in
+`spikes/T-44/FINDINGS.md` §0. Under GA-34 Q2 = A, a clear pass is the foreman's to clear on the
+owner's behalf. The loaded-host FAIL below is kept as measured.
 
 **Evidence:** `spikes/T-44/FINDINGS.md` · bar: `spikes/T-44/FRAMING.md` §4 and §10 ·
 numbers: `spikes/T-44/out/timing.json`, `out/K_summary.json`
