@@ -33,6 +33,9 @@
 #   or 8787 with AC-5's message rather than adopting it, takes down only a
 #   stack it started itself, and ends with one summary line that counts
 #   skips separately from passes and reports B10's checksum guard.
+#   T-45: and when it did start the stack, its teardown puts back exactly
+#   what was there before — a stopped container is stopped again, a kept
+#   volume stays kept; only what the run created is removed.
 #
 #   AUTO-REVIEW ROUND 1 — four findings, all in this file, all answered here:
 #   * the readiness poll was a SECOND connection factory outside B13's
@@ -397,8 +400,8 @@ seed_database() {
 #   * both halves of the stack up  -> "using the stack already up",
 #     and NOTHING is taken down afterwards: a person mid-walkthrough does
 #     not lose their demo to somebody else running the suite.
-#   * nothing up                   -> run `up` ourselves, then `down`
-#     afterwards, saying both.
+#   * nothing up                   -> run `up` ourselves, then put back
+#     exactly what was there before it, saying both (T-45, below).
 #   * a FOREIGN process on 55440 or 8787 -> stop with AC-5's message
 #     rather than connecting to whatever is there.
 #
@@ -420,10 +423,68 @@ seed_database() {
 #   One line to overturn: "make `up` idempotent" — then the half-up state
 #   disappears into `up` and this branch goes with it.
 
-#: Set to 1 only if THIS invocation started the stack.  The teardown trap
-#: reads it and nothing else does.
+#: Set to 1 only if THIS invocation is bringing the stack up — set just
+#: BEFORE it runs `up`, not after (T-45): an `up` that fails or is
+#: interrupted half-way has still changed things, and the teardown, which
+#: puts back exactly what the pre-run inventory below recorded, is what
+#: undoes them.  The teardown reads it and nothing else does.
 STACK_STARTED_HERE=0
 SUITE_REPORT=""
+
+# ── T-45 — A TEARDOWN REMOVES EXACTLY WHAT ITS OWN RUN CREATED ────────────
+#
+# "Nothing up" is not one state.  The database can be down because nothing
+# of it exists, or because its container exists STOPPED over a named volume
+# somebody kept on purpose.  `up` (`docker compose up -d`) simply restarts
+# that container over that volume.  The teardown here used to run the whole
+# `down` verb afterwards, and `down` is `compose down --volumes` — so a
+# `./run-demo test` started next to a stopped demo database DELETED the
+# kept volume: data this run did not create, and had no business removing.
+#
+# So before it runs `up`, `test` writes down what is already there, and
+# afterwards it puts back exactly that:
+#   * the container existed, stopped   -> stop the app this run started and
+#     STOP the container again.  Container and volume are both kept.
+#   * only the volume existed          -> stop the app, remove the container
+#     this run created (`docker rm -v`: -v takes the container's ANONYMOUS
+#     volumes, which it created; it never takes a named one), remove any
+#     compose network this run created, and keep the volume.
+#   * neither existed                  -> `./run-demo down`, as before: all
+#     of it was this run's, so all of it goes, volume included.
+# The `down` VERB itself is unchanged and still removes the volume — that is
+# what `down` is for (AC-6), when a person asks for it by name.
+#
+# If docker cannot say what exists, nothing is brought up at all: a guess
+# of "absent" here is exactly what would turn the teardown back into a
+# deletion of somebody's data.
+#
+# The volume's and the network's names are read from compose itself, never
+# restated here, so a rename in compose.yaml cannot leave this asking after
+# a name that no longer exists — and then taking the real volume for one
+# this run created.
+#
+# A START THAT FAILS IS NOT A NO-OP (measured 2026-10-01, Docker on this
+# machine): when the host port is taken at the moment the container
+# starts, the start fails — and the container LOSES its network
+# attachment, persistently.  It stays "exited", but the next plain start
+# runs it with no network and no published port: up, and unreachable.  So
+# the inventory also records which networks a pre-existing container was
+# attached to, and the teardown re-attaches any it lost, leaving it
+# exactly as it was found (stopped, attached), not half-attached.
+#
+# AN INTERRUPT STOPS THE RUN.  INT and TERM used to share the EXIT trap's
+# handler, which tore down and then RETURNED — and bash carries on after a
+# trap that returns: a TERM that landed during `up` let the run go on to
+# the suite and then to the teardown.  Now INT and TERM put back what was
+# there before (the same teardown) and EXIT.  Bash runs a trap only
+# between commands, so the step in flight finishes first; a Ctrl-C reaches
+# that step as well, so it stops at once.  Either way nothing after that
+# step runs.
+PRE_RUN_CONTAINER=0       # 1 = $DB_CONTAINER existed (stopped) before `up`
+PRE_RUN_CONTAINER_NETS="" # the networks it was attached to, then
+PRE_RUN_VOLUME=0          # 1 = the named volume existed before `up`
+DB_VOLUME=""              # the one named volume compose.yaml declares
+NETWORKS_CREATED_HERE=""  # compose networks that did NOT exist before `up`
 
 # Is it OUR app on 8787 — not merely "is something listening"?  B23 says
 # the suite must not adopt whatever is there, so this asks the app for the
@@ -464,16 +525,128 @@ ensure_venv() {
   fi
 }
 
+# The named volumes and networks demo/compose.yaml declares, one per line as
+# "volume <name>" / "network <name>", in the names docker gives them.
+compose_declared() {
+  docker compose -f "$COMPOSE_FILE" config --format json | python3 -c '
+import json
+import sys
+
+cfg = json.load(sys.stdin)
+for kind in ("volume", "network"):
+    for key, spec in (cfg.get(kind + "s") or {}).items():
+        print(kind, (spec or {}).get("name") or key)
+'
+}
+
+# Is $1 one whole line of $2?  Pure bash on purpose: no pipe for pipefail to
+# misread as "absent" (a SIGPIPE'd writer), and no here-string.
+is_line_of() {
+  [[ $'\n'"$2"$'\n' == *$'\n'"$1"$'\n'* ]]
+}
+
+# The networks $DB_CONTAINER is attached to, space-separated; empty if none.
+container_networks() {
+  docker inspect -f '{{range $name, $endpoint := .NetworkSettings.Networks}}{{$name}} {{end}}' "$DB_CONTAINER"
+}
+
+# T-45: re-attach every network $DB_CONTAINER was on before this run and is
+# not on now — which is what a start that failed on a taken port leaves.
+# Called with the container STOPPED: Docker attaches a stopped container,
+# and the next start brings the network and the published port back.
+restore_container_networks() {
+  local now network
+  now="$(container_networks)"
+  for network in $PRE_RUN_CONTAINER_NETS; do
+    case " $now " in
+      *" $network "*) ;;
+      *)
+        docker network connect "$network" "$DB_CONTAINER"
+        echo "run-demo test: $DB_CONTAINER had lost its network $network (a start that fails on a taken port does that) — re-attached it, so it is left as it was found"
+        ;;
+    esac
+  done
+}
+
+# T-45: what exists before `up` runs.  Returns non-zero, having said why, if
+# docker cannot answer — and then the caller brings nothing up.
+take_pre_run_inventory() {
+  local declared containers volumes networks kind name declared_volumes=0
+  if ! declared="$(compose_declared)" \
+    || ! containers="$(docker ps -a --format '{{.Names}}')" \
+    || ! volumes="$(docker volume ls -q)" \
+    || ! networks="$(docker network ls --format '{{.Name}}')"; then
+    echo "run-demo test: refusing to bring anything up — docker could not say what already exists, and a teardown that cannot tell what its own run created cannot promise to remove only that (T-45)." >&2
+    return 1
+  fi
+
+  PRE_RUN_CONTAINER=0
+  PRE_RUN_CONTAINER_NETS=""
+  PRE_RUN_VOLUME=0
+  DB_VOLUME=""
+  NETWORKS_CREATED_HERE=""
+  is_line_of "$DB_CONTAINER" "$containers" && PRE_RUN_CONTAINER=1
+  if [[ "$PRE_RUN_CONTAINER" == "1" ]] && ! PRE_RUN_CONTAINER_NETS="$(container_networks)"; then
+    echo "run-demo test: refusing to bring anything up — docker could not say which networks $DB_CONTAINER is attached to, so a start that failed half-way could not be put back (T-45)." >&2
+    return 1
+  fi
+  while read -r kind name; do
+    case "$kind" in
+      volume)
+        declared_volumes=$((declared_volumes + 1))
+        DB_VOLUME="$name"
+        is_line_of "$name" "$volumes" && PRE_RUN_VOLUME=1
+        ;;
+      network)
+        is_line_of "$name" "$networks" || NETWORKS_CREATED_HERE+="$name "
+        ;;
+    esac
+  done < <(printf '%s\n' "$declared")
+
+  # One volume is what compose.yaml declares and what the three cases above
+  # are about.  Any other count is a compose file this teardown was not
+  # written for, so it does not guess which volume is whose.
+  if [[ "$declared_volumes" -ne 1 ]]; then
+    echo "run-demo test: refusing to bring anything up — demo/compose.yaml declares $declared_volumes named volumes, and this teardown is written for exactly one (T-45)." >&2
+    return 1
+  fi
+  return 0
+}
+
 teardown_if_we_started_it() {
   if [[ "$STACK_STARTED_HERE" == "1" ]]; then
     STACK_STARTED_HERE=0
-    # The `down` VERB, not compose_down: `up` starts the app as well as the
-    # container (W14), and a teardown that undid only half of what it
-    # started would leave uvicorn holding 8787 — which the next run would
-    # then correctly refuse as a foreign holder.  Whatever `up` does,
-    # `down` undoes; `test` calls both and neither by halves.
-    "$REPO_ROOT/run-demo" down
-    echo "run-demo test: took it down again"
+    # Putting things back is not interruptible: an INT or TERM landing
+    # here would otherwise end the script between two of these steps — a
+    # container stopped but not yet re-attached to its network.
+    trap '' INT TERM
+    if [[ "$PRE_RUN_CONTAINER" == "1" ]]; then
+      # T-45, first case.  stop_app is `down`'s own app half: `up` started
+      # the app (W14), so the app goes, exactly as `down` would stop it.
+      stop_app
+      docker stop "$DB_CONTAINER" >/dev/null
+      restore_container_networks
+      echo "run-demo test: stopped $DB_CONTAINER again — it existed, stopped, before this run, so it and its volume $DB_VOLUME are kept as they were"
+    elif [[ "$PRE_RUN_VOLUME" == "1" ]]; then
+      # T-45, second case.  The container and any network are this run's;
+      # the volume is not.  `docker rm -v` takes only the container's
+      # anonymous volumes — a named volume is never removed by it.
+      stop_app
+      docker rm -f -v "$DB_CONTAINER" >/dev/null
+      local network
+      for network in $NETWORKS_CREATED_HERE; do
+        docker network rm "$network" >/dev/null
+      done
+      echo "run-demo test: removed the container this run created ($DB_CONTAINER) and kept the volume $DB_VOLUME — it existed before this run"
+    else
+      # T-45, third case: all of it was this run's.  The `down` VERB, not
+      # compose_down: `up` starts the app as well as the container (W14),
+      # and a teardown that undid only half of what it started would leave
+      # uvicorn holding 8787 — which the next run would then correctly
+      # refuse as a foreign holder.  Whatever `up` does, `down` undoes.
+      "$REPO_ROOT/run-demo" down
+      echo "run-demo test: took it down again — neither $DB_CONTAINER nor its volume $DB_VOLUME existed before this run, so all of it was this run's to remove"
+    fi
   fi
 }
 
@@ -506,9 +679,55 @@ prepare_stack_for_test() {
     return 0
   fi
 
-  "$REPO_ROOT/run-demo" up
+  if [[ "$app_up" == "1" ]]; then
+    # This demo's app answers but its database is down: a half-stack this
+    # run did not start.  `up` would refuse it anyway (AC-5's guard on
+    # 8787); refusing here, before the teardown is armed, means the
+    # teardown can never stop an app that was running before this run.
+    echo "run-demo test: refusing to run — this demo's app answers on $APP_PORT but $DB_CONTAINER is not up. That half-stack was not started by this run, so this run neither adopts it nor takes it down: './run-demo down' clears it." >&2
+    exit 1
+  fi
+
+  # T-45: write down what is already here BEFORE `up` changes any of it.
+  take_pre_run_inventory || exit 1
+  if [[ "$PRE_RUN_CONTAINER" == "1" ]]; then
+    echo "run-demo test: $DB_CONTAINER exists, stopped, over its volume $DB_VOLUME — this run will start it, and stop it again afterwards, keeping both"
+  elif [[ "$PRE_RUN_VOLUME" == "1" ]]; then
+    echo "run-demo test: the volume $DB_VOLUME exists with no container — this run will create the container, and remove it afterwards, keeping the volume"
+  else
+    echo "run-demo test: neither $DB_CONTAINER nor its volume $DB_VOLUME exists — this run will create both, and remove both afterwards"
+  fi
+
+  # Armed BEFORE `up`: an `up` that fails or is interrupted half-way (a
+  # start that failed on a taken port, a TERM) has already changed things,
+  # and the teardown puts back exactly the inventory above — so arming it
+  # early can only remove what this run made.
   STACK_STARTED_HERE=1
+  "$REPO_ROOT/run-demo" up
   echo "run-demo test: brought the stack up for this run"
+}
+
+# T-45: INT and TERM stop the run.  The teardown puts back what was there
+# before, and then this EXITS — a handler that returned would let bash
+# carry on to the next step (the suite, the summary).  Further INT/TERM are
+# ignored while it puts things back, so a second Ctrl-C cannot cut the
+# restore off half-way.
+on_interrupt() {
+  local signal="$1" code="$2"
+  trap '' INT TERM
+  echo "run-demo test: interrupted ($signal) — stopping the run here; nothing that existed before it is taken down" >&2
+  teardown_if_we_started_it
+  trap - EXIT
+  if [[ -n "$SUITE_REPORT" ]]; then
+    rm -f "$SUITE_REPORT"
+  fi
+  exit "$code"
+}
+
+arm_test_traps() {
+  trap teardown_if_we_started_it EXIT
+  trap 'on_interrupt INT 130' INT
+  trap 'on_interrupt TERM 143' TERM
 }
 
 # The final summary line (spec §9.7 part 3, plan §6.4 item 6): the skip
@@ -634,7 +853,7 @@ run_suite() {
     # read demo.records — refusing to run", which reads as a corrupt fixture rather than
     # a stack that was never started. And `exec` replaces the shell, so the teardown
     # trap below would never have fired for a stack this command brought up.
-    trap teardown_if_we_started_it EXIT INT TERM
+    arm_test_traps
     prepare_stack_for_test
     ensure_venv
     wait_for_db_ready || exit 1
@@ -649,7 +868,7 @@ run_suite() {
   fi
   echo "run-demo test: the launcher opens no connection of its own — demo/server/db.py is the one factory (B13, checked here, and the check was watched catching a planted import)"
 
-  trap teardown_if_we_started_it EXIT INT TERM
+  arm_test_traps
 
   prepare_stack_for_test
   ensure_venv
