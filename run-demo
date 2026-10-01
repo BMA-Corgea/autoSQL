@@ -485,6 +485,64 @@ PRE_RUN_CONTAINER_NETS="" # the networks it was attached to, then
 PRE_RUN_VOLUME=0          # 1 = the named volume existed before `up`
 DB_VOLUME=""              # the one named volume compose.yaml declares
 NETWORKS_CREATED_HERE=""  # compose networks that did NOT exist before `up`
+INVENTORY_EPOCH=""        # T-62: when the inventory was taken (seconds, host clock)
+CREATED_CONTAINER_ID=""   # T-62: the container `up` left behind, read right after it
+TEST_LOCK_FD=""           # T-62: the fd holding the host-wide lock (see acquire_test_lock)
+
+# ── T-62 — ONE `./run-demo test` AT A TIME, HOST-WIDE ──────────────────────
+#
+# T-45 made one run put back exactly what it found. Two runs at once broke that: the
+# teardown acts on NAMES, so run A could inventory "nothing exists", run B could then
+# create the stack and start its suite, A's `up` would adopt B's container (same compose
+# project, same name), and A's teardown would run `down --volumes` under B's suite. Two
+# seats ran the demo suite on this machine on 2026-10-01, kept apart only by a person
+# sequencing them. A factory cannot depend on that.
+#
+# So `test` takes a lock keyed by the compose project (host-wide: every checkout and
+# worktree of this repo shares it) BEFORE it looks at anything, and holds it through the
+# teardown. A second run waits, saying so, and then sees the first run's result: its
+# stack gone again, or still up because it was there before. The lock is an flock on a
+# file descriptor this shell holds, so the kernel releases it on ANY exit, a SIGKILL
+# included: there is no stale lock to clean up. The descriptor is closed for `up`, `down`
+# and pytest, so nothing they start (the app, above all) can outlive the run holding it.
+acquire_test_lock() {
+  local project lockfile
+  if ! project="$(docker compose -f "$COMPOSE_FILE" config --format json \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["name"])')" || [[ -z "$project" ]]; then
+    echo "run-demo test: refusing to run — could not read the compose project name to lock on (T-62)." >&2
+    exit 1
+  fi
+  lockfile="${XDG_RUNTIME_DIR:-/tmp}/run-demo-test.${project}.lock"
+  if ! exec {TEST_LOCK_FD}>>"$lockfile"; then
+    echo "run-demo test: refusing to run — could not open the lock file $lockfile (T-62)." >&2
+    exit 1
+  fi
+  if ! flock -n "$TEST_LOCK_FD"; then
+    echo "run-demo test: another ./run-demo test is running against the compose project '$project' ($lockfile) — waiting for it to finish (up to 30 minutes) rather than share a stack it will tear down (T-62)"
+    if ! flock -w 1800 "$TEST_LOCK_FD"; then
+      echo "run-demo test: still locked after 30 minutes — refusing to run (T-62)." >&2
+      exit 1
+    fi
+  fi
+  echo "run-demo test: holding the host-wide test lock for '$project' (T-62)"
+}
+
+# T-62: was the container now named $DB_CONTAINER created by THIS run?  By the id read
+# right after `up` when there is one; when an interrupt cut that read off, by creation
+# time against the inventory's clock.  Prints the id it found, for the messages.
+container_is_this_runs() {
+  local id created created_s
+  id="$(docker ps -aq --no-trunc --filter "name=^/${DB_CONTAINER}$")" || return 1
+  [[ -z "$id" ]] && return 0          # nothing there to remove: vacuously ours
+  echo "$id"
+  if [[ -n "$CREATED_CONTAINER_ID" ]]; then
+    [[ "$id" == "$CREATED_CONTAINER_ID" ]]
+    return
+  fi
+  created="$(docker inspect -f '{{.Created}}' "$id")" || return 1
+  created_s="$(date -d "$created" +%s)" || return 1
+  [[ -n "$INVENTORY_EPOCH" && "$created_s" -ge "$INVENTORY_EPOCH" ]]
+}
 
 # Is it OUR app on 8787 — not merely "is something listening"?  B23 says
 # the suite must not adopt whatever is there, so this asks the app for the
@@ -585,10 +643,34 @@ take_pre_run_inventory() {
   PRE_RUN_VOLUME=0
   DB_VOLUME=""
   NETWORKS_CREATED_HERE=""
+  INVENTORY_EPOCH="$(date +%s)"
   is_line_of "$DB_CONTAINER" "$containers" && PRE_RUN_CONTAINER=1
   if [[ "$PRE_RUN_CONTAINER" == "1" ]] && ! PRE_RUN_CONTAINER_NETS="$(container_networks)"; then
     echo "run-demo test: refusing to bring anything up — docker could not say which networks $DB_CONTAINER is attached to, so a start that failed half-way could not be put back (T-45)." >&2
     return 1
+  fi
+  # T-62: a container that has ALREADY lost its network (a start that failed on a taken
+  # port, before this run) would start unreachable and fail the readiness poll after 60s
+  # with nothing to say why.  Say why now, with the one-line fix, and change nothing.
+  if [[ "$PRE_RUN_CONTAINER" == "1" ]]; then
+    local mode
+    if ! mode="$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$DB_CONTAINER")"; then
+      echo "run-demo test: refusing to bring anything up — docker could not say which network $DB_CONTAINER belongs to (T-62)." >&2
+      return 1
+    fi
+    case "$mode" in
+      default|bridge|host|none|container:*) ;;
+      *)
+        case " $PRE_RUN_CONTAINER_NETS " in
+          *" $mode "*) ;;
+          *)
+            echo "run-demo test: refusing to start $DB_CONTAINER — it is not attached to its network $mode (a start that failed on a taken port leaves it that way), so it would come up unreachable. Re-attach it, then run again:" >&2
+            echo "run-demo test:     docker network connect $mode $DB_CONTAINER" >&2
+            return 1
+            ;;
+        esac
+        ;;
+    esac
   fi
   while read -r kind name; do
     case "$kind" in
@@ -632,10 +714,14 @@ teardown_if_we_started_it() {
       # the volume is not.  `docker rm -v` takes only the container's
       # anonymous volumes — a named volume is never removed by it.
       stop_app
+      local network cid
+      if ! cid="$(container_is_this_runs)"; then
+        echo "run-demo test: NOT removing $DB_CONTAINER (${cid:-id unknown}) — it is not the container this run created, so it is not this run's to remove (T-62). Kept, with the volume $DB_VOLUME." >&2
+        return 0
+      fi
       docker rm -f -v "$DB_CONTAINER" >/dev/null
-      local network
       for network in $NETWORKS_CREATED_HERE; do
-        docker network rm "$network" >/dev/null
+        docker network rm "$network" >/dev/null 2>&1 || true   # T-62 rider: `up` may never have made it
       done
       echo "run-demo test: removed the container this run created ($DB_CONTAINER) and kept the volume $DB_VOLUME — it existed before this run"
     else
@@ -644,7 +730,12 @@ teardown_if_we_started_it() {
       # and a teardown that undid only half of what it started would leave
       # uvicorn holding 8787 — which the next run would then correctly
       # refuse as a foreign holder.  Whatever `up` does, `down` undoes.
-      "$REPO_ROOT/run-demo" down
+      local cid3
+      if ! cid3="$(container_is_this_runs)"; then
+        echo "run-demo test: NOT taking the stack down — $DB_CONTAINER (${cid3:-id unknown}) is not the container this run created, so neither it nor the volume $DB_VOLUME is this run's to remove (T-62)." >&2
+        return 0
+      fi
+      "$REPO_ROOT/run-demo" down {TEST_LOCK_FD}>&-
       echo "run-demo test: took it down again — neither $DB_CONTAINER nor its volume $DB_VOLUME existed before this run, so all of it was this run's to remove"
     fi
   fi
@@ -703,7 +794,13 @@ prepare_stack_for_test() {
   # and the teardown puts back exactly the inventory above — so arming it
   # early can only remove what this run made.
   STACK_STARTED_HERE=1
-  "$REPO_ROOT/run-demo" up
+  local up_status=0
+  "$REPO_ROOT/run-demo" up {TEST_LOCK_FD}>&- || up_status=$?
+  # T-62: the container this run's `up` left behind -- read even when `up` failed, so
+  # the teardown can tell it from one somebody else made.
+  CREATED_CONTAINER_ID="$(docker ps -aq --no-trunc --filter "name=^/${DB_CONTAINER}$" 2>/dev/null || true)"
+  if [[ "$PRE_RUN_CONTAINER" == "1" ]]; then CREATED_CONTAINER_ID=""; fi   # not created: started
+  if [[ "$up_status" != "0" ]]; then exit "$up_status"; fi
   echo "run-demo test: brought the stack up for this run"
 }
 
@@ -853,11 +950,12 @@ run_suite() {
     # read demo.records — refusing to run", which reads as a corrupt fixture rather than
     # a stack that was never started. And `exec` replaces the shell, so the teardown
     # trap below would never have fired for a stack this command brought up.
+    acquire_test_lock
     arm_test_traps
     prepare_stack_for_test
     ensure_venv
     wait_for_db_ready || exit 1
-    "$VENV_DIR/bin/python" "$REPO_ROOT/demo/tests/mutation_pass.py" "$@"
+    "$VENV_DIR/bin/python" "$REPO_ROOT/demo/tests/mutation_pass.py" "$@" {TEST_LOCK_FD}>&-
     exit $?
   fi
 
@@ -868,6 +966,7 @@ run_suite() {
   fi
   echo "run-demo test: the launcher opens no connection of its own — demo/server/db.py is the one factory (B13, checked here, and the check was watched catching a planted import)"
 
+  acquire_test_lock
   arm_test_traps
 
   prepare_stack_for_test
@@ -879,7 +978,7 @@ run_suite() {
   local pytest_status=0
   set +e
   AUTOSQL_DEMO_TEST_REPORT="$SUITE_REPORT" \
-    "$VENV_DIR/bin/python" -m pytest "$DEMO_DIR/tests" "$@"
+    "$VENV_DIR/bin/python" -m pytest "$DEMO_DIR/tests" "$@" {TEST_LOCK_FD}>&-
   pytest_status=$?
   set -e
 
