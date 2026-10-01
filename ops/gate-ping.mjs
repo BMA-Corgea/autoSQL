@@ -70,6 +70,7 @@ const STATE = path.join(ROOT, ".autodev");
 const OUTBOX = path.join(STATE, "outbox");
 const LEDGER = path.join(STATE, "events.jsonl");
 const SEEN = path.join(STATE, "notify", "gate-ping.jsonl");
+const SENT = path.join(STATE, "notify", "sent.jsonl");    // the plugin pager's delivery record
 const SPAWN_MS = 5000;   // the Stop hook's `|| true` bounds exit status, never runtime
 
 const argv = new Set(process.argv.slice(2));
@@ -134,8 +135,9 @@ export const isKnownPolicy = (p) =>
   p != null && (HUMAN_POLICIES.has(String(p).toLowerCase()) ||
                 GREEN_POLICIES.has(String(p).toLowerCase()));
 
-/** Has the PLUGIN already emitted this exact occurrence? Read from the ledger — the real
- *  source of truth — not from a filename convention.
+/** Did the tracker DECLARE this occurrence (a gate_waiting event in the ledger)? A declaration
+ *  is not a delivery (T-27): it only chooses the packet's wording now. Read from the ledger —
+ *  the real source of truth — not from a filename convention.
  *
  *  The previous version probed `outbox/sent/<ticket>_<gate>_gate.md`, which was wrong twice
  *  over. notify.mjs keys packets `[ticket, stage, type, at]` (notify.mjs:56), so it never
@@ -156,18 +158,60 @@ export function pluginAlreadyEmitted(ticket, stage, gate, ledger = LEDGER) {
   return false;
 }
 
+/** Was a DELIVERY of this occurrence recorded? (T-27)
+ *
+ *  The plugin's pager records every attempt in sent.jsonl as {key, ticket, stage, type, at,
+ *  status}, where status is "sent" or "failed" (notify.mjs:55-81). Only a "sent" gate_waiting
+ *  record for this ticket at this stage means some channel actually has the hold. Adopting on
+ *  the ledger's gate_waiting event alone (the old rule) took a DECLARATION for a DELIVERY. The
+ *  pager never ran in this repo's Stop hook (0 records over 16 holds), so every refused-advance
+ *  hold was muted for good. A missing or unreadable file means nothing was delivered. */
+export function deliveryRecorded(ticket, stage, gate, sent = SENT) {
+  let txt;
+  try { txt = fs.readFileSync(sent, "utf8"); } catch { return false; }
+  for (const line of txt.split("\n")) {
+    if (!line.trim()) continue;
+    let r; try { r = JSON.parse(line); } catch { continue; }
+    if (r.type === "gate_waiting" && r.ticket === ticket && r.stage === stage && r.status === "sent") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Can the plugin's pager run in THIS environment? (T-27)
+ *  The Stop hook runs it as node "$CLAUDE_PLUGIN_ROOT/scripts/notify.mjs" with its output thrown
+ *  away, so a pager that cannot start is silent: an unset variable collapses the path to
+ *  /scripts/notify.mjs. This watchdog runs in the same hook with the same environment, so it
+ *  reports what the hook would not. */
+export function pagerHealth(env = process.env) {
+  const root = env.CLAUDE_PLUGIN_ROOT;
+  if (!root) return { canRun: false, why: "CLAUDE_PLUGIN_ROOT is unset" };
+  const p = path.join(root, "scripts", "notify.mjs");
+  if (!fs.existsSync(p)) return { canRun: false, why: `${p} does not exist` };
+  return { canRun: true, why: p };
+}
+
 export function ticketFiles(dir = path.join(STATE, "tickets")) {
   try {
     return fs.readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => path.join(dir, f));
   } catch { return []; }
 }
 
+/** Keys this watchdog has already acted on. An adoption made under the OLD rule ("adopted:
+ *  plugin emitted this occurrence") does NOT count: nothing was ever shown to be delivered for
+ *  it, so it is re-examined once under the delivery rule (T-27), then recorded afresh. */
+const OLD_ADOPTION = "adopted: plugin emitted";
 export function seenKeys(file = SEEN) {
   const out = new Set();
   try {
     for (const line of fs.readFileSync(file, "utf8").split("\n")) {
       if (!line.trim()) continue;
-      try { out.add(JSON.parse(line).key); } catch { /* a torn line must not mute the watchdog */ }
+      try {
+        const r = JSON.parse(line);
+        if (String(r.how ?? "").startsWith(OLD_ADOPTION)) continue;
+        out.add(r.key);
+      } catch { /* a torn line must not mute the watchdog */ }
     }
   } catch { /* first run */ }
   return out;
@@ -187,7 +231,8 @@ const isDone = (t, r) =>
 /** Which tickets are parked at an uncleared human gate right now.
  *  Returns { found, failures } — failures are NEVER folded into silence. */
 export function pending({ files = ticketFiles(), bin = null, route = routeOf,
-                          seen = seenKeys(), emitted = pluginAlreadyEmitted } = {}) {
+                          seen = seenKeys(), emitted = pluginAlreadyEmitted,
+                          delivered = deliveryRecorded } = {}) {
   const tracker = bin ?? findTracker();      // throws here, before any ticket is judged
   const found = [];
   const failures = [];
@@ -215,13 +260,13 @@ export function pending({ files = ticketFiles(), bin = null, route = routeOf,
     // loopback and re-arrival at a different stage is a NEW occurrence and pings again.
     const key = `${t.id}|${r.stage}|${g.name}`;
     if (seen.has(key)) continue;
-    const already = emitted(t.id, r.stage, g.name);
+    const declared = emitted(t.id, r.stage, g.name);
     found.push({
       id: t.id, title: t.title, stage: r.stage, gate: g.name,
       keyholder: g.keyholder ?? gateSpec(g.name)?.keyholder?.seat ?? "unset",
       question: g.question ?? gateSpec(g.name)?.question ?? "",
       instructions: gateSpec(g.name)?.keyholder?.instructions ?? "",
-      key, adopted: already,
+      key, adopted: delivered(t.id, r.stage, g.name), declared,
     });
   }
   return { found, failures };
@@ -239,11 +284,15 @@ It is parked at stage \`${p.stage}\` and nothing can move it until you rule.
 ${p.instructions ? `${p.instructions}\n\n` : ""}Keyholder: ${p.keyholder}
 
 ---
-This ping came from ops/gate-ping.mjs, not from AutoDev. The tracker only announces a gate
+${p.declared
+    ? `This ping came from ops/gate-ping.mjs, not from AutoDev. The tracker did announce this hold
+(a gate_waiting event exists), but no delivery of it was ever recorded: AutoDev's pager does
+not run in this repo's Stop hook (T-27). So this watchdog announces it instead.`
+    : `This ping came from ops/gate-ping.mjs, not from AutoDev. The tracker only announces a gate
 when something tries to ADVANCE past it, so a ticket parked by ARRIVAL is silent — no
 event, no passport stamp, no notification. This watchdog reads the board and fills that
 gap. It does not write ticket state, so the ledger still has no gate_waiting event for
-this gate; that needs a fix in the plugin itself (T-18).
+this gate; that needs a fix in the plugin itself (T-18).`}
 `;
 }
 
@@ -265,8 +314,8 @@ export function run({ write = true, send = true } = {}) {
   const { found, failures } = pending();
   const acted = [];
   for (const p of found) {
-    if (p.adopted) {          // the plugin emitted THIS occurrence; its own pager has it
-      if (write) record(p, "adopted: plugin emitted this occurrence");
+    if (p.adopted) {          // a delivery of THIS occurrence is recorded in sent.jsonl (T-27)
+      if (write) record(p, "adopted: delivery recorded in sent.jsonl");
       acted.push({ ...p, action: "adopted" });
       continue;
     }
@@ -301,6 +350,10 @@ if (isMain) {
     console.error("gate-ping: this is NOT an all-clear. No gate has been checked.");
     process.exit(2);
   }
+  const pager = pagerHealth();
+  console.log(pager.canRun
+    ? `gate-ping: the plugin pager can run (${pager.why}); a hold is adopted only once a delivery is recorded (T-27)`
+    : `gate-ping: the plugin pager CANNOT RUN here (${pager.why}): the Stop hook's pager step fails silently, so this watchdog announces every hold itself (T-27)`);
   if (!acted.length) console.log("gate-ping: nothing parked at an uncleared human gate.");
   for (const a of acted) {
     // --dry-run reports the action it WOULD take, not a blanket "WOULD SEND". It used to
