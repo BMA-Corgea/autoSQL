@@ -371,7 +371,12 @@ def judge(cells: Dict[str, Dict[str, Any]], sizes=(20000, 100000), encs=("num", 
             v = "NEAR-MISS"
         out[c] = {"speed_verdict": v, "checks": checks, "missing": missing}
     rank = {"PASS": 3, "NEAR-MISS": 2, "INCOMPLETE": 1, "FAIL": 0}
-    best = max(CANDIDATES, key=lambda c: rank[out[c]["speed_verdict"]])
+
+    def med100k(c):          # tie-break among equal verdicts: the fastest at 100,000 rows
+        ms = [cells[f"100000/{e}"]["arms"][c]["stats"]["median"] for e in encs
+              if cells.get(f"100000/{e}", {}).get("arms", {}).get(c, {}).get("stats", {}).get("median") is not None]
+        return -max(ms) if ms else float("-inf")
+    best = max(CANDIDATES, key=lambda c: (rank[out[c]["speed_verdict"]], med100k(c)))
     return {"per_candidate": out, "best": best, "run_verdict_speed_and_K5": out[best]["speed_verdict"]}
 
 

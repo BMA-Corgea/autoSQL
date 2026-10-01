@@ -8837,8 +8837,9 @@
     "missing": []
    }
   },
-  "best": "C_par",
+  "best": "C_both",
   "run_verdict_speed_and_K5": "FAIL"
  },
- "finished_utc": "2026-10-01T07:06:52Z"
+ "finished_utc": "2026-10-01T07:06:52Z",
+ "verdict_recomputed_note": "2026-10-01 07:2xZ: verdict block recomputed after judge()'s tie-break fix (best = fastest among equal verdicts). Measurements untouched; verdict unchanged (FAIL)."
 }
