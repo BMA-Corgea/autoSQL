@@ -26,8 +26,14 @@
 #   Nothing is copied into this repo. If neither resolves, the script fails closed
 #   and says which one to set — it never sends to a guessed recipient.
 #
+# DELIVERY IS CLOSED BY DEFAULT (T-27)
+#   Nothing is sent unless AUTODEV_NOTIFY_BIN names the sender (e.g. openclaw). There is no
+#   config fallback and no default sender. Whether this shop pages the owner at all is the
+#   owner's call (the morning form's Q6); until someone opens the switch on purpose, packets
+#   stay in the outbox.
+#
 # USAGE
-#   ops/notify-telegram.sh              # drain the outbox (idempotent; safe to re-run)
+#   AUTODEV_NOTIFY_BIN=openclaw ops/notify-telegram.sh   # drain the outbox (idempotent; safe to re-run)
 #   ops/notify-telegram.sh --test       # send one test ping, prove the wiring
 #   ops/notify-telegram.sh --dry-run    # show what WOULD be sent; sends nothing
 #
@@ -67,8 +73,17 @@ jqget() { [ -f "$CONF" ] && command -v jq >/dev/null 2>&1 && jq -r "$1 // empty"
 
 CHANNEL="${AUTODEV_NOTIFY_CHANNEL:-$(jqget .channel)}"
 CHANNEL="${CHANNEL:-telegram}"
-BIN="${AUTODEV_NOTIFY_BIN:-$(jqget .bin)}"
-BIN="${BIN:-openclaw}"
+# T-27: the switch, checked BEFORE the recipient is resolved, so a closed or non-executable
+# switch never even reads the file that holds the chat id. Closed is a policy, not a failure:
+# exit 0 (the Stop hook and gate-ping call this on every turn), except for --test, where a
+# wiring test that sent nothing must not look like a pass.
+BIN="${AUTODEV_NOTIFY_BIN:-}"
+if [ -z "$BIN" ]; then
+  echo "notify-telegram: delivery CLOSED — AUTODEV_NOTIFY_BIN is unset, so nothing is sent and the outbox keeps every packet (T-27; set AUTODEV_NOTIFY_BIN to the sender to open it)."
+  if [ "$MODE" = "test" ]; then exit 1; fi
+  exit 0
+fi
+command -v "$BIN" >/dev/null 2>&1 || { echo "notify-telegram: '$BIN' not on PATH — nothing sent." >&2; exit 1; }
 
 # ---- recipient, resolved but never printed -------------------------------
 TARGET="${AUTODEV_NOTIFY_TARGET:-}"
@@ -98,8 +113,6 @@ if [ -z "$TARGET" ]; then
   echo "  Nothing was sent. (No chat id is stored in this repo, by design.)" >&2
   exit 1
 fi
-
-command -v "$BIN" >/dev/null 2>&1 || { echo "notify-telegram: '$BIN' not on PATH — nothing sent." >&2; exit 1; }
 
 # ---- send one body, chunked if long -------------------------------------
 send_body() {
