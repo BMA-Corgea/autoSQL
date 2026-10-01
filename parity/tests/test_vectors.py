@@ -66,6 +66,10 @@ def test_the_source_digests_name_the_compiler_and_runtime_in_this_tree():
     (lambda d: next(c for c in d["cases"] if c["kind"] == "sort").update(expect=[]), "answers with expect_ids"),
     (lambda d: next(c for c in d["cases"] if c["kind"] == "filter").update(filter=5), "filter must be"),
     (lambda d: next(c for c in d["cases"] if c["kind"] == "sort")["rows"][0].update(id=7), "carry a string 'id'"),
+    (lambda d: next(c for c in d["cases"] if c["kind"] == "record")["autosql"].pop("folded"), "must record autosql.folded"),
+    (lambda d: next(c for c in d["cases"] if c["kind"] == "sort")["autosql"].update(folded="agrees"), "applies only to record"),
+    (lambda d: next(c for c in d["cases"] if c["kind"] == "expr")["autosql"].update(folded="agrees"), "applies only to record"),
+    (lambda d: next(c for c in d["cases"] if c["kind"] == "filter").pop("filter"), "needs ['filter']"),
 ])
 def test_the_validator_would_actually_catch_one(break_it, says):
     broken = copy.deepcopy(DOC)

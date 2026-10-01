@@ -10,9 +10,11 @@ compiler's side of it:
   * the copy-source rule itself (no database);
   * the refusals: a construct that cannot be folded statically is Uncompilable, never a guess;
   * the default stays the default: without `fold`, nothing about the output moves;
-  * THE ORACLE (needs a database): 600 generated stored rows and expressions, where the expected
-    answer is autoSQL's own expr.py evaluated over the row normalised exactly as GIMS does it,
-    with the key order read back from Postgres itself rather than assumed.
+  * THE ORACLE (needs a database): 600 generated stored ROWS, each checked under several expression
+    forms, where the expected answer is autoSQL's own expr.py over the row normalised exactly as
+    GIMS does it, with the key order read back from Postgres itself rather than assumed. The
+    generator deliberately produces colliding copy sources, stored JSON nulls beside a copy source,
+    keys with up to 4 separators, index first steps, and nested keys that contain separators.
 """
 from __future__ import annotations
 
@@ -28,8 +30,17 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 DSN = os.environ.get("AUTOSQL_COMPILER_DSN")
-if DSN and "port=55433" in DSN:
-    raise SystemExit("refusing to run against port 55433 — that is a live database")
+
+
+def _connect():
+    """Connect, then refuse port 55433 by the port actually reached, before any statement (the
+    DSN text alone can be bypassed: PGPORT, URL forms, spacing)."""
+    import psycopg
+    cx = psycopg.connect(DSN, autocommit=True)
+    if int(cx.info.port) == 55433:
+        cx.close()
+        raise SystemExit("refusing to run against port 55433 — that is a live database")
+    return cx
 needs_db = pytest.mark.skipif(not DSN, reason="set AUTOSQL_COMPILER_DSN to a Postgres with the runtime installed")
 
 
@@ -109,18 +120,20 @@ def test_without_fold_the_output_is_unchanged(src):
     ast = EXPR.parse(src)
     assert C.compile_ast(ast) == C.compile_ast(ast, fold=None)
     plain = C.compile_ast(ast)
-    folded_bind = {k for k, v in plain.params.items() if isinstance(v, str) and (" " in v or "_" in v)}
     # no copy source is ever bound without folding: every bound key is a key the source names
     named = {v for v in plain.params.values() if isinstance(v, str)}
-    assert all(v in src for v in named), (src, plain.params, folded_bind)
+    assert all(v in src for v in named), (src, plain.params)
 
 
 # ---- THE ORACLE -----------------------------------------------------------------------------------
 KEY_POOL = ["a", "b", "Sample ID", "Sample_ID", "lot_no 2", "x y", "x_y", "a b_c", "a_b c", "a b c", "a_b_c",
             " noun type", "_noun_type", " noun_type", "_noun type", "run-id", "Dry Weight", "k_1", "k 1",
-            "é_x", "é x", "日本 語", "日本_語"]
-LOOKUPS = KEY_POOL + ["Dry_Weight", "lot no 2", "lot_no_2", "run_id", "k 1", "x y", "zz z", "日本 語"]
-VALUES = [None, 0, 1, -2.5, "", "s", "S-1", True, False, [1, 2], {"sub": 3}, {"Sample ID": "nested"}]
+            "é_x", "é x", "日本 語", "日本_語", "p q r s", "p_q r_s", "p q_r s", "p_q_r_s", "w_x_y_z", "w x_y z",
+            "_", " ", "a  b", "a__b", "a _b"]
+LOOKUPS = KEY_POOL + ["Dry_Weight", "lot no 2", "lot_no_2", "run_id", "k 1", "x y", "zz z", "日本 語",
+                      "p_q_r_s", "p q r s", "w x y z", "a b", "a_ b"]
+VALUES = [None, 0, 1, -2.5, "", "s", "S-1", True, False, [1, 2], {"sub": 3}, {"Sample ID": "nested"},
+          {"a b": 7, "a_b": 8}, {"a b": 7}, [{"sub": 1}]]
 
 
 def _gims_served_row(stored_in_jsonb_order: dict) -> dict:
@@ -138,7 +151,8 @@ def _gims_served_row(stored_in_jsonb_order: dict) -> dict:
 
 def _expressions_for(key: str):
     ref = f"$['{key}']"
-    forms = [ref, f"{ref}.sub", f"{ref} == 'S-1'", f"{ref} + 1", f"not {ref}", f"{ref} == null"]
+    forms = [ref, f"{ref}.sub", f"{ref} == 'S-1'", f"{ref} + 1", f"not {ref}", f"{ref} == null",
+             f"{ref}['a b']", f"{ref}['a_b']", f"{ref}[0]", f"{ref}[0].sub", "$[0]", f"{ref}.sub == 3"]
     if key.replace("_", "a").isidentifier() and key.isascii():
         forms.append(f"$.{key}")
     return forms
@@ -161,10 +175,19 @@ def test_the_oracle_folded_sql_over_the_stored_row_equals_gims_over_the_served_r
     import psycopg
     rng = random.Random(48)
     checked, refused, wrong = 0, 0, []
-    with psycopg.connect(DSN, autocommit=True) as cx:
+    with _connect() as cx:
         cx.execute("SET extra_float_digits = 1")
-        while checked < 600:
+        rows = 0
+        while rows < 600:
+            rows += 1
             stored = {k: rng.choice(VALUES) for k in rng.sample(KEY_POOL, rng.randint(1, 6))}
+            if rng.random() < 0.25:
+                # a stored JSON null right beside one of its own copy sources
+                k = rng.choice([k for k in KEY_POOL if (" " in k) != ("_" in k)])
+                stored[k] = None
+                srcs = C.gims_copy_sources(k)
+                if srcs:
+                    stored[rng.choice(srcs)] = rng.choice(VALUES)
             raw = json.dumps(stored)
             # the key order GIMS receives in Postgres mode, read back from Postgres itself
             order = [r[0] for r in cx.execute(
@@ -189,7 +212,7 @@ def test_the_oracle_folded_sql_over_the_stored_row_equals_gims_over_the_served_r
                     wrong.append((src, stored, order, want, got))
     assert refused == 0, f"{refused} generated expressions were refused; the generator stays under the cap"
     assert not wrong, f"{len(wrong)} of {checked} disagree, e.g. {wrong[:3]}"
-    assert checked >= 600
+    assert rows == 600 and checked >= 600 * 6
 
 
 @needs_db
@@ -201,7 +224,31 @@ def test_the_oracle_would_catch_an_unfolded_compiler():
     ast = EXPR.parse("$.Sample_ID")
     want = EXPR.evaluate(ast, _gims_served_row(stored), {})
     c = C.compile_ast(ast)  # no fold
-    with psycopg.connect(DSN, autocommit=True) as cx:
+    with _connect() as cx:
         v = cx.execute("SELECT " + c.sql + " FROM (SELECT (%(rec)s)::jsonb AS data) t",
                        dict(c.params, rec=json.dumps(stored), ctx="{}")).fetchone()[0]
     assert want == "S-1" and v is None
+
+
+@needs_db
+@pytest.mark.parametrize("stored, src, want", [
+    ({"Sample ID": {"sub": 3}}, "$.Sample_ID.sub == 3", True),     # a multi-step path folds its FIRST step
+    ({"Sample ID": {"sub": 3}}, "$['Sample ID'].sub", 3),
+    ({"a": 1}, "$[0]", None),                                      # an index first step on an object row
+    ({"k": [{"Sample ID": 1}]}, "$.k[0].Sample_ID", None),        # nested keys are never copied
+    ({"k": {"a b": 7}}, "$.k.a_b", None),                          # ... in an object either
+    ({"x y": None, "x_y": 5}, "$['x y']", None),                  # a stored null beats its own copy source
+    ({"x_y": 5}, "$['x y']", 5),
+])
+def test_pinned_paths_the_review_found_unguarded(stored, src, want):
+    """T-48 review: two mutants (index first step dropped; only single-step paths folded) survived
+    the generated oracle. These pin each path directly, against GIMS's rule as the oracle states it."""
+    served = _gims_served_row(stored)
+    assert EXPR.evaluate(EXPR.parse(src), served, {}) == want
+    c = C.compile_ast(EXPR.parse(src), fold="gims", noun=NOUN)
+    with _connect() as cx:
+        is_null, jt, vt = cx.execute(
+            "SELECT (v IS NULL), jsonb_typeof(v), v::text FROM (SELECT " + c.sql +
+            " AS v FROM (SELECT (%(rec)s)::jsonb AS data) t) q", dict(c.params, rec=json.dumps(stored), ctx="{}")).fetchone()
+    got = None if (is_null or jt == "null") else json.loads(vt)
+    assert _matches(got, want), (src, stored, got, want)

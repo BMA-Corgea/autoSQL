@@ -139,9 +139,9 @@ def validate(doc: Dict[str, Any]) -> List[str]:
             errs.append(f"{where}: a folded divergence must record folded_gives")
         if isinstance(a, dict) and kind in KINDS:
             if foldable(c) and a.get("folded") not in STATUSES:
-                errs.append(f"{where}: an expression case must record autosql.folded (T-48), one of {STATUSES}")
+                errs.append(f"{where}: a pipeline expression case must record autosql.folded (T-48), one of {STATUSES}")
             if not foldable(c) and "folded" in a:
-                errs.append(f"{where}: autosql.folded applies only to expression cases (record, expr, a where filter)")
+                errs.append(f"{where}: autosql.folded applies only to record cases and where filters")
     return errs
 
 
@@ -381,9 +381,11 @@ def sort_rank_sql(v: str, direction: str) -> str:
 
 
 def foldable(c: Dict[str, Any]) -> bool:
-    """The cases T-48's folding applies to: an expression evaluated over a row (record, expr,
-    and a string `where` filter). Sort and the filters map are not expressions (T-42; Python)."""
-    return c["kind"] in ("record", "expr") or (c["kind"] == "filter" and isinstance(c["filter"], str))
+    """The cases T-48's folding applies to: an expression over a row as the PIPELINE serves it
+    (record, and a string `where` filter). Not `expr`: GIMS evaluates those over the record as
+    given, with no copies and no tag (T-48 review nit 7). Sort and the filters map are not
+    expressions (T-42; Python). Safe on a malformed case (review should-fix 1)."""
+    return c.get("kind") == "record" or (c.get("kind") == "filter" and isinstance(c.get("filter"), str))
 
 
 def sql_answer(db: "Sql", comp, parse: Callable, c: Dict[str, Any], fold: Optional[str] = None) -> Tuple[str, Any]:

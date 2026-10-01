@@ -1,9 +1,9 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 4,
+ "version": 5,
  "source": {
-  "autosql": "929b7ce",
-  "compiler_sha256": "aa9fc4dd4802b08bb105f562e3d90f213042e81f8663b2edb9ecb98d3546e46e",
+  "autosql": "pending: the commit that adds T-48's review-round-1 compiler (the sha256 digests are exact)",
+  "compiler_sha256": "d15fb92ea0709b225f137afb1b80526c0effcdcd403364b7cfad875ef1ec3180",
   "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
@@ -1396,8 +1396,7 @@
    },
    "expect": null,
    "autosql": {
-    "status": "agrees",
-    "folded": "agrees"
+    "status": "agrees"
    }
   },
   {
@@ -1410,8 +1409,7 @@
    },
    "expect": "S-1",
    "autosql": {
-    "status": "agrees",
-    "folded": "agrees"
+    "status": "agrees"
    }
   },
   {
@@ -1428,8 +1426,7 @@
    },
    "expect": 3,
    "autosql": {
-    "status": "agrees",
-    "folded": "agrees"
+    "status": "agrees"
    }
   },
   {

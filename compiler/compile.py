@@ -89,7 +89,9 @@ def gims_copy_sources(key: str) -> List[str]:
             if mask >> bit & 1:
                 chars[i] = swap
         out.append("".join(chars))
-    return sorted(out, key=lambda k: k.encode("utf-8"))
+    # Plain code-point order: for any key that can be stored, it IS UTF-8 byte order (and so jsonb's
+    # order among same-length keys); unlike .encode(), it cannot raise on a lone surrogate (T-48 review).
+    return sorted(out)
 
 
 # ---------------------------------------------------------------------------------
