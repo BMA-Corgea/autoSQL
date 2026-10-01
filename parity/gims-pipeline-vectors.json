@@ -2,7 +2,7 @@
  "format": "gims-pipeline-vectors/1",
  "version": 8,
  "source": {
-  "autosql": "pending: the commit that adds T-63's runtime (the sha256 digests are exact)",
+  "autosql": "a59b945",
   "compiler_sha256": "c1ed58fcb235108c3570c6d680f16995ac30ddd67cb393602e86553137a73532",
   "runtime_sha256": "65bb6173790f668dcf28363c7b37360a5c4786988ea02a273a46ba0844ad78c7",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
