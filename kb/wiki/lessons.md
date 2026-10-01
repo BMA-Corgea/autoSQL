@@ -10,6 +10,54 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ---
 
+## A teardown removes exactly what its own run created: no less, no more (T-25)
+
+**The class.** A teardown must remove exactly what its own run created. **No less** (T-25): if
+an image declares `VOLUME` and the run mounts nothing at that path, Docker creates an
+**anonymous volume**, and `docker rm -f <c>` removes the container and leaves that volume
+dangling, invisible to `docker ps -a`. Both Postgres images this repo uses declare
+`VOLUME /var/lib/postgresql/data`. For a container the run created, the cure is `-v` on
+`docker rm`, which removes only that container's own anonymous volumes, or `docker run --rm`,
+which was measured clean. **No more** (T-45): `--volumes` on `compose … down` is not that cure.
+It also deletes the **named** volumes the compose file declares, including one the run did not
+create. That is how `./run-demo test` deletes a deliberately kept demo volume (found 2026-10-01;
+T-45 is the fix). A service whose data path is a named volume cannot leak an anonymous one
+there, so `--volumes` buys it nothing and costs it the kept data.
+
+**Paid for twice.** First by the corpus: about 1 GiB left on disk after a plain `docker rm -f`
+(`spikes/T-1/proto/REGENERATE-CORPUS.md` §9, which wrote `-v` into its own teardown). Then by
+`ops/runtime-check.sh`, written 18 days later (2026-08-21 → 2026-09-08) without it. Measured 2026-10-01: one normal run
+took the machine's dangling count from 74 to 75, and the survivor was the run's own data-dir
+mount, about 48 MB. With `docker rm -f -v` the count stayed at 74.
+
+**How it got past its own check.** T-21's criterion was "the throwaway container is destroyed".
+That was true, and it was the only thing measured; nobody asked about the volume. It is
+witness 7's shape below: the check was right about what it inspected.
+
+**What stops it coming back, and what does not.** `ops/tests/test_volume_teardown.mjs` enforces
+the default rule: every teardown it recognises in a tracked shell script outside `spikes/` must
+pass `-v`/`--volumes`. It recognises `docker rm`, `docker container rm|remove`,
+`docker compose … down|rm` and `docker-compose … down|rm`, plus `docker system prune` (it must
+pass `--volumes`) and `docker container prune` (always flagged, because it cannot remove volumes).
+Docker can be written as `docker`, `$DOCKER` or `${DOCKER}`, after global flags such as
+`--context` or `-H`, inside `$( … )`, or after `sudo` or `xargs`. It does **not** see docker
+behind a wrapper function or an alias (`dk() { docker "$@"; }`), in an array or another
+variable, or in an `eval`. It also misses Python's list-form calls, files that are not shell
+scripts, and a container started with no teardown at all. The rule is a default, not a law: a
+deliberate keep of a volume the run did not create needs a reasoned exemption, which T-45 adds.
+The guard was watched failing against the unfixed script and planted leaks, and with each of its
+own checks broken.
+
+**Cleaning up a volume a run leaked.** If the container still exists, remove it with
+`docker rm -f -v <container>`. Docker takes the container's own anonymous volume with it, and
+nothing else. If the container is already gone, so is the link, and the volume's creation time
+and labels are all that is left. Use `spikes/T-1/proto/REGENERATE-CORPUS.md` §9's recipe: list
+the dangling volumes by `CreatedAt`, take the one created when you started the container, check
+that its labels say `com.docker.volume.anonymous`, and `docker volume rm` that one id. **Never
+prune**: other projects' volumes sit in the same dangling list, and a prune cannot be undone.
+
+---
+
 ## A check that never ran reads exactly like a check that passed
 
 *Nine instances in this project. Six were found on 2026-09-08; the seventh, eighth and ninth
@@ -48,6 +96,28 @@ day later — so T-2's ticket has no `design` key at all and its mock was approv
 gates. **Six are bound to a loop. `design` and `compliance` are not.** `compliance` is `human`
 policy and consulted by nothing; it has simply never been reached. `client-signoff@v1` and
 `sec-review@v1` are gateless stages in the same blueprint.
+
+> **Corrected 2026-10-01 (T-24).** `compliance` *is* bound: `compliance-review@v1` names it,
+> and the engine loads that loop from the plugin's full set. The cross-check above read only the
+> blueprint's loop list, which lacks it. Only `feature-regulated@v1` routes to that loop, and no
+> ticket here has that type, so `compliance` is **unreached, not unbound** (a ticket filed as, or
+> rerouted to, `feature-regulated` would reach it). It is dormant, and it misleads nobody until
+> someone relies on it. **`design` was the only gate that performed.** T-24's release step binds
+> it: it publishes `design@v2`, with `bands.gate = "design"` and the policy left at
+> `human:strict`, into this shop's git-ignored `.autodev/data/loops/`. To see whether it holds
+> today, ask the tracker for a new design ticket's journey, or run
+> `.autodev/evidence/T-24/watched-hold.sh --expect-real bound`.
+>
+> **The binding is forward-only.** Read from `loopFor` alone, a new loop version looked as if it
+> would bind every ticket carrying the modifier at once, because no pipeline pins `design`. The
+> tracker's own comments say otherwise (a modifier-inserted stage is pinned on the ticket when the
+> modifier is applied: `tracker.mjs` around `resolveRoute` and `create`), and a run on a throwaway
+> copy confirmed it: a ticket created before the publish walked straight through after it
+> (`pins: {"design": "design@v1"}`). So the publish holds tickets created, or given the modifier,
+> after it. **And it does not simply survive a plugin update:** if a plugin release ships its own
+> `design@v3`, that becomes the latest loop and new tickets are unbound again. After any plugin
+> update, run the check above. This is the shape of *The procedure transfers; the proof does not*,
+> below: the reading transferred, and the proof had to be run.
 
 **Why this member is worse than the other five.** They were *checks* nothing ran, and a check that
 never runs is at least silent. **This is a mechanism that answers convincingly when interrogated

@@ -265,3 +265,48 @@ spike where a parallel label is a claim about code, not about a body read off th
 rewrite is not exactly equivalent, every arm on that runtime is wrong *in the same way*, and the
 batteries alone may not show it. The differential in §6 step 2 is what catches that. Run it
 before anything else on lever (a).
+
+---
+
+## 10. AMENDMENT, 2026-10-01, written before the first timed repetition: the host is loaded
+
+**What changed.** After §1–§9 were committed, the foreman reported a second, separate foreman
+run on this machine (GUTS, 7+ Claude seats, started ~23:50 MDT). Its test suites hold the
+1-minute load near **40 on 20 cores**, and one of its seats drives a browser. Q3's machine
+takeover was granted before that run existed. Stopping it would break another foreman's work,
+so **nothing belonging to it is stopped.** Steam and Discord may be stopped if running, and
+nothing else. T-4 §5.1's quiet host cannot exist tonight.
+
+**The owner's standing words**, said of T-4's own disturbed timing window (2026-09-08,
+`.autodev/handoffs/2026-09-08-run.md`): *"I couldn't give 2 shits about the dirtiness of it"*,
+and, asked what that meant for the ruling, *"Just use this info as if it were pristine so you
+can keep going as if that info were completely accurate."*
+
+**So, for this run only, and replacing T-4 §5.1 and §6 item 1 wherever they disagree:**
+
+1. **Interleaved rounds.** Each (size × encoding) cell runs all seven arms once per round.
+   Each round starts one arm later than the round before, so the same-session Python arm sees
+   the same load as every candidate. n = 25 rounds per cell, at 20,000 and 100,000 rows, on
+   both encodings.
+2. **Load is recorded and never voids.** The 1-minute load average is read immediately before
+   **every repetition** and stored beside it. Each cell also stores a host snapshot at start
+   and end (load, top processes, memory, containers). Every other admissibility rule stands:
+   corpus row count, index help, identity, the invented-widget label, and the negative control
+   first.
+3. **S1 is read literally on the measured times, treated as pristine.** That is ≤ 300 ms
+   median and ≤ 600 ms p95 at 100,000 rows. Load can only slow a candidate down, and the
+   parallel arms most of all, since each needs three cores at once. **So a pass measured under
+   load is a pass.** A miss measured under load is reported exactly as measured, with its load
+   beside it, and goes to the owner as NEAR-MISS or FAIL. There, "re-time on a quiet host" is
+   offered as one option, for the morning only. **No load-corrected number appears in the
+   verdict.**
+4. **S2 and S3 read on the interleaved same-session medians**, with the paired per-round
+   differences (candidate minus arm A) reported beside them.
+5. **Host check, reported and not gated.** Arm A's same-session median is compared with T-4's
+   quiet-host record (784.04 ms at 100,000; 197.94 ms at 20,000). The ratio is the load's
+   measured cost to Python, and it appears in the report, never in the verdict.
+6. **Nothing connects to 55433.** T-4's §5.4 item 16 read two counters from the live database.
+   This run drops them, because tonight's charter forbids any connection there.
+
+The foreman accepted this amendment before it was written down. It is committed before the
+first timed repetition.

@@ -10,13 +10,12 @@ so the load-bearing ones are promoted here and run every build:
   * the ASCII path still skips translate(), measured                (AC-5)
   * the spike runtimes are still byte-identical to their digests  (AC-8)
 
-The database tests need a throwaway Postgres with runtime.sql installed:
+The database tests need a throwaway Postgres with runtime.sql installed. One
+command brings it up, installs the current runtime.sql, runs this suite with
+AUTOSQL_RUNTIME_DSN set, and on exit removes the container it created, with its
+volume (unless --keep):
 
-    docker run -d --name autosql-t8-db -e POSTGRES_PASSWORD=throwaway \\
-      -e POSTGRES_USER=glp_owner -e POSTGRES_DB=autosql_spike \\
-      -p 55434:5432 pgvector/pgvector:pg16
-    psql ... < runtime/runtime.sql
-    AUTOSQL_RUNTIME_DSN='host=127.0.0.1 port=55434 ...' pytest runtime/tests
+    ops/runtime-check.sh
 
 They SKIP without that DSN rather than failing, so the pure-Python guards still
 run anywhere. Port 55433 is refused outright: it is the live database.

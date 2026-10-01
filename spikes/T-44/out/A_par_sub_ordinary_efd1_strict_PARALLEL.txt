@@ -1,0 +1,87 @@
+=== H. broad AST fuzz -- profile=sub_ordinary  N=4000  seed=2026 ===
+    SUBSET battery: every counted expression mechanically verified inside
+    the corrected 32-construct subset (closure_subset_coverage walker);
+    ==/!= draws whose operands reached _eq as containers: DISCARDED, counted.
+
+    AGREE                      3801   95.025%
+    PARSE_ERROR                 125    3.125%
+    DISCARDED_container_eq       74    1.850%
+    ran =                      3801   (agree+diverge+refusal+raise+nullness; refusals stay IN)
+
+    divergence classes (auto-clustered):
+
+    ALL wrong-answer cases (classes 1-4), in full -- 0 found:
+
+    domain-gate witnesses (framing 5.3 half two; py-mode rows):
+      UNTESTED  old guard boundary, below (1.79769313486231551e296) (not reached by this battery)
+      UNTESTED  old guard boundary, above (1.79769313486231587e296) (not reached by this battery)
+      UNTESTED  real limit DBL_MAX (1.7976931348623157e308)    (not reached by this battery)
+      UNTESTED  real limit, just below (1.7976931348623155e308) (not reached by this battery)
+      UNTESTED  1e200 (infinity composable: 1e200*1e200)       (not reached by this battery)
+      UNTESTED  subnormal 5e-324                               (not reached by this battery)
+      UNTESTED  subnormal 1e-320                               (not reached by this battery)
+      UNTESTED  2**53                                          (not reached by this battery)
+      UNTESTED  2**53 + 2                                      (not reached by this battery)
+      UNTESTED  0.0                                            (not reached by this battery)
+      UNTESTED  -0.0                                           (not reached by this battery)
+      REACHED   coercing string ' 7 '                          e.g. (max(min(max("abcabc", $.a))) - max(length(- ($.c))))
+      REACHED   coercing string '1e3'                          e.g. $.t.l
+      REACHED   coercing string '１２３' (full-width)             e.g. $.o
+
+    fingerprints (inadmissibility item 5):
+      expr.py     sha256=90cbb56d04b08b82
+      compile.py  sha256=b71b153802d0df94  (file)
+      runtime.sql sha256=1c58d548a6045aa6  (file on disk)
+      xpr schema  sha256=2db77df142dde34c  (INSTALLED -- this is what ran)
+      NOTE: installed runtime differs from /home/corgea/Desktop/Coding Projects/autoSQL/spikes/T-1/proto/runtime.sql.
+            That is EXPECTED when a ticket installs its own build;
+            it is a DEFECT if you believed they were the same.
+      efd requested=1 read-back=1  seed=2026  N=4000  wall=150.5s
+
+=== T-44 driver: what ACTUALLY ran (read back, not assumed) ===
+{
+ "tag": "A_par_sub_ordinary_efd1_strict_PARALLEL",
+ "compiler": "ship",
+ "compiler_file": "/home/corgea/Desktop/Coding Projects/autoSQL/compiler/compile.py",
+ "compiler_sha256": "4fd9ac0279f14c1100651c1b06b5e8d45835877618139edbe5915e4c61d7ef7c",
+ "loaded_module_file": "/home/corgea/Desktop/Coding Projects/autoSQL/compiler/compile.py",
+ "installed_runtime_sha256": "2db77df142dde34c7da5f66b6d5b218f0fe4e0ef1da69f4a1dd9ad6b77e613dc",
+ "xpr_labels(proparallel,provolatile,count)": [
+  [
+   "s",
+   "i",
+   21
+  ],
+  [
+   "s",
+   "s",
+   2
+  ]
+ ],
+ "database": "t44_par",
+ "server": "PostgreSQL 16.14 (Debian 16.14-1.pgdg12+1)",
+ "debug_parallel_query": "on",
+ "parallel": {
+  "requested": "on",
+  "readback": "on",
+  "positive_control": {
+   "probe": "coalesce($.a, 0) + 1 > 2",
+   "plan": "Gather (actual rows=1 loops=1)\n  Workers Planned: 1\n  Workers Launched: 1\n  Single Copy: true\n  ->  Result (actual rows=1 loops=1)",
+   "workers_launched": [
+    "Workers Launched: 1"
+   ]
+  },
+  "gather_planned": true
+ },
+ "efd_requested": "1",
+ "efd_readback": "1",
+ "match_mode": "strict",
+ "profile": "sub_ordinary",
+ "n": 4000,
+ "seed": 2026,
+ "predicate_verdicts": {
+  "AGREE": 3801
+ },
+ "wall_s": 150.5,
+ "exit": 0
+}

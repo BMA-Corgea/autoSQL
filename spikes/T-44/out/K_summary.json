@@ -1,0 +1,365 @@
+{
+ "negative_control_K4": {
+  "fired": true,
+  "raises_25000_per_profile": {
+   "sub_ordinary": 173,
+   "sub_unicode": 76,
+   "sub_extreme": 146
+  }
+ },
+ "candidates": {
+  "C_par": {
+   "K1": [
+    {
+     "tag": "A_par_sub_ordinary_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3801,
+      "p:AGREE": 3801
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "A_par_sub_unicode_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3799,
+      "p:AGREE": 3799
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "A_par_sub_extreme_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3756,
+      "p:AGREE": 3756,
+      "v:SQL_REFUSAL": 11,
+      "p:SQL_RAISE": 11
+     },
+     "bad": {},
+     "pass": true
+    }
+   ],
+   "K2": [
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_recursive",
+     "tag": "A_par_sub_ordinary_efd1_recursive",
+     "line": "A_par_sub_ordinary_efd1_recursive vs B0_ship_sub_ordinary_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_strict",
+     "tag": "A_par_sub_ordinary_efd1_strict",
+     "line": "A_par_sub_ordinary_efd1_strict vs B0_ship_sub_ordinary_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_recursive",
+     "tag": "A_par_sub_unicode_efd1_recursive",
+     "line": "A_par_sub_unicode_efd1_recursive vs B0_ship_sub_unicode_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_strict",
+     "tag": "A_par_sub_unicode_efd1_strict",
+     "line": "A_par_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_recursive",
+     "tag": "A_par_sub_extreme_efd1_recursive",
+     "line": "A_par_sub_extreme_efd1_recursive vs B0_ship_sub_extreme_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_strict",
+     "tag": "A_par_sub_extreme_efd1_strict",
+     "line": "A_par_sub_extreme_efd1_strict vs B0_ship_sub_extreme_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    }
+   ],
+   "K3": {
+    "totals": {
+     "cases": 130,
+     "compiled_agrees": 130,
+     "compiled_diverges": 0,
+     "did_not_compile": 0,
+     "sql_error": 0,
+     "pass_rate_denominator": 130,
+     "pass_rate": 1.0
+    },
+    "pass": true
+   },
+   "K4": [
+    {
+     "tag": "A_par_sub_ordinary_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "A_par_sub_ordinary_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    },
+    {
+     "tag": "A_par_sub_unicode_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "A_par_sub_unicode_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    },
+    {
+     "tag": "A_par_sub_extreme_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "A_par_sub_extreme_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    }
+   ],
+   "K1_pass": true,
+   "K2_pass": true,
+   "K3_pass": true,
+   "K4_pass": true,
+   "K1_K4": "PASS"
+  },
+  "C_inline": {
+   "K1": [
+    {
+     "tag": "B_inline_sub_ordinary_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3801,
+      "p:AGREE": 3801
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "B_inline_sub_unicode_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3799,
+      "p:AGREE": 3799
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "B_inline_sub_extreme_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3756,
+      "p:AGREE": 3756,
+      "v:SQL_REFUSAL": 11,
+      "p:SQL_RAISE": 11
+     },
+     "bad": {},
+     "pass": true
+    }
+   ],
+   "K2": [
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_recursive",
+     "tag": "B_inline_sub_ordinary_efd1_recursive",
+     "line": "B_inline_sub_ordinary_efd1_recursive vs B0_ship_sub_ordinary_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_strict",
+     "tag": "B_inline_sub_ordinary_efd1_strict",
+     "line": "B_inline_sub_ordinary_efd1_strict vs B0_ship_sub_ordinary_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_recursive",
+     "tag": "B_inline_sub_unicode_efd1_recursive",
+     "line": "B_inline_sub_unicode_efd1_recursive vs B0_ship_sub_unicode_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_strict",
+     "tag": "B_inline_sub_unicode_efd1_strict",
+     "line": "B_inline_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_recursive",
+     "tag": "B_inline_sub_extreme_efd1_recursive",
+     "line": "B_inline_sub_extreme_efd1_recursive vs B0_ship_sub_extreme_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_strict",
+     "tag": "B_inline_sub_extreme_efd1_strict",
+     "line": "B_inline_sub_extreme_efd1_strict vs B0_ship_sub_extreme_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    }
+   ],
+   "K3": {
+    "totals": {
+     "cases": 130,
+     "compiled_agrees": 130,
+     "compiled_diverges": 0,
+     "did_not_compile": 0,
+     "sql_error": 0,
+     "pass_rate_denominator": 130,
+     "pass_rate": 1.0
+    },
+    "pass": true
+   },
+   "K4": [],
+   "K1_pass": true,
+   "K2_pass": true,
+   "K3_pass": true,
+   "K4_pass": "n/a (no parallel labels)",
+   "K1_K4": "PASS"
+  },
+  "C_both": {
+   "K1": [
+    {
+     "tag": "AB_both_sub_ordinary_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3801,
+      "p:AGREE": 3801
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "AB_both_sub_unicode_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3799,
+      "p:AGREE": 3799
+     },
+     "bad": {},
+     "pass": true
+    },
+    {
+     "tag": "AB_both_sub_extreme_efd1_recursive",
+     "counts": {
+      "v:AGREE": 3756,
+      "p:AGREE": 3756,
+      "v:SQL_REFUSAL": 11,
+      "p:SQL_RAISE": 11
+     },
+     "bad": {},
+     "pass": true
+    }
+   ],
+   "K2": [
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_recursive",
+     "tag": "AB_both_sub_ordinary_efd1_recursive",
+     "line": "AB_both_sub_ordinary_efd1_recursive vs B0_ship_sub_ordinary_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_ordinary_efd1_strict",
+     "tag": "AB_both_sub_ordinary_efd1_strict",
+     "line": "AB_both_sub_ordinary_efd1_strict vs B0_ship_sub_ordinary_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_recursive",
+     "tag": "AB_both_sub_unicode_efd1_recursive",
+     "line": "AB_both_sub_unicode_efd1_recursive vs B0_ship_sub_unicode_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_unicode_efd1_strict",
+     "tag": "AB_both_sub_unicode_efd1_strict",
+     "line": "AB_both_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_recursive",
+     "tag": "AB_both_sub_extreme_efd1_recursive",
+     "line": "AB_both_sub_extreme_efd1_recursive vs B0_ship_sub_extreme_efd1_recursive: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    },
+    {
+     "vs": "B0_ship_sub_extreme_efd1_strict",
+     "tag": "AB_both_sub_extreme_efd1_strict",
+     "line": "AB_both_sub_extreme_efd1_strict vs B0_ship_sub_extreme_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0",
+     "pass": true
+    }
+   ],
+   "K3": {
+    "totals": {
+     "cases": 130,
+     "compiled_agrees": 130,
+     "compiled_diverges": 0,
+     "did_not_compile": 0,
+     "sql_error": 0,
+     "pass_rate_denominator": 130,
+     "pass_rate": 1.0
+    },
+    "pass": true
+   },
+   "K4": [
+    {
+     "tag": "AB_both_sub_ordinary_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "AB_both_sub_ordinary_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    },
+    {
+     "tag": "AB_both_sub_unicode_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "AB_both_sub_unicode_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    },
+    {
+     "tag": "AB_both_sub_extreme_efd1_recursive_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": true,
+     "K2": true
+    },
+    {
+     "tag": "AB_both_sub_extreme_efd1_strict_PARALLEL",
+     "dpq": "on",
+     "worker_launched": true,
+     "K1_value_pred": null,
+     "K2": true
+    }
+   ],
+   "K1_pass": true,
+   "K2_pass": true,
+   "K3_pass": true,
+   "K4_pass": true,
+   "K1_K4": "PASS"
+  }
+ }
+}

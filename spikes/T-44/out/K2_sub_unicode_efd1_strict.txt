@@ -1,0 +1,62 @@
+A_par_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0
+B_inline_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0
+AB_both_sub_unicode_efd1_strict vs B0_ship_sub_unicode_efd1_strict: K2 PASS (new refusals 0, changed SQLSTATE 0); agree-but-different-value 0; different predicate 0
+[
+ {
+  "baseline": "B0_ship_sub_unicode_efd1_strict",
+  "candidate": "A_par_sub_unicode_efd1_strict",
+  "cases": 3799,
+  "K2_new_refusals": 0,
+  "K2_changed_sqlstate": 0,
+  "K2": "PASS",
+  "transitions": {
+   "AGREE -> AGREE": 3799
+  },
+  "agree_cases_with_a_different_value": 0,
+  "cases_with_a_different_predicate_result": 0,
+  "examples": {
+   "new_refusals": [],
+   "changed_sqlstate": [],
+   "value_diffs": [],
+   "pred_diffs": []
+  }
+ },
+ {
+  "baseline": "B0_ship_sub_unicode_efd1_strict",
+  "candidate": "B_inline_sub_unicode_efd1_strict",
+  "cases": 3799,
+  "K2_new_refusals": 0,
+  "K2_changed_sqlstate": 0,
+  "K2": "PASS",
+  "transitions": {
+   "AGREE -> AGREE": 3799
+  },
+  "agree_cases_with_a_different_value": 0,
+  "cases_with_a_different_predicate_result": 0,
+  "examples": {
+   "new_refusals": [],
+   "changed_sqlstate": [],
+   "value_diffs": [],
+   "pred_diffs": []
+  }
+ },
+ {
+  "baseline": "B0_ship_sub_unicode_efd1_strict",
+  "candidate": "AB_both_sub_unicode_efd1_strict",
+  "cases": 3799,
+  "K2_new_refusals": 0,
+  "K2_changed_sqlstate": 0,
+  "K2": "PASS",
+  "transitions": {
+   "AGREE -> AGREE": 3799
+  },
+  "agree_cases_with_a_different_value": 0,
+  "cases_with_a_different_predicate_result": 0,
+  "examples": {
+   "new_refusals": [],
+   "changed_sqlstate": [],
+   "value_diffs": [],
+   "pred_diffs": []
+  }
+ }
+]

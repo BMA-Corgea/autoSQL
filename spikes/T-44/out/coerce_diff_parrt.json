@@ -1,0 +1,14 @@
+{
+ "inputs": 3216,
+ "by_jsonb_type": {
+  "string": 3181,
+  "number": 26,
+  "boolean": 2,
+  "null": 1,
+  "array": 3,
+  "object": 2,
+  "None": 1
+ },
+ "differences": 0,
+ "diff_examples": []
+}

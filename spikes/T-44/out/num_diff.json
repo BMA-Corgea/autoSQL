@@ -1,0 +1,14 @@
+{
+ "inputs": 6140,
+ "from_batteries": 39,
+ "seed": 4401,
+ "outcomes_shipping": {
+  "NULL": 51,
+  "VAL": 2239,
+  "ERR": 3850,
+  "ERR XPR01": 2686,
+  "ERR 22003": 1164
+ },
+ "differences": 0,
+ "diff_examples": []
+}

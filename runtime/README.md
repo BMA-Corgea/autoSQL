@@ -1,6 +1,6 @@
 # `runtime/` — autoSQL's shipping SQL runtime
 
-`runtime.sql` installs schema `xpr`: **21 functions** that give Postgres the same
+`runtime.sql` installs schema `xpr`: **23 functions** that give Postgres the same
 value semantics as GIMS's Python expression evaluator (`core/dashboard/expr.py`), so a
 dashboard expression compiled to SQL answers what the Python pane answers.
 
@@ -67,17 +67,28 @@ results. A test asserts they have not moved.
 
 ## Running the tests
 
-Pure-Python guards run anywhere. The database tests need a throwaway Postgres — **never
-port 55433, which is a live database**:
+Pure-Python guards run anywhere. The database tests need a throwaway Postgres, and one command
+brings it up, installs the current `runtime.sql`, and runs the whole suite with
+`AUTOSQL_RUNTIME_DSN` set:
 
 ```
-docker run -d --name autosql-t8-db -e POSTGRES_PASSWORD=throwaway \
-  -e POSTGRES_USER=glp_owner -e POSTGRES_DB=autosql_spike \
-  -p 55434:5432 pgvector/pgvector:pg16
-docker exec -i autosql-t8-db psql -U glp_owner -d autosql_spike < runtime/runtime.sql
-AUTOSQL_RUNTIME_DSN="host=127.0.0.1 port=55434 user=glp_owner password=throwaway dbname=autosql_spike" \
-  demo/.venv/bin/python -m pytest runtime/tests -q
+ops/runtime-check.sh            # --keep leaves the scratch database up for inspection
 ```
+
+It runs its own container, `autosql-runtime-check`, on port 55435, and it refuses port 55433,
+which is a live database. When it exits it removes the container **and its volume**, but only a
+container this run created, and never under `--keep`. It does this after the suite and on an
+early exit too. A container it did not create is left as found: one already running stays
+running, and a stopped one is started for the run and stopped again.
+
+To take down a kept container, or any throwaway started by hand, use `-v`:
+
+```
+docker rm -f -v autosql-runtime-check
+```
+
+The Postgres image declares a data volume, and without `-v` that volume is left behind,
+dangling (T-25).
 
 ## Known, and not this directory's job
 

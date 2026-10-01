@@ -1,7 +1,7 @@
 # `compiler/` — autoSQL's expression → Postgres compiler
 
 `compile.py` turns a GIMS dashboard expression AST into a parameterised Postgres
-statement whose value semantics match `core/dashboard/expr.py`. It runs against
+expression whose value semantics match `core/dashboard/expr.py`. It runs against
 schema `xpr`, which lives in [`../runtime/`](../runtime/README.md).
 
 ## Where it came from
@@ -61,9 +61,9 @@ The pure-Python half runs anywhere; the database half skips without that DSN.
 
 ## GIMS key folding: `compile_ast(ast, fold="gims", noun=…)` (T-48)
 
-A GIMS dashboard never evaluates a noun row as stored. `get_noun_items` serves every top-level key
-**also** with its spaces and underscores swapped (`_normalize_row`: setdefault, stored keys taken in
-jsonb order), and `_noun_records` then sets `_noun_type` to the noun if the row has none. A `where`
+A GIMS dashboard never evaluates a noun row as stored. `get_noun_items` gives every top-level key two
+extra copies, one with its underscores turned to spaces and one with its spaces turned to underscores
+(`_normalize_row`: setdefault, stored keys taken in jsonb order), and `_noun_records` then sets `_noun_type` to the noun if the row has none. A `where`
 pushed into SQL runs over the **stored** row, so without help, `$.Sample_ID` over a stored
 `"Sample ID"` is blank in SQL and `"S-1"` in GIMS, and the two pick different rows. T-46's vectors
 (`parity/`) measure the class.
@@ -84,15 +84,18 @@ $._noun_type  →  COALESCE(data -> '_noun_type', data -> ' noun type', data -> 
   byte order, known at compile time.
 - **Only the first step folds.** GIMS copies top-level keys only; nested and index steps stay exact.
 - **What cannot be folded is refused**, never guessed: a bare `$` (the whole served row has no static
-  form), and a key with more than `FOLD_MAX_SEPARATORS` (6) separators, which would have up to
-  2⁶ − 1 = 63 copy sources. The adapter evaluates those in Python and says why.
+  form), and a first key made entirely of one separator kind with more than `FOLD_MAX_SEPARATORS` (6)
+  of them, which would have at least 2⁷ − 1 = 127 copy sources (63 is the most a compiled key gets).
+  Keys with both kinds, and nested keys, are never copies and compile at any length. The adapter
+  evaluates refused expressions in Python and says why.
 - **Without `fold`, nothing moves.** The default output was diffed byte for byte against the
   compiler before T-48 over 154 expressions (the parity vectors, this suite's, GIMS's 130 shared
   vectors), and the promotion test still pins the default against the frozen spike copy.
-- **Proof.** `tests/test_folding.py` holds an oracle: 600 generated stored rows and expressions,
-  where the expected answer is `expr.py` over the row normalised exactly as GIMS does it, with key
-  order read back from Postgres. It was watched catching three wrong folds (reversed order, no tag,
-  no copies). `parity/check_gims_pipeline.py --fold gims` re-measures every expression vector folded.
+- **Proof.** `tests/test_folding.py` holds an oracle: 600 generated stored rows, each under several
+  expression forms, where the expected answer is `expr.py` over the row normalised exactly as GIMS
+  does it, with key order read back from Postgres; plus pinned cases for paths the generator might
+  miss. It was watched catching six wrong folds (reversed order, no tag, no copies, nested steps
+  folded, an index first step dropped, multi-step paths unfolded). `parity/check_gims_pipeline.py --fold gims` re-measures every expression vector folded.
 - **Cost note.** A folded key costs one `->` lookup per copy source, but only until the first one
   present (COALESCE stops there). T-44's inline coercion repeats a field's SQL up to three times per
   row, folded or not (asql-w1, 2026-10-01).
