@@ -2,7 +2,7 @@
  "format": "gims-pipeline-vectors/1",
  "version": 5,
  "source": {
-  "autosql": "pending: the commit that adds T-48's review-round-1 compiler (the sha256 digests are exact)",
+  "autosql": "37bbb1e",
   "compiler_sha256": "d15fb92ea0709b225f137afb1b80526c0effcdcd403364b7cfad875ef1ec3180",
   "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
