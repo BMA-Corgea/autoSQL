@@ -42,9 +42,9 @@
 > | **T-44** | **COMPLETE.** `sp_decide` was cleared on your behalf, because your form's answer Q2 = A says a CLEAR pass is cleared without waiting for you. A miss would have waited. The ADR is the last section of `kb/wiki/decision-t44-faster-path.md`. Its spawned child is T-52 |
 > | **T-52** | **Built, tested, held at the merge.** It puts the faster design into `compiler/` and `runtime/` (branch `feat/T-44-faster-compiled-path`, PR #5). Its demo suite passes, apart from one failure and eleven skips, all caused by where the test copy lives. The foreman holds the merge until a second seat's independent review of the latest changes reports. After that it lands on main, and GIMS re-vendors the runtime |
 >
-> **The corpus (`autosql-corpus`, port 55434) is UP**, started for T-44's runs.
+> **The corpus (`autosql-corpus`, port 55434) is STOPPED again** (2026-10-01 09:54Z, after T-52 landed). That is the
+> state it was in before the night, kept with its volume.
 > - Its hold lasted "until T-4's child spike has re-timed against it", and that has now happened.
-> - It will be stopped, not removed, once T-52 lands.
 > - **Removing it is your call** (a banked question). It is the only copy that can re-run any of this.
 > - **Never 55433.**
 >
