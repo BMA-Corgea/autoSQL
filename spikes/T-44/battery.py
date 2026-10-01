@@ -59,7 +59,9 @@ def sha256(path: str) -> str:
 
 
 def load_compiler(name: str):
-    path = COMPILERS[name]
+    # "file:<path>" runs a compiler from anywhere -- e.g. a branch worktree's
+    # compiler/compile.py -- with the same provenance read-back as the named ones.
+    path = name[5:] if name.startswith("file:") else COMPILERS[name]
     spec = importlib.util.spec_from_file_location("compile", path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules["compile"] = mod          # the frozen `import compile` now resolves here
@@ -69,7 +71,8 @@ def load_compiler(name: str):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--compiler", required=True, choices=sorted(COMPILERS))
+    ap.add_argument("--compiler", required=True,
+                    help="spike | ship | inline | file:<path to a compile.py>")
     ap.add_argument("--profile", required=True)
     ap.add_argument("--n", type=int, default=4000)
     ap.add_argument("--seed", type=int, default=2026)
