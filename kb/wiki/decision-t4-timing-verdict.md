@@ -3,7 +3,7 @@
 **Status: RULED — C, "test a faster design first".** The owner ruled on the decision form
 `autosql-foreman-2026-09-26` (submitted 2026-09-27 03:50 UTC), recorded in the ledger as
 **GA-34**. `sp_decide` was cleared on that authority on 2026-10-01. The packet below is kept
-exactly as he ruled on it; **the ADR is the last section.**
+exactly as it was ruled on; **the ADR is the last section.**
 
 **Evidence:** `spikes/T-4/FINDINGS-T4.md` at `1b78aef` · measurements and negative control
 in `.autodev/evidence/T-4/`.
@@ -115,11 +115,11 @@ pass bar is written down before it runs."*
    query. None is marked today, so Postgres ran arm C in one process while plain SQL used
    two workers. (b) Write the number checks inline, in place of per-row `xpr.num` calls.
 3. **The pass bar is fixed in the child's framing before anything runs.** The target the
-   owner saw when he ruled: **under ~0.3 s at 100,000 rows**. The rule he set on 5 Sep
+   owner saw when ruling: **under ~0.3 s at 100,000 rows**. The owner's rule from 5 Sep
    still stands: **it must beat Python**, measured in the same session.
 4. **Who rules the child's verdict (GA-34 Q2 = A).** A *clear* pass against that bar is
    cleared on the owner's behalf, and it moves to building the shipping change. A fail or
-   a near-miss goes back to him as A or B, "with the answer in hand".
+   a near-miss goes back to the owner as A or B, "with the answer in hand".
 
 ### Consequences
 
