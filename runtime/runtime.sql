@@ -495,7 +495,10 @@ BEGIN
     dig := replace(substr(off, 2), ':', '');
     ms := ms - sgn * (substr(dig, 1, 2)::int * 60 + substr(dig, 3, 2)::int) * 60000;
   END IF;
-  RETURN ms::float8;
+  -- T-63: Python returns dt.timestamp() * 1000.0: whole microseconds / 10**6, rounded to a
+  -- double ONCE, then multiplied by 1000.0. Converting the exact ms in one step can land
+  -- one ulp away, and at a second boundary that flips what fmt_date_ms prints.
+  RETURN (ms / 1000)::float8 * 1000.0::float8;
 END
 $$;
 
@@ -520,20 +523,29 @@ $$;
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.fmt_date_ms(ms float8, date_only boolean) RETURNS text
 LANGUAGE plpgsql IMMUTABLE AS $$
-DECLARE total_us numeric; sec numeric; rem numeric; ts timestamp;
+DECLARE t float8; ip float8; us float8; ts timestamp;
 BEGIN
   IF ms IS NULL OR date_only IS NULL THEN RETURN NULL; END IF;
   IF ms <> ms THEN RETURN NULL; END IF;
   IF ms = 'Infinity'::float8 OR ms = '-Infinity'::float8 THEN RETURN NULL; END IF;
-  total_us := round(ms::numeric * 1000);
-  IF total_us < -62135596800000000 OR total_us > 253402300799999999 THEN
-    RETURN NULL;                                          -- expr.py:440-441
+  -- T-63 (T-37 review F7): GIMS calls datetime.fromtimestamp(ms / 1000.0), which splits t with
+  -- modf, rounds the fraction to whole microseconds HALF-EVEN, and carries into the seconds
+  -- (CPython _PyTime_DoubleToDenominator). These are the SAME IEEE float8 operations: float8
+  -- round() is rint(), half to even. The old round(ms::numeric * 1000) kept 15 significant
+  -- digits (10 us at today's epochs) and broke ties away from zero, so .999995 and .999999
+  -- printed the next second. Only whole seconds are printed, so the carry is all that matters.
+  t  := ms / 1000.0::float8;
+  ip := trunc(t);
+  us := round((t - ip) * 1000000.0::float8);
+  IF us >= 1000000 THEN
+    ip := ip + 1;
+  ELSIF us < 0 THEN
+    ip := ip - 1;
   END IF;
-  sec := floor(total_us / 1000000);
-  rem := total_us - sec * 1000000;
-  ts  := timestamp 'epoch'
-         + (sec::bigint::text || ' seconds')::interval
-         + (rem::bigint::text || ' microseconds')::interval;
+  IF ip < -62135596800 OR ip > 253402300799 THEN
+    RETURN NULL;                                          -- year 1 .. 9999 (expr.py:440-441)
+  END IF;
+  ts := timestamp 'epoch' + (ip::bigint::text || ' seconds')::interval;
   RETURN CASE WHEN date_only THEN to_char(ts, 'YYYY-MM-DD')
               ELSE to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') END;
 END
