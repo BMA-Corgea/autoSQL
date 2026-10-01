@@ -158,3 +158,20 @@ def test_a_long_argument_takes_the_runtime_path_not_the_inline_one():
     deep = c._num(("field", [("key", "k%d" % i) for i in range(40)]))
     assert short.startswith("(CASE jsonb_typeof(")
     assert deep.startswith("xpr.num(") and "CASE jsonb_typeof(" not in deep
+
+
+#: T-52 delta review (asql-w2) must-fix: nothing else reaches `not self._eq_depth` in _num. T-61's
+#: _eq_sql writes each operand five times and the inline coercion writes its argument nine times,
+#: so nested equalities multiply. Measured: main (132b976) compiles this to 156,497 characters, T-52
+#: to 138,843, and T-52 with the guard undone raises Uncompilable at 1,475,791.
+NESTED_EQUALITY = "((($.a + 0 == $.b * 1) == ($.c0 + 0 != $.d0 - 0)) == ($.c1 + 0 != $.d1 - 0))"
+MAIN_NESTED_EQUALITY_CHARS = 156_497
+
+
+def test_nested_equalities_compile_no_larger_than_main():
+    """Inside == / != operands, _num keeps the compact xpr.num call, so the SQL never grows
+    past what the compiler without T-52 emits. Watched failing with the guard undone (_num
+    run with _eq_depth zeroed): Uncompilable at 1,475,791 characters."""
+    sql = SHIPPING.compile_ast(EXPR.parse(NESTED_EQUALITY)).sql
+    assert len(sql) <= MAIN_NESTED_EQUALITY_CHARS, len(sql)
+    assert len(sql) <= SHIPPING.MAX_SQL_CHARS
