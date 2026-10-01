@@ -82,6 +82,13 @@ Postgres is primary. SQLite does not get primacy.
   string manipulation.
 - JSONB + GIN beats JSON1 for pushdown. `migrations/pg/0002_instances_data_gin.sql` exists **in
   `GUTS/spine/L1-memory/gims-ledger`** — *not* in `GIMS-Project`, which has no Postgres layer at all.
+  > **Superseded 2026-10-01 (T-26).** That was true of the local `../GIMS-Project` checkout (branch
+  > `refactor/foundation`, `995cc59`), not of the repository. GIMS-Project's `main` has had
+  > `migrations/pg/0001_instances.sql`, `0002_instances_data_gin.sql`, `api/pg_migrations.py` and a
+  > Postgres record store since **`0c6b902`** (the merge of PR #3, 2026-08-08). Records go to
+  > Postgres only when `GIMS_RDS_ENABLED` is set, and it **defaults to false**
+  > (`utils/config.py:40-42`, `core/storage/factory.py:119-122`). `gims-ledger` is a checkout of
+  > GIMS-Project's `main`.
   **T-1 measured that index and it is the wrong shape for compiled expression predicates**: across 36
   plans the `GIN (data jsonb_path_ops)` was used 0 times, because neither `jsonb` GIN opclass carries
   the comparison operators the generated SQL needs. See
@@ -101,6 +108,9 @@ no invariants. Postgres-as-single-datastore is a different, larger claim the pro
 against; it is out of scope here.
 
 ## The pgvector reframe
+
+> **Superseded 2026-10-01 (T-26):** the profile is in GIMS-Project's `main` too, at
+> `core/storage/sql.py:242-247`; "not `GIMS-Project`" was true only of the old local checkout.
 
 `core/storage/sql.py` — **in `GUTS/spine/L1-memory/gims-ledger`, not `GIMS-Project`** — records a
 measured profile (2026-08-03, `guts-code`, 6333 vectors,

@@ -1,7 +1,7 @@
 # `compiler/` — autoSQL's expression → Postgres compiler
 
 `compile.py` turns a GIMS dashboard expression AST into a parameterised Postgres
-statement whose value semantics match `core/dashboard/expr.py`. It runs against
+expression whose value semantics match `core/dashboard/expr.py`. It runs against
 schema `xpr`, which lives in [`../runtime/`](../runtime/README.md).
 
 ## Where it came from
