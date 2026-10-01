@@ -217,8 +217,20 @@ def _headline(rows: list[dict], case_count: int, report_path: Path) -> list[str]
             f"{EXPECTED_CASE_COUNT} AC-19 names. Reported, not failed — the "
             "checkout is not this ticket's to change."
         )
-    lines.append(f"AC-19 per-case report written to {report_path}")
+    lines.append(f"AC-19 per-case report written to {_shown_path(report_path)}")
     return lines
+
+
+def _shown_path(report_path: Path) -> str:
+    """The report's path as the report itself states it: repo-relative when it is inside the repo.
+
+    T-54: the absolute path made the TRACKED report differ in every checkout, so a run in any
+    worktree or clone left the tree dirty. An `AUTOSQL_AC19_REPORT` override outside the repo is
+    still named in full, because there is nothing to be relative to."""
+    try:
+        return report_path.resolve().relative_to(_REPO_ROOT.resolve()).as_posix()
+    except ValueError:
+        return str(report_path)
 
 
 def _render_report(
@@ -516,3 +528,11 @@ def test_ac19_the_report_path_is_where_a_person_can_read_it() -> None:
     assert DEFAULT_REPORT_PATH.parent == _REPO_ROOT / "demo"
     assert DEFAULT_REPORT_PATH.suffix == ".md"
     assert not str(DEFAULT_REPORT_PATH).startswith("/tmp")
+
+
+def test_t54_the_report_names_its_path_the_same_in_every_checkout() -> None:
+    """T-54: the tracked report carried the absolute path of whichever checkout ran the suite, so
+    the bytes, and `git status`, changed with the checkout. The headline names it repo-relative."""
+    lines = _headline([], 0, DEFAULT_REPORT_PATH)
+    assert "AC-19 per-case report written to demo/ac19-expr-vectors.md" in lines, lines
+    assert not any(str(_REPO_ROOT) in line for line in lines), lines
