@@ -49,6 +49,50 @@ class Compiled(NamedTuple):
 
 
 # ---------------------------------------------------------------------------------
+# GIMS key folding (T-48).  A GIMS dashboard never evaluates a noun row as stored:
+# get_noun_items (api/iostore/nouns.py, _normalize_row) serves every top-level key
+# ALSO with its spaces and underscores swapped, through setdefault, taking stored keys
+# in jsonb order; then _noun_records (api/dashboard/sources.py) does
+# setdefault("_noun_type", <noun>).  A WHERE pushed into SQL runs over the STORED row,
+# so with fold="gims" the first key step of every field path is compiled to the key
+# the served row would have, statically: no per-row function (T-4's open question is
+# per-row cost).  T-46's parity vectors pin the rule; parity/README.md explains it.
+# ---------------------------------------------------------------------------------
+FOLD_MAX_SEPARATORS = 6   # n separators -> 2**n - 1 copy sources; refuse above this
+
+
+def gims_copy_sources(key: str) -> List[str]:
+    """The stored keys whose GIMS copy is `key`, in the order the first one wins.
+
+    `_normalize_row` copies a stored key k to k.replace("_", " ") and to
+    k.replace(" ", "_"), so only a key made entirely of one separator kind can be a
+    copy: `key` with a non-empty subset of its spaces turned to underscores (if it has
+    only spaces), or of its underscores turned to spaces (if it has only underscores).
+    Every source has `key`'s length, so jsonb's key order among them, which decides
+    the setdefault winner, is plain byte order.  A key with both kinds, or neither, is
+    never a copy: [].  Raises Uncompilable above FOLD_MAX_SEPARATORS.
+    """
+    has_space, has_us = " " in key, "_" in key
+    if has_space == has_us:
+        return []
+    sep, swap = (" ", "_") if has_space else ("_", " ")
+    at = [i for i, ch in enumerate(key) if ch == sep]
+    if len(at) > FOLD_MAX_SEPARATORS:
+        raise Uncompilable(
+            f"GIMS key folding: {key!r} has {len(at)} separators, so {2 ** len(at) - 1} keys could "
+            f"be copied into it; the cap is {FOLD_MAX_SEPARATORS}. The adapter must evaluate it in Python"
+        )
+    out = []
+    for mask in range(1, 1 << len(at)):
+        chars = list(key)
+        for bit, i in enumerate(at):
+            if mask >> bit & 1:
+                chars[i] = swap
+        out.append("".join(chars))
+    return sorted(out, key=lambda k: k.encode("utf-8"))
+
+
+# ---------------------------------------------------------------------------------
 # Divergences identified but deliberately NOT fixed.  Each is either outside the
 # fixture's coverage or a documented cost of the chosen representation.
 # ---------------------------------------------------------------------------------
@@ -134,9 +178,11 @@ KNOWN_DIVERGENCES = [
 # Compiler
 # ---------------------------------------------------------------------------------
 class _Compiler:
-    def __init__(self, column: str, ctx_param: str):
+    def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None):
         self.column = column
         self.ctx_param = ctx_param
+        self.fold = fold
+        self.noun = noun
         self.params: Dict[str, Any] = {}
         self._n = 0
 
@@ -206,6 +252,8 @@ class _Compiler:
     def _t_field(self, node):                                 # expr.py:247, 588-589
         path: List[Tuple[str, Any]] = node[1]
         sql = self.column
+        if self.fold == "gims":
+            sql, path = self._gims_first_step(path)
         for kind, key in path:
             if kind == "key":
                 # Postgres `-> text` already returns NULL for every non-object jsonb
@@ -222,6 +270,27 @@ class _Compiler:
         # Collapse a resolved JSON null to SQL NULL: expr cannot tell it apart from
         # an absent key, so neither must we.
         return f"nullif({sql}, 'null'::jsonb)"
+
+    def _gims_first_step(self, path):
+        """T-48: the first key step as GIMS's served row would answer it.
+
+        COALESCE(stored K, each copy source in first-wins order, [the noun, for
+        _noun_type]).  `->` yields SQL NULL only for an ABSENT key, so a stored JSON
+        null stops the COALESCE exactly as setdefault keeps it.  Only the first step
+        folds: GIMS copies top-level keys only.  Returns (sql, remaining path)."""
+        if not path:
+            raise Uncompilable(
+                "GIMS key folding: a bare $ is the whole served row, copies and _noun_type "
+                "included, which has no static form. The adapter must evaluate it in Python"
+            )
+        kind, key = path[0]
+        if kind != "key":
+            return self.column, path       # $[i] on an object row: exact, xpr.idx gives NULL
+        terms = [f"({self.column} -> {self._bind(k, 'text')})" for k in [key] + gims_copy_sources(key)]
+        if key == "_noun_type":
+            terms.append(f"to_jsonb({self._bind(self.noun, 'text')})")
+        sql = terms[0] if len(terms) == 1 else "COALESCE(" + ", ".join(terms) + ")"
+        return sql, path[1:]
 
     # ---- unary ------------------------------------------------------------------
     def _t_neg(self, node):                                   # expr.py:179, 590-592
@@ -413,12 +482,22 @@ class _Compiler:
         return "jsonb_build_array(" + ", ".join(self._j(a) for a in args) + ")"
 
 
-def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx") -> Compiled:
+def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
+                fold: Any = None, noun: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
 
     Raises Uncompilable for anything this compiler is not sure of.
+
+    fold="gims" (T-48): compile field access as GIMS's dashboard pipeline serves a noun
+    row (its key copies and the _noun_type tag; see gims_copy_sources), for a WHERE run
+    over the STORED row.  `noun` is required with it.  Without `fold`, the output is
+    byte-identical to the compiler before T-48.
     """
-    c = _Compiler(column, ctx_param)
+    if fold not in (None, "gims"):
+        raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
+    if fold == "gims" and not (isinstance(noun, str) and noun):
+        raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
+    c = _Compiler(column, ctx_param, fold, noun)
     sql = c.compile(ast)
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.

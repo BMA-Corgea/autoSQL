@@ -29,6 +29,9 @@ demo/.venv/bin/python -m pytest parity/tests -q
   current `runtime/runtime.sql` fresh and runs `compiler/compile.py`'s output. Port 55433 is refused.
   Without a DSN the run says, loudly, that autoSQL was compared against nothing.
 - Exit 0 only when GIMS confirms every expectation **and** every recorded `autosql.status` re-measures.
+- **`--fold gims`** (T-48) also compiles every expression case (record, expr, a `where` filter) with
+  `compile_ast(…, fold="gims", noun=…)` and requires each case's recorded `autosql.folded` to
+  re-measure. That is the SQL a pushed-down `where` runs: see `compiler/README.md`.
 
 ## The format: `gims-pipeline-vectors/1`
 
@@ -53,6 +56,8 @@ A superset of GIMS's `tests/fixtures/expr_vectors.json`. The top keys are the sa
   explained**, never deleted. `fix_side` says which side must change, seen from T-37's design (SQL runs
   the `where`; Python shapes the rows, then applies the `filters` map, the sort and the limit):
   `adapter-shaping`, `where-clause`, `filters-map`, `sort-pushdown`, `browser` or `accepted`.
+- per expression case (record, expr, a `where` filter), `autosql.folded`: the status of the same case
+  compiled with GIMS key folding (T-48). Required on those cases and absent on the rest (version 3).
 
 Expected values are **hand-authored** from GIMS's code and then confirmed by GIMS's own pipeline.
 Never regenerate them from either side: a vector that encodes a misreading of GIMS would make GIMS's
@@ -64,7 +69,12 @@ sha256 and the autoSQL commit in the same manifest. Its pin test can then also c
 match, the recorded statuses describe exactly the autoSQL GIMS runs. GIMS never edits its copy;
 changes come here first. T-39 (GIMS's three-way parity gate) loads the vendored copy.
 
-## Findings (v2: 58 cases, 34 agree, 24 diverge; measured at `69efb20`, GIMS `9bf7b24`)
+## Findings (v3: 58 cases, 34 agree, 24 diverge; measured at `69efb20`, GIMS `9bf7b24`)
+
+**With GIMS key folding (T-48), all 32 expression cases agree**, including the 5 where-clause cases
+and the 8 shaping cases that are expressions (`folded: agrees` on each). What remains is not an
+expression: the sort cases (T-42), the filters-map cases (Python, by T-37's design), and the one
+sort by a copied key, which T-37's shaping fixes.
 
 | fix side | cases | what must change |
 |---|---|---|

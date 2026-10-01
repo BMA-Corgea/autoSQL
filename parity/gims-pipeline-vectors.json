@@ -1,9 +1,9 @@
 {
  "format": "gims-pipeline-vectors/1",
- "version": 2,
+ "version": 3,
  "source": {
-  "autosql": "69efb20",
-  "compiler_sha256": "4fd9ac0279f14c1100651c1b06b5e8d45835877618139edbe5915e4c61d7ef7c",
+  "autosql": "pending: the commit that adds T-48's compiler (the sha256 digests are exact)",
+  "compiler_sha256": "aa9fc4dd4802b08bb105f562e3d90f213042e81f8663b2edb9ecb98d3546e46e",
   "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
   "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
  },
@@ -22,7 +22,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    }
   },
   {
@@ -37,7 +38,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    }
   },
   {
@@ -50,7 +52,8 @@
    "expr": "$['Sample ID']",
    "expect": "S-1",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -63,7 +66,8 @@
    "expr": "$.Sample_ID",
    "expect": "S-1",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -77,7 +81,8 @@
    "expr": "$.Sample_ID",
    "expect": "underscored",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    },
    "note": "setdefault: a stored key is never overwritten by another key's copy"
   },
@@ -92,7 +97,8 @@
    "expr": "$['Sample ID']",
    "expect": "spaced",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -106,7 +112,8 @@
    "expr": "$['Sample ID']",
    "expect": null,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -121,7 +128,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    },
    "note": "'lot_no 2' gets two copies: 'lot no 2' (underscores to spaces) and 'lot_no_2' (spaces to underscores)"
   },
@@ -137,7 +145,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    }
   },
   {
@@ -153,7 +162,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    },
    "note": "Both stored keys copy to 'a b c'; setdefault keeps the first one processed. In Postgres mode GIMS receives keys in jsonb order (shorter first, then bytewise): 'a b_c' precedes 'a_b c', so its value wins. In SQLite mode insertion order would decide instead, so the two modes can disagree."
   },
@@ -169,7 +179,8 @@
    "expr": "$.meta.Sample_ID",
    "expect": null,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -182,7 +193,8 @@
    "expr": "$.run_id",
    "expect": null,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -195,7 +207,8 @@
    "expr": "$.sample_id",
    "expect": null,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -210,7 +223,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    }
   },
   {
@@ -225,7 +239,8 @@
    "autosql": {
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    }
   },
   {
@@ -238,7 +253,8 @@
    "expr": "$._noun_type",
    "expect": "own",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -472,7 +488,8 @@
    "filter": "$.status == 'ok'",
    "expect_ids": [],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1094,7 +1111,8 @@
     "a"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    },
    "note": "ordering a string against a number is null (falsy) in GIMS, not a coercion"
   },
@@ -1119,7 +1137,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "where-clause"
+    "fix_side": "where-clause",
+    "folded": "agrees"
    }
   },
   {
@@ -1144,7 +1163,8 @@
    "autosql": {
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag.",
-    "fix_side": "where-clause"
+    "fix_side": "where-clause",
+    "folded": "agrees"
    }
   },
   {
@@ -1176,7 +1196,8 @@
     "d"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1224,7 +1245,8 @@
     "g"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1250,7 +1272,8 @@
     "b"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1276,7 +1299,8 @@
     "b"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1298,7 +1322,8 @@
     "b"
    ],
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1311,7 +1336,8 @@
    },
    "expect": null,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1324,7 +1350,8 @@
    },
    "expect": "S-1",
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1341,7 +1368,8 @@
    },
    "expect": 3,
    "autosql": {
-    "status": "agrees"
+    "status": "agrees",
+    "folded": "agrees"
    }
   },
   {
@@ -1512,7 +1540,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "where-clause"
+    "fix_side": "where-clause",
+    "folded": "agrees"
    }
   },
   {
@@ -1538,7 +1567,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "where-clause"
+    "fix_side": "where-clause",
+    "folded": "agrees"
    },
    "note": "per row, 'a b c' is copied from 'a b_c' (first in jsonb order): 2 in row a, 1 in row b"
   },
@@ -1563,7 +1593,8 @@
    "autosql": {
     "status": "diverges",
     "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies.",
-    "fix_side": "where-clause"
+    "fix_side": "where-clause",
+    "folded": "agrees"
    }
   },
   {
@@ -1578,7 +1609,8 @@
    "autosql": {
     "status": "diverges",
     "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag. Here the key copy runs first: get_noun_items turns the stored ' noun type' into '_noun_type' (spaces to underscores), so the tag's setdefault finds it present.",
-    "fix_side": "adapter-shaping"
+    "fix_side": "adapter-shaping",
+    "folded": "agrees"
    },
    "note": "order: the stored key, then its copy sources, then the tag"
   }

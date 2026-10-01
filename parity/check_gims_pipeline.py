@@ -111,6 +111,11 @@ def validate(doc: Dict[str, Any]) -> List[str]:
             errs.append(f"{where}: a divergence must say why")
         elif a["status"] == "diverges" and a.get("fix_side") not in FIX_SIDES:
             errs.append(f"{where}: a divergence must name its fix_side, one of {FIX_SIDES}")
+        if isinstance(a, dict) and kind in KINDS:
+            if foldable(c) and a.get("folded") not in STATUSES:
+                errs.append(f"{where}: an expression case must record autosql.folded (T-48), one of {STATUSES}")
+            if not foldable(c) and "folded" in a:
+                errs.append(f"{where}: autosql.folded applies only to expression cases (record, expr, a where filter)")
     return errs
 
 
@@ -223,6 +228,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="a scratch Postgres 16 for the SQL half (or AUTOSQL_PARITY_DSN)")
     ap.add_argument("--vectors", default=str(VECTORS))
     ap.add_argument("--json-out", help="write every case's outcome here")
+    ap.add_argument("--fold", choices=["gims"],
+                    help="also compile with compile_ast(fold='gims', noun=...) (T-48) and require every "
+                         "case's recorded autosql.folded to re-measure")
     args = ap.parse_args(argv)
 
     doc = json.loads(Path(args.vectors).read_text())
@@ -236,7 +244,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not args.gims:
         print("NO GIMS TREE: pass --gims <path> (or GIMS_SRC); nothing was checked")
         return 2
-    return run(doc, Path(args.gims).resolve(), args.dsn, args.json_out)
+    if args.fold and not args.dsn:
+        print("--fold needs the SQL half: pass --dsn (or AUTOSQL_PARITY_DSN)")
+        return 2
+    return run(doc, Path(args.gims).resolve(), args.dsn, args.json_out, args.fold)
 
 
 # ---------------------------------------------------------------------------------------
@@ -316,13 +327,20 @@ def sort_rank_sql(v: str, direction: str) -> str:
     return f"{r1}{d}, {r2}{d}, {r3}{d}"
 
 
-def sql_answer(db: "Sql", comp, parse: Callable, c: Dict[str, Any]) -> Tuple[str, Any]:
+def foldable(c: Dict[str, Any]) -> bool:
+    """The cases T-48's folding applies to: an expression evaluated over a row (record, expr,
+    and a string `where` filter). Sort and the filters map are not expressions (T-42; Python)."""
+    return c["kind"] in ("record", "expr") or (c["kind"] == "filter" and isinstance(c["filter"], str))
+
+
+def sql_answer(db: "Sql", comp, parse: Callable, c: Dict[str, Any], fold: Optional[str] = None) -> Tuple[str, Any]:
     """('value'|'ids', answer) or ('raised'|'uncompilable'|'sql-null', detail)."""
     ctx = c.get("context", {})
     kind = c["kind"]
+    opts = {"column": "data", **({"fold": fold, "noun": GimsPipeline.NOUN} if fold else {})}
     try:
         if kind in ("expr", "record"):
-            compiled = comp.compile_ast(parse(c["expr"]), column="data")
+            compiled = comp.compile_ast(parse(c["expr"]), **opts)
             return db.value(compiled.sql, compiled.params, c.get("record", {}) if kind == "expr" else c["stored"], ctx)
         if kind == "sort":
             # The field as the adapter would read it from instances.data: an exact key.
@@ -332,14 +350,23 @@ def sql_answer(db: "Sql", comp, parse: Callable, c: Dict[str, Any]) -> Tuple[str
         if kind == "filter":
             if not isinstance(c["filter"], str):
                 return "uncompilable", "a filters object (exact-equality map) has no SQL translation in autoSQL"
-            compiled = comp.compile_ast(parse(c["filter"]), column="data")
+            compiled = comp.compile_ast(parse(c["filter"]), **opts)
             return db.ids(f"SELECT id FROM r WHERE xpr.truthy({compiled.sql}) ORDER BY ord", compiled.params, c["rows"], ctx)
     except comp.Uncompilable as e:
         return "uncompilable", e.reason
     raise ValueError(kind)
 
 
-def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[str]) -> int:
+def measured_status(how: str, ans: Any, want: Any, eps: float) -> str:
+    # SQL NULL and jsonb null both reach the adapter's Python as None, and xpr.truthy treats
+    # both as false, so for the pipeline they are the same blank. The outcome file keeps which
+    # one it was ("sql-null"), for the representation record.
+    agree = (how in ("value", "ids") and matches(ans, want, eps)) or (how == "sql-null" and want is None)
+    return "agrees" if agree else "diverges"
+
+
+def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[str],
+        fold: Optional[str] = None) -> int:
     eps = float(doc["float_epsilon"])
     g = GimsPipeline(gims)
     print(f"GIMS tree {gims} (stand-ins for modules the pipeline never calls: {', '.join(STUBBED)})")
@@ -353,7 +380,7 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
     if dsn:
         db, comp = Sql(dsn), load_compiler()
         print(f"SQL: runtime/runtime.sql installed fresh ({db.functions} xpr functions); compiler/compile.py")
-    outcomes, gims_bad, stale = [], 0, 0
+    outcomes, gims_bad, stale, fstale, folded_n = [], 0, 0, 0, 0
     for c in doc["cases"]:
         o: Dict[str, Any] = {"name": c["name"], "kind": c["kind"], "group": c["group"]}
         want = c["expect"] if "expect" in c else c["expect_ids"]
@@ -369,16 +396,22 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
         if db is not None:
             how, ans = sql_answer(db, comp, g.m["expr"].parse, c)
             o["sql"] = [how, ans]
-            # SQL NULL and jsonb null both reach the adapter's Python as None, and xpr.truthy
-            # treats both as false, so for the pipeline they are the same blank. The outcome
-            # file keeps which one it was ("sql-null"), for the representation record.
-            agree = (how in ("value", "ids") and matches(ans, want, eps)) or (how == "sql-null" and want is None)
-            measured = "agrees" if agree else "diverges"
+            measured = measured_status(how, ans, want, eps)
             o["sql_status"] = measured
             if measured != c["autosql"]["status"]:
                 stale += 1
                 print(f"SQL STATUS STALE  {c['group']}/{c['name']}: recorded {c['autosql']['status']!r}, "
                       f"measured {measured!r} ({how}: {ans!r})")
+            if fold and foldable(c):
+                fhow, fans = sql_answer(db, comp, g.m["expr"].parse, c, fold)
+                o["sql_folded"] = [fhow, fans]
+                fmeasured = measured_status(fhow, fans, want, eps)
+                o["folded_status"] = fmeasured
+                folded_n += 1
+                if fmeasured != c["autosql"].get("folded"):
+                    fstale += 1
+                    print(f"FOLDED STATUS STALE  {c['group']}/{c['name']}: recorded {c['autosql'].get('folded')!r}, "
+                          f"measured {fmeasured!r} ({fhow}: {fans!r})")
         outcomes.append(o)
     n = len(doc["cases"])
     div = sum(1 for c in doc["cases"] if c["autosql"]["status"] == "diverges")
@@ -393,9 +426,13 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
     else:
         print(f"SQL half: {n - stale}/{n} recorded statuses confirmed "
               f"({n - div} agree, {div} diverge, as recorded)")
+        if fold:
+            fdiv = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "diverges")
+            print(f"fold={fold}: {folded_n - fstale}/{folded_n} recorded folded statuses confirmed "
+                  f"({folded_n - fdiv} agree folded, {fdiv} diverge folded, as recorded)")
     if json_out:
         Path(json_out).write_text(json.dumps(outcomes, indent=1, default=str) + "\n")
-    return 1 if (gims_bad or stale) else 0
+    return 1 if (gims_bad or stale or fstale) else 0
 
 
 if __name__ == "__main__":
