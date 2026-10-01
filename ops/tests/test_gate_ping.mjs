@@ -219,6 +219,18 @@ test("T-27 — a FAILED delivery, or one at ANOTHER stage, is not a delivery of 
   }
 });
 
+test("T-27 — only THIS ticket's gate_waiting delivery counts: ticket and type are both matched", () => {
+  // The T-27 review's S4: a mutant that ignored either field survived the first test set.
+  const other = [{ ...DELIVERED()[0], ticket: "T-5", key: "T-5|sp-decide|gate_waiting|2026-09-08T19:00:00Z" }];
+  const stalled = [{ ...DELIVERED()[0], type: "stalled", key: "T-4|sp-decide|stalled|2026-09-08T19:00:00Z" }];
+  for (const sent of [other, stalled]) {
+    const dir = tree([T4], ROUTE_PARKED, { sent });
+    const { out } = runTool(dir, ["--no-send"]);
+    assert.doesNotMatch(out, /adopted/, JSON.stringify(sent));
+    assert.deepEqual(packets(dir), ["T-4_sp_decide_gate.md"]);
+  }
+});
+
 test("T-27 — a hold adopted under the OLD rule is re-examined, and announced ONCE", () => {
   const old = { key: "T-4|sp-decide|sp_decide", how: "adopted: plugin emitted this occurrence" };
   const dir = tree([T4], ROUTE_PARKED, { seenRecs: [old] });

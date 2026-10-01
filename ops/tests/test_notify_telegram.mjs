@@ -116,3 +116,21 @@ test("--dry-run sends nothing, open or closed", () => {
     assert.deepEqual(queued(w), ["T-1_accept_gate.md"]);
   }
 });
+
+test("the switch is checked BEFORE any recipient is looked up", (t) => {
+  // The T-27 review's S4. With the switch closed and NO recipient anywhere, the closed message must
+  // win; a script that resolved the recipient first stops at "no recipient" (exit 1). The lookup is
+  // pointed, through a temp config read with jq, at a temp file that does not exist, so even a
+  // mis-ordered script can never reach the real chat-id file.
+  const jq = spawnSync("bash", ["-c", "command -v jq"], { encoding: "utf8" }).stdout.trim();
+  if (!jq) { t.skip("no jq: the config could not redirect the lookup, so this is not run"); return; }
+  const w = world();
+  fs.symlinkSync(jq, path.join(w.tools, "jq"));
+  fs.writeFileSync(path.join(w.root, ".autodev", "notify-telegram.json"),
+    JSON.stringify({ target_file_candidates: [path.join(w.root, "no-such-recipient.env")] }));
+  const { out, code } = run(w, [], { AUTODEV_NOTIFY_TARGET: "" });
+  assert.match(out, /delivery CLOSED/);
+  assert.doesNotMatch(out, /no recipient/);
+  assert.equal(code, 0);
+  assert.deepEqual(calls(w), []);
+});
