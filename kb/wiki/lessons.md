@@ -49,6 +49,23 @@ gates. **Six are bound to a loop. `design` and `compliance` are not.** `complian
 policy and consulted by nothing; it has simply never been reached. `client-signoff@v1` and
 `sec-review@v1` are gateless stages in the same blueprint.
 
+> **Corrected 2026-10-01 (T-24).** `compliance` *is* bound: `compliance-review@v1` names it,
+> and the engine loads that loop from the plugin's full set. The cross-check above read only the
+> blueprint's loop list, which lacks it. Only `feature-regulated@v1` routes to that loop, and no
+> ticket type in this shop goes there, so `compliance` is **unreachable here, not unbound**. It
+> is dormant, and it misleads nobody until someone relies on it. **`design` was the only gate
+> that performed.** T-24 binds it by publishing `design@v2` with `bands.gate = "design"` and the
+> policy left at `human:strict`.
+>
+> **The binding is forward-only, and only running it showed that.** Read from the code, a new
+> loop version looked as if it would bind every ticket carrying the modifier at once, because no
+> pipeline pins `design` and `loopFor` falls back to the latest loop. Run on a throwaway copy, a
+> ticket already in flight walked straight through after the publish. A ticket pins its
+> modifier-inserted loop when the modifier is applied (`pins: {"design": "design@v1"}` at
+> creation). So the publish holds tickets that are created, or given the modifier, after it, and
+> leaves earlier ones on `design@v1`. That is the shape of *The procedure transfers; the proof
+> does not*, below: the reading transferred, and the proof had to be run.
+
 **Why this member is worse than the other five.** They were *checks* nothing ran, and a check that
 never runs is at least silent. **This is a mechanism that answers convincingly when interrogated
 and never fires otherwise.** Asked directly, it refused an on-behalf clear with a correct,
