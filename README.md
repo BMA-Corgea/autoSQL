@@ -3,7 +3,7 @@
 autoSQL compiles the GIMS dashboard expression language into Postgres SQL, so a widget's numbers are
 computed inside the database instead of being pulled into Python and reshaped there. It is three
 things: a compiler (`compiler/`) that turns an expression AST into a parameterised Postgres
-expression, a SQL runtime (`runtime/`) of 23 functions giving Postgres the same value semantics as
+expression, a SQL runtime (`runtime/`) of 24 functions giving Postgres the same value semantics as
 GIMS's Python evaluator (`kb/CURRENT-WORK.md`), and a harness that puts the same expression through
 both engines and requires them to agree. The agreement is the deliverable — a compiler that is
 usually right is worth nothing here.

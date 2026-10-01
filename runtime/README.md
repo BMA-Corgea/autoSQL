@@ -1,6 +1,6 @@
 # `runtime/` — autoSQL's shipping SQL runtime
 
-`runtime.sql` installs schema `xpr`: **23 functions** that give Postgres the same
+`runtime.sql` installs schema `xpr`: **24 functions** that give Postgres the same
 value semantics as GIMS's Python expression evaluator (`core/dashboard/expr.py`), so a
 dashboard expression compiled to SQL answers what the Python pane answers.
 

@@ -548,13 +548,15 @@ def run(doc: Dict[str, Any], gims: Path, dsn: Optional[str], json_out: Optional[
         print("=" * 78)
     else:
         nc = sum(1 for c in doc["cases"] if c["autosql"].get("sql_gives") == UNCOMPILABLE)
+        ref = sum(1 for c in doc["cases"] if c["autosql"]["status"] == "refuses")
         print(f"SQL half: {n - stale}/{n} recorded statuses confirmed "
-              f"({n - div} agree, {div} diverge, as recorded; {nc} of the divergences are cases autoSQL's "
-              f"shipping compiler has no translation for, so they were not compiled)")
+              f"({n - div - ref} agree, {div} diverge, {ref} refuse, as recorded; {nc} of the divergences are "
+              f"cases autoSQL's shipping compiler has no translation for, so they were not compiled)")
         if fold:
             fdiv = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "diverges")
+            fref = sum(1 for c in doc["cases"] if foldable(c) and c["autosql"].get("folded") == "refuses")
             print(f"fold={fold}: {folded_n - fstale}/{folded_n} recorded folded statuses confirmed "
-                  f"({folded_n - fdiv} agree folded, {fdiv} diverge folded, as recorded)")
+                  f"({folded_n - fdiv - fref} agree folded, {fdiv} diverge folded, {fref} refuse folded, as recorded)")
     if json_out:
         Path(json_out).write_text(json.dumps(outcomes, indent=1, default=str) + "\n")
     return 1 if (gims_bad or stale or fstale) else 0

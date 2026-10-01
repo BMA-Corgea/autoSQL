@@ -135,10 +135,11 @@ KNOWN_DIVERGENCES = [
         "construct": "== / != / < <= > >= over JSON numbers with >17 significant digits",
         "expr_behaviour": "Python parses JSON numbers to IEEE doubles first, so "
                           "1.0000000000000001 and 1.0000000000000002 are EQUAL",
-        "sql_behaviour": "jsonb stores `numeric`; the two are DISTINCT. "
-                         "Ordering is routed through xpr.f8 (float8) so `<` matches, but "
-                         "`==` uses jsonb IS NOT DISTINCT FROM and would not.",
-        "guarded": False,
+        "sql_behaviour": "jsonb stores `numeric`; the two are DISTINCT. Ordering is routed "
+                         "through xpr.f8 (float8) so `<` matches; since T-61 `==` / `!=` are too "
+                         "(two numbers via xpr.f8 inline, NaN-aware; two lists or dicts via "
+                         "xpr.eq_deep), and beyond DBL_MAX xpr.f8 raises its named refusal (XPR01).",
+        "guarded": True,
         "in_fixture": False,
     },
     {
@@ -315,18 +316,34 @@ class _Compiler:
         op, left, right = node[1], node[2], node[3]
         l, r = self._j(left), self._j(right)
         if op == "==":
-            # _eq (expr.py:363-378) is TWO-valued: null == null is true, null == x is
-            # false.  IS NOT DISTINCT FROM is exactly that.  A bare `=` would be
-            # three-valued and silently wrong.
-            return f"to_jsonb({l} IS NOT DISTINCT FROM {r})"
+            return f"to_jsonb({self._eq_sql(l, r)})"
         if op == "!=":
-            return f"to_jsonb({l} IS DISTINCT FROM {r})"
+            return f"to_jsonb(NOT {self._eq_sql(l, r)})"
         if op in ("<", "<=", ">", ">="):
             # _order_cmp (expr.py:381-396) is THREE-valued and type-homogeneous:
             # num-num or str-str only, everything else (including any bool operand and
             # any num/str mix) is None, NOT a coercion.
             return f"to_jsonb(xpr.ord({self._bind(op, 'text')}, {l}, {r}))"
         raise Uncompilable(f"unknown comparison operator {op!r}")
+
+    def _eq_sql(self, l: str, r: str) -> str:
+        """_eq (expr.py:363-378) as SQL: TWO-valued, never NULL (null == null is true,
+        null == x is false), so `!=` is simply its NOT.
+
+        T-61 (T-37 review F4): Python compares numbers as DOUBLES; jsonb compares exact
+        numeric, so 12345678901234567 == 12345678901234568 is True in GIMS and was False
+        here. Two numbers now meet through xpr.f8 inline (no call on the hot path for
+        anything else); xpr.f8 RAISES its named refusal beyond DBL_MAX, where Python would
+        compare inf with inf (R2-2), and `<> 'NaN'` keeps NaN unequal to itself, as Python
+        does and float8 does not (R2-3). Two lists or two dicts go through xpr.eq_deep,
+        which recurses the same way. Everything else keeps IS NOT DISTINCT FROM, which is
+        exactly _eq for strings, booleans, null and any mix of types."""
+        tl, tr = f"jsonb_typeof({l})", f"jsonb_typeof({r})"
+        return (f"(CASE WHEN {tl} = 'number' AND {tr} = 'number' "
+                f"THEN (xpr.f8({l}) = xpr.f8({r}) AND xpr.f8({l}) <> 'NaN'::float8) "
+                f"WHEN ({tl} = 'array' AND {tr} = 'array') OR ({tl} = 'object' AND {tr} = 'object') "
+                f"THEN xpr.eq_deep({l}, {r}) "
+                f"ELSE ({l} IS NOT DISTINCT FROM {r}) END)")
 
     # ---- arithmetic -------------------------------------------------------------
     def _t_bin(self, node):                                   # expr.py:608-624

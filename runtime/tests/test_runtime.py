@@ -213,7 +213,7 @@ def test_the_installed_schema_is_complete(conn):
     with conn.cursor() as cur:
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
-        assert cur.fetchone()[0] == 23
+        assert cur.fetchone()[0] == 24   # T-61 added xpr.eq_deep (Python's _eq for lists and dicts)
 
 
 @needs_db
@@ -348,8 +348,9 @@ def test_the_guard_is_quiet_when_the_session_is_pinned(conn):
 
 @needs_db
 def test_the_schema_gained_exactly_the_two_new_functions(conn):
-    """AC-4 — 21 before T-9, 23 after. A third would be unrecorded scope."""
+    """AC-4 — 21 before T-9, 23 after. A third would be unrecorded scope. T-61 (2026-10-01)
+    recorded the next one: xpr.eq_deep, so == / != match Python's _eq on lists and dicts."""
     with conn.cursor() as cur:
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
-        assert cur.fetchone()[0] == 23
+        assert cur.fetchone()[0] == 24
