@@ -10,6 +10,30 @@ Seeded stub (FAC-123): durable lessons land here as the project runs — one ent
 
 ---
 
+## An escape the target language does not have is the bare character (T-66)
+
+*2026-10-01 · the T-60/61/63 refute-review, F60-1 · fixed by T-66*
+
+**The class.** An escape sequence is a promise made by one language. `\v` is the vertical tab
+in C and Python. In a PostgreSQL E-string it is not an escape at all: "any other character
+following a backslash is taken literally", so `E'\v'` is the letter `v`. A whitespace set
+copied across languages kept its spelling and lost its meaning, and nothing complained, because
+a letter is a perfectly valid member of a trim set.
+
+**Witness.** From T-1 until T-66, `runtime.sql.in` trimmed with `btrim(..., E' \t\n\r\f\v')` in
+`xpr.num`, `pdate_ms` and (since T-60) `pdate_only`. So `xpr.num('"v2"')` was 2 and `"12v"` was 12,
+where GIMS gives no number. A correctness battery of 11,367 expressions reported zero wrong
+numbers the whole time: whatever its inputs were, none reached the defect. An adversarial
+differential found it, by sweeping 6.9 million inputs against GIMS's own Python.
+
+**The rule.**
+- Never trust an escape across a language boundary. Test the set you built, not the spelling you
+  wrote: `runtime/tests/test_trim.py` guards every E-string escape in the template.
+- A differential that tests a trim set must also test its neighbours, the characters that must
+  NOT be trimmed. A suite that only feeds it whitespace cannot see a letter in it.
+
+---
+
 ## "Read-only" isn't: a read-only open of a WAL-mode SQLite file writes beside it (GIMS T-33)
 
 *2026-10-01 · GIMS T-33's adversarial review, F1 · fixed in GIMS `9d15c5c`*

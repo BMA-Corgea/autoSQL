@@ -120,6 +120,19 @@ demo — that question is answered by the timing runs, below, not by the demo.
   It matters because T-7 found that **six of seven GIMS write paths never check the declared
   type**, so non-Python writers are the norm. Full result, mechanism and what is *not* claimed:
   `spikes/T-23/FINDINGS.md`.
+
+  **A second gap, found 2026-10-01 and fixed by T-66.** The figure never covered strings with a
+  leading or trailing letter `v`.
+  - **The cause.** From the first runtime (T-1) until T-66, the whitespace trim was written
+    `E' \t\n\r\f\v'`, and PostgreSQL has no `\v` escape, so the set held the *letter* v.
+  - **The effect.** `"v2"`, `"12v"` and `"vv3.5v"` became 2, 12 and 3.5 where GIMS gives no
+    number, and `"v2024-02-29"` became a date. A `number($.voltage) > 10` filter kept a `"12v"` row
+    that GIMS drops.
+  - **How it was found.** The batteries' 11,367 expressions did not catch it. An independent review
+    did, by sweeping 6.9 million inputs against GIMS's own Python.
+  - **The fix.** T-66 puts `\x0b`, the vertical tab, at the three sites. Its tests were watched
+    failing on the old runtime. The parity vectors (v9) now carry eight letter-v cases, and a test
+    guards every escape in the runtime template against ones PostgreSQL lacks.
 - **The numbers no longer depend on a session setting.** The pass above holds at
   `extra_float_digits = 1`; at 0 and −3 there were still 62 and 66 wrong numbers, from a
   value-channel truncation the pin cures (`kb/wiki/decision-t6-correctness-rerun.md`). Later work closed that: the shipping compiler routes float8 through `xpr.j`, which carries its own setting,
