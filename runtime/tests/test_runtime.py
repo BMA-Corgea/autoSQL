@@ -12,7 +12,8 @@ so the load-bearing ones are promoted here and run every build:
 
 The database tests need a throwaway Postgres with runtime.sql installed. One
 command brings it up, installs the current runtime.sql, runs this suite with
-AUTOSQL_RUNTIME_DSN set, and removes the container and its volume afterwards:
+AUTOSQL_RUNTIME_DSN set, and on exit removes the container it created, with its
+volume (unless --keep):
 
     ops/runtime-check.sh
 

@@ -68,17 +68,27 @@ results. A test asserts they have not moved.
 ## Running the tests
 
 Pure-Python guards run anywhere. The database tests need a throwaway Postgres, and one command
-brings it up, installs the current `runtime.sql`, runs the whole suite with
-`AUTOSQL_RUNTIME_DSN` set, and removes the container **and its volume** afterwards:
+brings it up, installs the current `runtime.sql`, and runs the whole suite with
+`AUTOSQL_RUNTIME_DSN` set:
 
 ```
 ops/runtime-check.sh            # --keep leaves the scratch database up for inspection
 ```
 
 It runs its own container, `autosql-runtime-check`, on port 55435, and it refuses port 55433,
-which is a live database. A throwaway started by hand instead must come down with
-`docker rm -f -v`: the Postgres image declares a data volume, and without `-v` that volume is
-left behind, dangling (T-25).
+which is a live database. When it exits it removes the container **and its volume**, but only a
+container this run created, and never under `--keep`. It does this after the suite and on an
+early exit too. A container it did not create is left as found: one already running stays
+running, and a stopped one is started for the run and stopped again.
+
+To take down a kept container, or any throwaway started by hand, use `-v`:
+
+```
+docker rm -f -v autosql-runtime-check
+```
+
+The Postgres image declares a data volume, and without `-v` that volume is left behind,
+dangling (T-25).
 
 ## Known, and not this directory's job
 
