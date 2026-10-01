@@ -1,0 +1,1475 @@
+{
+ "format": "gims-pipeline-vectors/1",
+ "version": 1,
+ "source": {
+  "autosql": "69efb20",
+  "compiler_sha256": "4fd9ac0279f14c1100651c1b06b5e8d45835877618139edbe5915e4c61d7ef7c",
+  "runtime_sha256": "6f8e320037154a03326fbe5a83d37417912207f920284bae50eea30da5761fe3",
+  "gims": "9bf7b24 (gims-project-upstream/autosql/integration)"
+ },
+ "float_epsilon": 1e-09,
+ "note": "GIMS dashboard PIPELINE cases for autoSQL (T-46): what a stored record becomes between instances.data and the screen (key copies, the _noun_type tag, the forgiving field lookup, the sort order, the where filter). A superset of GIMS's tests/fixtures/expr_vectors.json: the same top keys and case keys, plus `kind` (expr | record | sort | filter) and `autosql` (what autoSQL's shipping compiler and runtime do on the case). Expected values are hand-authored from GIMS's code and confirmed by GIMS's own Python pipeline (parity/check_gims_pipeline.py); do NOT regenerate them from either side. A divergence is kept and explained, never deleted. Source of truth: autoSQL parity/; GIMS pins a vendored copy by sha256.",
+ "cases": [
+  {
+   "group": "renamed_keys",
+   "name": "underscore_reads_a_spaced_key",
+   "kind": "record",
+   "stored": {
+    "Sample ID": "S-1"
+   },
+   "expr": "$.Sample_ID",
+   "expect": "S-1",
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "bracket_space_reads_an_underscored_key",
+   "kind": "record",
+   "stored": {
+    "run_ID": "R-7"
+   },
+   "expr": "$['run ID']",
+   "expect": "R-7",
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "exact_spaced_key_still_reads",
+   "kind": "record",
+   "stored": {
+    "Sample ID": "S-1"
+   },
+   "expr": "$['Sample ID']",
+   "expect": "S-1",
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "exact_underscored_key_still_reads",
+   "kind": "record",
+   "stored": {
+    "Sample_ID": "S-1"
+   },
+   "expr": "$.Sample_ID",
+   "expect": "S-1",
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "both_forms_stored_underscored_keeps_its_value",
+   "kind": "record",
+   "stored": {
+    "Sample ID": "spaced",
+    "Sample_ID": "underscored"
+   },
+   "expr": "$.Sample_ID",
+   "expect": "underscored",
+   "autosql": {
+    "status": "agrees"
+   },
+   "note": "setdefault: a stored key is never overwritten by another key's copy"
+  },
+  {
+   "group": "renamed_keys",
+   "name": "both_forms_stored_spaced_keeps_its_value",
+   "kind": "record",
+   "stored": {
+    "Sample ID": "spaced",
+    "Sample_ID": "underscored"
+   },
+   "expr": "$['Sample ID']",
+   "expect": "spaced",
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "a_stored_null_is_not_replaced_by_the_other_form",
+   "kind": "record",
+   "stored": {
+    "Sample_ID": "x",
+    "Sample ID": null
+   },
+   "expr": "$['Sample ID']",
+   "expect": null,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "both_characters_underscored_copy",
+   "kind": "record",
+   "stored": {
+    "lot_no 2": 9
+   },
+   "expr": "$.lot_no_2",
+   "expect": 9,
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   },
+   "note": "'lot_no 2' gets two copies: 'lot no 2' (underscores to spaces) and 'lot_no_2' (spaces to underscores)"
+  },
+  {
+   "group": "renamed_keys",
+   "name": "both_characters_spaced_copy",
+   "kind": "record",
+   "stored": {
+    "lot_no 2": 9
+   },
+   "expr": "$['lot no 2']",
+   "expect": 9,
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "two_keys_collide_on_one_copy_jsonb_order_decides",
+   "kind": "record",
+   "stored": {
+    "a_b c": 1,
+    "a b_c": 2
+   },
+   "expr": "$['a b c']",
+   "expect": 2,
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   },
+   "note": "Both stored keys copy to 'a b c'; setdefault keeps the first one processed. In Postgres mode GIMS receives keys in jsonb order (shorter first, then bytewise): 'a b_c' precedes 'a_b c', so its value wins. In SQLite mode insertion order would decide instead, so the two modes can disagree."
+  },
+  {
+   "group": "renamed_keys",
+   "name": "nested_keys_are_not_copied",
+   "kind": "record",
+   "stored": {
+    "meta": {
+     "Sample ID": "S-1"
+    }
+   },
+   "expr": "$.meta.Sample_ID",
+   "expect": null,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "hyphens_are_not_copied",
+   "kind": "record",
+   "stored": {
+    "run-id": 5
+   },
+   "expr": "$.run_id",
+   "expect": null,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "case_is_not_folded",
+   "kind": "record",
+   "stored": {
+    "Sample ID": "S-1"
+   },
+   "expr": "$.sample_id",
+   "expect": null,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "copy_feeds_arithmetic",
+   "kind": "record",
+   "stored": {
+    "Dry Weight": 2.5
+   },
+   "expr": "$.Dry_Weight * 2",
+   "expect": 5,
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "noun_type_tag_is_added",
+   "kind": "record",
+   "stored": {
+    "a": 1
+   },
+   "expr": "$._noun_type",
+   "expect": "parity_case",
+   "autosql": {
+    "status": "diverges",
+    "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag."
+   }
+  },
+  {
+   "group": "renamed_keys",
+   "name": "a_stored_noun_type_wins_over_the_tag",
+   "kind": "record",
+   "stored": {
+    "_noun_type": "own"
+   },
+   "expr": "$._noun_type",
+   "expect": "own",
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_ignores_case_and_separators",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "Dry-Weight": 3
+    },
+    {
+     "id": "b",
+     "Dry-Weight": 1
+    },
+    {
+     "id": "c",
+     "Dry-Weight": 2
+    }
+   ],
+   "sort": {
+    "field": "dry weight",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "c",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42)."
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_by_dotted_path",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "meta": {
+      "score": 2
+     }
+    },
+    {
+     "id": "b",
+     "meta": {
+      "score": 1
+     }
+    }
+   ],
+   "sort": {
+    "field": "meta.score",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42)."
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_exact_dotted_key_wins_over_the_path",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "meta.score": 1,
+     "meta": {
+      "score": 9
+     }
+    },
+    {
+     "id": "b",
+     "meta.score": 2,
+     "meta": {
+      "score": 0
+     }
+    }
+   ],
+   "sort": {
+    "field": "meta.score",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_reads_a_renamed_copy",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "Dry Weight": 2
+    },
+    {
+     "id": "b",
+     "Dry Weight": 1
+    }
+   ],
+   "sort": {
+    "field": "Dry_Weight",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "filters_object_matches_a_differently_cased_key",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "Status": "ok"
+    },
+    {
+     "id": "b",
+     "Status": "bad"
+    }
+   ],
+   "filter": {
+    "status": "ok"
+   },
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included."
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "filters_object_uses_python_equality_true_is_1",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "flag": true
+    },
+    {
+     "id": "b",
+     "flag": 1
+    },
+    {
+     "id": "c",
+     "flag": "1"
+    },
+    {
+     "id": "d",
+     "flag": 1.0
+    }
+   ],
+   "filter": {
+    "flag": 1
+   },
+   "expect_ids": [
+    "a",
+    "b",
+    "d"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included."
+   },
+   "note": "Python's == makes True == 1 == 1.0; the expression language's == does not (bool is never a number)"
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "filters_object_null_matches_missing_and_null",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a"
+    },
+    {
+     "id": "b",
+     "x": null
+    },
+    {
+     "id": "c",
+     "x": 0
+    }
+   ],
+   "filter": {
+    "x": null
+   },
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "A filters object (sources.py _pass_filters: forgiving lookup, then Python ==) has no SQL translation in autoSQL. Fix side: T-37 keeps it in Python, or T-42 translates it with Python's equality, quirks included."
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "the_evaluator_is_exact_where_the_resolver_forgives",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "Status": "ok"
+    }
+   ],
+   "filter": "$.status == 'ok'",
+   "expect_ids": [],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "ascending_type_ranks_blanks_last",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "t",
+     "v": true
+    },
+    {
+     "id": "f",
+     "v": false
+    },
+    {
+     "id": "n10",
+     "v": 10
+    },
+    {
+     "id": "n2",
+     "v": 2
+    },
+    {
+     "id": "sb",
+     "v": "b"
+    },
+    {
+     "id": "sa",
+     "v": "a"
+    },
+    {
+     "id": "se",
+     "v": ""
+    },
+    {
+     "id": "nul",
+     "v": null
+    },
+    {
+     "id": "miss"
+    },
+    {
+     "id": "obj",
+     "v": {
+      "k": 1
+     }
+    },
+    {
+     "id": "lst",
+     "v": [
+      1
+     ]
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "f",
+    "t",
+    "n2",
+    "n10",
+    "se",
+    "sa",
+    "sb",
+    "lst",
+    "obj",
+    "nul",
+    "miss"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42."
+   },
+   "note": "bool < number < string < other < blank; str([1]) = '[1]' sorts before str({'k': 1}) = \"{'k': 1}\""
+  },
+  {
+   "group": "sort",
+   "name": "descending_blanks_first",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "t",
+     "v": true
+    },
+    {
+     "id": "f",
+     "v": false
+    },
+    {
+     "id": "n10",
+     "v": 10
+    },
+    {
+     "id": "n2",
+     "v": 2
+    },
+    {
+     "id": "sb",
+     "v": "b"
+    },
+    {
+     "id": "sa",
+     "v": "a"
+    },
+    {
+     "id": "se",
+     "v": ""
+    },
+    {
+     "id": "nul",
+     "v": null
+    },
+    {
+     "id": "miss"
+    },
+    {
+     "id": "lst",
+     "v": [
+      1
+     ]
+    },
+    {
+     "id": "obj",
+     "v": {
+      "k": 1
+     }
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "nul",
+    "miss",
+    "obj",
+    "lst",
+    "sb",
+    "sa",
+    "se",
+    "n10",
+    "n2",
+    "t",
+    "f"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42."
+   },
+   "note": "reverse=True keeps equal keys in input order (Python's sort is stable), so nul stays before miss"
+  },
+  {
+   "group": "sort",
+   "name": "blanks_first_descending_without_other_types",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 1
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "v": 3
+    },
+    {
+     "id": "d",
+     "v": null
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "b",
+    "d",
+    "c",
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "blanks_last_ascending_without_other_types",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 1
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "v": 3
+    },
+    {
+     "id": "d",
+     "v": null
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "a",
+    "c",
+    "b",
+    "d"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "empty_string_is_not_blank_ascending",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": ""
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "v": "x"
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "a",
+    "c",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "empty_string_is_not_blank_descending",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": ""
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "v": "x"
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "b",
+    "c",
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "numeric_strings_sort_as_text",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": "10"
+    },
+    {
+     "id": "b",
+     "v": "9"
+    },
+    {
+     "id": "c",
+     "v": "100"
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "a",
+    "c",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "a_number_sorts_before_a_numeric_string",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": "2"
+    },
+    {
+     "id": "b",
+     "v": 10
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "ties_keep_input_order_descending",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 1
+    },
+    {
+     "id": "b",
+     "v": 1.0
+    },
+    {
+     "id": "c",
+     "v": 0
+    },
+    {
+     "id": "d",
+     "v": 1
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "a",
+    "b",
+    "d",
+    "c"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "ties_keep_input_order_ascending",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 1
+    },
+    {
+     "id": "b",
+     "v": 1.0
+    },
+    {
+     "id": "c",
+     "v": 0
+    },
+    {
+     "id": "d",
+     "v": 1
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "c",
+    "a",
+    "b",
+    "d"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "text_orders_by_code_point",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": "é"
+    },
+    {
+     "id": "b",
+     "v": "z"
+    },
+    {
+     "id": "c",
+     "v": "Z"
+    },
+    {
+     "id": "d",
+     "v": "a"
+    },
+    {
+     "id": "e",
+     "v": "😀"
+    },
+    {
+     "id": "f",
+     "v": "￠"
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "c",
+    "d",
+    "b",
+    "a",
+    "f",
+    "e"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "booleans_sort_before_numbers",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 0
+    },
+    {
+     "id": "b",
+     "v": true
+    },
+    {
+     "id": "c",
+     "v": false
+    },
+    {
+     "id": "d",
+     "v": -1
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "c",
+    "b",
+    "d",
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "explicit_null_and_missing_are_one_blank_class",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": null
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "v": 1
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "a",
+    "b",
+    "c"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "extreme_magnitudes",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "v": 1e+300
+    },
+    {
+     "id": "b",
+     "v": -1e+300
+    },
+    {
+     "id": "c",
+     "v": 0.1
+    },
+    {
+     "id": "d",
+     "v": 1e-300
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "d",
+    "c",
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "sort",
+   "name": "field_missing_everywhere_keeps_input_order",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "b"
+    },
+    {
+     "id": "a"
+    },
+    {
+     "id": "c"
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "desc"
+   },
+   "expect_ids": [
+    "b",
+    "a",
+    "c"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_number_comparison_skips_blanks_and_text",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "n": 10
+    },
+    {
+     "id": "b",
+     "n": 3
+    },
+    {
+     "id": "c",
+     "n": null
+    },
+    {
+     "id": "d"
+    },
+    {
+     "id": "e",
+     "n": "7"
+    }
+   ],
+   "filter": "$.n > 5",
+   "expect_ids": [
+    "a"
+   ],
+   "autosql": {
+    "status": "agrees"
+   },
+   "note": "ordering a string against a number is null (falsy) in GIMS, not a coercion"
+  },
+  {
+   "group": "filter",
+   "name": "where_reads_a_renamed_copy",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "Sample ID": "S-1"
+    },
+    {
+     "id": "b",
+     "Sample ID": "S-2"
+    }
+   ],
+   "filter": "$.Sample_ID == 'S-2'",
+   "expect_ids": [
+    "b"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "SQL reads instances.data as stored. GIMS's get_noun_items adds a copy of every top-level key with spaces and underscores swapped (api/iostore/nouns.py _normalize_row) before anything evaluates, so the copy exists only in GIMS. Fix side: the adapter (T-37) applies the same copies before the row reaches SQL, or the compiler resolves a key to its copies."
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_on_the_noun_type_tag",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "x": 1
+    },
+    {
+     "id": "b",
+     "x": 2
+    }
+   ],
+   "filter": "$._noun_type == 'parity_case'",
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "GIMS tags every noun row with _noun_type = the noun (api/dashboard/sources.py _noun_records, setdefault). The stored row has no such key. Fix side: the adapter (T-37) supplies the tag."
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_string_truthiness",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "s": ""
+    },
+    {
+     "id": "b",
+     "s": "0"
+    },
+    {
+     "id": "c",
+     "s": "false"
+    },
+    {
+     "id": "d",
+     "s": " "
+    }
+   ],
+   "filter": "$.s",
+   "expect_ids": [
+    "b",
+    "c",
+    "d"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_number_list_object_truthiness",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "v": 0
+    },
+    {
+     "id": "b",
+     "v": 0.0
+    },
+    {
+     "id": "c",
+     "v": []
+    },
+    {
+     "id": "d",
+     "v": {}
+    },
+    {
+     "id": "e",
+     "v": [
+      0
+     ]
+    },
+    {
+     "id": "f",
+     "v": {
+      "k": 0
+     }
+    },
+    {
+     "id": "g",
+     "v": -0.5
+    }
+   ],
+   "filter": "$.v",
+   "expect_ids": [
+    "e",
+    "f",
+    "g"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_equals_null_matches_null_and_missing",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "x": null
+    },
+    {
+     "id": "b"
+    },
+    {
+     "id": "c",
+     "x": 0
+    }
+   ],
+   "filter": "$.x == null",
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_not_of_blank",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a"
+    },
+    {
+     "id": "b",
+     "x": ""
+    },
+    {
+     "id": "c",
+     "x": "y"
+    }
+   ],
+   "filter": "not $.x",
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "filter",
+   "name": "where_bool_is_not_a_number",
+   "kind": "filter",
+   "rows": [
+    {
+     "id": "a",
+     "f": true
+    },
+    {
+     "id": "b",
+     "f": 1
+    }
+   ],
+   "filter": "$.f == 1",
+   "expect_ids": [
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "evaluator_lookup",
+   "name": "evaluator_key_lookup_is_case_exact",
+   "kind": "expr",
+   "expr": "$.status",
+   "record": {
+    "Status": "ok"
+   },
+   "expect": null,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "evaluator_lookup",
+   "name": "bracket_key_with_a_space",
+   "kind": "expr",
+   "expr": "$['Sample ID']",
+   "record": {
+    "Sample ID": "S-1"
+   },
+   "expect": "S-1",
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "evaluator_lookup",
+   "name": "negative_index",
+   "kind": "expr",
+   "expr": "$.l[-1]",
+   "record": {
+    "l": [
+     1,
+     2,
+     3
+    ]
+   },
+   "expect": 3,
+   "autosql": {
+    "status": "agrees"
+   }
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_forgiving_key_beats_the_dotted_path",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "x",
+     "A.B": 2,
+     "a": {
+      "b": 1
+     }
+    },
+    {
+     "id": "y",
+     "A.B": 1,
+     "a": {
+      "b": 2
+     }
+    }
+   ],
+   "sort": {
+    "field": "a.b",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "y",
+    "x"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42)."
+   },
+   "note": "find_actual_key('a.b') matches 'A.B' (dots are kept, case folds) before the dotted path a -> b is tried"
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_field_first_forgiving_match_in_key_order_wins",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "Sample ID": 2,
+     "sample-id": 1
+    },
+    {
+     "id": "b",
+     "Sample ID": 1,
+     "sample-id": 2
+    }
+   ],
+   "sort": {
+    "field": "sample_id",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "b",
+    "a"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "The resolver looks a sort or filters field up forgivingly (sources.py _field_value: exact key, then core/deep_search.find_actual_key, case- and space/underscore/hyphen-blind, then a dotted path). SQL reads the exact key. Fix side: whoever moves sort or filters into SQL (T-42)."
+   },
+   "note": "both keys fold to 'sampleid'; find_actual_key returns the first in key order. In Postgres mode that is jsonb order: same length, and 'S' (0x53) sorts before 's' (0x73), so 'Sample ID' decides"
+  },
+  {
+   "group": "sort",
+   "name": "lists_and_objects_order_by_their_python_text",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "o",
+     "v": {
+      "k": 1
+     }
+    },
+    {
+     "id": "l9",
+     "v": [
+      9
+     ]
+    },
+    {
+     "id": "l12",
+     "v": [
+      1,
+      2
+     ]
+    },
+    {
+     "id": "l10",
+     "v": [
+      10
+     ]
+    }
+   ],
+   "sort": {
+    "field": "v",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "l12",
+    "l10",
+    "l9",
+    "o"
+   ],
+   "autosql": {
+    "status": "diverges",
+    "why": "Rank 3 ('other': lists and objects) orders by str(value) in GIMS's _sort_key; autoSQL's candidate SQL ranks them equal and falls back to input order. Fix side: T-42."
+   },
+   "note": "str([1, 2]) = '[1, 2]' < '[10]' < '[9]' < \"{'k': 1}\" (code points: ',' < '0' < '9', and '[' < '{')"
+  },
+  {
+   "group": "forgiving_lookup",
+   "name": "sort_dotted_path_does_not_step_into_lists",
+   "kind": "sort",
+   "rows": [
+    {
+     "id": "a",
+     "tags": [
+      "x",
+      "b"
+     ]
+    },
+    {
+     "id": "b",
+     "tags": [
+      "y",
+      "a"
+     ]
+    }
+   ],
+   "sort": {
+    "field": "tags.1",
+    "dir": "asc"
+   },
+   "expect_ids": [
+    "a",
+    "b"
+   ],
+   "autosql": {
+    "status": "agrees"
+   },
+   "note": "_field_value's dotted path walks dicts only, so 'tags.1' is blank for every row and input order stands. The browser's getPath (frontend/lib/dashboard/logic.js:31-40) DOES step into lists ('b', 'a'): a difference inside GIMS, not autoSQL's"
+  }
+ ]
+}
