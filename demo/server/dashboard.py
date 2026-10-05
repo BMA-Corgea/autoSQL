@@ -361,6 +361,8 @@ def setup(conn) -> dict:
             "default_views": {d["id"]: default_view_from(out, d["id"]) for d in out},
             "op_words": OP_WORDS,
             "sort_words": SORT_WORDS,
+            "summary_fns": SUMMARY_FNS,
+            "unavailable": _reasons_table(out),
         }
         return _SETUP
 
@@ -417,8 +419,7 @@ def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     if not isinstance(view, dict):
         raise ViewError("The question must be a set of choices.")
     _refuse_extra(view, VIEW_KEYS, "a question")
-    if view.get("summary") is not None:
-        raise ViewError("Summaries aren't available on this page yet.")
+
     ds_id = view.get("dataset")
     ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
     if ds is None:
@@ -471,7 +472,119 @@ def to_pick(setup_payload: dict, view: dict) -> dict:
     if sort:
         pick["sort"] = sort
     pick["cap"] = _show(view)
+
+    summary = _summary(view, fields, ds)
+    if summary:
+        if pick["computed"]:
+            raise ViewError("Columns don't apply to a summary; untick them first.")
+        pick["aggregate"] = {
+            "fn": summary["fn"],
+            "field": summary["field"],
+        }
+        pick["bucket"] = "off" if summary["per"] == "all" else summary["per"]
+
+    # The engine's own rules decide what may be combined (legality.py, the
+    # same function /api/operations greys its controls from).  A choice it
+    # refuses is refused here in plain words, never quietly dropped.
+    for v in legality.evaluate(pick)["violations"]:
+        raise ViewError(plain_reason(v["why"]))
     return pick
+
+
+#: A summary's functions, as the page names them and as the sentence does.
+SUMMARY_FNS = {
+    "count": "Number", "sum": "Total", "avg": "Average",
+    "min": "Smallest", "max": "Largest",
+}
+SUMMARY_KEYS = {"fn", "field", "per"}
+PERS = ("all", "hour", "day")
+
+
+def _summary(view: dict, fields: dict, ds: dict):
+    """The summary a view asks for, checked: None when it asks for none."""
+    summary = view.get("summary")
+    if summary is None:
+        return None
+    if not isinstance(summary, dict):
+        raise ViewError("A summary must be a set of choices.")
+    _refuse_extra(summary, SUMMARY_KEYS, "a summary")
+    fn = summary.get("fn")
+    if fn not in SUMMARY_FNS:
+        raise ViewError("Summarize by count, total, average, smallest or largest.")
+    per = summary.get("per", "all")
+    if per not in PERS:
+        raise ViewError("Summarize over everything, per hour or per day.")
+    path = summary.get("field")
+    if fn == "count":
+        if not _empty(path):
+            raise ViewError("A count counts rows; it takes no field.")
+        return {"fn": fn, "field": None, "per": per}
+    if path not in fields or fields[path]["kind"] != "number":
+        raise ViewError(f"{SUMMARY_FNS[fn]} of what? Pick a field that holds numbers.")
+    return {"fn": fn, "field": path, "per": per}
+
+
+# ── the engine's reasons, in plain words ───────────────────────────────
+
+_WHY_ONLY_HEARTBEATS = "Only Heartbeats have a time to group by."
+
+#: legality.py's reasons (the text /api/operations greys a control with),
+#: each said the way this page says things.  Matched on the engine's exact
+#: words, so a reason that changes there fails test_dashboard.py by name
+#: instead of reaching a person.
+_PLAIN_REASONS = {
+    legality._WHY_SCALAR_SORT: "A summary over everything is one number, so there is nothing to sort.",
+    legality._WHY_SCALAR_CAP: "A summary over everything is one number, so there is only one row.",
+    legality._WHY_SCALAR_WINDOW: "A summary over everything is one number.",
+    legality._WHY_SCALAR_CHANGED: "A summary over everything is one number.",
+    legality._WHY_BUCKET_SORT: "Per-hour and per-day summaries are always in time order.",
+    legality._WHY_BUCKET_WINDOW: "Per-hour and per-day summaries are grouped already.",
+    legality._WHY_BUCKET_CHANGED: "Per-hour and per-day summaries are grouped already.",
+    legality.WHY_BUCKET_NEEDS_AGG: "Per hour and per day need something to count or total.",
+    legality.WHY_COUNT_TAKES_NO_FIELD: "A count counts rows; it takes no field.",
+    legality.WHY_NO_FN_NO_FIELD: "Pick what to summarize first.",
+}
+_PLAIN_REASON_DEFAULT = "Not available with these choices."
+
+
+def plain_reason(why: str) -> str:
+    """One of the engine's reasons → the page's words."""
+    if why in _PLAIN_REASONS:
+        return _PLAIN_REASONS[why]
+    if why.startswith("unavailable on this source (operation 1)"):
+        return _WHY_ONLY_HEARTBEATS
+    return _PLAIN_REASON_DEFAULT
+
+
+def unavailable(pick: dict) -> dict:
+    """Which of the page's choices the engine can't do for this pick, and
+    why, in plain words — read from the same contract /api/operations
+    serves (operations.contract), never re-derived here."""
+    from . import operations
+
+    ops = {o["n"]: o for o in operations.contract(pick)["operations"]}
+    out = {}
+    for name, n in (("sort", 4), ("show", 5), ("per", 7)):
+        if not ops[n]["enabled"]:
+            out[name] = plain_reason(ops[n]["why"])
+    return out
+
+
+def _reasons_table(datasets: list) -> dict:
+    """For each data set and each kind of answer (rows / one number / per
+    hour or day), the choices that are off and why — what the page greys
+    before it asks.  Each entry is the contract's own verdict."""
+    out = {}
+    for d in datasets:
+        source = next(x["source"] for x in DATASETS if x["id"] == d["id"])
+        base = legality.default_pick()
+        base["source"] = source
+        rows = dict(base)
+        one = dict(base, aggregate={"fn": "count", "field": None})
+        per = dict(base, aggregate={"fn": "count", "field": None}, bucket="day")
+        out[d["id"]] = {"rows": unavailable(rows), "number": unavailable(one),
+                        "per": unavailable(per)}
+    return out
 
 
 def field_ref(path: str) -> str:
@@ -581,7 +694,16 @@ def _value_for(field: dict, value):
     if kind == "date":
         d = _day(value).isoformat()
         return string_literal(d), fmt_date(d)
-    return string_literal(value), value
+    return string_literal(value), said_text(value)
+
+
+def said_text(value: str) -> str:
+    """A text value as the sentence says it: bare when it is one word
+    (``Status is warn``), in quotes when it is empty or holds a space, so
+    ``S is not “not a number”`` cannot read as a double negative."""
+    if value == "" or any(ch.isspace() for ch in value):
+        return f"“{value}”"
+    return value
 
 
 def _order_key(field: dict, value):
@@ -868,6 +990,12 @@ def sentence(ds: dict, view: dict, fields: dict, total: int) -> str:
 # 5 · The answer
 # ═════════════════════════════════════════════════════════════════════════
 
+#: The runtime's named refusal (``xpr.f8``: a JSON number past the largest
+#: double).  The one database error the dashboard answers instead of
+#: raising; app.run_pick does not catch it on this path (the two-pane screen
+#: answers HTTP 500 for the same pick — recorded in LATER, not changed here).
+ENGINE_REFUSAL_SQLSTATE = "XPR01"
+
 _CACHE_LOCK = threading.Lock()
 _CACHE: "OrderedDict[str, dict]" = OrderedDict()
 _CACHE_SIZE = 8
@@ -888,7 +1016,26 @@ def _run(conn, pick: dict) -> dict:
         if hit is not None:
             _CACHE.move_to_end(key)
             return hit
-    answer = server_app.run_pick(conn, pick, whole=True)
+    try:
+        answer = server_app.run_pick(conn, pick, whole=True)
+    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+        if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
+            raise
+        # The runtime's own named refusal (a number past the largest double,
+        # read by == or !=), raised mid-statement.  The engine is not
+        # changed here; the page is told the truth in plain words instead
+        # of "couldn't reach the data".  Nothing is cached: the connection
+        # is closed after this request, and the next ask runs it again.
+        return {
+            "accepted": False,
+            "verdict": "no-compare",
+            "sql": {"display": None, "statement_sent": True},
+            "comparison": {},
+            "refusal": {
+                "headline": "Refused while running",
+                "why": f"{exc.sqlstate}: {str(exc).splitlines()[0]}",
+            },
+        }
     with _CACHE_LOCK:
         _CACHE[key] = answer
         _CACHE.move_to_end(key)
@@ -905,6 +1052,8 @@ _PLAIN_REFUSAL = (
                           "with one value."),
     ("out-of-range magnitude", "One of these values is too large to compute "
                                "with, so this can't be answered honestly."),
+    ("exceeds float8 range", "One of these values is too large to compute "
+                             "with, so this can't be answered honestly."),
     ("overflow", "A result here grows too large to compute, so this can't be "
                  "answered honestly."),
 )
@@ -952,6 +1101,9 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
         }
 
     pane = result["panes"]["sql"]
+    summary = _summary(view, fields, ds)
+    if summary:
+        return _summary_answer(ds, view, fields, summary, pick, pane, page, admin)
     columns = pane["columns"]
     by_alias = {f["alias"]: f for f in fields.values()}
     shown = [i for i, c in enumerate(columns) if c in by_alias]
@@ -982,8 +1134,97 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
         "rows": rows,
         "page": {"index": page, "size": PAGE_SIZE, "start": start,
                  "count": len(rows), "last": last},
+        "unavailable": unavailable(pick),
         "admin": admin,
     }
+
+
+def _summary_value(text: str, tag: str, fn: str):
+    """One summary value → (what a person reads, the exact value, a number
+    for drawing).  An average is shown to two places, its exact value kept
+    beside it; a total, a smallest and a largest are shown as they are."""
+    if tag == "null":
+        return None, None, None
+    exact = text
+    d = Decimal(text)
+    if fn == "avg":
+        shown = fmt_number(text, places=2)
+    else:
+        shown = fmt_number(format(d.normalize(), "f") if d == d.to_integral_value()
+                           else str(d.normalize()))
+    return shown, exact, float(d)
+
+
+def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
+    """``Average Load of Heartbeats where Status is warn, per day``."""
+    what = SUMMARY_FNS[summary["fn"]]
+    if summary["field"]:
+        what += " " + fields[summary["field"]]["label"]
+    head = f"{what} of {question_words(ds, view, fields, sort=False)}"
+    if summary["per"] != "all":
+        head += f", per {summary['per']}"
+    return head
+
+
+def _summary_answer(ds, view, fields, summary, pick, pane, page, admin) -> dict:
+    fn = summary["fn"]
+    head = summary_words(ds, view, fields, summary)
+    label = SUMMARY_FNS[fn] + (" " + fields[summary["field"]]["label"] if summary["field"] else "")
+
+    if summary["per"] == "all":
+        row = pane["rows"][0]
+        shown, exact, _ = _summary_value(row["c"][0], row["t"][0], fn)
+        if fn == "count" and shown is not None:
+            shown = fmt_number(row["c"][0])
+        return {
+            "kind": "number",
+            "sentence": head,
+            "number": {"label": label, "value": shown, "exact": exact},
+            "unavailable": unavailable(pick),
+            "admin": admin,
+        }
+
+    unit = summary["per"]
+    bars = []
+    for row in pane["rows"]:
+        when = row["c"][0]
+        shown, exact, num = _summary_value(row["c"][1], row["t"][1], fn)
+        bars.append({
+            "label": fmt_day(when) if unit == "day" else fmt_time(when).removesuffix(" UTC"),
+            "start": when, "value": num, "text": shown, "exact": exact,
+        })
+    total = len(bars)
+    show = view.get("show")
+    if total == 0:
+        tail = "no rows match"
+    elif show is not None and total >= show:
+        tail = f"the first {plural(show, unit)}"
+    else:
+        tail = plural(total, unit)
+
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = [[b["label"], b["text"]] for b in bars[start:start + PAGE_SIZE]]
+    return {
+        "kind": "chart",
+        "sentence": f"{head} — {tail}",
+        "total": total,
+        "unit": unit,
+        "measure": label,
+        "bars": bars,
+        "columns": [{"path": "bucket", "label": "Day" if unit == "day" else "Hour (UTC)", "kind": "text"},
+                    {"path": "value", "label": label, "kind": "number"}],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start,
+                 "count": len(rows), "last": last},
+        "unavailable": unavailable(pick),
+        "admin": admin,
+    }
+
+
 
 
 # ═════════════════════════════════════════════════════════════════════════

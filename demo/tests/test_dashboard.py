@@ -584,7 +584,8 @@ class TestNothingIsSilentlyIgnored:
     that quietly does nothing while the screen shows it as chosen."""
 
     @pytest.mark.parametrize("patch, says", [
-        ({"summary": {"fn": "count", "per": "all"}}, "Summaries aren't available on this page yet."),
+        ({"summary": {"fn": "count", "per": "all", "by": "status"}},
+         "This page can't use 'by' in a summary yet."),
         ({"group_by": "status"}, "This page can't use 'group_by' in a question yet."),
         ({"conditions": [{"field": "status", "op": "eq", "value": "ok", "_k": 1}]},
          "This page can't use '_k' in a condition yet."),
@@ -622,3 +623,209 @@ class TestEdgeCasesLabelIsOffByDefault:
     def test_a_ticked_box_still_shows_it(self, client, setup):
         _, a = ask(client, view(setup, "edge", columns=["label"]))
         assert a["total"] == 10 and [c["label"] for c in a["columns"]] == ["Label"]
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# S3 — summaries (AC6), and the engine's reasons in plain words (AC7)
+# ═════════════════════════════════════════════════════════════════════════
+
+from decimal import ROUND_HALF_UP, Decimal  # noqa: E402
+
+import legality  # noqa: E402
+from demo.server import operations  # noqa: E402
+
+_Q6 = Decimal("0.000001")
+
+
+def q6(x) -> str:
+    return str(Decimal(x).quantize(_Q6, rounding=ROUND_HALF_UP))
+
+
+def summed(setup, ds_id="heartbeats", **kw):
+    """A summary view: no columns, no sort (the page sends neither)."""
+    kw = {"columns": [], "sort": None, **kw}
+    return view(setup, ds_id, **kw)
+
+
+class TestSummaries:
+    def test_average_load_per_day_is_seven_bars(self, client, setup):
+        _, a = ask(client, summed(setup, summary={"fn": "avg", "field": "payload.load", "per": "day"}))
+        assert a["kind"] == "chart" and a["total"] == 7 and len(a["bars"]) == 7
+        assert a["sentence"] == "Average Load of Heartbeats, per day — 7 days"
+        by_day: dict = {}
+        for r in _HEARTBEATS:
+            by_day.setdefault(r["ts"][:10], []).append(r["payload"]["load"])
+        want = [q6(Decimal(sum(v)) / len(v)) for _d, v in sorted(by_day.items())]
+        assert [b["exact"] for b in a["bars"]] == want
+        assert [b["label"] for b in a["bars"]] == [f"Aug {d}" for d in range(14, 21)]
+        assert a["rows"][0] == ["Aug 14", f"{Decimal(want[0]):.2f}"]
+        assert a["admin"]["verdict"] == "agree"
+
+    def test_count_per_hour(self, client, setup):
+        _, a = ask(client, summed(setup, summary={"fn": "count", "field": None, "per": "hour"}))
+        assert a["total"] == 168 and {b["value"] for b in a["bars"]} == {50.0}
+        assert a["bars"][5]["label"] == "Aug 14, 05:00"
+        assert a["sentence"] == "Number of Heartbeats, per hour — 168 hours"
+        assert a["page"]["last"] == 3 and len(a["rows"]) == 50
+
+    def test_per_hour_with_a_condition_and_a_cap(self, client, setup):
+        _, a = ask(client, summed(setup, show=25,
+                                  conditions=[cond("status", "eq", value="error")],
+                                  summary={"fn": "count", "field": None, "per": "hour"}))
+        assert a["total"] == 25
+        assert a["sentence"] == "Number of Heartbeats where Status is error, per hour — the first 25 hours"
+        hours: dict = {}
+        for r in _HEARTBEATS:
+            if r["status"] == "error":
+                hours[r["ts"]] = hours.get(r["ts"], 0) + 1
+        first = sorted(hours.items())[:25]
+        assert [(b["start"], int(b["value"])) for b in a["bars"]] == first
+
+    @pytest.mark.parametrize("fn, want", [
+        ("sum", lambda v: str(sum(v))), ("min", lambda v: str(min(v))), ("max", lambda v: str(max(v))),
+        ("avg", lambda v: f"{Decimal(sum(v)) / len(v):,.2f}"),
+    ])
+    def test_one_number_over_everything(self, client, setup, fn, want):
+        loads = [r["payload"]["load"] for r in _HEARTBEATS if r["status"] == "warn"]
+        _, a = ask(client, summed(setup, conditions=[cond("status", "eq", value="warn")],
+                                  summary={"fn": fn, "field": "payload.load", "per": "all"}))
+        assert a["kind"] == "number"
+        assert a["number"]["value"] == f"{int(want(loads)):,}" if fn != "avg" else want(loads)
+        assert a["sentence"] == f"{dashboard.SUMMARY_FNS[fn]} Load of Heartbeats where Status is warn"
+
+    def test_count_and_an_exact_average_on_samples(self, client, setup):
+        _, a = ask(client, summed(setup, "samples", summary={"fn": "count", "field": None, "per": "all"}))
+        assert a["number"] == {"label": "Number", "value": "2,000", "exact": "2000"}
+        _, a = ask(client, summed(setup, "samples", summary={"fn": "avg", "field": "priority", "per": "all"}))
+        pr = [r["priority"] for r in _SAMPLES]
+        assert a["number"]["exact"] == q6(Decimal(sum(pr)) / len(pr))
+
+    def test_a_summary_with_no_rows(self, client, setup):
+        _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=1000)],
+                                  summary={"fn": "avg", "field": "payload.load", "per": "all"}))
+        assert a["kind"] == "number" and a["number"]["value"] is None
+        _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=1000)],
+                                  summary={"fn": "count", "field": None, "per": "day"}))
+        assert a["total"] == 0 and a["sentence"].endswith("— no rows match")
+
+    @pytest.mark.parametrize("ds_id, patch, says", [
+        ("samples", {"summary": {"fn": "count", "field": None, "per": "day"}},
+         "Only Heartbeats have a time to group by."),
+        ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "all"},
+                        "sort": {"field": "ts", "dir": "desc"}},
+         "A summary over everything is one number, so there is nothing to sort."),
+        ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "day"},
+                        "sort": {"field": "ts", "dir": "desc"}},
+         "Per-hour and per-day summaries are always in time order."),
+        ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "all"}, "show": 25},
+         "A summary over everything is one number, so there is only one row."),
+        ("heartbeats", {"summary": {"fn": "count", "field": "payload.load", "per": "all"}},
+         "A count counts rows; it takes no field."),
+        ("heartbeats", {"summary": {"fn": "avg", "field": "status", "per": "all"}},
+         "Average of what? Pick a field that holds numbers."),
+        ("heartbeats", {"summary": {"fn": "median", "field": "payload.load", "per": "all"}},
+         "Summarize by count, total, average, smallest or largest."),
+        ("heartbeats", {"summary": {"fn": "count", "field": None, "per": "week"}},
+         "Summarize over everything, per hour or per day."),
+    ])
+    def test_what_cannot_be_combined_is_refused_in_plain_words(self, client, setup, ds_id, patch, says):
+        status, a = ask(client, summed(setup, ds_id, **patch))
+        assert status == 422 and a["message"] == says
+
+    def test_columns_are_refused_not_dropped(self, client, setup):
+        status, a = ask(client, view(setup, sort=None,
+                                     summary={"fn": "count", "field": None, "per": "all"}))
+        assert status == 422 and a["message"] == "Columns don't apply to a summary; untick them first."
+
+
+class TestTheEnginesReasonsInPlainWords:
+    """AC7: a choice the engine can't do right now is disabled with a plain
+    reason taken from /api/operations — every reason it can give for the
+    three controls this page greys, on every source and every shape."""
+
+    def _picks(self):
+        for source in legality.SOURCES:
+            base = dict(legality.default_pick(), source=source)
+            yield dict(base)
+            yield dict(base, aggregate={"fn": "count", "field": None})
+            yield dict(base, aggregate={"fn": "avg", "field": "x"})
+            yield dict(base, aggregate={"fn": "count", "field": None}, bucket="hour")
+            yield dict(base, aggregate={"fn": "sum", "field": "x"}, bucket="day")
+
+    def test_every_reason_has_its_own_plain_words(self):
+        seen = set()
+        for pick in self._picks():
+            for o in operations.contract(pick)["operations"]:
+                if o["n"] in (4, 5, 7) and not o["enabled"]:
+                    plain = dashboard.plain_reason(o["why"])
+                    assert plain != dashboard._PLAIN_REASON_DEFAULT, o["why"]
+                    assert not _MACHINERY.search(plain), plain
+                    seen.add(plain)
+        assert len(seen) == 4
+
+    def test_the_setup_carries_the_contracts_verdicts(self, setup):
+        u = setup["unavailable"]
+        assert u["heartbeats"]["rows"] == {}
+        assert u["heartbeats"]["per"] == {"sort": "Per-hour and per-day summaries are always in time order."}
+        assert u["samples"]["rows"] == {"per": "Only Heartbeats have a time to group by."}
+        assert set(u["edge"]["number"]) == {"sort", "show", "per"}
+
+    def test_every_answer_says_what_is_off(self, client, setup):
+        _, a = ask(client, view(setup, "samples"))
+        assert a["unavailable"] == {"per": "Only Heartbeats have a time to group by."}
+        _, a = ask(client, summed(setup, summary={"fn": "count", "field": None, "per": "all"}))
+        assert set(a["unavailable"]) == {"sort", "show"}
+
+    @pytest.mark.parametrize("summary", [
+        {"fn": "avg", "field": "payload.load", "per": "day"},
+        {"fn": "count", "field": None, "per": "hour"},
+        {"fn": "max", "field": "payload.load", "per": "all"},
+    ])
+    def test_summary_answers_carry_no_machinery_words(self, client, setup, summary):
+        _, a = ask(client, summed(setup, summary=summary))
+        bad = [x for x in _everyone_strings(a) if _MACHINERY.search(x)]
+        assert bad == []
+
+
+class TestTheEnginesOwnRefusalIsSaidPlainly:
+    """The S2 check's MEDIUM: ``==`` / ``!=`` on a number past the largest
+    double raises the runtime's named refusal (SQLSTATE XPR01) mid-statement.
+    The engine is not changed; the dashboard answers it in plain words
+    rather than failing as though the demo were down."""
+
+    @pytest.mark.parametrize("c", [
+        cond("huge", "eq", value=0), cond("g", "eq", value=1), cond("g", "ne", value=1),
+    ])
+    def test_refused_in_plain_words(self, client, setup, c):
+        status, a = ask(client, view(setup, "edge", columns=["a"], conditions=[c]))
+        assert status == 200 and a["kind"] == "refused"
+        assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
+        assert a["admin"]["refusal"]["why"].startswith("XPR01: ")
+        assert a["sentence"].startswith("Edge cases where ")
+
+    def test_only_that_refusal_is_caught(self, monkeypatch, setup):
+        """Any other database error still propagates: a pick must never
+        produce an answer by swallowing something."""
+        class Other(Exception):
+            sqlstate = "22003"
+
+        def boom(*a, **k):
+            raise Other("something else")
+
+        monkeypatch.setattr(server_app, "run_pick", boom)
+        pick = dashboard.to_pick(setup, view(setup, "edge", columns=["a"],
+                                             conditions=[cond("z", "eq", value=12345)]))
+        with pytest.raises(Other):
+            dashboard._run(None, pick)
+
+
+class TestSentenceWording:
+    def test_values_with_spaces_or_nothing_are_quoted(self, client, setup):
+        _, a = ask(client, view(setup, "edge", columns=["s"],
+                                conditions=[cond("t", "ne", value="not a number")]))
+        assert "T is not “not a number”" in a["sentence"]
+        _, a = ask(client, view(setup, "edge", columns=["s"],
+                                conditions=[cond("txt", "eq", value="")]))
+        assert "Txt is “”" in a["sentence"] and a["total"] == 1
+        _, a = ask(client, view(setup, conditions=[cond("status", "eq", value="warn")]))
+        assert "Status is warn" in a["sentence"]

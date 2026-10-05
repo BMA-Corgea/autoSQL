@@ -46,7 +46,7 @@ export function DatasetStep({ datasets, value, onPick }) {
   );
 }
 
-export function ColumnsStep({ fields, value, onChange }) {
+export function ColumnsStep({ fields, value, onChange, why }) {
   const on = new Set(value);
   const toggle = (path) => {
     // Keep the data set's own field order, whatever order they were clicked in.
@@ -54,7 +54,8 @@ export function ColumnsStep({ fields, value, onChange }) {
     onChange(next);
   };
   return (
-    <Step n={2} title="Columns">
+    <Step n={2} title="Columns" hint={why || null}>
+      <fieldset className="dx-fieldset" disabled={!!why}>
       <div className="dx-quick">
         <button type="button" className="dx-link" onClick={() => onChange(fields.map((f) => f.path))}>All</button>
         <button type="button" className="dx-link" onClick={() => onChange([])}>None</button>
@@ -72,6 +73,7 @@ export function ColumnsStep({ fields, value, onChange }) {
           </label>
         ))}
       </div>
+      </fieldset>
     </Step>
   );
 }
@@ -270,6 +272,13 @@ function ConditionRow({ fields, c, opWords, onChange, onRemove, index }) {
   );
 }
 
+// The fields that take no condition, grouped by their own reason.
+function groupedWhy(fields) {
+  const by = new Map();
+  for (const f of fields) by.set(f.why_no_ops, [...(by.get(f.why_no_ops) || []), f.label]);
+  return [...by.entries()];
+}
+
 export function ConditionsStep({ fields, value, opWords, onChange }) {
   const matchable = fields.filter((f) => f.ops.length);
   const unmatchable = fields.filter((f) => !f.ops.length);
@@ -293,11 +302,11 @@ export function ConditionsStep({ fields, value, opWords, onChange }) {
           + Add a condition
         </button>
       ) : null}
-      {unmatchable.length ? (
-        <p className="dx-step-hint dx-why">
-          {unmatchable.length === 1 ? unmatchable[0].label : `${unmatchable.length} fields`} can't be matched: {unmatchable[0].why_no_ops.charAt(0).toLowerCase() + unmatchable[0].why_no_ops.slice(1)}
+      {groupedWhy(unmatchable).map(([why, names]) => (
+        <p key={why} className="dx-step-hint dx-why">
+          {names.length > 3 ? `${names.length} fields (${names[0]} … ${names[names.length - 1]})` : names.join(", ")} can't be matched: {why.charAt(0).toLowerCase() + why.slice(1)}
         </p>
-      ) : null}
+      ))}
     </Step>
   );
 }
@@ -306,11 +315,11 @@ export function ConditionsStep({ fields, value, opWords, onChange }) {
 
 const FIRST_DIR = { time: "desc", date: "desc", number: "desc", text: "asc", yesno: "desc" };
 
-export function Segmented({ options, value, onChange, label, disabled }) {
+export function Segmented({ options, value, onChange, label, disabled, disabledValues = [], grid }) {
   return (
-    <div className="dx-seg" role="radiogroup" aria-label={label}>
+    <div className={"dx-seg" + (grid ? " is-grid" : "")} role="radiogroup" aria-label={label}>
       {options.map(([v, text]) => (
-        <button key={String(v)} type="button" role="radio" aria-checked={v === value} disabled={disabled}
+        <button key={String(v)} type="button" role="radio" aria-checked={v === value} disabled={disabled || disabledValues.includes(v)}
           className={"dx-seg-btn" + (v === value ? " is-on" : "")} data-choice={String(v)} onClick={() => onChange(v)}>
           {text}
         </button>
@@ -319,14 +328,14 @@ export function Segmented({ options, value, onChange, label, disabled }) {
   );
 }
 
-export function SortShowStep({ fields, sort, show, showChoices, sortWords, onChange }) {
+export function SortShowStep({ fields, sort, show, showChoices, sortWords, onChange, off = {} }) {
   const sortable = fields.filter((f) => sortWords[f.kind]);
   const field = sort ? fields.find((f) => f.path === sort.field) : null;
   return (
     <Step n={4} title="Sort and show">
       <div className="dx-row">
         <label className="dx-label" htmlFor="dx-sort-field">Sort by</label>
-        <select id="dx-sort-field" className="dx-select" value={sort ? sort.field : ""}
+        <select id="dx-sort-field" className="dx-select" value={sort ? sort.field : ""} disabled={!!off.sort}
           onChange={(e) => {
             const f = fields.find((x) => x.path === e.target.value);
             onChange({ sort: f ? { field: f.path, dir: FIRST_DIR[f.kind] } : null });
@@ -341,8 +350,10 @@ export function SortShowStep({ fields, sort, show, showChoices, sortWords, onCha
           value={sort.dir}
           options={[["desc", sortWords[field.kind].desc], ["asc", sortWords[field.kind].asc]].sort((a, b) => (a[0] === FIRST_DIR[field.kind] ? -1 : b[0] === FIRST_DIR[field.kind] ? 1 : 0))}
           onChange={(dir) => onChange({ sort: { ...sort, dir } })}
+          disabled={!!off.sort}
         />
       ) : null}
+      {off.sort ? <p className="dx-step-hint dx-why">{off.sort}</p> : null}
       <div className="dx-row dx-row-gap">
         <span className="dx-label">Show rows</span>
         <Segmented
@@ -350,8 +361,66 @@ export function SortShowStep({ fields, sort, show, showChoices, sortWords, onCha
           value={show}
           options={showChoices.map((n) => [n, n === null ? "All" : String(n)])}
           onChange={(n) => onChange({ show: n })}
+          disabled={!!off.show}
         />
       </div>
+      {off.show ? <p className="dx-step-hint dx-why">{off.show}</p> : null}
+    </Step>
+  );
+}
+
+// ── 5 · Summarize ───────────────────────────────────────────────────────
+
+// Which kind of answer a view asks for: rows, one number, or one number per
+// hour or day. The setup's `unavailable` table is keyed by it.
+export function answerShape(view) {
+  if (!view.summary) return "rows";
+  return view.summary.per === "all" ? "number" : "per";
+}
+
+export function SummaryStep({ fields, summary, fns, off, onChange }) {
+  const numeric = fields.filter((f) => f.kind === "number");
+  const fn = summary ? summary.fn : null;
+  const set = (patch) => onChange({ summary: { ...summary, ...patch } });
+  const pick = (next) => {
+    if (next === null) return onChange({ summary: null });
+    const base = summary || { per: "all" };
+    const field = next === "count" ? null : (base.field || (numeric[0] && numeric[0].path) || null);
+    onChange({ summary: { fn: next, field, per: base.per || "all" } });
+  };
+  const perWhy = off.per; // the same for every shape on a data set without times
+  return (
+    <Step n={5} title="Summarize">
+      <Segmented
+        grid
+        label="Summarize"
+        value={fn}
+        options={[[null, "Off"], ...Object.entries(fns).map(([k, v]) => [k, k === "count" ? "Count" : v])]}
+        onChange={pick}
+      />
+      {fn && fn !== "count" ? (
+        <div className="dx-row dx-row-gap">
+          <label className="dx-label" htmlFor="dx-summary-field">Of</label>
+          <select id="dx-summary-field" className="dx-select" value={summary.field || ""}
+            onChange={(e) => set({ field: e.target.value })}>
+            {numeric.map((f) => <option key={f.path} value={f.path}>{f.label}</option>)}
+          </select>
+        </div>
+      ) : null}
+      {fn ? (
+        <div className="dx-stack">
+          <span className="dx-label">Over</span>
+          <Segmented
+            grid
+            label="Over"
+            value={summary.per}
+            options={[["all", "Everything"], ["hour", "Per hour"], ["day", "Per day"]]}
+            onChange={(per) => (per !== "all" && perWhy ? null : set({ per }))}
+            disabledValues={perWhy ? ["hour", "day"] : []}
+          />
+        </div>
+      ) : null}
+      {fn && perWhy ? <p className="dx-step-hint dx-why">{perWhy}</p> : null}
     </Step>
   );
 }

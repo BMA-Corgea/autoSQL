@@ -175,6 +175,12 @@ body.dx-body * { box-sizing: border-box; }
 .dx-seg-btn.is-on { background: var(--blue); color: var(--bg); }
 .dx-seg-btn:disabled { opacity: 0.45; cursor: default; }
 .dx-row + .dx-seg { margin-left: 80px; }
+.dx-seg.is-grid { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
+.dx-seg.is-grid .dx-seg-btn { border-bottom: 1px solid var(--border2); }
+.dx-seg.is-grid .dx-seg-btn:nth-child(3n) { border-right: 0; }
+.dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1),
+.dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1) ~ .dx-seg-btn { border-bottom: 0; }
+.dx-stack { display: grid; gap: 6px; margin-top: 12px; }
 
 /* buttons */
 .dx-btn {
@@ -207,6 +213,7 @@ body.dx-body * { box-sizing: border-box; }
 }
 .dx-td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .dx-cell { display: block; max-width: 28em; overflow-wrap: anywhere; }
+.dx-td.is-num .dx-cell { margin-left: auto; }
 .dx-table tbody tr:last-child .dx-td { border-bottom: 0; }
 .dx-table tbody tr:hover { background: var(--surface); }
 .dx-table .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -228,6 +235,32 @@ body.dx-body * { box-sizing: border-box; }
   margin: 0; padding: 12px 14px; border-radius: var(--radius-sm);
   background: var(--amber-light); border: 1px solid var(--amber); color: var(--text);
 }
+
+/* summaries: one number, or bars plus their table */
+.dx-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.dx-fieldset:disabled { opacity: 0.5; }
+.dx-hero {
+  padding: 28px 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
+}
+.dx-hero-label { margin: 0 0 4px; font-size: 13px; color: var(--text-mid); }
+.dx-hero-value { margin: 0; font-size: 56px; font-weight: 650; line-height: 1.1; letter-spacing: -0.02em; }
+.dx-hero-none { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-soft); }
+
+.dx-chart {
+  margin: 0 0 16px; padding: 12px 12px 4px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--card);
+}
+.dx-chart-read { display: flex; gap: 10px; align-items: baseline; min-height: 22px; margin: 0 0 6px 4px; font-size: 13px; }
+.dx-chart-read-label { color: var(--text-mid); }
+.dx-chart-read-value { font-weight: 650; font-size: 15px; color: var(--text); }
+.dx-chart-box { overflow-x: auto; max-width: 100%; }
+.dx-chart svg { display: block; }
+.dx-bar { fill: var(--blue); }
+.dx-bar.is-hover { fill: var(--blue-deep); }
+.dx-hit { fill: transparent; cursor: default; }
+.dx-grid { stroke: var(--border); stroke-width: 1; }
+.dx-axis { stroke: var(--border2); stroke-width: 1; }
+.dx-tick { fill: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 /* ── phone ─────────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
@@ -253,4 +286,5 @@ body.dx-body * { box-sizing: border-box; }
   .dx-table-box { max-height: 70vh; }
   .dx-row + .dx-seg { margin-left: 0; }
   .dx-select, .dx-input { font-size: 16px; }  /* no zoom-on-focus on a phone */
+  .dx-hero-value { font-size: 48px; }
 }

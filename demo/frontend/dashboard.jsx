@@ -15,7 +15,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, isComplete } from "./dashboard-steps.jsx";
+import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete } from "./dashboard-steps.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -31,15 +31,31 @@ function viewFor(setup, datasetId) {
   return JSON.parse(JSON.stringify(setup.default_views[datasetId]));
 }
 
+// The choices that are off for this view, and why — the contract's own
+// verdicts, carried in the setup (setup.unavailable, from /api/operations).
+function offFor(setup, view) {
+  return setup.unavailable[view.dataset][answerShape(view)] || {};
+}
+
 // What is sent: the view without the conditions still waiting for a value,
-// and without the screen's own row handles.
+// without the screen's own row handles, and without the choices that are
+// greyed out right now. A greyed choice is kept on screen (it comes back
+// when the summary is turned off), shown as off with its reason, and not
+// asked about.
 function sendable(setup, view) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const conditions = view.conditions
     .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
     .map(({ _k, ...c }) => c); // eslint-disable-line no-unused-vars
-  return { ...view, conditions };
+  const off = offFor(setup, view);
+  const out = { ...view, conditions };
+  if (view.summary) out.columns = [];
+  if (off.sort) out.sort = null;
+  if (off.show) out.show = null;
+  return out;
 }
+
+const COLUMNS_OFF = "Columns don't apply to a summary.";
 
 // ── the answer ───────────────────────────────────────────────────────────
 
@@ -85,6 +101,103 @@ function Table({ answer, onPage, updating }) {
   );
 }
 
+// ── a single number, and a number per hour or day ───────────────────────
+
+function Hero({ number }) {
+  return (
+    <div className="dx-hero">
+      <p className="dx-hero-label">{number.label}</p>
+      {number.value === null ? (
+        <p className="dx-hero-none">No rows match</p>
+      ) : (
+        <p className="dx-hero-value" title={number.exact !== number.value ? `exactly ${number.exact}` : undefined}>{number.value}</p>
+      )}
+    </div>
+  );
+}
+
+function niceMax(v) {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= v) return m * p;
+  return 10 * p;
+}
+
+function useWidth() {
+  const ref = useRef(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (!ref.current) return undefined;
+    const ro = new ResizeObserver((es) => setW(Math.floor(es[0].contentRect.width)));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
+
+function BarChart({ answer }) {
+  const { bars, unit } = answer;
+  const [box, width] = useWidth();
+  const [hover, setHover] = useState(null);
+  const n = bars.length;
+  const left = 48, right = 8, top = 10, plotH = 200, bottom = 26;
+  const slot = Math.max(unit === "hour" ? 6 : 24, ((width || 600) - left - right) / Math.max(n, 1));
+  const bw = Math.max(2, Math.min(24, slot - 2));
+  const W = Math.ceil(left + n * slot + right);
+  const H = top + plotH + bottom;
+  const values = bars.map((b) => (b.value === null ? 0 : b.value));
+  const max = niceMax(Math.max(0, ...values));
+  const y = (v) => top + plotH - (v / max) * plotH;
+  const ticks = [0, max / 2, max];
+  const fmt = (v) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  let top1 = 0;
+  values.forEach((v, i) => { if (v > values[top1]) top1 = i; });
+  const read = hover !== null ? bars[hover] : bars[top1];
+  return (
+    <figure className="dx-chart">
+      <figcaption className="dx-chart-read" aria-live="polite">
+        {read ? (
+          <>
+            <span className="dx-chart-read-label">{hover !== null ? read.label : `Highest: ${read.label}`}</span>
+            <span className="dx-chart-read-value">{read.text === null ? "—" : read.text}</span>
+          </>
+        ) : null}
+      </figcaption>
+      <div className="dx-chart-box" ref={box}>
+        <svg width={W} height={H} role="img" aria-label={`${answer.measure}, per ${unit}. The table below lists every value.`}>
+          {ticks.map((t) => (
+            <g key={t}>
+              <line x1={left} x2={W - right} y1={y(t)} y2={y(t)} className="dx-grid" />
+              <text x={left - 6} y={y(t)} className="dx-tick" textAnchor="end" dominantBaseline="middle">{fmt(t)}</text>
+            </g>
+          ))}
+          {bars.map((b, i) => {
+            const x = left + i * slot + (slot - bw) / 2;
+            const v = b.value === null ? 0 : b.value;
+            const h = (v / max) * plotH;
+            const base = top + plotH;
+            const r = Math.min(4, h, bw / 2);
+            const d = h <= 0 ? null
+              : `M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + bw - r} Q${x + bw},${base - h} ${x + bw},${base - h + r} V${base} Z`;
+            const label = unit === "day" ? b.label : (b.start.slice(11, 13) === "00" ? b.label.split(",")[0] : null);
+            return (
+              <g key={b.start} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
+                <rect x={left + i * slot} y={top} width={slot} height={plotH} className="dx-hit" />
+                {d ? <path d={d} className={"dx-bar" + (hover === i ? " is-hover" : "")} /> : null}
+                {label ? (
+                  <text x={unit === "day" ? x + bw / 2 : x} y={base + 16} className="dx-tick" textAnchor={unit === "day" ? "middle" : "start"}>{label}</text>
+                ) : null}
+                <title>{`${b.label}: ${b.text === null ? "no value" : b.text}`}</title>
+              </g>
+            );
+          })}
+          <line x1={left} x2={W - right} y1={top + plotH} y2={top + plotH} className="dx-axis" />
+        </svg>
+      </div>
+    </figure>
+  );
+}
+
 function Answer({ answer, updating, failed, onPage }) {
   if (failed) {
     return (
@@ -106,11 +219,18 @@ function Answer({ answer, updating, failed, onPage }) {
         <p className="dx-problem" role="alert">{answer.message}</p>
       ) : answer.kind === "invalid" ? (
         <p className="dx-problem" role="alert">{answer.message}</p>
+      ) : answer.kind === "number" ? (
+        <Hero number={answer.number} />
       ) : answer.total === 0 ? (
         <div className="dx-nothing">
           <p className="dx-nothing-title">No rows match</p>
           <p className="dx-nothing-hint">Try removing a condition.</p>
         </div>
+      ) : answer.kind === "chart" ? (
+        <>
+          <BarChart answer={answer} />
+          <Table answer={answer} onPage={onPage} updating={updating} />
+        </>
       ) : (
         <Table answer={answer} onPage={onPage} updating={updating} />
       )}
@@ -123,14 +243,20 @@ function Answer({ answer, updating, failed, onPage }) {
 function summaryLine(setup, view) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const parts = [ds.name];
-  const n = view.conditions.length;
+  // Only the conditions in use: one still waiting for its value is not asked.
+  const n = view.conditions.filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field))).length;
   if (n) parts.push(n === 1 ? "1 condition" : `${n} conditions`);
-  if (view.sort) {
+  if (view.sort && !offFor(setup, view).sort) {
     const f = ds.fields.find((x) => x.path === view.sort.field);
     const words = setup.sort_words[f.kind][view.sort.dir];
     parts.push(f.path === "ts" ? words : `${f.label}, ${words}`);
   }
-  if (view.show) parts.push(`first ${view.show}`);
+  if (view.summary) {
+    const sm = view.summary;
+    const f = sm.field ? ds.fields.find((x) => x.path === sm.field) : null;
+    parts.push(`${setup.summary_fns[sm.fn]}${f ? " " + f.label : ""}${sm.per === "all" ? "" : " per " + sm.per}`);
+  }
+  if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
   return parts.join(" · ");
 }
 
@@ -256,6 +382,7 @@ function App() {
             fields={ds.fields}
             value={view.columns}
             onChange={(columns) => change({ columns })}
+            why={view.summary ? COLUMNS_OFF : null}
           />
           <ConditionsStep
             fields={ds.fields}
@@ -269,6 +396,14 @@ function App() {
             show={view.show}
             showChoices={setup.show}
             sortWords={setup.sort_words}
+            onChange={change}
+            off={offFor(setup, view)}
+          />
+          <SummaryStep
+            fields={ds.fields}
+            summary={view.summary}
+            fns={setup.summary_fns}
+            off={offFor(setup, view)}
             onChange={change}
           />
         </aside>
