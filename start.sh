@@ -34,6 +34,10 @@ step() { printf '%s→%s %s\n' "$AQUA" "$OFF" "$*"; }
 warn() { printf '%s!%s %s\n' "$WARN" "$OFF" "$*"; }
 die()  { printf '%s✗%s %s\n' "$RED" "$OFF" "$*" >&2; exit 1; }
 
+#: The page it opens: the dashboard (T-71). The engineer's two-pane screen
+#: is still at / and is linked from the dashboard's Admin view.
+PAGE="http://127.0.0.1:${APP_PORT}/dashboard"
+
 is_up() { curl -fsS -m 3 -o /dev/null "http://127.0.0.1:${APP_PORT}/api/operations" 2>/dev/null; }
 
 open_page() {
@@ -74,7 +78,7 @@ case "${1:-up}" in
     ;;
   status)
     if is_up; then
-      say "${B}running${OFF} — http://127.0.0.1:${APP_PORT}/"
+      say "${B}running${OFF} — ${PAGE}"
     else
       say "${B}not running${OFF} — start it with ./start.sh"
     fi
@@ -97,8 +101,8 @@ command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH. The demo need
 
 if is_up; then
   say ""
-  say "${B}Already running.${OFF} http://127.0.0.1:${APP_PORT}/"
-  open_page "http://127.0.0.1:${APP_PORT}/" ||
+  say "${B}Already running.${OFF} ${PAGE}"
+  open_page "${PAGE}" ||
     say "${DIM}(couldn't open a browser — open the URL above yourself, or ${LAUNCHER})${OFF}"
   exit 0
 fi
@@ -138,13 +142,13 @@ if [ "${ok:-0}" != "1" ]; then
 fi
 
 say ""
-say "  ${B}Ready.${OFF}  ${AQUA}http://127.0.0.1:${APP_PORT}/${OFF}"
+say "  ${B}Ready.${OFF}  ${AQUA}${PAGE}${OFF}"
 say ""
-say "  ${DIM}Seven states across the top. Start at 'Reconciled' — it is the value"
-say "  that used to come back wrong, now reading the same on both engines.${OFF}"
+say "  ${DIM}Pick a data set, the columns and the rows you want; the answer follows."
+say "  The engineer's two-pane screen is still at http://127.0.0.1:${APP_PORT}/${OFF}"
 say ""
 say "  ${DIM}Stop it with ./start.sh stop. Every row in it is invented.${OFF}"
 say ""
 
-open_page "http://127.0.0.1:${APP_PORT}/" ||
+open_page "${PAGE}" ||
   say "  ${DIM}(couldn't open a browser — open the URL above yourself, or ${LAUNCHER})${OFF}"

@@ -1,0 +1,1456 @@
+"""demo/server/dashboard.py — the dashboard's contract (T-71).
+
+The dashboard at ``/dashboard`` is autoSQL in one screen: a dashboard from
+which a person asks for different parts of a database, and the SQL writes
+itself from the picks (README: "The dashboard: SQL analysis, kept out of
+sight").  A person clicks; nothing is typed in any language.  This module is everything between those clicks and the engine:
+
+* **the setup** — the three data sets, their row counts, and each field's
+  plain name, its kind, the conditions it can take and the values found in
+  the data (``GET /api/dashboard/setup``);
+* **the translation** — a *view* (the clicks) becomes one *pick* (the
+  engine's own shape, ``legality.default_pick``).  Every picked value enters
+  the filter as a correctly escaped literal of the expression language, which
+  the pinned compiler then binds as a parameter (AC-11);
+* **the answer** — the pick runs through ``app.run_pick``, the same function
+  the two-pane screen calls, so the second engine, the probes and every
+  refusal stay in one place.  What comes back is reshaped for a person: one
+  sentence, formatted cells, a page of rows, plain reasons
+  (``POST /api/dashboard/answer``).
+
+The React side (``demo/frontend/dashboard*.jsx``) draws what this returns
+and decides nothing.  That split is B22's, applied to a second screen: the
+rules live where the suite can test them without a browser (AC-36).
+
+WHAT THE EVERYONE VIEW NEVER SAYS (AC9).  The words a person sees come from
+this file's templates, and none of them is a machinery word.  The statement
+and the engine's own words travel in ``admin`` and are drawn only when the
+page is switched to *View as: Admin*.
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import math
+import re
+import sys
+import threading
+from collections import OrderedDict
+from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse, JSONResponse
+
+# demo/ is not a package; the same bootstrap as errors.py.
+_DEMO_DIR = str(Path(__file__).resolve().parent.parent)
+if _DEMO_DIR not in sys.path:
+    sys.path.insert(0, _DEMO_DIR)
+
+import legality  # noqa: E402
+
+from . import db, settings  # noqa: E402
+
+router = APIRouter()
+
+_STATIC = Path(__file__).resolve().parent.parent / "static"
+
+#: Rows per table page.  The engine's own page size, so the two screens
+#: agree on what "a page" is.
+PAGE_SIZE = settings.PAGE_SIZE
+
+#: The "Show" choices.  ``None`` is "all rows" (no cap).
+SHOW_CHOICES = (None, 25, 100, 500)
+
+#: A text field with this many distinct values or fewer is offered as chips;
+#: more than that, as a searchable list.
+CHIP_LIMIT = 8
+
+#: The most values a text field offers.  The largest field in the seed
+#: (Samples' ID) has exactly 2,000.
+VALUE_LIMIT = 2000
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 1 · The data sets and their fields, in plain words
+# ═════════════════════════════════════════════════════════════════════════
+
+DATASETS = (
+    {
+        "id": "heartbeats",
+        "source": legality.HEARTBEAT,
+        "name": "Heartbeats",
+        "one": "heartbeat",
+        "about": "Hourly check-ins from 50 senders over one week in August.",
+        # Display order, and the columns a fresh view starts with.
+        "order": ("sender_id", "ts", "status", "payload.load", "payload.note"),
+        "default_columns": ("sender_id", "ts", "status", "payload.load",
+                            "payload.note"),
+    },
+    {
+        "id": "samples",
+        "source": "noun:Sample",
+        "name": "Samples",
+        "one": "sample",
+        "about": "Work items, each with a status, a due date and a priority.",
+        "order": ("id", "status", "due_date", "priority"),
+        "default_columns": ("id", "status", "due_date", "priority"),
+    },
+    {
+        "id": "edge",
+        "source": "noun:EdgeCase",
+        "name": "Edge cases",
+        "one": "edge case",
+        "about": "Ten odd values kept on purpose: huge numbers, empty lists, blanks.",
+        "order": ("label",),
+        # Every field but Label, whose text was written for engineers
+        # ("…SQL answers 1…", "XPR01"); a ticked box still shows it.
+        "default_columns": None,
+        "not_by_default": ("label",),
+    },
+)
+_BY_ID = {d["id"]: d for d in DATASETS}
+
+#: Plain names for the fields that have one.  Every other field is named by
+#: :func:`_humanize` (``field_7`` → "Field 7").
+_LABELS = {
+    "sender_id": "Sender",
+    "ts": "Time",
+    "status": "Status",
+    "payload.load": "Load",
+    "payload.note": "Note",
+    "id": "ID",
+    "due_date": "Due date",
+    "priority": "Priority",
+    "label": "Label",
+}
+
+_TIME_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
+_PLAIN_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def _humanize(path: str) -> str:
+    words = path.replace(".", " ").replace("_", " ").split()
+    text = " ".join(words) or path
+    return text[:1].upper() + text[1:]
+
+
+def _natural(key: str):
+    """``field_2`` before ``field_10``."""
+    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", key)]
+
+
+def _alias(label: str, taken: set) -> str:
+    """The column name a field gets in the statement: its plain label, in
+    the characters a column name may hold (``Due date`` → ``Due_date``).
+    Every label starts with a capital, and every key in the seed is lower
+    case, so an alias never collides with a field of the data set."""
+    base = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_") or "Field"
+    if not base[0].isalpha():
+        base = "F_" + base
+    base = base[:60]
+    name, n = base, 2
+    while name in taken:
+        name, n = f"{base}_{n}", n + 1
+    taken.add(name)
+    return name
+
+
+# ── reading the fields out of the data ───────────────────────────────────
+
+_TYPES_SQL = """
+SELECT e.k, jsonb_typeof(e.v) AS t, count(*)
+  FROM demo.records r, LATERAL jsonb_each(r.data) AS e(k, v)
+ WHERE r.collection = %(collection)s
+ GROUP BY 1, 2
+"""
+
+_INNER_TYPES_SQL = """
+SELECT e2.k, jsonb_typeof(e2.v) AS t, count(*)
+  FROM demo.records r, LATERAL jsonb_each(r.data -> %(key)s) AS e2(k, v)
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data -> %(key)s) = 'object'
+ GROUP BY 1, 2
+"""
+
+_VALUES_SQL = """
+SELECT r.data #>> %(path)s AS v, count(*) AS n
+  FROM demo.records r
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data #> %(path)s) = 'string'
+ GROUP BY 1
+ ORDER BY 1
+ LIMIT %(limit)s
+"""
+
+_RANGE_SQL = """
+SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
+  FROM demo.records r
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data #> %(path)s) = 'number'
+"""
+
+_COUNTS_SQL = (
+    "SELECT collection, count(*) FROM demo.records GROUP BY collection"
+)
+
+
+def _kind(types: set, strings: list) -> str:
+    """One field's kind, from the JSON types its values take.
+
+    * ``number`` — every value is a number;
+    * ``time`` / ``date`` — every value is text in the one fixed-width UTC
+      form (``2026-08-20T23:00:00Z``) or a calendar date (``2026-09-03``);
+    * ``text`` — every value is text;
+    * ``yesno`` — every value is true or false;
+    * ``mixed`` — anything else (different types in different rows).
+    """
+    if types == {"number"}:
+        return "number"
+    if types == {"string"}:
+        if strings and all(_TIME_RE.match(s) for s in strings):
+            return "time"
+        if strings and all(_DATE_RE.match(s) for s in strings):
+            return "date"
+        return "text"
+    if types == {"boolean"}:
+        return "yesno"
+    return "mixed"
+
+
+#: Why a field takes no conditions, in plain words.
+WHY_GROUPED = (
+    "Some rows hold a list or a group of values here, so it can't be "
+    "matched against one value."
+)
+WHY_ONLY_BLANK = "Every row is blank here, so there is nothing to match."
+
+
+def _ops_for(kind: str, types: set) -> list:
+    """The conditions a field can take.  A field that holds a list or a
+    group of values in any row takes none: the engine compares one value
+    with one value, and refuses to compare a group (measured: ``==`` on
+    Samples' ``field_3`` is refused at run time for exactly that)."""
+    if types & {"object", "array"}:
+        return []
+    if not (types - {"null"}):
+        return []
+    blanks = ["present", "blank"]
+    if kind == "number":
+        return ["eq", "ne", "gt", "lt", "ge", "le", "between"] + blanks
+    if kind in ("time", "date"):
+        return ["on", "after", "before", "between"] + blanks
+    if kind == "text":
+        return ["eq", "ne", "in"] + blanks
+    if kind == "yesno":
+        return ["yes", "no"] + blanks
+    return blanks
+
+
+def _read_fields(conn, collection: str) -> list:
+    """Every field of one data set: its path, its JSON types, its kind,
+    the conditions it can take and the values found in it."""
+    rows = conn.execute(_TYPES_SQL, {"collection": collection}).fetchall()
+    types: dict = {}
+    for k, t, _n in rows:
+        types.setdefault(k, set()).add(t)
+
+    paths: dict = {}
+    for key, ts in types.items():
+        if not _PLAIN_KEY.match(key):
+            continue   # a name the path grammar cannot reach (app._as_dollar_path)
+        if ts == {"object"}:
+            # A key that always holds an object (Heartbeats' payload) is
+            # opened one level: its fields are what a person reads.
+            inner = conn.execute(
+                _INNER_TYPES_SQL, {"collection": collection, "key": key}
+            ).fetchall()
+            for k2, t2, _n in inner:
+                if _PLAIN_KEY.match(k2):
+                    paths.setdefault(f"{key}.{k2}", set()).add(t2)
+        else:
+            paths[key] = set(ts)
+
+    fields = []
+    for path, ts in paths.items():
+        strings: list = []
+        if "string" in ts:
+            strings = [
+                r[0] for r in conn.execute(_VALUES_SQL, {
+                    "collection": collection, "path": path.split("."),
+                    "limit": VALUE_LIMIT + 1,
+                }).fetchall()
+            ]
+        scalar_types = ts - {"null"}
+        kind = _kind(scalar_types, strings)
+        ops = _ops_for(kind, ts)
+        field = {
+            "path": path,
+            "label": _LABELS.get(path) or _humanize(path),
+            "kind": kind,
+            "ops": ops,
+            "why_no_ops": "" if ops else (
+                WHY_GROUPED if ts & {"object", "array"} else WHY_ONLY_BLANK
+            ),
+            "values": None,
+            "picker": None,
+            "range": None,
+        }
+        if kind == "text" and len(strings) <= VALUE_LIMIT:
+            field["values"] = strings
+            field["picker"] = "chips" if len(strings) <= CHIP_LIMIT else "list"
+        if kind == "number":
+            lo, hi = conn.execute(
+                _RANGE_SQL, {"collection": collection, "path": path.split(".")}
+            ).fetchone()
+            if lo is not None:
+                field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
+        if kind in ("time", "date") and strings:
+            field["range"] = {"min": strings[0], "max": strings[-1]}
+        fields.append(field)
+    return fields
+
+
+def _ordered(fields: list, order: tuple) -> list:
+    first = {p: i for i, p in enumerate(order)}
+    return sorted(
+        fields,
+        key=lambda f: (first.get(f["path"], len(first)), _natural(f["path"])),
+    )
+
+
+_SETUP_LOCK = threading.Lock()
+_SETUP: dict | None = None
+
+
+def setup(conn) -> dict:
+    """The whole setup payload.  Read once per process: the data is the
+    pinned, read-only seed (AC-10), so it cannot change underneath."""
+    global _SETUP
+    with _SETUP_LOCK:
+        if _SETUP is not None:
+            return _SETUP
+        counts = dict(conn.execute(_COUNTS_SQL).fetchall())
+        out = []
+        for d in DATASETS:
+            fields = _ordered(_read_fields(conn, d["source"]), d["order"])
+            taken: set = set()
+            for f in fields:
+                f["alias"] = _alias(f["label"], taken)
+                # Off by default in the Everyone view (Edge cases' Label):
+                # a new condition does not open on it either.
+                f["hidden_by_default"] = f["path"] in d.get("not_by_default", ())
+            default = d["default_columns"] or tuple(
+                f["path"] for f in fields
+                if f["path"] not in d.get("not_by_default", ()))
+            out.append({
+                "id": d["id"],
+                "name": d["name"],
+                "about": d["about"],
+                "rows": int(counts.get(d["source"], 0)),
+                "fields": fields,
+                "default_columns": [p for p in default
+                                    if any(f["path"] == p for f in fields)],
+                "has_time": d["source"] == legality.HEARTBEAT,
+            })
+        _SETUP = {
+            "datasets": out,
+            "show": list(SHOW_CHOICES),
+            "page_size": PAGE_SIZE,
+            "default_view": default_view_from(out),
+            "default_views": {d["id"]: default_view_from(out, d["id"]) for d in out},
+            # Admin starts every data set with every field ticked — Edge
+            # cases' Label included, whose text is written for engineers.
+            "admin_default_views": {
+                d["id"]: dict(default_view_from(out, d["id"]),
+                              columns=[f["path"] for f in d["fields"]])
+                if d["id"] == "edge" else default_view_from(out, d["id"])
+                for d in out
+            },
+            "op_words": OP_WORDS,
+            "sort_words": SORT_WORDS,
+            "summary_fns": SUMMARY_FNS,
+            "unavailable": _reasons_table(out),
+        }
+        return _SETUP
+
+
+def default_view_from(datasets: list, dataset_id: str = "heartbeats") -> dict:
+    """A fresh question on one data set.  Heartbeats open newest first: the
+    latest beats are what a person looks at a heartbeat log for."""
+    ds = next(d for d in datasets if d["id"] == dataset_id)
+    return {
+        "dataset": ds["id"],
+        "columns": list(ds["default_columns"]),
+        "conditions": [],
+        "sort": {"field": "ts", "dir": "desc"} if ds["has_time"] else None,
+        "show": None,
+        "summary": None,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 2 · The view → the pick
+# ═════════════════════════════════════════════════════════════════════════
+
+class ViewError(ValueError):
+    """A view this contract cannot translate — said in plain words."""
+
+
+#: Every part of a view this contract honours, and the parts of each
+#: condition and sort.  Anything else is REFUSED by name, never ignored: a
+#: choice the page shows but the answer drops would be a pick silently
+#: ignored, which is the one thing this page must never do.
+VIEW_KEYS = {"dataset", "columns", "conditions", "sort", "show", "summary"}
+CONDITION_KEYS = {"field", "op", "value", "value2", "values"}
+SORT_KEYS = {"field", "dir"}
+
+#: Which value slots each condition reads.  A slot it doesn't read must be
+#: empty — "", [] or null — or the condition is refused.
+_SLOTS = {
+    "in": {"values"}, "between": {"value", "value2"},
+    "present": set(), "blank": set(), "yes": set(), "no": set(),
+}
+
+
+def _empty(v) -> bool:
+    return v is None or v == "" or v == []
+
+
+def _refuse_extra(given: dict, allowed: set, what: str) -> None:
+    extra = sorted(set(given) - allowed)
+    if extra:
+        raise ViewError(f"This page can't use {extra[0]!r} in {what} yet.")
+
+
+def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
+    if not isinstance(view, dict):
+        raise ViewError("The question must be a set of choices.")
+    _refuse_extra(view, VIEW_KEYS, "a question")
+
+    ds_id = view.get("dataset")
+    ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
+    if ds is None:
+        raise ViewError("Pick one of the three data sets.")
+    fields = {f["path"]: f for f in ds["fields"]}
+    return ds, fields
+
+
+def _columns(view: dict, fields: dict) -> list:
+    cols = view.get("columns")
+    if cols is None:
+        return []
+    if not isinstance(cols, list) or not all(isinstance(c, str) for c in cols):
+        raise ViewError("Columns must be a list of field names.")
+    unknown = [c for c in cols if c not in fields]
+    if unknown:
+        raise ViewError(f"This data set has no field called {unknown[0]!r}.")
+    seen: list = []
+    for c in cols:
+        if c not in seen:
+            seen.append(c)
+    return seen
+
+
+def _show(view: dict):
+    show = view.get("show")
+    if show not in SHOW_CHOICES or isinstance(show, bool):
+        raise ViewError("Show must be all rows, 25, 100 or 500.")
+    return show
+
+
+def to_pick(setup_payload: dict, view: dict) -> dict:
+    """One view → one pick, in the engine's own shape.
+
+    The chosen columns become computed columns named by their plain labels
+    (``$.sender_id AS "Sender"``), so the statement visibly changes with the
+    pick (AC3).  The source is chosen from a closed set of three.
+    """
+    ds, fields = _dataset(setup_payload, view)
+    pick = legality.default_pick()
+    pick["source"] = next(d["source"] for d in DATASETS if d["id"] == ds["id"])
+    pick["computed"] = [
+        {"name": fields[c]["alias"], "expr": field_ref(c)}
+        for c in _columns(view, fields)
+    ]
+    flt = filter_expression(view, fields)
+    if flt:
+        pick["filter"] = flt
+    sort = _sort(view, fields)
+    if sort:
+        pick["sort"] = sort
+    pick["cap"] = _show(view)
+
+    summary = _summary(view, fields, ds)
+    if summary:
+        if pick["computed"]:
+            raise ViewError("Columns don't apply to a summary; untick them first.")
+        pick["aggregate"] = {
+            "fn": summary["fn"],
+            "field": summary["field"],
+        }
+        pick["bucket"] = "off" if summary["per"] == "all" else summary["per"]
+
+    # The engine's own rules decide what may be combined (legality.py, the
+    # same function /api/operations greys its controls from).  A choice it
+    # refuses is refused here in plain words, never quietly dropped.
+    for v in legality.evaluate(pick)["violations"]:
+        raise ViewError(plain_reason(v["why"]))
+    return pick
+
+
+#: A summary's functions, as the page names them and as the sentence does.
+SUMMARY_FNS = {
+    "count": "Number", "sum": "Total", "avg": "Average",
+    "min": "Smallest", "max": "Largest",
+}
+SUMMARY_KEYS = {"fn", "field", "per"}
+PERS = ("all", "hour", "day")
+
+
+def _summary(view: dict, fields: dict, ds: dict):
+    """The summary a view asks for, checked: None when it asks for none."""
+    summary = view.get("summary")
+    if summary is None:
+        return None
+    if not isinstance(summary, dict):
+        raise ViewError("A summary must be a set of choices.")
+    _refuse_extra(summary, SUMMARY_KEYS, "a summary")
+    fn = summary.get("fn")
+    if fn not in SUMMARY_FNS:
+        raise ViewError("Summarize by count, total, average, smallest or largest.")
+    per = summary.get("per", "all")
+    if per not in PERS:
+        raise ViewError("Summarize over everything, per hour or per day.")
+    path = summary.get("field")
+    if fn == "count":
+        if not _empty(path):
+            raise ViewError("A count counts rows; it takes no field.")
+        return {"fn": fn, "field": None, "per": per}
+    if path not in fields or fields[path]["kind"] != "number":
+        raise ViewError(f"{SUMMARY_FNS[fn]} of what? Pick a field that holds numbers.")
+    return {"fn": fn, "field": path, "per": per}
+
+
+# ── the engine's reasons, in plain words ───────────────────────────────
+
+_WHY_ONLY_HEARTBEATS = "Only Heartbeats have a time to group by."
+
+#: legality.py's reasons (the text /api/operations greys a control with),
+#: each said the way this page says things.  Matched on the engine's exact
+#: words, so a reason that changes there fails test_dashboard.py by name
+#: instead of reaching a person.
+_PLAIN_REASONS = {
+    legality._WHY_SCALAR_SORT: "A summary over everything is one number, so there is nothing to sort.",
+    legality._WHY_SCALAR_CAP: "A summary over everything is one number, so there is only one row.",
+    legality._WHY_SCALAR_WINDOW: "A summary over everything is one number.",
+    legality._WHY_SCALAR_CHANGED: "A summary over everything is one number.",
+    legality._WHY_BUCKET_SORT: "Per-hour and per-day summaries are always in time order.",
+    legality._WHY_BUCKET_WINDOW: "Per-hour and per-day summaries are grouped already.",
+    legality._WHY_BUCKET_CHANGED: "Per-hour and per-day summaries are grouped already.",
+    legality.WHY_BUCKET_NEEDS_AGG: "Per hour and per day need something to count or total.",
+    legality.WHY_COUNT_TAKES_NO_FIELD: "A count counts rows; it takes no field.",
+    legality.WHY_NO_FN_NO_FIELD: "Pick what to summarize first.",
+}
+_PLAIN_REASON_DEFAULT = "Not available with these choices."
+
+
+def plain_reason(why: str) -> str:
+    """One of the engine's reasons → the page's words."""
+    if why in _PLAIN_REASONS:
+        return _PLAIN_REASONS[why]
+    if why.startswith("unavailable on this source (operation 1)"):
+        return _WHY_ONLY_HEARTBEATS
+    return _PLAIN_REASON_DEFAULT
+
+
+def unavailable(pick: dict) -> dict:
+    """Which of the page's choices the engine can't do for this pick, and
+    why, in plain words — read from the same contract /api/operations
+    serves (operations.contract), never re-derived here."""
+    from . import operations
+
+    ops = {o["n"]: o for o in operations.contract(pick)["operations"]}
+    out = {}
+    for name, n in (("sort", 4), ("show", 5), ("per", 7)):
+        if not ops[n]["enabled"]:
+            out[name] = plain_reason(ops[n]["why"])
+    return out
+
+
+def _reasons_table(datasets: list) -> dict:
+    """For each data set and each kind of answer (rows / one number / per
+    hour or day), the choices that are off and why — what the page greys
+    before it asks.  Each entry is the contract's own verdict."""
+    out = {}
+    for d in datasets:
+        source = next(x["source"] for x in DATASETS if x["id"] == d["id"])
+        base = legality.default_pick()
+        base["source"] = source
+        rows = dict(base)
+        one = dict(base, aggregate={"fn": "count", "field": None})
+        per = dict(base, aggregate={"fn": "count", "field": None}, bucket="day")
+        out[d["id"]] = {"rows": unavailable(rows), "number": unavailable(one),
+                        "per": unavailable(per)}
+    return out
+
+
+def field_ref(path: str) -> str:
+    """A field path as the expression language spells it: ``$.payload.load``.
+    Only paths read out of the data reach here, and every step of one is a
+    plain identifier (:data:`_PLAIN_KEY`), so the dotted form is exact."""
+    steps = path.split(".")
+    if not all(_PLAIN_KEY.match(s) for s in steps):
+        raise ViewError(f"{path!r} is not a field this page can reach.")
+    return "$." + path
+
+
+def string_literal(value: str) -> str:
+    """A string as a literal of the expression language, exactly.
+
+    ``expr.py`` reads ``"…"`` with a backslash escaping the next character
+    (``\\n``, ``\\t`` and ``\\r`` excepted), so a backslash and a double
+    quote are the two characters that need escaping, and the only newline
+    forms that would change meaning are written back as their escapes.
+    Everything else — ``'``, ``%``, ``_``, any non-ASCII — is itself.  The
+    pinned compiler then binds the decoded value as a parameter: nothing a
+    person picks is ever spliced into the statement's text.
+    """
+    if not isinstance(value, str):
+        raise ViewError("A text value must be text.")
+    out = []
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\r":
+            out.append("\\r")
+        else:
+            out.append(ch)
+    return '"' + "".join(out) + '"'
+
+
+def number_literal(value) -> str:
+    """A number as a literal of the expression language.  Only a finite
+    JSON number is accepted; ``-5`` is the language's own unary minus."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ViewError("A number value must be a number.")
+    try:
+        as_double = float(value)
+    except OverflowError:
+        raise ViewError("That number is too large to compare with.") from None
+    if not math.isfinite(as_double):
+        raise ViewError("That number is too large to compare with.")
+    text = str(value) if isinstance(value, int) else repr(float(value))
+    return text
+
+
+_DAY_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})\Z")
+_MINUTE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z?\Z")
+
+
+def _day(value) -> _dt.date:
+    if not isinstance(value, str) or not _DAY_RE.match(value):
+        raise ViewError("A day must be picked as a date.")
+    try:
+        return _dt.date.fromisoformat(value)
+    except ValueError:
+        raise ViewError("A day must be picked as a date.") from None
+
+
+def _instant(value) -> str:
+    """A picked time → the data's own fixed-width UTC text, which orders as
+    time orders (``2026-08-18T06:00:00Z``)."""
+    m = _MINUTE_RE.match(value) if isinstance(value, str) else None
+    if not m:
+        raise ViewError("A time must be picked as a date and a time.")
+    day = _day(m.group(1))
+    hh, mm, ss = int(m.group(2)), int(m.group(3)), int(m.group(4) or 0)
+    if hh > 23 or mm > 59 or ss > 59:
+        raise ViewError("A time must be picked as a date and a time.")
+    return f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+
+
+#: The words each condition reads as, by kind.  The screen shows these in
+#: its condition picker; the sentence uses them too, so the two agree.
+OP_WORDS = {
+    "eq": "is", "ne": "is not", "in": "is one of",
+    "gt": "is more than", "lt": "is less than",
+    "ge": "is at least", "le": "is at most", "between": "is between",
+    "on": "is on", "after": "is after", "before": "is before",
+    "yes": "is yes", "no": "is no",
+    "present": "has a value", "blank": "is blank",
+}
+
+#: The most values one "is one of" may carry.
+IN_LIMIT = 200
+
+
+def _value_for(field: dict, value):
+    """One picked value → (its literal, how the sentence reads it)."""
+    kind = field["kind"]
+    if kind == "number":
+        return number_literal(value), fmt_number(str(value))
+    if kind == "time":
+        t = _instant(value)
+        return string_literal(t), fmt_time(t)
+    if kind == "date":
+        d = _day(value).isoformat()
+        return string_literal(d), fmt_date(d)
+    return string_literal(value), said_text(value)
+
+
+def said_text(value: str) -> str:
+    """A text value as the sentence says it: bare when it is one word
+    (``Status is warn``), in quotes when it is empty or holds a space, so
+    ``S is not “not a number”`` cannot read as a double negative."""
+    if value == "" or any(ch.isspace() for ch in value):
+        return f"“{value}”"
+    return value
+
+
+def _order_key(field: dict, value):
+    if field["kind"] == "number":
+        return value
+    if field["kind"] == "time":
+        return _instant(value)
+    if field["kind"] == "date":
+        return _day(value).isoformat()
+    return value
+
+
+def condition(field: dict, cond: dict) -> tuple[str, str]:
+    """One clicked condition → (its expression, its words in the sentence).
+
+    The expression is only ever comparisons, ``and``, ``or`` and ``null`` —
+    every one inside the gate's subset — over one field read with ``$.``
+    and values written by :func:`string_literal` / :func:`number_literal`.
+    """
+    _refuse_extra(cond, CONDITION_KEYS, "a condition")
+    op = cond.get("op")
+    if op not in field["ops"]:
+        raise ViewError(f"{field['label']} can't be matched that way.")
+    reads = _SLOTS.get(op, {"value"})
+    unread = [k for k in ("value", "value2", "values")
+              if k not in reads and not _empty(cond.get(k))]
+    if unread:
+        slot = {"value": "value", "value2": "second value",
+                "values": "list of values"}[unread[0]]
+        raise ViewError(f"“{field['label']} {OP_WORDS[op]}” takes no {slot}.")
+    ref = field_ref(field["path"])
+    label = field["label"]
+    words = OP_WORDS[op]
+
+    if op == "present":
+        return f"{ref} != null", f"{label} {words}"
+    if op == "blank":
+        return f"{ref} == null", f"{label} {words}"
+    if op in ("yes", "no"):
+        return f"{ref} == {'true' if op == 'yes' else 'false'}", f"{label} {words}"
+
+    if op == "in":
+        values = cond.get("values")
+        if not isinstance(values, list) or not values:
+            raise ViewError(f"Pick at least one value for {label}.")
+        if len(values) > IN_LIMIT:
+            raise ViewError(f"Pick at most {IN_LIMIT} values for {label}.")
+        unique = list(dict.fromkeys(values))
+        pairs = [_value_for(field, v) for v in unique]
+        if len(pairs) == 1:
+            lit, said = pairs[0]
+            return f"{ref} == {lit}", f"{label} is {said}"
+        expr = " or ".join(f"{ref} == {lit}" for lit, _ in pairs)
+        said = [s for _, s in pairs]
+        return f"({expr})", f"{label} is {', '.join(said[:-1])} or {said[-1]}"
+
+    if op == "on" and field["kind"] == "time":
+        d = _day(cond.get("value"))
+        start = string_literal(f"{d.isoformat()}T00:00:00Z")
+        end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00Z")
+        return (f"({ref} >= {start} and {ref} < {end})",
+                f"{label} {words} {fmt_day(d.isoformat())}")
+
+    if op == "between":
+        lo, hi = cond.get("value"), cond.get("value2")
+        a, said_a = _value_for(field, lo)
+        b, said_b = _value_for(field, hi)
+        # "between 50 and 10" means the same as "between 10 and 50" to a
+        # person; the two ends are put in order rather than matching nothing.
+        key = (lambda v: float(v)) if field["kind"] == "number" else (lambda v: v)
+        if key(_order_key(field, lo)) > key(_order_key(field, hi)):
+            (a, said_a), (b, said_b) = (b, said_b), (a, said_a)
+        return (f"({ref} >= {a} and {ref} <= {b})",
+                f"{label} {words} {said_a} and {said_b}")
+
+    sym = {"eq": "==", "on": "==", "ne": "!=", "gt": ">", "lt": "<",
+           "ge": ">=", "le": "<=", "after": ">", "before": "<"}[op]
+    lit, said = _value_for(field, cond.get("value"))
+    return f"{ref} {sym} {lit}", f"{label} {words} {said}"
+
+
+def _conditions(view: dict, fields: dict) -> list:
+    conds = view.get("conditions") or []
+    if not isinstance(conds, list):
+        raise ViewError("Conditions must be a list.")
+    out = []
+    for c in conds:
+        if not isinstance(c, dict) or c.get("field") not in fields:
+            raise ViewError("A condition names a field this data set doesn't have.")
+        out.append(condition(fields[c["field"]], c))
+    return out
+
+
+def filter_expression(view: dict, fields: dict) -> str | None:
+    """Every condition, all of which must match: ``(a) and (b)``."""
+    parts = [expr for expr, _ in _conditions(view, fields)]
+    if not parts:
+        return None
+    if len(parts) == 1:
+        return parts[0]
+    return " and ".join(f"({p})" for p in parts)
+
+
+#: How each kind reads a sort direction.
+SORT_WORDS = {
+    "time": {"desc": "newest first", "asc": "oldest first"},
+    "date": {"desc": "latest first", "asc": "earliest first"},
+    "number": {"desc": "largest first", "asc": "smallest first"},
+    "text": {"asc": "A to Z", "desc": "Z to A"},
+    "yesno": {"desc": "yes first", "asc": "no first"},
+}
+
+
+def _sort(view: dict, fields: dict):
+    sort = view.get("sort")
+    if sort is None:
+        return None
+    if not isinstance(sort, dict) or sort.get("field") not in fields:
+        raise ViewError("Sort by a field of this data set.")
+    _refuse_extra(sort, SORT_KEYS, "a sort")
+    field = fields[sort["field"]]
+    if field["kind"] not in SORT_WORDS:
+        raise ViewError(f"{field['label']} can't be sorted: its rows hold different kinds of value.")
+    if sort.get("dir") not in ("asc", "desc"):
+        raise ViewError("Sort one way or the other.")
+    return {"field": field["path"], "dir": sort["dir"]}
+
+
+def sort_words(view: dict, fields: dict) -> str:
+    sort = _sort(view, fields)
+    if not sort:
+        return ""
+    field = fields[sort["field"]]
+    words = SORT_WORDS[field["kind"]][sort["dir"]]
+    if field["path"] == "ts":
+        return words
+    return f"by {field['label']}, {words}"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 3 · Formatting a cell for a person
+# ═════════════════════════════════════════════════════════════════════════
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def fmt_time(text: str) -> str:
+    """``2026-08-20T23:00:00Z`` → ``Aug 20, 23:00 UTC``."""
+    try:
+        t = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return text
+    return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d} UTC"
+
+
+def fmt_date(text: str) -> str:
+    """``2026-09-03`` → ``Sep 3, 2026``."""
+    try:
+        d = _dt.date.fromisoformat(text)
+    except ValueError:
+        return text
+    return f"{_MONTHS[d.month - 1]} {d.day}, {d.year}"
+
+
+def fmt_day(text: str) -> str:
+    """``2026-08-14…`` → ``Aug 14``."""
+    try:
+        d = _dt.date.fromisoformat(text[:10])
+    except ValueError:
+        return text
+    return f"{_MONTHS[d.month - 1]} {d.day}"
+
+
+def _number_text(value) -> str:
+    """A number read from the database, as plain text: ``100``, ``-523.1234``,
+    and an exponent only past fifteen digits (``1e+300``)."""
+    d = Decimal(value) if not isinstance(value, Decimal) else value
+    if abs(d) >= Decimal("1e15"):
+        return format(_normal(d), "e").replace("E", "e")
+    return format(_normal(d), "f")
+
+
+#: Past these, a number reads as an exponent (``1e+300``): grouping 301
+#: digits, or rounding them to two places, makes nothing easier to read.
+_PLAIN_MAX_ADJUSTED = 15     # 1,000,000,000,000,000 and up
+_PLAIN_MIN_ADJUSTED = -6     # below 0.000001
+
+
+def _normal(d: Decimal) -> Decimal:
+    """``d`` without trailing zeros, EXACTLY: ``Decimal.normalize`` rounds to
+    the default context's 28 digits, which would lose digits of a long
+    number."""
+    return d.normalize(Context(prec=max(28, len(d.as_tuple().digits))))
+
+
+def fmt_number(text: str, *, places: int | None = None) -> str:
+    """Thousands separators, the digits otherwise as stored.
+
+    ``places`` rounds half-up for display only (an average); the exact
+    value stays in the payload beside it.  A number outside the plain range
+    is written as an exponent with every one of its digits
+    (``1e+300``, ``1.7976931348623157e+308``), never rounded.  Total: a
+    value it cannot read comes back as the text it was given, so formatting
+    can never turn an answer into an error (test_dashboard.py ::
+    TestHugeNumbersAreShownNotFatal).
+    """
+    raw = str(text)
+    try:
+        d = Decimal(raw)
+    except (InvalidOperation, TypeError, ValueError):
+        return raw
+    if not d.is_finite() or "e" in raw.lower():
+        return raw
+    try:
+        if d and not (_PLAIN_MIN_ADJUSTED <= d.adjusted() < _PLAIN_MAX_ADJUSTED):
+            return format(_normal(d), "e").replace("E", "e")
+        if places is not None:
+            q = d.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+            return f"{q:,.{places}f}"
+        sign = "-" if d < 0 else ""
+        whole, _, frac = format(d.copy_abs(), "f").partition(".")
+        return sign + f"{int(whole):,}" + ("." + frac if frac else "")
+    except (ArithmeticError, ValueError):
+        return raw
+
+
+def _plain_json(value: Any) -> str:
+    if value is None:
+        return "blank"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, (int, float, Decimal)):
+        return fmt_number(str(value).replace("E", "e"))
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "(empty list)" if not value else ", ".join(_plain_json(v) for v in value)
+    if isinstance(value, dict):
+        if not value:
+            return "(empty group)"
+        return ", ".join(f"{k}: {_plain_json(v)}" for k, v in value.items())
+    return str(value)
+
+
+def fmt_cell(text: str, tag: str, kind: str):
+    """One answer cell → what a person reads.  ``None`` is a blank cell."""
+    if tag == "null":
+        return None
+    if tag == "boolean":
+        return "Yes" if text == "true" else "No"
+    if tag == "number":
+        return fmt_number(text)
+    if tag == "string":
+        if kind == "time":
+            return fmt_time(text)
+        if kind == "date":
+            return fmt_date(text)
+        return text
+    if tag in ("array", "object"):
+        try:
+            return _plain_json(json.loads(text, parse_float=Decimal, parse_int=Decimal))
+        except ValueError:
+            return text
+    return text
+
+
+def plural(n: int, one: str, many: str | None = None) -> str:
+    return f"{fmt_number(str(n))} {one if n == 1 else (many or one + 's')}"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 4 · The sentence (AC8) — by template, from the picks
+# ═════════════════════════════════════════════════════════════════════════
+
+def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> str:
+    """The question without its answer: ``Heartbeats where Status is warn,
+    newest first``."""
+    head = ds["name"]
+    said = [words for _, words in _conditions(view, fields)]
+    if said:
+        head += " where " + " and ".join(said)
+    order = sort_words(view, fields) if sort else ""
+    if order:
+        head += ", " + order
+    return head
+
+
+def sentence(ds: dict, view: dict, fields: dict, total: int,
+             of_total: int | None = None) -> str:
+    """The question, restated in one line.  A template over the picks, never
+    a model: ``Heartbeats where Status is warn, newest first — 412 rows``.
+
+    ``of_total`` (T-72): how many rows the same choices match without
+    the cap, when both engines agreed on it — ``the first 100 of 205 rows``.
+    ``None`` keeps the capped wording that states no total."""
+    show = view.get("show")
+    head = question_words(ds, view, fields)
+    if total == 0:
+        tail = "no rows match"
+    elif show is not None and total >= show:
+        if of_total is not None and of_total <= show:
+            tail = plural(of_total, "row")          # the cap cut nothing
+        elif of_total is not None:
+            tail = f"the first {fmt_number(str(show))} of {plural(of_total, 'row')}"
+        else:
+            tail = f"the first {plural(show, 'row')}"
+    else:
+        tail = plural(total, "row")
+    return f"{head} — {tail}"
+
+
+def agreed_count(conn, pick: dict) -> int | None:
+    """How many rows these choices match, counted through ``run_pick`` —
+    both engines — and returned ONLY when the two agree.  ``None`` when
+    they don't, or when the count is refused: the caller then says nothing
+    it cannot stand behind (T-72 AC2)."""
+    count_pick = dict(pick, aggregate={"fn": "count", "field": None},
+                      bucket="off", computed=[], sort=None, cap=None)
+    result = _run(conn, count_pick)
+    if not result.get("accepted") or result.get("verdict") != "agree":
+        return None
+    return int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
+
+
+def agreed_rows(conn, pick: dict) -> int | None:
+    """How many answer rows a pick returns without its cap — for a capped
+    per-hour / per-day answer, the number of hours or days with rows —
+    through both engines, ONLY when they agree."""
+    result = _run(conn, dict(pick, cap=None))
+    if not result.get("accepted") or result.get("verdict") != "agree":
+        return None
+    return int(result["panes"]["sql"]["row_count"])
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5 · The answer
+# ═════════════════════════════════════════════════════════════════════════
+
+#: The runtime's named refusal (``xpr.f8``: a JSON number past the largest
+#: double).  The one database error the dashboard answers instead of
+#: raising; app.run_pick does not catch it on this path (the two-pane screen
+#: answers HTTP 500 for the same pick; that screen is not changed here).
+ENGINE_REFUSAL_SQLSTATE = "XPR01"
+
+_CACHE_LOCK = threading.Lock()
+_CACHE: "OrderedDict[str, dict]" = OrderedDict()
+_CACHE_SIZE = 8
+
+
+def _statement_for_admin(conn, pick: dict, server_app) -> dict:
+    """The statement that was sent and refused mid-run, rebuilt for the
+    Admin panel — the engineer wants to read what the database refused.
+
+    The failed statement left the transaction aborted: it is rolled back,
+    the read-only guard is re-applied and read back (``refuse_writes``),
+    and the same pick is built again by the same builder, exactly as
+    ``run_pick`` built it.  If that cannot be done the panel says so; the
+    answer itself is the refusal either way.
+    """
+    import builder
+
+    # The same re-pinning the two-pane route does after its own mid-run
+    # refusal (app.py, _float8_overflow_refusal): SET is transactional, so
+    # the rollback reverted both db.py's pinned session values and the
+    # read-only guard.  Outside the try on purpose: if the guard cannot be
+    # re-applied, the request fails loudly rather than continuing on a
+    # connection that might write.
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    server_app.refuse_writes(conn)
+    try:
+        norm = server_app.normalised_pick(pick)
+        built = builder.build(norm, server_app.collection_keys(conn, norm["source"]))
+        return {
+            "display": server_app.render_display_sql(built),
+            "parameterised": built.sql,
+            "params": server_app._param_rows(built.params),
+            "statement_sent": True,
+        }
+    except Exception:  # noqa: BLE001 — building the display only; the refusal stands
+        return {"display": None, "statement_sent": True}
+
+
+def _run(conn, pick: dict) -> dict:
+    """``run_pick`` with every row of the answer, remembered per pick.
+
+    A page turn re-asks the same pick; the seed is pinned and the session
+    is read-only, so the answer to a pick cannot change while the process
+    lives, and a page turn need not run both engines again.
+    """
+    from . import app as server_app   # the routes import this module
+
+    key = json.dumps(pick, sort_keys=True)
+    with _CACHE_LOCK:
+        hit = _CACHE.get(key)
+        if hit is not None:
+            _CACHE.move_to_end(key)
+            return hit
+    try:
+        answer = server_app.run_pick(conn, pick, whole=True)
+    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+        if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
+            raise
+        # The runtime's own named refusal (a number past the largest double,
+        # read by == or !=), raised mid-statement.  The engine is not
+        # changed here; the page is told the truth in plain words instead
+        # of "couldn't reach the data".  Nothing is cached: the connection
+        # is closed after this request, and the next ask runs it again.
+        return {
+            "accepted": False,
+            "verdict": "no-compare",
+            "sql": _statement_for_admin(conn, pick, server_app),
+            "comparison": {},
+            "refusal": {
+                "headline": "Refused while running",
+                "why": f"{exc.sqlstate}: {str(exc).splitlines()[0]}",
+            },
+        }
+    with _CACHE_LOCK:
+        _CACHE[key] = answer
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > _CACHE_SIZE:
+            _CACHE.popitem(last=False)
+    return answer
+
+
+#: What a refusal says to a person, by what the engine found.  The engine's
+#: own words go to the admin panel unchanged.
+_PLAIN_REFUSAL = (
+    ("container operand", "Some rows hold a list or a group of values in a "
+                          "field you're matching on, so it can't be compared "
+                          "with one value."),
+    ("out-of-range magnitude", "One of these values is too large to compute "
+                               "with, so this can't be answered honestly."),
+    ("exceeds float8 range", "One of these values is too large to compute "
+                             "with, so this can't be answered honestly."),
+    ("overflow", "A result here grows too large to compute, so this can't be "
+                 "answered honestly."),
+)
+_PLAIN_REFUSAL_DEFAULT = "These choices can't be answered together. Try changing one."
+
+
+def plain_refusal(refusal: dict | None) -> str:
+    text = json.dumps(refusal or {}).lower()
+    for needle, plain in _PLAIN_REFUSAL:
+        if needle in text:
+            return plain
+    return _PLAIN_REFUSAL_DEFAULT
+
+
+def _admin_block(answer: dict) -> dict:
+    sql = answer.get("sql") or {}
+    comparison = answer.get("comparison") or {}
+    refusal = answer.get("refusal")
+    return {
+        # What an admin reads: the statement with its values written in.
+        "statement": sql.get("display"),
+        # What the database actually receives: the statement with
+        # placeholders, and the values beside it, sent separately.
+        "parameterised": sql.get("parameterised"),
+        "parameters": list(sql.get("params") or []),
+        "sent": bool(sql.get("statement_sent")),
+        "verdict": answer.get("verdict"),
+        "differing_rows": comparison.get("differing_rows", 0),
+        "compared_rows": comparison.get("compared_rows", 0),
+        "refusal": None if refusal is None else {
+            "headline": refusal.get("headline"),
+            "why": refusal.get("why") or refusal.get("body"),
+        },
+    }
+
+
+def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
+    """One view → what the dashboard draws."""
+    ds, fields = _dataset(setup_payload, view)
+    pick = to_pick(setup_payload, view)
+    result = _run(conn, pick)
+    admin = _admin_block(result)
+
+    if not result.get("accepted"):
+        return {
+            "kind": "refused",
+            "sentence": question_words(ds, view, fields),
+            "message": plain_refusal(result.get("refusal")),
+            "admin": admin,
+        }
+
+    pane = result["panes"]["sql"]
+    summary = _summary(view, fields, ds)
+    if summary:
+        return _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin)
+    columns = pane["columns"]
+    by_alias = {f["alias"]: f for f in fields.values()}
+    shown = [i for i, c in enumerate(columns) if c in by_alias]
+    total = pane["row_count"]
+
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = []
+    for row in pane["rows"][start:start + PAGE_SIZE]:
+        rows.append([
+            fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"])
+            for i in shown
+        ])
+
+    return {
+        "kind": "table",
+        "sentence": sentence(ds, view, fields, total, of_total=(
+            agreed_count(conn, pick)
+            if view.get("show") is not None and total >= view["show"] else None)),
+        "total": total,
+        "columns": [
+            {"path": by_alias[columns[i]]["path"],
+             "label": by_alias[columns[i]]["label"],
+             "kind": by_alias[columns[i]]["kind"]}
+            for i in shown
+        ],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start,
+                 "count": len(rows), "last": last},
+        "unavailable": unavailable(pick),
+        "admin": admin,
+    }
+
+
+def _summary_value(text: str, tag: str, fn: str):
+    """One summary value → (what a person reads, the exact value, a number
+    for drawing).  An average is shown to two places, its exact value kept
+    beside it; a total, a smallest and a largest are shown as they are."""
+    if tag == "null":
+        return None, None, None
+    exact = text
+    d = Decimal(text)
+    if fn == "avg":
+        shown = fmt_number(text, places=2)
+    else:
+        n = _normal(d)
+        plain = n == 0 or _PLAIN_MIN_ADJUSTED <= n.adjusted() < _PLAIN_MAX_ADJUSTED
+        shown = fmt_number(format(n, "f") if plain else text)
+    drawn = float(d)
+    return shown, exact, drawn if math.isfinite(drawn) else None
+
+
+def _span(fields: dict) -> tuple[str, str]:
+    """The data set's whole time span, read from the data at setup."""
+    r = fields["ts"]["range"]
+    return r["min"], r["max"]
+
+
+def _slots(unit: str, lo: str, hi: str) -> list:
+    """Every hour or day from ``lo`` to ``hi``, in the engine's own label
+    form (``2026-08-14T00:00:00Z``)."""
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    t = _dt.datetime.strptime(lo, fmt)
+    end = _dt.datetime.strptime(hi, fmt)
+    if unit == "day":
+        t, end = t.replace(hour=0, minute=0, second=0), end.replace(hour=0, minute=0, second=0)
+    step = _dt.timedelta(days=1) if unit == "day" else _dt.timedelta(hours=1)
+    out = []
+    while t <= end:
+        out.append(t.strftime(fmt))
+        t += step
+    return out
+
+
+def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
+    """``Average Load of Heartbeats where Status is warn, per day``."""
+    what = SUMMARY_FNS[summary["fn"]]
+    if summary["field"]:
+        what += " " + fields[summary["field"]]["label"]
+    head = f"{what} of {question_words(ds, view, fields, sort=False)}"
+    if summary["per"] != "all":
+        head += f", per {summary['per']}"
+    return head
+
+
+def blank_reason(conn, pick: dict, field_label: str) -> str:
+    """Why a summary over everything came back blank — in words that are
+    true whether or not rows matched (test_dashboard.py ::
+    TestABlankSummaryTellsTheTruth).
+
+    A blank average, total, smallest or largest means either that no row
+    matched, or that rows matched and none of them holds a number in the
+    field.  "No rows match" is said only when the engine's own count over
+    the same filter is 0; the count is asked through ``run_pick`` like any
+    other pick, and used only when both engines agree on it (T-72).
+    """
+    n = agreed_count(conn, pick)
+    if n is None:
+        # The count was refused or the engines disagree on it: say only
+        # what is true either way.
+        return f"No value: no matching row has a value for {field_label}."
+    if n == 0:
+        return "No rows match"
+    return (f"No value: {plural(n, 'row')} {'matches' if n == 1 else 'match'}, "
+            f"and none has a value for {field_label}.")
+
+
+def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) -> dict:
+    fn = summary["fn"]
+    head = summary_words(ds, view, fields, summary)
+    label = SUMMARY_FNS[fn] + (" " + fields[summary["field"]]["label"] if summary["field"] else "")
+
+    if summary["per"] == "all":
+        row = pane["rows"][0]
+        shown, exact, _ = _summary_value(row["c"][0], row["t"][0], fn)
+        if fn == "count" and shown is not None:
+            shown = fmt_number(row["c"][0])
+        blank = None
+        if shown is None:
+            # count is never blank; every other function can be.
+            blank = blank_reason(conn, pick, fields[summary["field"]]["label"])
+        return {
+            "kind": "number",
+            "sentence": head,
+            "number": {"label": label, "value": shown, "exact": exact, "blank": blank},
+            "unavailable": unavailable(pick),
+            "admin": admin,
+        }
+
+    unit = summary["per"]
+    label_of = (lambda w: fmt_day(w)) if unit == "day" else (lambda w: fmt_time(w).removesuffix(" UTC"))
+    got = []
+    for row in pane["rows"]:
+        when = row["c"][0]
+        shown, exact, num = _summary_value(row["c"][1], row["t"][1], fn)
+        got.append({"label": label_of(when), "start": when, "value": num,
+                    "text": shown, "exact": exact, "empty": False})
+
+    # The engine returns only the hours or days that have rows.  The time
+    # axis is kept whole — every hour or day of the data set's span gets a
+    # slot, and one with no rows is an empty, marked slot — so two days
+    # either side of an empty one never sit side by side as if adjacent
+    # (test_dashboard.py :: TestTheTimeAxisIsWhole).  With a cap, the engine returned the first
+    # N buckets that have rows; the axis is filled between those.
+    show = view.get("show")
+    capped = show is not None and len(got) >= show
+    with_rows = len(got)
+    by_start = {b["start"]: b for b in got}
+    if not got:
+        bars = []
+    else:
+        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields)
+        bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
+                                    "text": None, "exact": None, "empty": True}
+                for t in _slots(unit, lo, hi)]
+        placed = {b["start"] for b in bars}
+        if any(b["start"] not in placed for b in got):
+            # A bucket with rows outside the axis would vanish from the
+            # chart: fail loudly rather than draw a picture missing data.
+            raise RuntimeError("a bucket with rows fell outside the time axis")
+    total = len(bars)
+    if with_rows == 0:
+        tail = "no rows match"
+    elif capped:
+        of = agreed_rows(conn, pick)
+        if of is not None and of <= show:
+            tail = f"{plural(of, unit)}" if of == total else f"{fmt_number(str(of))} of {plural(total, unit)} have rows"
+        elif of is not None:
+            tail = f"the first {fmt_number(str(show))} of {plural(of, unit)} with rows"
+        else:
+            tail = f"the first {plural(show, unit)} with rows"
+    elif with_rows == total:
+        tail = plural(total, unit)
+    else:
+        tail = f"{fmt_number(str(with_rows))} of {plural(total, unit)} have rows"
+
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = [[b["label"], "no rows" if b["empty"] else b["text"]]
+            for b in bars[start:start + PAGE_SIZE]]
+    return {
+        "kind": "chart",
+        "sentence": f"{head} — {tail}",
+        "total": total,
+        "unit": unit,
+        "measure": label,
+        "bars": bars,
+        "columns": [{"path": "bucket", "label": "Day" if unit == "day" else "Hour (UTC)", "kind": "text"},
+                    {"path": "value", "label": label, "kind": "number"}],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start,
+                 "count": len(rows), "last": last},
+        "unavailable": unavailable(pick),
+        "admin": admin,
+    }
+
+
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 6 · The routes
+# ═════════════════════════════════════════════════════════════════════════
+
+def _connect():
+    from . import app as server_app
+
+    conn = db.connect(application_name="autosql-demo-dashboard")
+    server_app.refuse_writes(conn)
+    return conn
+
+
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def dashboard_page() -> HTMLResponse:
+    return HTMLResponse((_STATIC / "dashboard.html").read_text())
+
+
+@router.get("/api/dashboard/setup")
+def api_setup() -> JSONResponse:
+    conn = _connect()
+    try:
+        return JSONResponse(setup(conn))
+    finally:
+        conn.close()
+
+
+@router.post("/api/dashboard/answer")
+def api_answer(body: dict) -> JSONResponse:
+    view = body.get("view") if isinstance(body, dict) else None
+    page = body.get("page", 0) if isinstance(body, dict) else 0
+    conn = _connect()
+    try:
+        payload = setup(conn)
+        try:
+            out = answer(conn, payload, view, page)
+        except ViewError as exc:
+            return JSONResponse({"kind": "invalid", "sentence": "",
+                                 "message": str(exc)}, status_code=422)
+        return JSONResponse(out)
+    finally:
+        conn.close()
