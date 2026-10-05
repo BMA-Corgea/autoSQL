@@ -1,9 +1,9 @@
 """demo/server/dashboard.py — the dashboard's contract (T-71).
 
-The dashboard at ``/dashboard`` is the owner's own description of autoSQL:
-*"a dashboard from which you can ask for different parts of a database and
-the SQL autopopulates from it."*  A person clicks; nothing is typed in any
-language.  This module is everything between those clicks and the engine:
+The dashboard at ``/dashboard`` is autoSQL in one screen: a dashboard from
+which a person asks for different parts of a database, and the SQL writes
+itself from the picks (README: "The dashboard: SQL analysis, kept out of
+sight").  A person clicks; nothing is typed in any language.  This module is everything between those clicks and the engine:
 
 * **the setup** — the three data sets, their row counts, and each field's
   plain name, its kind, the conditions it can take and the values found in
@@ -919,7 +919,8 @@ def fmt_number(text: str, *, places: int | None = None) -> str:
     is written as an exponent with every one of its digits
     (``1e+300``, ``1.7976931348623157e+308``), never rounded.  Total: a
     value it cannot read comes back as the text it was given, so formatting
-    can never turn an answer into an error (the S3 check's finding).
+    can never turn an answer into an error (test_dashboard.py ::
+    TestHugeNumbersAreShownNotFatal).
     """
     raw = str(text)
     try:
@@ -1007,7 +1008,7 @@ def sentence(ds: dict, view: dict, fields: dict, total: int,
     """The question, restated in one line.  A template over the picks, never
     a model: ``Heartbeats where Status is warn, newest first — 412 rows``.
 
-    ``of_total`` (T-72, Q6): how many rows the same choices match without
+    ``of_total`` (T-72): how many rows the same choices match without
     the cap, when both engines agreed on it — ``the first 100 of 205 rows``.
     ``None`` keeps the capped wording that states no total."""
     show = view.get("show")
@@ -1056,7 +1057,7 @@ def agreed_rows(conn, pick: dict) -> int | None:
 #: The runtime's named refusal (``xpr.f8``: a JSON number past the largest
 #: double).  The one database error the dashboard answers instead of
 #: raising; app.run_pick does not catch it on this path (the two-pane screen
-#: answers HTTP 500 for the same pick — recorded in LATER, not changed here).
+#: answers HTTP 500 for the same pick; that screen is not changed here).
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
 
 _CACHE_LOCK = threading.Lock()
@@ -1297,7 +1298,8 @@ def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
 
 def blank_reason(conn, pick: dict, field_label: str) -> str:
     """Why a summary over everything came back blank — in words that are
-    true whether or not rows matched (the M1 review's HIGH-1).
+    true whether or not rows matched (test_dashboard.py ::
+    TestABlankSummaryTellsTheTruth).
 
     A blank average, total, smallest or largest means either that no row
     matched, or that rows matched and none of them holds a number in the
@@ -1351,7 +1353,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     # axis is kept whole — every hour or day of the data set's span gets a
     # slot, and one with no rows is an empty, marked slot — so two days
     # either side of an empty one never sit side by side as if adjacent
-    # (the S3 check's finding).  With a cap, the engine returned the first
+    # (test_dashboard.py :: TestTheTimeAxisIsWhole).  With a cap, the engine returned the first
     # N buckets that have rows; the axis is filled between those.
     show = view.get("show")
     capped = show is not None and len(got) >= show

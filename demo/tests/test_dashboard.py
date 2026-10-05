@@ -8,10 +8,10 @@ browser can show (the stale-answer guard, the phone layout) is driven
 headless outside the suite, because the suite must pass with Node removed
 from PATH (AC-36).
 
-Criteria, by number (``.autodev/specs/T-71.md``): AC1 route, AC2 data
-sets, AC3 columns in the statement, AC8 the sentence, AC9 plain words,
-AC13 the page's fences, AC14 the bundle (``test_ui.py``'s digest covers
-the dashboard's sources).
+Covered here: the route, the data sets, the chosen columns in the
+statement, the sentence, plain words in the Everyone view, the page's
+fences (the same policy and the same off-host walk as ``/``), and the
+bundle (``test_ui.py``'s digest covers the dashboard's sources).
 """
 
 from __future__ import annotations
@@ -581,7 +581,7 @@ class TestEveryValueIsEscaped:
 
 class TestNothingIsSilentlyIgnored:
     """A choice the answer cannot honour is refused by name, never dropped
-    (the S1 check's second finding): a later gap must not become a pick
+    — a later gap must not become a pick
     that quietly does nothing while the screen shows it as chosen."""
 
     @pytest.mark.parametrize("patch, says", [
@@ -613,8 +613,7 @@ class TestNothingIsSilentlyIgnored:
 
 
 class TestEdgeCasesLabelIsOffByDefault:
-    """The foreman's call on the S1 check's first finding: Label's text was
-    written for engineers, so a fresh Edge cases question leaves it off; a
+    """Label's text was written for engineers, so a fresh Edge cases question leaves it off; a
     ticked box (or the Admin view) still shows it."""
 
     def test_off_by_default(self, setup):
@@ -793,7 +792,7 @@ class TestTheEnginesReasonsInPlainWords:
 
 
 class TestTheEnginesOwnRefusalIsSaidPlainly:
-    """The S2 check's MEDIUM: ``==`` / ``!=`` on a number past the largest
+    """``==`` / ``!=`` on a number past the largest
     double raises the runtime's named refusal (SQLSTATE XPR01) mid-statement.
     The engine is not changed; the dashboard answers it in plain words
     rather than failing as though the demo were down."""
@@ -807,7 +806,7 @@ class TestTheEnginesOwnRefusalIsSaidPlainly:
         assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
         assert a["admin"]["refusal"]["why"].startswith("XPR01: ")
         assert a["sentence"].startswith("Edge cases where ")
-        # Admin still reads the statement the database refused (S4 check, 2)
+        # Admin still reads the statement the database refused
         assert a["admin"]["statement"].startswith("SELECT ") and a["admin"]["sent"] is True
         assert '"A"' in a["admin"]["statement"] and a["admin"]["parameters"]
 
@@ -920,7 +919,7 @@ class TestTheAdminBlock:
 
 
 class TestTheTimeAxisIsWhole:
-    """The S3 check's MEDIUM: an hour or day with no rows keeps its place on
+    """An hour or day with no rows keeps its place on
     the axis, marked, and the sentence says so."""
 
     def test_an_empty_day_keeps_its_slot(self, client, setup):
@@ -951,8 +950,8 @@ class TestTheTimeAxisIsWhole:
 
 
 class TestHugeNumbersAreShownNotFatal:
-    """The S3 check's MEDIUM: an average over Edge cases' 1e300 crashed the
-    two-place rounding.  Numbers outside the plain range read as exponents,
+    """An average over Edge cases' 1e300 once crashed the two-place
+    rounding.  Numbers outside the plain range read as exponents,
     every digit kept, and a formatting problem never becomes an error."""
 
     def test_the_average_of_a_huge_number(self, client, setup):
@@ -982,8 +981,8 @@ class TestHugeNumbersAreShownNotFatal:
 
 
 class TestABlankSummaryTellsTheTruth:
-    """The M1 review's HIGH-1: rows matched but none holds the field, and the
-    page said "No rows match".  The blank now says which it is, from the
+    """Rows matched but none holds the field, and the page once said "No
+    rows match".  The blank now says which it is, from the
     engine's own count over the same choices."""
 
     @pytest.mark.parametrize("fn", ["avg", "sum", "min", "max"])
@@ -1068,8 +1067,7 @@ class TestTheCappedAnswerStatesTheTotal:
         dashboard._CACHE.clear()
 
     def test_the_blank_summary_count_too(self, client, setup, monkeypatch):
-        """LATER's LOW from the M1 re-check: the blank-summary count obeys
-        the same rule."""
+        """The blank-summary count obeys the same rule."""
         dashboard._CACHE.clear()
         _disagreeing_counts(monkeypatch)
         _, a = ask(client, summed(setup, "edge", conditions=[cond("d", "eq", value=7)],

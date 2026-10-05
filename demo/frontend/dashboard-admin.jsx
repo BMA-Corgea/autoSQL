@@ -70,8 +70,8 @@ function Checked({ admin, kind }) {
   return <p className="dx-checked is-none" data-testid="checked">Not double-checked: this one was refused before an answer existed.</p>;
 }
 
-// Open or folded: remembered for the visit (T-72, Q2 "admins, folded
-// away"). Storage that refuses means the panel simply starts folded.
+// Open or folded: remembered for the visit (T-72: admins see the SQL,
+// folded away). Storage that refuses means the panel simply starts folded.
 const SQL_OPEN_KEY = "autosql.dashboard.sql-open";
 function loadOpen() {
   try { return window.localStorage.getItem(SQL_OPEN_KEY) === "open"; } catch (_) { return false; }
