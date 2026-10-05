@@ -16,7 +16,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
-import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete } from "./dashboard-steps.jsx";
+import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady } from "./dashboard-steps.jsx";
+import { ScoreboardStep, countWaiting, nextSort } from "./dashboard-scoreboard.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -46,7 +47,9 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // The choices that are off for this view, and why — the contract's own
 // verdicts, carried in the setup (setup.unavailable, from /api/operations).
+const SCOREBOARD_SORT_OFF = "A scoreboard sorts by its own columns: tap a column's name.";
 function offFor(setup, view) {
+  if (view.scoreboard) return { sort: SCOREBOARD_SORT_OFF };
   return setup.unavailable[view.dataset][answerShape(view)] || {};
 }
 
@@ -61,14 +64,53 @@ function sendable(setup, view) {
     .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
     .map(({ _k, ...c }) => c); // eslint-disable-line no-unused-vars
   const off = offFor(setup, view);
-  const out = { ...view, conditions };
-  if (view.summary) out.columns = [];
+  // "Exactly one" / "All or none" over fewer than two conditions with values
+  // is not a question yet: the conditions are marked "not used yet" on
+  // screen and not sent.
+  const logic = view.logic || "all";
+  const out = { ...view, conditions: logicReady(logic, conditions.length) ? conditions : [], logic };
+  if (view.summary || view.scoreboard) out.columns = []; // kept on screen, greyed, for when it is turned off
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
+  if (view.scoreboard) out.scoreboard = sendableScoreboard(ds, view.scoreboard);
   return out;
 }
 
+// A scoreboard as sent: only the count columns that are ready (a name, a
+// condition with a value, enough conditions for their logic); the others
+// stay on screen marked "not counted until …". Each column travels with
+// its own id (the screen's handle, _k), the answer's headers come back as
+// "count:<id>" / "pct:<id>", and a sort names a column the same way — one
+// numbering end to end, so a column held back cannot shift which column a
+// header or a sort means. A sort on a column that is not sent is not sent.
+function sendableScoreboard(ds, sb) {
+  const fields = ds.fields;
+  const counts = [];
+  sb.counts.forEach((c) => {
+    if (countWaiting(c, fields)) return;
+    counts.push({
+      id: c._k,
+      label: c.label.trim(),
+      logic: c.logic,
+      pct: c.pct,
+      conditions: c.conditions
+        .filter((x) => isComplete(x, fields.find((f) => f.path === x.field)))
+        .map(({ _k, ...x }) => x), // eslint-disable-line no-unused-vars
+    });
+  });
+  let sort = sb.sort;
+  if (sort) {
+    const m = /^(count|pct):(\d+)$/.exec(sort.column);
+    if (m) {
+      const sent = counts.find((c) => c.id === Number(m[2]));
+      if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
+    }
+  }
+  return { by: sb.by, counts, time: sb.time || null, measure: sb.measure || null, sort };
+}
+
 const COLUMNS_OFF = "Columns don't apply to a summary.";
+const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its own, in step 6.";
 
 // ── the answer ───────────────────────────────────────────────────────────
 
@@ -78,7 +120,7 @@ function Cell({ value, kind }) {
   return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
 }
 
-function Table({ answer, onPage, updating }) {
+function Table({ answer, onPage, updating, sort, onSort }) {
   const { columns, rows, page, total } = answer;
   if (!columns.length) {
     return <p className="dx-empty">Pick at least one column to see the rows.</p>;
@@ -90,7 +132,20 @@ function Table({ answer, onPage, updating }) {
       <div className="dx-table-box" tabIndex={0} aria-label="Rows">
         <table className="dx-table">
           <thead>
-            <tr>{columns.map((c) => <th key={c.path} className={c.kind === "number" ? "is-num" : ""}>{c.label}</th>)}</tr>
+            <tr>{columns.map((c, j) => (
+              <th key={c.path || c.id} className={c.kind === "number" ? "is-num" : ""} title={c.title || undefined}
+                aria-sort={onSort && sort && sort.column === c.id ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
+                {onSort ? (
+                  <button type="button" className="dx-th-sort" data-sort={c.id} disabled={updating}
+                    onClick={() => onSort(nextSort(sort, c.id))}>
+                    {c.label}
+                    <span className="dx-th-arrow" aria-hidden="true">
+                      {sort && sort.column === c.id ? (sort.dir === "asc" ? " ▲" : " ▼") : (!sort && j === 0 ? " ▲" : "")}
+                    </span>
+                  </button>
+                ) : c.label}
+              </th>
+            ))}</tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
@@ -110,6 +165,19 @@ function Table({ answer, onPage, updating }) {
           <button type="button" className="dx-btn" data-page="next" disabled={updating || page.index >= page.last} onClick={() => onPage(page.index + 1)}>Next</button>
         </span>
       </nav>
+      {onSort ? (
+        <details className="dx-legend" data-testid="legend">
+          <summary>What the columns count</summary>
+          <dl>
+            {columns.map((c) => (
+              <React.Fragment key={c.id}>
+                <dt>{c.label}</dt>
+                <dd>{c.title}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </details>
+      ) : null}
     </>
   );
 }
@@ -220,7 +288,7 @@ function BarChart({ answer }) {
   );
 }
 
-function Answer({ answer, updating, failed, onPage }) {
+function Answer({ answer, updating, failed, onPage, sort, onSort }) {
   if (failed) {
     return (
       <div className="dx-answer">
@@ -234,7 +302,7 @@ function Answer({ answer, updating, failed, onPage }) {
   return (
     <div className={"dx-answer" + (updating ? " is-updating" : "")} aria-busy={updating}>
       <div className="dx-answer-head">
-        <h2 className="dx-sentence" data-testid="sentence">{answer.sentence}</h2>
+        <h2 className="dx-sentence" data-testid="sentence">{answer.sentence || "These choices can't be answered as they stand"}</h2>
         <p className="dx-status" aria-live="polite">{updating ? "Updating…" : ""}</p>
       </div>
       {answer.kind === "refused" ? (
@@ -248,6 +316,8 @@ function Answer({ answer, updating, failed, onPage }) {
           <p className="dx-nothing-title">No rows match</p>
           <p className="dx-nothing-hint">Try removing a condition.</p>
         </div>
+      ) : answer.kind === "scoreboard" ? (
+        <Table answer={answer} onPage={onPage} updating={updating} sort={sort} onSort={onSort} />
       ) : answer.kind === "chart" ? (
         <>
           <BarChart answer={answer} />
@@ -277,6 +347,12 @@ function summaryLine(setup, view) {
     const sm = view.summary;
     const f = sm.field ? ds.fields.find((x) => x.path === sm.field) : null;
     parts.push(`${setup.summary_fns[sm.fn]}${f ? " " + f.label : ""}${sm.per === "all" ? "" : " per " + sm.per}`);
+  }
+  if (view.scoreboard) {
+    const by = ds.fields.find((x) => x.path === view.scoreboard.by);
+    const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, ds.fields)).length;
+    parts.push(`per ${by.label}`);
+    if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
   return parts.join(" · ");
@@ -427,15 +503,20 @@ function App() {
             fields={ds.fields}
             value={view.columns}
             onChange={(columns) => change({ columns })}
-            why={view.summary ? COLUMNS_OFF : null}
+            why={view.scoreboard ? COLUMNS_OFF_SCOREBOARD : view.summary ? COLUMNS_OFF : null}
           />
           <ConditionsStep
             fields={ds.fields}
             shown={view.columns}
             admin={admin}
             value={view.conditions}
-            opWords={setup.op_words}
-            onChange={(conditions) => change({ conditions })}
+            opWords={setup.op_labels}
+            onChange={(conditions) => change(conditions.length < 2 ? { conditions, logic: "all" } : { conditions })}
+            logic={view.logic}
+            onLogic={(logic) => change({ logic })}
+            logics={setup.logics}
+            needsTwo={setup.logic_needs_two}
+            scoreboardOn={!!view.scoreboard}
           />
           <SortShowStep
             fields={ds.fields}
@@ -451,13 +532,23 @@ function App() {
             summary={view.summary}
             fns={setup.summary_fns}
             off={offFor(setup, view)}
-            onChange={change}
+            onChange={(patch) => change(patch.summary ? { ...patch, scoreboard: null } : patch)}
+          />
+          <ScoreboardStep
+            fields={ds.fields}
+            value={view.scoreboard || null}
+            shown={view.columns}
+            admin={admin}
+            setup={setup}
+            onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
           />
         </aside>
 
         <main className="dx-result" aria-label="Answer">
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
-          <Answer answer={answer} updating={updating} failed={failed} onPage={setPage} />
+          <Answer answer={answer} updating={updating} failed={failed} onPage={setPage}
+            sort={view.scoreboard ? view.scoreboard.sort : null}
+            onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>
       </div>
     </div>
