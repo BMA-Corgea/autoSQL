@@ -48,11 +48,14 @@ async function copyText(text) {
   }
 }
 
-function Checked({ admin }) {
+function Checked({ admin, kind }) {
   if (admin.verdict === "agree") {
+    const what = kind === "table"
+      ? `the same ${admin.compared_rows.toLocaleString("en-US")} ${admin.compared_rows === 1 ? "row" : "rows"}`
+      : "the same answer";
     return (
       <p className="dx-checked" data-testid="checked">
-        <span aria-hidden="true">✓</span> Double-checked — a second engine computed the same {admin.compared_rows.toLocaleString("en-US")} {admin.compared_rows === 1 ? "row" : "rows"} from the source data.
+        <span aria-hidden="true">✓</span> Double-checked — a second engine computed {what} from the source data.
       </p>
     );
   }
@@ -116,7 +119,7 @@ export function AdminPanel({ answer, updating, failed }) {
           <a className="dx-link" href="/" data-testid="two-pane">Two-pane screen →</a>
         </span>
       </header>
-      {current ? <Checked admin={admin} /> : (
+      {current ? <Checked admin={admin} kind={answer.kind} /> : (
         <p className="dx-admin-stale" data-testid="stale">Updating — below is the statement for the previous choices.</p>
       )}
       {admin.refusal ? (

@@ -340,6 +340,9 @@ def setup(conn) -> dict:
             taken: set = set()
             for f in fields:
                 f["alias"] = _alias(f["label"], taken)
+                # Off by default in the Everyone view (Edge cases' Label):
+                # a new condition does not open on it either.
+                f["hidden_by_default"] = f["path"] in d.get("not_by_default", ())
             default = d["default_columns"] or tuple(
                 f["path"] for f in fields
                 if f["path"] not in d.get("not_by_default", ()))
@@ -1170,7 +1173,7 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
     pane = result["panes"]["sql"]
     summary = _summary(view, fields, ds)
     if summary:
-        return _summary_answer(ds, view, fields, summary, pick, pane, page, admin)
+        return _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin)
     columns = pane["columns"]
     by_alias = {f["alias"]: f for f in fields.values()}
     shown = [i for i, c in enumerate(columns) if c in by_alias]
@@ -1257,7 +1260,28 @@ def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
     return head
 
 
-def _summary_answer(ds, view, fields, summary, pick, pane, page, admin) -> dict:
+def blank_reason(conn, pick: dict, field_label: str) -> str:
+    """Why a summary over everything came back blank — in words that are
+    true whether or not rows matched (the M1 review's HIGH-1).
+
+    A blank average, total, smallest or largest means either that no row
+    matched, or that rows matched and none of them holds a number in the
+    field.  "No rows match" is said only when the engine's own count over
+    the same filter is 0; the count is asked through ``run_pick`` like any
+    other pick, so both engines answer it too.
+    """
+    count_pick = dict(pick, aggregate={"fn": "count", "field": None})
+    result = _run(conn, count_pick)
+    if result.get("accepted"):
+        n = int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
+        if n == 0:
+            return "No rows match"
+        return (f"No value: {plural(n, 'row')} {'matches' if n == 1 else 'match'}, "
+                f"and none has a value for {field_label}.")
+    return f"No value: no matching row has a value for {field_label}."
+
+
+def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) -> dict:
     fn = summary["fn"]
     head = summary_words(ds, view, fields, summary)
     label = SUMMARY_FNS[fn] + (" " + fields[summary["field"]]["label"] if summary["field"] else "")
@@ -1267,10 +1291,14 @@ def _summary_answer(ds, view, fields, summary, pick, pane, page, admin) -> dict:
         shown, exact, _ = _summary_value(row["c"][0], row["t"][0], fn)
         if fn == "count" and shown is not None:
             shown = fmt_number(row["c"][0])
+        blank = None
+        if shown is None:
+            # count is never blank; every other function can be.
+            blank = blank_reason(conn, pick, fields[summary["field"]]["label"])
         return {
             "kind": "number",
             "sentence": head,
-            "number": {"label": label, "value": shown, "exact": exact},
+            "number": {"label": label, "value": shown, "exact": exact, "blank": blank},
             "unavailable": unavailable(pick),
             "admin": admin,
         }

@@ -279,7 +279,16 @@ function groupedWhy(fields) {
   return [...by.entries()];
 }
 
-export function ConditionsStep({ fields, value, opWords, onChange }) {
+// The field a new condition opens on: the first column on screen that can
+// be matched, else the first matchable field the Everyone view doesn't hide
+// (Edge cases' Label, whose values are engineer text), else any.
+function firstField(matchable, shown, admin) {
+  const byPath = new Map(matchable.map((f) => [f.path, f]));
+  for (const p of shown || []) if (byPath.has(p)) return byPath.get(p);
+  return matchable.find((f) => admin || !f.hidden_by_default) || matchable[0];
+}
+
+export function ConditionsStep({ fields, shown, admin, value, opWords, onChange }) {
   const matchable = fields.filter((f) => f.ops.length);
   const unmatchable = fields.filter((f) => !f.ops.length);
   return (
@@ -298,7 +307,7 @@ export function ConditionsStep({ fields, value, opWords, onChange }) {
       ))}
       {matchable.length ? (
         <button type="button" className="dx-add" data-action="add-condition"
-          onClick={() => onChange([...value, freshCondition(matchable[0])])}>
+          onClick={() => onChange([...value, freshCondition(firstField(matchable, shown, admin))])}>
           + Add a condition
         </button>
       ) : null}

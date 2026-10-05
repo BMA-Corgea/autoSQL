@@ -17,6 +17,7 @@ the dashboard's sources).
 from __future__ import annotations
 
 import html.parser
+import json
 import re
 import sys
 from pathlib import Path
@@ -698,7 +699,7 @@ class TestSummaries:
 
     def test_count_and_an_exact_average_on_samples(self, client, setup):
         _, a = ask(client, summed(setup, "samples", summary={"fn": "count", "field": None, "per": "all"}))
-        assert a["number"] == {"label": "Number", "value": "2,000", "exact": "2000"}
+        assert a["number"] == {"label": "Number", "value": "2,000", "exact": "2000", "blank": None}
         _, a = ask(client, summed(setup, "samples", summary={"fn": "avg", "field": "priority", "per": "all"}))
         pr = [r["priority"] for r in _SAMPLES]
         assert a["number"]["exact"] == q6(Decimal(sum(pr)) / len(pr))
@@ -976,3 +977,39 @@ class TestHugeNumbersAreShownNotFatal:
     ])
     def test_fmt_number_is_total(self, text, places, want):
         assert dashboard.fmt_number(text, places=places) == want
+
+
+
+class TestABlankSummaryTellsTheTruth:
+    """The M1 review's HIGH-1: rows matched but none holds the field, and the
+    page said "No rows match".  The blank now says which it is, from the
+    engine's own count over the same choices."""
+
+    @pytest.mark.parametrize("fn", ["avg", "sum", "min", "max"])
+    def test_rows_matched_but_none_has_the_field(self, client, setup, fn):
+        _, rows = ask(client, view(setup, "edge", columns=["d"], conditions=[cond("d", "eq", value=7)]))
+        assert rows["total"] == 1
+        _, a = ask(client, summed(setup, "edge", conditions=[cond("d", "eq", value=7)],
+                                  summary={"fn": fn, "field": "a", "per": "all"}))
+        assert a["kind"] == "number" and a["number"]["value"] is None
+        assert a["number"]["blank"] == "No value: 1 row matches, and none has a value for A."
+        assert "No rows match" not in json.dumps(a)
+
+    def test_no_rows_match_only_when_the_count_is_zero(self, client, setup):
+        _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=1000)],
+                                  summary={"fn": "avg", "field": "payload.load", "per": "all"}))
+        assert a["number"]["value"] is None and a["number"]["blank"] == "No rows match"
+
+    def test_several_rows_none_with_the_field(self, client, setup):
+        n = sum(1 for _c, _k, d in generate.edge_case_rows() if "a" not in json.loads(d))
+        _, a = ask(client, summed(setup, "edge", conditions=[cond("a", "blank")],
+                                  summary={"fn": "max", "field": "a", "per": "all"}))
+        assert a["number"]["blank"] == f"No value: {n} rows match, and none has a value for A."
+
+    def test_a_number_that_is_there_has_no_blank_reason(self, client, setup):
+        _, a = ask(client, summed(setup, summary={"fn": "avg", "field": "payload.load", "per": "all"}))
+        assert a["number"]["value"] and a["number"]["blank"] is None
+
+    def test_the_label_is_flagged_hidden_by_default(self, setup):
+        flags = {f["path"]: f["hidden_by_default"] for f in ds(setup, "edge")["fields"]}
+        assert flags["label"] is True and not any(v for k, v in flags.items() if k != "label")

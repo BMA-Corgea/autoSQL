@@ -121,9 +121,11 @@ function Hero({ number }) {
     <div className="dx-hero">
       <p className="dx-hero-label">{number.label}</p>
       {number.value === null ? (
-        <p className="dx-hero-none">No rows match</p>
+        // The server says why it is blank: "No rows match" only when the
+        // count over the same choices is really 0.
+        <p className="dx-hero-none" data-testid="blank">{number.blank || "No value."}</p>
       ) : (
-        <p className="dx-hero-value" title={number.exact !== number.value ? `exactly ${number.exact}` : undefined}>{number.value}</p>
+        <p className="dx-hero-value" title={number.exact !== number.value ? `To six places: ${number.exact}` : undefined}>{number.value}</p>
       )}
     </div>
   );
@@ -429,6 +431,8 @@ function App() {
           />
           <ConditionsStep
             fields={ds.fields}
+            shown={view.columns}
+            admin={admin}
             value={view.conditions}
             opWords={setup.op_words}
             onChange={(conditions) => change({ conditions })}
