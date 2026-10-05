@@ -12,7 +12,12 @@ import { ConditionList, Step, isComplete, logicReady } from "./dashboard-steps.j
 
 let nextKey = 1;
 
-export function freshCount(n) {
+// A new count column, named "Count N" with the smallest N no column on
+// screen already uses.
+export function freshCount(existing) {
+  const taken = new Set(existing.map((c) => c.label.trim().toLowerCase()));
+  let n = 1;
+  while (taken.has(`count ${n}`)) n += 1;
   return { _k: nextKey++, label: `Count ${n}`, logic: "all", conditions: [], pct: false };
 }
 
@@ -39,7 +44,7 @@ function CountCard({ c, n, fields, shown, admin, opWords, logics, needsTwo, labe
       </div>
       <p className="dx-count-says">Counts the rows in each group where:</p>
       <ConditionList fields={fields} shown={shown} admin={admin} value={c.conditions} opWords={opWords}
-        onChange={(conditions) => onChange({ ...c, conditions })}
+        onChange={(conditions) => onChange(conditions.length < 2 ? { ...c, conditions, logic: "all" } : { ...c, conditions })}
         logic={c.logic} onLogic={(logic) => onChange({ ...c, logic })}
         logics={logics} needsTwo={needsTwo} addLabel="Add a condition" action="add-count-condition" />
       <label className="dx-check-line">
@@ -74,7 +79,7 @@ export function ScoreboardStep({ fields, value, shown, admin, setup, onChange })
             ? { scoreboard: { ...(sb || { counts: [], time: null, measure: null, sort: null }), by: e.target.value, sort: null } }
             : { scoreboard: null })}>
           <option value="">Off — no scoreboard</option>
-          {fields.map((f) => (
+          {fields.filter((f) => admin || !f.hidden_by_default || (sb && sb.by === f.path)).map((f) => (
             <option key={f.path} value={f.path} disabled={!f.group.ok}>
               {f.group.ok ? f.label : `${f.label} (can't)`}
             </option>
@@ -96,7 +101,7 @@ export function ScoreboardStep({ fields, value, shown, admin, setup, onChange })
           ))}
           {counts.length < setup.max_counts ? (
             <button type="button" className="dx-add" data-action="add-count"
-              onClick={() => set({ counts: [...counts, freshCount(counts.length + 1)] })}>
+              onClick={() => set({ counts: [...counts, freshCount(counts)] })}>
               + Add a count column
             </button>
           ) : <p className="dx-step-hint">{setup.max_counts} count columns is the most a scoreboard holds.</p>}

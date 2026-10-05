@@ -78,16 +78,18 @@ function sendable(setup, view) {
 
 // A scoreboard as sent: only the count columns that are ready (a name, a
 // condition with a value, enough conditions for their logic); the others
-// stay on screen marked "not counted until …". A sort on a column that is
-// not sent is not sent either.
+// stay on screen marked "not counted until …". Each column travels with
+// its own id (the screen's handle, _k), the answer's headers come back as
+// "count:<id>" / "pct:<id>", and a sort names a column the same way — one
+// numbering end to end, so a column held back cannot shift which column a
+// header or a sort means. A sort on a column that is not sent is not sent.
 function sendableScoreboard(ds, sb) {
   const fields = ds.fields;
-  const sentIndex = new Map();
   const counts = [];
-  sb.counts.forEach((c, i) => {
+  sb.counts.forEach((c) => {
     if (countWaiting(c, fields)) return;
-    sentIndex.set(i + 1, counts.length + 1);
     counts.push({
+      id: c._k,
       label: c.label.trim(),
       logic: c.logic,
       pct: c.pct,
@@ -100,9 +102,8 @@ function sendableScoreboard(ds, sb) {
   if (sort) {
     const m = /^(count|pct):(\d+)$/.exec(sort.column);
     if (m) {
-      const to = sentIndex.get(Number(m[2]));
-      const sentCount = to ? counts[to - 1] : null;
-      sort = to && (m[1] === "count" || sentCount.pct) ? { ...sort, column: `${m[1]}:${to}` } : null;
+      const sent = counts.find((c) => c.id === Number(m[2]));
+      if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
     }
   }
   return { by: sb.by, counts, time: sb.time || null, measure: sb.measure || null, sort };
@@ -301,7 +302,7 @@ function Answer({ answer, updating, failed, onPage, sort, onSort }) {
   return (
     <div className={"dx-answer" + (updating ? " is-updating" : "")} aria-busy={updating}>
       <div className="dx-answer-head">
-        <h2 className="dx-sentence" data-testid="sentence">{answer.sentence}</h2>
+        <h2 className="dx-sentence" data-testid="sentence">{answer.sentence || "These choices can't be answered as they stand"}</h2>
         <p className="dx-status" aria-live="polite">{updating ? "Updating…" : ""}</p>
       </div>
       {answer.kind === "refused" ? (
@@ -510,7 +511,7 @@ function App() {
             admin={admin}
             value={view.conditions}
             opWords={setup.op_labels}
-            onChange={(conditions) => change({ conditions })}
+            onChange={(conditions) => change(conditions.length < 2 ? { conditions, logic: "all" } : { conditions })}
             logic={view.logic}
             onLogic={(logic) => change({ logic })}
             logics={setup.logics}

@@ -532,3 +532,50 @@ def test_is_not_counts_rows_without_the_field(client, setup):
     assert sum(int(r[2]) for r in a["rows"]) == want and a["admin"]["verdict"] == "agree"
     assert setup["op_labels"]["ne"] == "is not (rows without a value count too)"
     assert setup["op_words"]["ne"] == "is not"
+
+
+class TestOneNumberingForCountColumns:
+    """The S7 check's HIGH: a header and a sort must mean the same column.
+    A count column carries its own id end to end — the answer's header ids
+    and a sort both use it — so a column held back cannot shift numbering."""
+
+    def _sb(self, sort=None):
+        sb = dict(by="sender_id", counts=[
+            dict(count("Warn", cond("status", "eq", value="warn")), id=7),
+            dict(count("Errors", cond("status", "eq", value="error"), pct=True), id=3)])
+        if sort:
+            sb["sort"] = sort
+        return sb
+
+    def test_header_ids_are_the_columns_own(self, client, setup):
+        _, a = ask(client, board(setup, **self._sb()))
+        assert [c["id"] for c in a["columns"]] == ["group", "rows", "count:7", "count:3", "pct:3"]
+
+    @pytest.mark.parametrize("column, idx", [("count:7", 2), ("count:3", 3), ("pct:3", 4)])
+    def test_each_header_sorts_its_own_column(self, client, setup, column, idx):
+        _, a = ask(client, board(setup, **self._sb({"column": column, "dir": "desc"})))
+        values = [Decimal(r[idx].rstrip("%")) for r in a["rows"]]
+        assert values == sorted(values, reverse=True), column
+        others = [Decimal(r[j].rstrip("%")) for r in a["rows"] for j in (2, 3) if j != idx]
+        assert others != sorted(others, reverse=True)   # it is not sorted by a neighbour
+
+    @pytest.mark.parametrize("patch, says", [
+        ({"column": "count:1", "dir": "desc"}, "Sort a scoreboard by one of its own columns."),
+        ({"column": "pct:7", "dir": "desc"}, "Sort a scoreboard by one of its own columns."),
+    ])
+    def test_a_sort_naming_no_sent_column_is_refused(self, client, setup, patch, says):
+        status, a = ask(client, board(setup, **self._sb(patch)))
+        assert status == 422 and a["message"] == says
+
+    @pytest.mark.parametrize("ids, says", [
+        ((7, 7), "Two count columns share one id."),
+        ((0, 3), "A count column's id must be a whole number."),
+        (("7", 3), "A count column's id must be a whole number."),
+        ((True, 3), "A count column's id must be a whole number."),
+    ])
+    def test_ids_are_checked(self, client, setup, ids, says):
+        sb = self._sb()
+        for c, i in zip(sb["counts"], ids):
+            c["id"] = i
+        status, a = ask(client, board(setup, **sb))
+        assert status == 422 and a["message"] == says

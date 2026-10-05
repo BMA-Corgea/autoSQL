@@ -1529,7 +1529,14 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
 # ═════════════════════════════════════════════════════════════════════════
 
 SCOREBOARD_KEYS = {"by", "counts", "time", "measure", "sort"}
-COUNT_KEYS = {"label", "logic", "conditions", "pct"}
+COUNT_KEYS = {"id", "label", "logic", "conditions", "pct"}
+
+#: A count column's id: the handle the screen keeps for it, echoed back in
+#: the answer's column ids ("count:<id>", "pct:<id>") and used by a sort —
+#: ONE numbering end to end, so a column the screen holds back (not ready)
+#: cannot shift which column a sort or a header means.  Without ids, the
+#: columns are numbered 1, 2, … in order.
+COUNT_ID_MAX = 10 ** 9
 TIME_KEYS = {"fn", "field"}
 MEASURE_KEYS = {"fn", "field"}
 SB_SORT_KEYS = {"column", "dir"}
@@ -1624,9 +1631,14 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             raise ViewError(f"Two count columns are both called “{label}”.")
         if not isinstance(c.get("pct", False), bool):
             raise ViewError("“% of rows” is on or off.")
+        cid = c.get("id", i)
+        if isinstance(cid, bool) or not isinstance(cid, int) or not 1 <= cid <= COUNT_ID_MAX:
+            raise ViewError("A count column's id must be a whole number.")
+        if cid in [x["id"] for x in labels]:
+            raise ViewError("Two count columns share one id.")
         expr, said = _count_conditions(c, fields, f"“{label}”")
         counts.append({"expr": expr, "pct": bool(c.get("pct"))})
-        labels.append({"label": label, "said": said, "pct": bool(c.get("pct"))})
+        labels.append({"id": cid, "label": label, "said": said, "pct": bool(c.get("pct"))})
 
     time = sb.get("time")
     time_spec = None
@@ -1671,10 +1683,10 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             raise ViewError("Sort a scoreboard by one of its own columns.")
         _refuse_extra(sort, SB_SORT_KEYS, "a sort")
         names = {"group": "grp", "rows": "rows", "time": "time", "measure": "measure"}
-        for i, c in enumerate(counts, start=1):
-            names[f"count:{i}"] = f"c{i}"
+        for i, c in enumerate(labels, start=1):
+            names[f"count:{c['id']}"] = f"c{i}"
             if c["pct"]:
-                names[f"pct:{i}"] = f"c{i}_pct"
+                names[f"pct:{c['id']}"] = f"c{i}_pct"
         column = names.get(sort.get("column"))
         if column is None or column not in group.columns_of(spec):
             raise ViewError("Sort a scoreboard by one of its own columns.")
@@ -1748,10 +1760,10 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
                {"id": "rows", "label": "Rows", "kind": "number",
                 "title": "How many rows each group holds."}]
     for i, c in enumerate(about["counts"], start=1):
-        columns.append({"id": f"count:{i}", "label": c["label"], "kind": "number",
+        columns.append({"id": f"count:{c['id']}", "label": c["label"], "kind": "number",
                         "title": f"Counts the rows in each group where {c['said']}."})
         if c["pct"]:
-            columns.append({"id": f"pct:{i}", "label": f"% {c['label']}", "kind": "number",
+            columns.append({"id": f"pct:{c['id']}", "label": f"% {c['label']}", "kind": "number",
                             "title": f"“{c['label']}” as a share of the group's rows, to one decimal place."})
     if spec["time"]:
         word = TIME_WORDS[about["time"]["fn"]][1]
