@@ -809,6 +809,43 @@ class TestTheEnginesOwnRefusalIsSaidPlainly:
         assert a["admin"]["statement"].startswith("SELECT ") and a["admin"]["sent"] is True
         assert '"A"' in a["admin"]["statement"] and a["admin"]["parameters"]
 
+    def test_after_the_refusal_the_connection_is_read_only_and_pinned_again(self, setup):
+        """The rollback after XPR01 reverts SET; the guard and the two pinned
+        session values are re-applied before anything else reads."""
+        from demo.server import db, settings
+
+        dashboard._CACHE.clear()
+        pick = dashboard.to_pick(setup, view(setup, "edge", columns=["a"],
+                                             conditions=[cond("huge", "eq", value=0)]))
+        conn = db.connect(application_name="autosql-demo-dashboard-test")
+        try:
+            server_app.refuse_writes(conn)
+            out = dashboard._run(conn, pick)
+            assert out["accepted"] is False and out["sql"]["display"].startswith("SELECT ")
+            assert conn.execute("SHOW transaction_read_only").fetchone()[0] == "on"
+            assert conn.execute("SHOW TimeZone").fetchone()[0] == settings.TIME_ZONE
+            assert conn.execute("SHOW extra_float_digits").fetchone()[0] == settings.EXTRA_FLOAT_DIGITS
+        finally:
+            conn.close()
+
+    def test_a_guard_that_cannot_be_reapplied_is_not_swallowed(self, monkeypatch, setup):
+        from demo.server import db
+
+        def broken(conn):
+            raise RuntimeError("transaction_read_only reads 'off'")
+
+        dashboard._CACHE.clear()
+        pick = dashboard.to_pick(setup, view(setup, "edge", columns=["a"],
+                                             conditions=[cond("huge", "eq", value=0)]))
+        conn = db.connect(application_name="autosql-demo-dashboard-test")
+        try:
+            server_app.refuse_writes(conn)
+            monkeypatch.setattr(server_app, "refuse_writes", broken)
+            with pytest.raises(RuntimeError, match="transaction_read_only"):
+                dashboard._run(conn, pick)
+        finally:
+            conn.close()
+
     def test_only_that_refusal_is_caught(self, monkeypatch, setup):
         """Any other database error still propagates: a pick must never
         produce an answer by swallowing something."""

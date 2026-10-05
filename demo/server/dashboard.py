@@ -1040,9 +1040,17 @@ def _statement_for_admin(conn, pick: dict, server_app) -> dict:
     """
     import builder
 
+    # The same re-pinning the two-pane route does after its own mid-run
+    # refusal (app.py, _float8_overflow_refusal): SET is transactional, so
+    # the rollback reverted both db.py's pinned session values and the
+    # read-only guard.  Outside the try on purpose: if the guard cannot be
+    # re-applied, the request fails loudly rather than continuing on a
+    # connection that might write.
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    server_app.refuse_writes(conn)
     try:
-        conn.rollback()
-        server_app.refuse_writes(conn)
         norm = server_app.normalised_pick(pick)
         built = builder.build(norm, server_app.collection_keys(conn, norm["source"]))
         return {
@@ -1051,7 +1059,7 @@ def _statement_for_admin(conn, pick: dict, server_app) -> dict:
             "params": server_app._param_rows(built.params),
             "statement_sent": True,
         }
-    except Exception:  # noqa: BLE001 — display only; the refusal stands
+    except Exception:  # noqa: BLE001 — building the display only; the refusal stands
         return {"display": None, "statement_sent": True}
 
 
