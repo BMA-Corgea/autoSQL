@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+<title>Data explorer</title>
+
+<!--
+  demo/static/dashboard.html — the dashboard (T-71).
+
+  The same fences as index.html, for the same reasons (AC13):
+    * the same Content-Security-Policy, naming no host but this one;
+    * the four vendored Watery sheets first and unedited, then the base
+      skin, which owns the bare :root and follows the operating system's
+      light or dark setting (no data-theme attribute here, so nothing
+      overrides it), then this page's own sheet;
+    * both bundles committed and served from this host.
+
+  No skin switcher and no tour: this page is the calm one.
+-->
+
+<link rel="stylesheet" href="/vendor/styles/watery.css">
+<link rel="stylesheet" href="/vendor/styles/dashboard.css">
+<link rel="stylesheet" href="/vendor/styles/shell.css">
+<link rel="stylesheet" href="/vendor/styles/components.css">
+<link rel="stylesheet" href="/static/skins/base.css">
+<link rel="stylesheet" href="/static/dashboard.css">
+
+<link rel="preload" href="/static/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+</head>
+
+<body class="dx-body">
+  <div id="root"></div>
+
+  <noscript>
+    <p class="dx-noscript">This page needs JavaScript turned on.</p>
+  </noscript>
+
+  <script src="/static/js/vendor.js" defer></script>
+  <script src="/static/js/dashboard.js" defer></script>
+</body>
+</html>

@@ -1322,7 +1322,7 @@ def _references_in(content_type: str, text: str) -> list[str]:
     return [r for r in refs if r and not r.startswith(("#", "data:", "about:"))]
 
 
-def what_the_page_loads(fetch) -> dict[str, tuple[str, bytes]]:
+def what_the_page_loads(fetch, start: str = "/") -> dict[str, tuple[str, bytes]]:
     """Walk out from `/`, following every reference, and return what came
     back: url → (content type, body).
 
@@ -1332,7 +1332,7 @@ def what_the_page_loads(fetch) -> dict[str, tuple[str, bytes]]:
     URL — the machinery under test is then the real one, not a copy of it.
     """
     served: dict[str, tuple[str, bytes]] = {}
-    queue = ["/"]
+    queue = [start]   # T-71: the dashboard's page is walked from /dashboard
     while queue:
         url = queue.pop(0)
         base = url.split("#")[0]

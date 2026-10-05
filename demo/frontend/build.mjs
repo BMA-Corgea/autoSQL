@@ -57,6 +57,11 @@ const SOURCES = [
   path.join(HERE, "panes.jsx"),
   path.join(HERE, "sqlpane.jsx"),
   path.join(HERE, "app.jsx"),
+  // T-71 — the dashboard's own bundle (static/js/dashboard.js). Its sources
+  // are in the same digest, so a stale dashboard bundle fails the suite by
+  // name exactly as a stale app.js does (AC14).
+  path.join(HERE, "dashboard-steps.jsx"),
+  path.join(HERE, "dashboard.jsx"),
 ];
 
 export function sourceDigest() {
@@ -144,6 +149,13 @@ const appOpts = {
   plugins: [shimPlugin],
 };
 
+const dashboardOpts = {
+  ...common,
+  entryPoints: [path.join(HERE, "dashboard.jsx")],
+  outfile: path.join(OUT, "dashboard.js"),
+  plugins: [shimPlugin],
+};
+
 function recordDigest() {
   const digest = sourceDigest();
   const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
@@ -153,13 +165,13 @@ function recordDigest() {
 }
 
 if (watch) {
-  const ctxs = await Promise.all([vendorOpts, appOpts].map((o) => esbuild.context(o)));
+  const ctxs = await Promise.all([vendorOpts, appOpts, dashboardOpts].map((o) => esbuild.context(o)));
   await Promise.all(ctxs.map((c) => c.watch()));
   console.log("[build-ui] watching demo/frontend/** → demo/static/js/");
 } else {
-  await Promise.all([vendorOpts, appOpts].map((o) => esbuild.build(o)));
+  await Promise.all([vendorOpts, appOpts, dashboardOpts].map((o) => esbuild.build(o)));
   const digest = recordDigest();
-  console.log(`[build-ui] wrote demo/static/js/vendor.js + app.js`);
+  console.log(`[build-ui] wrote demo/static/js/vendor.js + app.js + dashboard.js`);
   console.log(`[build-ui] manifest ui:frontend-sources:sha256 = ${digest}`);
-  console.log(`[build-ui] COMMIT BOTH BUNDLES — AC-36 runs from them, with no Node present.`);
+  console.log(`[build-ui] COMMIT THE BUNDLES — AC-36 runs from them, with no Node present.`);
 }

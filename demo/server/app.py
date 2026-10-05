@@ -395,9 +395,9 @@ def column_order(width: int, per_row: dict) -> dict:
 
 
 def _rendered_pane(pane: dict, differing: dict, start: int, state: str,
-                   note: str) -> dict:
+                   note: str, *, size: int | None = None) -> dict:
     """One pane, as the screen receives it: the true total, and a page."""
-    stop = start + settings.PAGE_SIZE
+    stop = start + (settings.PAGE_SIZE if size is None else size)
     kinds = pane["kinds"]
     out = []
     for i in range(start, min(stop, len(pane["canon"]))):
@@ -1011,9 +1011,13 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
     return body
 
 
-def run_pick(conn, pick: dict) -> dict:
+def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     """One pick → the whole response body.  Separated from the route so the
-    suite drives the same code the screen does, with no HTTP in the way."""
+    suite drives the same code the screen does, with no HTTP in the way.
+
+    ``whole`` (T-71): the SQL pane carries every row of the answer from row
+    0, not one page.  The dashboard pages through it itself; the two-pane
+    screen never passes it and is answered exactly as before."""
     # ── 0 · one spelling for the field slots, handed to both panes ──────
     #        A slot no single spelling reaches both panes with is refused
     #        here, at layer 1, before anything is built (W13-2).
@@ -1154,7 +1158,7 @@ def run_pick(conn, pick: dict) -> dict:
     python = python_pane(conn, pick, kinds_by_column)
     comparison = compare_panes(sql, python)
     per_row = comparison.pop("_per_row")
-    start = _page_start(comparison["first_differing_index"])
+    start = 0 if whole else _page_start(comparison["first_differing_index"])
 
     return {
         "accepted": True,
@@ -1164,7 +1168,8 @@ def run_pick(conn, pick: dict) -> dict:
         "comparison": comparison,
         "column_order": column_order(len(sql["columns"]), per_row),
         "panes": {
-            "sql": _rendered_pane(sql, per_row, start, "answered", _SQL_NOTE),
+            "sql": _rendered_pane(sql, per_row, start, "answered", _SQL_NOTE,
+                                  size=len(sql["canon"]) if whole else None),
             "python": _rendered_pane(python, per_row, start, "answered", _PY_NOTE),
         },
         "page": {
@@ -1512,3 +1517,10 @@ def api_pick(body: dict) -> JSONResponse:
     finally:
         conn.close()
     return JSONResponse(answer, status_code=200 if answer["accepted"] else 422)
+
+
+# T-71 — the dashboard: its page at /dashboard and its two contract routes.
+# Everything it decides lives in dashboard.py; it answers through run_pick.
+from . import dashboard  # noqa: E402
+
+app.include_router(dashboard.router)

@@ -1,0 +1,763 @@
+"""demo/server/dashboard.py — the dashboard's contract (T-71).
+
+The dashboard at ``/dashboard`` is the owner's own description of autoSQL:
+*"a dashboard from which you can ask for different parts of a database and
+the SQL autopopulates from it."*  A person clicks; nothing is typed in any
+language.  This module is everything between those clicks and the engine:
+
+* **the setup** — the three data sets, their row counts, and each field's
+  plain name, its kind, the conditions it can take and the values found in
+  the data (``GET /api/dashboard/setup``);
+* **the translation** — a *view* (the clicks) becomes one *pick* (the
+  engine's own shape, ``legality.default_pick``).  Every picked value enters
+  the filter as a correctly escaped literal of the expression language, which
+  the pinned compiler then binds as a parameter (AC-11);
+* **the answer** — the pick runs through ``app.run_pick``, the same function
+  the two-pane screen calls, so the second engine, the probes and every
+  refusal stay in one place.  What comes back is reshaped for a person: one
+  sentence, formatted cells, a page of rows, plain reasons
+  (``POST /api/dashboard/answer``).
+
+The React side (``demo/frontend/dashboard*.jsx``) draws what this returns
+and decides nothing.  That split is B22's, applied to a second screen: the
+rules live where the suite can test them without a browser (AC-36).
+
+WHAT THE EVERYONE VIEW NEVER SAYS (AC9).  The words a person sees come from
+this file's templates, and none of them is a machinery word.  The statement
+and the engine's own words travel in ``admin`` and are drawn only when the
+page is switched to *View as: Admin*.
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import re
+import sys
+import threading
+from collections import OrderedDict
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter
+from fastapi.responses import HTMLResponse, JSONResponse
+
+# demo/ is not a package; the same bootstrap as errors.py.
+_DEMO_DIR = str(Path(__file__).resolve().parent.parent)
+if _DEMO_DIR not in sys.path:
+    sys.path.insert(0, _DEMO_DIR)
+
+import legality  # noqa: E402
+
+from . import db, settings  # noqa: E402
+
+router = APIRouter()
+
+_STATIC = Path(__file__).resolve().parent.parent / "static"
+
+#: Rows per table page.  The engine's own page size, so the two screens
+#: agree on what "a page" is.
+PAGE_SIZE = settings.PAGE_SIZE
+
+#: The "Show" choices.  ``None`` is "all rows" (no cap).
+SHOW_CHOICES = (None, 25, 100, 500)
+
+#: A text field with this many distinct values or fewer is offered as chips;
+#: more than that, as a searchable list.
+CHIP_LIMIT = 8
+
+#: The most values a text field offers.  The largest field in the seed
+#: (Samples' ID) has exactly 2,000.
+VALUE_LIMIT = 2000
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 1 · The data sets and their fields, in plain words
+# ═════════════════════════════════════════════════════════════════════════
+
+DATASETS = (
+    {
+        "id": "heartbeats",
+        "source": legality.HEARTBEAT,
+        "name": "Heartbeats",
+        "one": "heartbeat",
+        "about": "Hourly check-ins from 50 senders over one week in August.",
+        # Display order, and the columns a fresh view starts with.
+        "order": ("sender_id", "ts", "status", "payload.load", "payload.note"),
+        "default_columns": ("sender_id", "ts", "status", "payload.load",
+                            "payload.note"),
+    },
+    {
+        "id": "samples",
+        "source": "noun:Sample",
+        "name": "Samples",
+        "one": "sample",
+        "about": "Work items, each with a status, a due date and a priority.",
+        "order": ("id", "status", "due_date", "priority"),
+        "default_columns": ("id", "status", "due_date", "priority"),
+    },
+    {
+        "id": "edge",
+        "source": "noun:EdgeCase",
+        "name": "Edge cases",
+        "one": "edge case",
+        "about": "Ten odd values kept on purpose: huge numbers, empty lists, blanks.",
+        "order": ("label",),
+        "default_columns": None,   # every field: the oddness is the point
+    },
+)
+_BY_ID = {d["id"]: d for d in DATASETS}
+
+#: Plain names for the fields that have one.  Every other field is named by
+#: :func:`_humanize` (``field_7`` → "Field 7").
+_LABELS = {
+    "sender_id": "Sender",
+    "ts": "Time",
+    "status": "Status",
+    "payload.load": "Load",
+    "payload.note": "Note",
+    "id": "ID",
+    "due_date": "Due date",
+    "priority": "Priority",
+    "label": "Label",
+}
+
+_TIME_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
+_PLAIN_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def _humanize(path: str) -> str:
+    words = path.replace(".", " ").replace("_", " ").split()
+    text = " ".join(words) or path
+    return text[:1].upper() + text[1:]
+
+
+def _natural(key: str):
+    """``field_2`` before ``field_10``."""
+    return [int(p) if p.isdigit() else p for p in re.split(r"(\d+)", key)]
+
+
+def _alias(label: str, taken: set) -> str:
+    """The column name a field gets in the statement: its plain label, in
+    the characters a column name may hold (``Due date`` → ``Due_date``).
+    Every label starts with a capital, and every key in the seed is lower
+    case, so an alias never collides with a field of the data set."""
+    base = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_") or "Field"
+    if not base[0].isalpha():
+        base = "F_" + base
+    base = base[:60]
+    name, n = base, 2
+    while name in taken:
+        name, n = f"{base}_{n}", n + 1
+    taken.add(name)
+    return name
+
+
+# ── reading the fields out of the data ───────────────────────────────────
+
+_TYPES_SQL = """
+SELECT e.k, jsonb_typeof(e.v) AS t, count(*)
+  FROM demo.records r, LATERAL jsonb_each(r.data) AS e(k, v)
+ WHERE r.collection = %(collection)s
+ GROUP BY 1, 2
+"""
+
+_INNER_TYPES_SQL = """
+SELECT e2.k, jsonb_typeof(e2.v) AS t, count(*)
+  FROM demo.records r, LATERAL jsonb_each(r.data -> %(key)s) AS e2(k, v)
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data -> %(key)s) = 'object'
+ GROUP BY 1, 2
+"""
+
+_VALUES_SQL = """
+SELECT r.data #>> %(path)s AS v, count(*) AS n
+  FROM demo.records r
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data #> %(path)s) = 'string'
+ GROUP BY 1
+ ORDER BY 1
+ LIMIT %(limit)s
+"""
+
+_RANGE_SQL = """
+SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
+  FROM demo.records r
+ WHERE r.collection = %(collection)s
+   AND jsonb_typeof(r.data #> %(path)s) = 'number'
+"""
+
+_COUNTS_SQL = (
+    "SELECT collection, count(*) FROM demo.records GROUP BY collection"
+)
+
+
+def _kind(types: set, strings: list) -> str:
+    """One field's kind, from the JSON types its values take.
+
+    * ``number`` — every value is a number;
+    * ``time`` / ``date`` — every value is text in the one fixed-width UTC
+      form (``2026-08-20T23:00:00Z``) or a calendar date (``2026-09-03``);
+    * ``text`` — every value is text;
+    * ``yesno`` — every value is true or false;
+    * ``mixed`` — anything else (different types in different rows).
+    """
+    if types == {"number"}:
+        return "number"
+    if types == {"string"}:
+        if strings and all(_TIME_RE.match(s) for s in strings):
+            return "time"
+        if strings and all(_DATE_RE.match(s) for s in strings):
+            return "date"
+        return "text"
+    if types == {"boolean"}:
+        return "yesno"
+    return "mixed"
+
+
+#: Why a field takes no conditions, in plain words.
+WHY_GROUPED = (
+    "Some rows hold a list or a group of values here, so it can't be "
+    "matched against one value."
+)
+WHY_ONLY_BLANK = "Every row is blank here, so there is nothing to match."
+
+
+def _ops_for(kind: str, types: set) -> list:
+    """The conditions a field can take.  A field that holds a list or a
+    group of values in any row takes none: the engine compares one value
+    with one value, and refuses to compare a group (measured: ``==`` on
+    Samples' ``field_3`` is refused at run time for exactly that)."""
+    if types & {"object", "array"}:
+        return []
+    if not (types - {"null"}):
+        return []
+    blanks = ["present", "blank"]
+    if kind == "number":
+        return ["eq", "ne", "gt", "lt", "ge", "le", "between"] + blanks
+    if kind in ("time", "date"):
+        return ["on", "after", "before", "between"] + blanks
+    if kind == "text":
+        return ["eq", "ne", "in"] + blanks
+    if kind == "yesno":
+        return ["yes", "no"] + blanks
+    return blanks
+
+
+def _read_fields(conn, collection: str) -> list:
+    """Every field of one data set: its path, its JSON types, its kind,
+    the conditions it can take and the values found in it."""
+    rows = conn.execute(_TYPES_SQL, {"collection": collection}).fetchall()
+    types: dict = {}
+    for k, t, _n in rows:
+        types.setdefault(k, set()).add(t)
+
+    paths: dict = {}
+    for key, ts in types.items():
+        if not _PLAIN_KEY.match(key):
+            continue   # a name the path grammar cannot reach (app._as_dollar_path)
+        if ts == {"object"}:
+            # A key that always holds an object (Heartbeats' payload) is
+            # opened one level: its fields are what a person reads.
+            inner = conn.execute(
+                _INNER_TYPES_SQL, {"collection": collection, "key": key}
+            ).fetchall()
+            for k2, t2, _n in inner:
+                if _PLAIN_KEY.match(k2):
+                    paths.setdefault(f"{key}.{k2}", set()).add(t2)
+        else:
+            paths[key] = set(ts)
+
+    fields = []
+    for path, ts in paths.items():
+        strings: list = []
+        if "string" in ts:
+            strings = [
+                r[0] for r in conn.execute(_VALUES_SQL, {
+                    "collection": collection, "path": path.split("."),
+                    "limit": VALUE_LIMIT + 1,
+                }).fetchall()
+            ]
+        scalar_types = ts - {"null"}
+        kind = _kind(scalar_types, strings)
+        ops = _ops_for(kind, ts)
+        field = {
+            "path": path,
+            "label": _LABELS.get(path) or _humanize(path),
+            "kind": kind,
+            "ops": ops,
+            "why_no_ops": "" if ops else (
+                WHY_GROUPED if ts & {"object", "array"} else WHY_ONLY_BLANK
+            ),
+            "values": None,
+            "picker": None,
+            "range": None,
+        }
+        if kind == "text" and len(strings) <= VALUE_LIMIT:
+            field["values"] = strings
+            field["picker"] = "chips" if len(strings) <= CHIP_LIMIT else "list"
+        if kind == "number":
+            lo, hi = conn.execute(
+                _RANGE_SQL, {"collection": collection, "path": path.split(".")}
+            ).fetchone()
+            if lo is not None:
+                field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
+        if kind in ("time", "date") and strings:
+            field["range"] = {"min": strings[0], "max": strings[-1]}
+        fields.append(field)
+    return fields
+
+
+def _ordered(fields: list, order: tuple) -> list:
+    first = {p: i for i, p in enumerate(order)}
+    return sorted(
+        fields,
+        key=lambda f: (first.get(f["path"], len(first)), _natural(f["path"])),
+    )
+
+
+_SETUP_LOCK = threading.Lock()
+_SETUP: dict | None = None
+
+
+def setup(conn) -> dict:
+    """The whole setup payload.  Read once per process: the data is the
+    pinned, read-only seed (AC-10), so it cannot change underneath."""
+    global _SETUP
+    with _SETUP_LOCK:
+        if _SETUP is not None:
+            return _SETUP
+        counts = dict(conn.execute(_COUNTS_SQL).fetchall())
+        out = []
+        for d in DATASETS:
+            fields = _ordered(_read_fields(conn, d["source"]), d["order"])
+            taken: set = set()
+            for f in fields:
+                f["alias"] = _alias(f["label"], taken)
+            default = d["default_columns"] or tuple(f["path"] for f in fields)
+            out.append({
+                "id": d["id"],
+                "name": d["name"],
+                "about": d["about"],
+                "rows": int(counts.get(d["source"], 0)),
+                "fields": fields,
+                "default_columns": [p for p in default
+                                    if any(f["path"] == p for f in fields)],
+                "has_time": d["source"] == legality.HEARTBEAT,
+            })
+        _SETUP = {
+            "datasets": out,
+            "show": list(SHOW_CHOICES),
+            "page_size": PAGE_SIZE,
+            "default_view": default_view_from(out),
+        }
+        return _SETUP
+
+
+def default_view_from(datasets: list, dataset_id: str = "heartbeats") -> dict:
+    ds = next(d for d in datasets if d["id"] == dataset_id)
+    return {
+        "dataset": ds["id"],
+        "columns": list(ds["default_columns"]),
+        "conditions": [],
+        "sort": None,
+        "show": None,
+        "summary": None,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 2 · The view → the pick
+# ═════════════════════════════════════════════════════════════════════════
+
+class ViewError(ValueError):
+    """A view this contract cannot translate — said in plain words."""
+
+
+def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
+    if not isinstance(view, dict):
+        raise ViewError("The question must be a set of choices.")
+    ds_id = view.get("dataset")
+    ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
+    if ds is None:
+        raise ViewError("Pick one of the three data sets.")
+    fields = {f["path"]: f for f in ds["fields"]}
+    return ds, fields
+
+
+def _columns(view: dict, fields: dict) -> list:
+    cols = view.get("columns")
+    if cols is None:
+        return []
+    if not isinstance(cols, list) or not all(isinstance(c, str) for c in cols):
+        raise ViewError("Columns must be a list of field names.")
+    unknown = [c for c in cols if c not in fields]
+    if unknown:
+        raise ViewError(f"This data set has no field called {unknown[0]!r}.")
+    seen: list = []
+    for c in cols:
+        if c not in seen:
+            seen.append(c)
+    return seen
+
+
+def _show(view: dict):
+    show = view.get("show")
+    if show not in SHOW_CHOICES or isinstance(show, bool):
+        raise ViewError("Show must be all rows, 25, 100 or 500.")
+    return show
+
+
+def to_pick(setup_payload: dict, view: dict) -> dict:
+    """One view → one pick, in the engine's own shape.
+
+    The chosen columns become computed columns named by their plain labels
+    (``$.sender_id AS "Sender"``), so the statement visibly changes with the
+    pick (AC3).  The source is chosen from a closed set of three.
+    """
+    ds, fields = _dataset(setup_payload, view)
+    pick = legality.default_pick()
+    pick["source"] = next(d["source"] for d in DATASETS if d["id"] == ds["id"])
+    pick["computed"] = [
+        {"name": fields[c]["alias"], "expr": field_ref(c)}
+        for c in _columns(view, fields)
+    ]
+    pick["cap"] = _show(view)
+    return pick
+
+
+def field_ref(path: str) -> str:
+    """A field path as the expression language spells it: ``$.payload.load``.
+    Only paths read out of the data reach here, and every step of one is a
+    plain identifier (:data:`_PLAIN_KEY`), so the dotted form is exact."""
+    steps = path.split(".")
+    if not all(_PLAIN_KEY.match(s) for s in steps):
+        raise ViewError(f"{path!r} is not a field this page can reach.")
+    return "$." + path
+
+
+def string_literal(value: str) -> str:
+    """A string as a literal of the expression language, exactly.
+
+    ``expr.py`` reads ``"…"`` with a backslash escaping the next character
+    (``\\n``, ``\\t`` and ``\\r`` excepted), so a backslash and a double
+    quote are the two characters that need escaping, and the only newline
+    forms that would change meaning are written back as their escapes.
+    Everything else — ``'``, ``%``, ``_``, any non-ASCII — is itself.  The
+    pinned compiler then binds the decoded value as a parameter: nothing a
+    person picks is ever spliced into the statement's text.
+    """
+    if not isinstance(value, str):
+        raise ViewError("A text value must be text.")
+    out = []
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ch == "\r":
+            out.append("\\r")
+        else:
+            out.append(ch)
+    return '"' + "".join(out) + '"'
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 3 · Formatting a cell for a person
+# ═════════════════════════════════════════════════════════════════════════
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def fmt_time(text: str) -> str:
+    """``2026-08-20T23:00:00Z`` → ``Aug 20, 23:00 UTC``."""
+    try:
+        t = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return text
+    return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d} UTC"
+
+
+def fmt_date(text: str) -> str:
+    """``2026-09-03`` → ``Sep 3, 2026``."""
+    try:
+        d = _dt.date.fromisoformat(text)
+    except ValueError:
+        return text
+    return f"{_MONTHS[d.month - 1]} {d.day}, {d.year}"
+
+
+def fmt_day(text: str) -> str:
+    """``2026-08-14…`` → ``Aug 14``."""
+    try:
+        d = _dt.date.fromisoformat(text[:10])
+    except ValueError:
+        return text
+    return f"{_MONTHS[d.month - 1]} {d.day}"
+
+
+def _number_text(value) -> str:
+    """A number read from the database, as plain text: ``100``, ``-523.1234``,
+    and an exponent only past fifteen digits (``1e+300``)."""
+    d = Decimal(value) if not isinstance(value, Decimal) else value
+    if abs(d) >= Decimal("1e15"):
+        return f"{d.normalize():.17g}".replace("E", "e")
+    return format(d.normalize(), "f")
+
+
+def fmt_number(text: str, *, places: int | None = None) -> str:
+    """Thousands separators, the digits otherwise as stored.
+
+    ``places`` rounds for display only (an average); the exact value stays
+    in the payload beside it.  A value written with an exponent
+    (``1e+300``) is left exactly as written: grouping 301 digits would not
+    make it easier to read.
+    """
+    try:
+        d = Decimal(text)
+    except (InvalidOperation, TypeError):
+        return str(text)
+    if not d.is_finite() or "e" in str(text).lower():
+        return str(text)
+    if places is not None:
+        d = d.quantize(Decimal(1).scaleb(-places))
+        return f"{d:,.{places}f}"
+    sign = "-" if d < 0 else ""
+    digits = str(abs(d))
+    whole, _, frac = digits.partition(".")
+    whole = f"{int(whole):,}"
+    return sign + whole + ("." + frac if frac else "")
+
+
+def _plain_json(value: Any) -> str:
+    if value is None:
+        return "blank"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, (int, float, Decimal)):
+        return fmt_number(str(value).replace("E", "e"))
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "(empty list)" if not value else ", ".join(_plain_json(v) for v in value)
+    if isinstance(value, dict):
+        if not value:
+            return "(empty group)"
+        return ", ".join(f"{k}: {_plain_json(v)}" for k, v in value.items())
+    return str(value)
+
+
+def fmt_cell(text: str, tag: str, kind: str):
+    """One answer cell → what a person reads.  ``None`` is a blank cell."""
+    if tag == "null":
+        return None
+    if tag == "boolean":
+        return "Yes" if text == "true" else "No"
+    if tag == "number":
+        return fmt_number(text)
+    if tag == "string":
+        if kind == "time":
+            return fmt_time(text)
+        if kind == "date":
+            return fmt_date(text)
+        return text
+    if tag in ("array", "object"):
+        try:
+            return _plain_json(json.loads(text, parse_float=Decimal, parse_int=Decimal))
+        except ValueError:
+            return text
+    return text
+
+
+def plural(n: int, one: str, many: str | None = None) -> str:
+    return f"{fmt_number(str(n))} {one if n == 1 else (many or one + 's')}"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 4 · The sentence (AC8) — by template, from the picks
+# ═════════════════════════════════════════════════════════════════════════
+
+def sentence(ds: dict, view: dict, fields: dict, total: int) -> str:
+    """The question, restated in one line.  A template over the picks, never
+    a model: ``Heartbeats — 8,400 rows``."""
+    show = view.get("show")
+    head = ds["name"]
+    if total == 0:
+        tail = "no rows match"
+    elif show is not None and total >= show:
+        tail = f"the first {plural(show, 'row')}"
+    else:
+        tail = plural(total, "row")
+    return f"{head} — {tail}"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5 · The answer
+# ═════════════════════════════════════════════════════════════════════════
+
+_CACHE_LOCK = threading.Lock()
+_CACHE: "OrderedDict[str, dict]" = OrderedDict()
+_CACHE_SIZE = 8
+
+
+def _run(conn, pick: dict) -> dict:
+    """``run_pick`` with every row of the answer, remembered per pick.
+
+    A page turn re-asks the same pick; the seed is pinned and the session
+    is read-only, so the answer to a pick cannot change while the process
+    lives, and a page turn need not run both engines again.
+    """
+    from . import app as server_app   # the routes import this module
+
+    key = json.dumps(pick, sort_keys=True)
+    with _CACHE_LOCK:
+        hit = _CACHE.get(key)
+        if hit is not None:
+            _CACHE.move_to_end(key)
+            return hit
+    answer = server_app.run_pick(conn, pick, whole=True)
+    with _CACHE_LOCK:
+        _CACHE[key] = answer
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > _CACHE_SIZE:
+            _CACHE.popitem(last=False)
+    return answer
+
+
+#: What a refusal says to a person, by what the engine found.  The engine's
+#: own words go to the admin panel unchanged.
+_PLAIN_REFUSAL = (
+    ("container operand", "Some rows hold a list or a group of values in a "
+                          "field you're matching on, so it can't be compared "
+                          "with one value."),
+    ("out-of-range magnitude", "One of these values is too large to compute "
+                               "with, so this can't be answered honestly."),
+    ("overflow", "A result here grows too large to compute, so this can't be "
+                 "answered honestly."),
+)
+_PLAIN_REFUSAL_DEFAULT = "These choices can't be answered together. Try changing one."
+
+
+def plain_refusal(refusal: dict | None) -> str:
+    text = json.dumps(refusal or {}).lower()
+    for needle, plain in _PLAIN_REFUSAL:
+        if needle in text:
+            return plain
+    return _PLAIN_REFUSAL_DEFAULT
+
+
+def _admin_block(answer: dict) -> dict:
+    sql = answer.get("sql") or {}
+    comparison = answer.get("comparison") or {}
+    refusal = answer.get("refusal")
+    return {
+        "statement": sql.get("display"),
+        "sent": bool(sql.get("statement_sent")),
+        "verdict": answer.get("verdict"),
+        "differing_rows": comparison.get("differing_rows", 0),
+        "compared_rows": comparison.get("compared_rows", 0),
+        "refusal": None if refusal is None else {
+            "headline": refusal.get("headline"),
+            "why": refusal.get("why") or refusal.get("body"),
+        },
+    }
+
+
+def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
+    """One view → what the dashboard draws."""
+    ds, fields = _dataset(setup_payload, view)
+    pick = to_pick(setup_payload, view)
+    result = _run(conn, pick)
+    admin = _admin_block(result)
+
+    if not result.get("accepted"):
+        return {
+            "kind": "refused",
+            "sentence": ds["name"],
+            "message": plain_refusal(result.get("refusal")),
+            "admin": admin,
+        }
+
+    pane = result["panes"]["sql"]
+    columns = pane["columns"]
+    by_alias = {f["alias"]: f for f in fields.values()}
+    shown = [i for i, c in enumerate(columns) if c in by_alias]
+    total = pane["row_count"]
+
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = []
+    for row in pane["rows"][start:start + PAGE_SIZE]:
+        rows.append([
+            fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"])
+            for i in shown
+        ])
+
+    return {
+        "kind": "table",
+        "sentence": sentence(ds, view, fields, total),
+        "total": total,
+        "columns": [
+            {"path": by_alias[columns[i]]["path"],
+             "label": by_alias[columns[i]]["label"],
+             "kind": by_alias[columns[i]]["kind"]}
+            for i in shown
+        ],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start,
+                 "count": len(rows), "last": last},
+        "admin": admin,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 6 · The routes
+# ═════════════════════════════════════════════════════════════════════════
+
+def _connect():
+    from . import app as server_app
+
+    conn = db.connect(application_name="autosql-demo-dashboard")
+    server_app.refuse_writes(conn)
+    return conn
+
+
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def dashboard_page() -> HTMLResponse:
+    return HTMLResponse((_STATIC / "dashboard.html").read_text())
+
+
+@router.get("/api/dashboard/setup")
+def api_setup() -> JSONResponse:
+    conn = _connect()
+    try:
+        return JSONResponse(setup(conn))
+    finally:
+        conn.close()
+
+
+@router.post("/api/dashboard/answer")
+def api_answer(body: dict) -> JSONResponse:
+    view = body.get("view") if isinstance(body, dict) else None
+    page = body.get("page", 0) if isinstance(body, dict) else 0
+    conn = _connect()
+    try:
+        payload = setup(conn)
+        try:
+            out = answer(conn, payload, view, page)
+        except ViewError as exc:
+            return JSONResponse({"kind": "invalid", "message": str(exc)},
+                                status_code=422)
+        return JSONResponse(out)
+    finally:
+        conn.close()
