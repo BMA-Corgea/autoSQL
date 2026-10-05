@@ -10,7 +10,8 @@ And the two engines are held to each other, cell by cell, with two mutants
 that must be caught: one in the shared logic composition (caught by the
 truth tables), one in the second engine (caught by the comparison).
 
-Criteria: ``.autodev/specs/T-73.md`` AC1–AC8.
+What a scoreboard is: README.md, "The dashboard: SQL analysis, kept out of sight";
+what it must do: the tests below, one class or group per promise.
 """
 
 from __future__ import annotations
