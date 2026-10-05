@@ -1002,18 +1002,51 @@ def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> 
     return head
 
 
-def sentence(ds: dict, view: dict, fields: dict, total: int) -> str:
+def sentence(ds: dict, view: dict, fields: dict, total: int,
+             of_total: int | None = None) -> str:
     """The question, restated in one line.  A template over the picks, never
-    a model: ``Heartbeats where Status is warn, newest first — 412 rows``."""
+    a model: ``Heartbeats where Status is warn, newest first — 412 rows``.
+
+    ``of_total`` (T-72, Q6): how many rows the same choices match without
+    the cap, when both engines agreed on it — ``the first 100 of 205 rows``.
+    ``None`` keeps the capped wording that states no total."""
     show = view.get("show")
     head = question_words(ds, view, fields)
     if total == 0:
         tail = "no rows match"
     elif show is not None and total >= show:
-        tail = f"the first {plural(show, 'row')}"
+        if of_total is not None and of_total <= show:
+            tail = plural(of_total, "row")          # the cap cut nothing
+        elif of_total is not None:
+            tail = f"the first {fmt_number(str(show))} of {plural(of_total, 'row')}"
+        else:
+            tail = f"the first {plural(show, 'row')}"
     else:
         tail = plural(total, "row")
     return f"{head} — {tail}"
+
+
+def agreed_count(conn, pick: dict) -> int | None:
+    """How many rows these choices match, counted through ``run_pick`` —
+    both engines — and returned ONLY when the two agree.  ``None`` when
+    they don't, or when the count is refused: the caller then says nothing
+    it cannot stand behind (T-72 AC2)."""
+    count_pick = dict(pick, aggregate={"fn": "count", "field": None},
+                      bucket="off", computed=[], sort=None, cap=None)
+    result = _run(conn, count_pick)
+    if not result.get("accepted") or result.get("verdict") != "agree":
+        return None
+    return int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
+
+
+def agreed_rows(conn, pick: dict) -> int | None:
+    """How many answer rows a pick returns without its cap — for a capped
+    per-hour / per-day answer, the number of hours or days with rows —
+    through both engines, ONLY when they agree."""
+    result = _run(conn, dict(pick, cap=None))
+    if not result.get("accepted") or result.get("verdict") != "agree":
+        return None
+    return int(result["panes"]["sql"]["row_count"])
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -1193,7 +1226,9 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
 
     return {
         "kind": "table",
-        "sentence": sentence(ds, view, fields, total),
+        "sentence": sentence(ds, view, fields, total, of_total=(
+            agreed_count(conn, pick)
+            if view.get("show") is not None and total >= view["show"] else None)),
         "total": total,
         "columns": [
             {"path": by_alias[columns[i]]["path"],
@@ -1268,17 +1303,17 @@ def blank_reason(conn, pick: dict, field_label: str) -> str:
     matched, or that rows matched and none of them holds a number in the
     field.  "No rows match" is said only when the engine's own count over
     the same filter is 0; the count is asked through ``run_pick`` like any
-    other pick, so both engines answer it too.
+    other pick, and used only when both engines agree on it (T-72).
     """
-    count_pick = dict(pick, aggregate={"fn": "count", "field": None})
-    result = _run(conn, count_pick)
-    if result.get("accepted"):
-        n = int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
-        if n == 0:
-            return "No rows match"
-        return (f"No value: {plural(n, 'row')} {'matches' if n == 1 else 'match'}, "
-                f"and none has a value for {field_label}.")
-    return f"No value: no matching row has a value for {field_label}."
+    n = agreed_count(conn, pick)
+    if n is None:
+        # The count was refused or the engines disagree on it: say only
+        # what is true either way.
+        return f"No value: no matching row has a value for {field_label}."
+    if n == 0:
+        return "No rows match"
+    return (f"No value: {plural(n, 'row')} {'matches' if n == 1 else 'match'}, "
+            f"and none has a value for {field_label}.")
 
 
 def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) -> dict:
@@ -1338,7 +1373,13 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     if with_rows == 0:
         tail = "no rows match"
     elif capped:
-        tail = f"the first {plural(show, unit)} with rows"
+        of = agreed_rows(conn, pick)
+        if of is not None and of <= show:
+            tail = f"{plural(of, unit)}" if of == total else f"{fmt_number(str(of))} of {plural(total, unit)} have rows"
+        elif of is not None:
+            tail = f"the first {fmt_number(str(show))} of {plural(of, unit)} with rows"
+        else:
+            tail = f"the first {plural(show, unit)} with rows"
     elif with_rows == total:
         tail = plural(total, unit)
     else:

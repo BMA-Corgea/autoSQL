@@ -70,6 +70,16 @@ function Checked({ admin, kind }) {
   return <p className="dx-checked is-none" data-testid="checked">Not double-checked: this one was refused before an answer existed.</p>;
 }
 
+// Open or folded: remembered for the visit (T-72, Q2 "admins, folded
+// away"). Storage that refuses means the panel simply starts folded.
+const SQL_OPEN_KEY = "autosql.dashboard.sql-open";
+function loadOpen() {
+  try { return window.localStorage.getItem(SQL_OPEN_KEY) === "open"; } catch (_) { return false; }
+}
+function saveOpen(open) {
+  try { window.localStorage.setItem(SQL_OPEN_KEY, open ? "open" : "folded"); } catch (_) { /* not remembered */ }
+}
+
 export function AdminPanel({ answer, updating, failed }) {
   const admin = answer && answer.admin;
   const statement = admin ? admin.statement : null;
@@ -77,6 +87,7 @@ export function AdminPanel({ answer, updating, failed }) {
   const prev = useRef(null);
   const [fresh, setFresh] = useState({ set: new Set(), round: 0 });
   const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(loadOpen);
 
   useEffect(() => {
     if (statement === prev.current) return undefined;
@@ -92,25 +103,20 @@ export function AdminPanel({ answer, updating, failed }) {
   // The panel only ever presents the statement that produced the answer on
   // screen as current. While a newer question is out it is dimmed and says
   // so, with no double-checked mark and nothing to copy; after a failed
-  // request it shows no statement at all.
+  // request it shows no statement at all. The mark (or the line standing
+  // in for it) shows whether the SQL is folded or open.
   const current = !updating && !failed;
-  if (failed) {
-    return (
-      <section className="dx-admin is-stale" aria-label="SQL for this view" data-testid="admin">
-        <header className="dx-admin-head">
-          <h2 className="dx-admin-title">SQL for this view</h2>
-          <a className="dx-link" href="/" data-testid="two-pane">Two-pane screen →</a>
-        </header>
-        <p className="dx-admin-stale" data-testid="stale">No statement to show: the last request didn't get through, so nothing here would match these choices.</p>
-      </section>
-    );
-  }
+  const toggle = () => { setOpen(!open); saveOpen(!open); };
   return (
-    <section className={"dx-admin" + (updating ? " is-updating" : "")} aria-label="SQL for this view" data-testid="admin" aria-busy={updating}>
+    <section className={"dx-admin" + (updating ? " is-updating" : "") + (failed ? " is-stale" : "") + (open ? " is-open" : " is-folded")}
+      aria-label="SQL for this view" data-testid="admin" aria-busy={updating}>
       <header className="dx-admin-head">
-        <h2 className="dx-admin-title">SQL for this view</h2>
+        <button type="button" className="dx-btn dx-btn-small dx-fold-sql" data-action="toggle-sql"
+          aria-expanded={open} aria-controls="dx-sql-body" onClick={toggle}>
+          {open ? "Hide SQL" : "Show SQL"}
+        </button>
         <span className="dx-admin-actions">
-          {statement ? (
+          {open && statement && !failed ? (
             <button type="button" className="dx-btn dx-btn-small" data-action="copy" disabled={!current}
               onClick={async () => { setCopied(await copyText(statement)); setTimeout(() => setCopied(false), 1800); }}>
               {copied ? "Copied" : "Copy"}
@@ -119,35 +125,41 @@ export function AdminPanel({ answer, updating, failed }) {
           <a className="dx-link" href="/" data-testid="two-pane">Two-pane screen →</a>
         </span>
       </header>
-      {current ? <Checked admin={admin} kind={answer.kind} /> : (
-        <p className="dx-admin-stale" data-testid="stale">Updating — below is the statement for the previous choices.</p>
+      {failed ? (
+        <p className="dx-admin-stale" data-testid="stale">No statement to show: the last request didn't get through, so nothing here would match these choices.</p>
+      ) : current ? <Checked admin={admin} kind={answer.kind} /> : (
+        <p className="dx-admin-stale" data-testid="stale">Updating — {open ? "below is" : "the SQL holds"} the statement for the previous choices.</p>
       )}
-      {admin.refusal ? (
-        <p className="dx-admin-refusal"><strong>{admin.refusal.headline}.</strong> {admin.refusal.why}</p>
+      {open && !failed ? (
+        <div id="dx-sql-body">
+          {admin.refusal ? (
+            <p className="dx-admin-refusal"><strong>{admin.refusal.headline}.</strong> {admin.refusal.why}</p>
+          ) : null}
+          {statement ? (
+            <>
+              <pre className="dx-sql" data-testid="statement" aria-live="polite">
+                {lines.map((line, i) => (
+                  <span key={`${fresh.round}:${i}`} className={"dx-sql-line" + (fresh.set.has(i) ? " is-new" : "")}>{line + "\n"}</span>
+                ))}
+              </pre>
+              <p className="dx-admin-note">
+                The values are written into the statement above so it reads plainly. The database never receives it that way:
+                it gets the statement with placeholders, and {params.length === 1 ? "one value" : `these ${params.length} values`} separately, as parameters.
+              </p>
+              <details className="dx-sent">
+                <summary>The statement as the database receives it</summary>
+                <pre className="dx-sql">{admin.parameterised}</pre>
+                <table className="dx-params">
+                  <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+                  <tbody>{params.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.value}</td></tr>)}</tbody>
+                </table>
+              </details>
+            </>
+          ) : (
+            <p className="dx-admin-note">No statement was written for these choices.</p>
+          )}
+        </div>
       ) : null}
-      {statement ? (
-        <>
-          <pre className="dx-sql" data-testid="statement" aria-live="polite">
-            {lines.map((line, i) => (
-              <span key={`${fresh.round}:${i}`} className={"dx-sql-line" + (fresh.set.has(i) ? " is-new" : "")}>{line + "\n"}</span>
-            ))}
-          </pre>
-          <p className="dx-admin-note">
-            The values are written into the statement above so it reads plainly. The database never receives it that way:
-            it gets the statement with placeholders, and {params.length === 1 ? "one value" : `these ${params.length} values`} separately, as parameters.
-          </p>
-          <details className="dx-sent">
-            <summary>The statement as the database receives it</summary>
-            <pre className="dx-sql">{admin.parameterised}</pre>
-            <table className="dx-params">
-              <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
-              <tbody>{params.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.value}</td></tr>)}</tbody>
-            </table>
-          </details>
-        </>
-      ) : (
-        <p className="dx-admin-note">No statement was written for these choices.</p>
-      )}
     </section>
   );
 }

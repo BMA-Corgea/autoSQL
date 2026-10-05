@@ -510,7 +510,7 @@ class TestSortAndShow:
     def test_show_caps_the_rows_and_says_so(self, client, setup):
         _, a = ask(client, view(setup, show=25, sort={"field": "ts", "dir": "desc"}))
         assert a["total"] == 25 and len(a["rows"]) == 25
-        assert a["sentence"] == "Heartbeats, newest first — the first 25 rows"
+        assert a["sentence"] == "Heartbeats, newest first — the first 25 of 8,400 rows"
         _, a = ask(client, view(setup, show=500, conditions=[cond("status", "eq", value="error")]))
         want = sum(1 for r in _HEARTBEATS if r["status"] == "error")
         assert want < 500 and a["total"] == want   # fewer than asked: the real count
@@ -673,8 +673,9 @@ class TestSummaries:
         _, a = ask(client, summed(setup, show=25,
                                   conditions=[cond("status", "eq", value="error")],
                                   summary={"fn": "count", "field": None, "per": "hour"}))
+        n_hours = len({r["ts"] for r in _HEARTBEATS if r["status"] == "error"})
         assert a["sentence"] == ("Number of Heartbeats where Status is error, per hour"
-                                 " — the first 25 hours with rows")
+                                 f" — the first 25 of {n_hours} hours with rows")
         hours: dict = {}
         for r in _HEARTBEATS:
             if r["status"] == "error":
@@ -1013,3 +1014,81 @@ class TestABlankSummaryTellsTheTruth:
     def test_the_label_is_flagged_hidden_by_default(self, setup):
         flags = {f["path"]: f["hidden_by_default"] for f in ds(setup, "edge")["fields"]}
         assert flags["label"] is True and not any(v for k, v in flags.items() if k != "label")
+
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-72 AC2 — a capped answer states the total, when both engines agree on it
+# ═════════════════════════════════════════════════════════════════════════
+
+def _disagreeing_counts(monkeypatch):
+    """Make every COUNT pick come back with the engines disagreeing, leaving
+    every other pick alone."""
+    real = dashboard._run
+
+    def run(conn, pick):
+        out = real(conn, pick)
+        if (pick.get("aggregate") or {}).get("fn") == "count" or pick.get("cap") is None:
+            out = dict(out, verdict="disagree")
+        return out
+
+    monkeypatch.setattr(dashboard, "_run", run)
+
+
+class TestTheCappedAnswerStatesTheTotal:
+    def test_the_first_100_of_all_that_match(self, client, setup):
+        want = sum(1 for r in _HEARTBEATS if r["status"] == "warn")
+        _, a = ask(client, view(setup, show=100, sort={"field": "ts", "dir": "desc"},
+                                conditions=[cond("status", "eq", value="warn")]))
+        assert len(a["rows"]) == 50 and a["total"] == 100
+        assert a["sentence"] == f"Heartbeats where Status is warn, newest first — the first 100 of {want:,} rows"
+
+    def test_when_the_cap_cut_nothing_it_says_the_plain_count(self, client, setup):
+        want = sum(1 for r in _SAMPLES if r["status"] == "void" and r["priority"] >= 4)
+        assert want == 100          # exactly the cap: nothing was cut
+        _, a = ask(client, view(setup, "samples", show=100, conditions=[
+            cond("status", "eq", value="void"), cond("priority", "ge", value=4)]))
+        assert a["sentence"].endswith("— 100 rows")
+
+    def test_per_hour_states_how_many_hours_have_rows(self, client, setup):
+        hours = len({r["ts"] for r in _HEARTBEATS if r["status"] == "error"})
+        _, a = ask(client, summed(setup, show=100, conditions=[cond("status", "eq", value="error")],
+                                  summary={"fn": "count", "field": None, "per": "hour"}))
+        assert a["sentence"].endswith(f"— the first 100 of {hours} hours with rows")
+
+    def test_only_when_the_engines_agree(self, client, setup, monkeypatch):
+        dashboard._CACHE.clear()
+        _disagreeing_counts(monkeypatch)
+        _, a = ask(client, view(setup, show=100, sort={"field": "ts", "dir": "desc"},
+                                conditions=[cond("status", "eq", value="warn")]))
+        assert a["sentence"].endswith("— the first 100 rows")
+        _, a = ask(client, summed(setup, show=25, conditions=[cond("status", "eq", value="error")],
+                                  summary={"fn": "count", "field": None, "per": "hour"}))
+        assert a["sentence"].endswith("— the first 25 hours with rows")
+        dashboard._CACHE.clear()
+
+    def test_the_blank_summary_count_too(self, client, setup, monkeypatch):
+        """LATER's LOW from the M1 re-check: the blank-summary count obeys
+        the same rule."""
+        dashboard._CACHE.clear()
+        _disagreeing_counts(monkeypatch)
+        _, a = ask(client, summed(setup, "edge", conditions=[cond("d", "eq", value=7)],
+                                  summary={"fn": "avg", "field": "a", "per": "all"}))
+        assert a["number"]["blank"] == "No value: no matching row has a value for A."
+        dashboard._CACHE.clear()
+
+    def test_the_totals_match_a_direct_count(self, setup, client):
+        """Re-derived outside both engines: plain SQL on the demo's own
+        read-only connection."""
+        from demo.server import db
+        conn = db.connect(application_name="autosql-demo-dashboard-test")
+        try:
+            server_app.refuse_writes(conn)
+            for status in ("ok", "warn", "error"):
+                want = conn.execute(
+                    "SELECT count(*) FROM demo.records WHERE collection = 'noun:Heartbeat' "
+                    "AND data->>'status' = %(s)s", {"s": status}).fetchone()[0]
+                _, a = ask(client, view(setup, show=25, conditions=[cond("status", "eq", value=status)]))
+                assert a["sentence"].endswith(f"— the first 25 of {want:,} rows"), (status, a["sentence"])
+        finally:
+            conn.close()
