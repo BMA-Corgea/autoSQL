@@ -408,6 +408,10 @@ def setup(conn) -> dict:
             "sort_words": SORT_WORDS,
             "summary_fns": SUMMARY_FNS,
             "logics": LOGICS,
+            # How the condition picker names each condition, where that needs
+            # more than the sentence's word: a row WITHOUT the field is "not"
+            # the value picked, so it is counted.
+            "op_labels": dict(OP_WORDS, ne="is not (rows without a value count too)"),
             "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
             "max_counts": group.MAX_COUNTS,
             "label_max": LABEL_MAX,
@@ -879,8 +883,9 @@ def compose(exprs: list, logic: str) -> str | None:
     * one     ``(if(a, 1, 0) + if(b, 1, 0) + if(c, 1, 0)) == 1``
     * allnone ``(S) == 0 or (S) == k`` with S that same sum, k the count
 
-    ``if`` reads its condition by the language's truthiness, so a missing
-    value counts as "does not hold" — exactly as it filters out today.
+    ``if`` reads each condition by the language's truthiness, so each one
+    holds on a row exactly when it would keep that row as a filter (a row
+    without the field: ``is`` fails, ``is not`` holds).
     """
     if not exprs:
         return None
@@ -1613,7 +1618,9 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             raise ViewError("A count column must be a set of choices.")
         _refuse_extra(c, COUNT_KEYS, "a count column")
         label = check_label(c.get("label"))
-        if label in [x["label"] for x in labels]:
+        # "A" and "a " read as the same name to a person: trimmed and
+        # case-folded, they are refused as duplicates.
+        if label.casefold() in [x["label"].casefold() for x in labels]:
             raise ViewError(f"Two count columns are both called “{label}”.")
         if not isinstance(c.get("pct", False), bool):
             raise ViewError("“% of rows” is on or off.")

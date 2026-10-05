@@ -511,3 +511,24 @@ def test_every_scoreboard_on_the_seed_agrees(conn, setup):
             result = scoreboard.run_group(conn, spec)
             if result["accepted"]:
                 assert result["verdict"] == "agree", (d["id"], by)
+
+
+def test_near_duplicate_labels_are_refused(client, setup):
+    status, a = ask(client, board(setup, "samples", by="status", counts=[
+        count("Open", cond("status", "eq", value="open")),
+        count(" open ", cond("priority", "ge", value=4))]))
+    assert status == 422 and a["message"] == "Two count columns are both called “open”."
+
+
+def test_is_not_counts_rows_without_the_field(client, setup):
+    """A row WITHOUT the field is "not" the value picked, so it counts — the
+    page filter's reading since S2, both engines agreeing; the picker says
+    so in words.  Edge cases' S is on one row only."""
+    edge = [json.loads(d) for _c, _k, d in generate.edge_case_rows()]
+    want = sum(1 for r in edge if r.get("s") != "12.5")
+    assert want == sum(1 for r in edge if "s" not in r) == 9
+    _, a = ask(client, board(setup, "edge", by="label", counts=[
+        count("Not 12.5", cond("s", "ne", value="12.5"))]))
+    assert sum(int(r[2]) for r in a["rows"]) == want and a["admin"]["verdict"] == "agree"
+    assert setup["op_labels"]["ne"] == "is not (rows without a value count too)"
+    assert setup["op_words"]["ne"] == "is not"

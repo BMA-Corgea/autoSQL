@@ -36,8 +36,11 @@ THE RULES IT WRITES DOWN
 * The group key is ``nullif(data #> path, 'null')``: an absent key and a JSON
   null are one group, the blank one — as ``->>`` would read them.
 * A count-if counts rows where ``xpr.truthy(<expr>)`` — the same truthiness
-  the page's filter uses, so a missing value counts as false exactly as it
-  filters out.  0, never NULL: every group has at least one row, and
+  the page's filter uses, so a row counts exactly when the filter would keep
+  it.  A row WITHOUT the field fails ``is``, ``more than`` and the other
+  comparisons, but HOLDS for ``is not`` (it is not equal to the value
+  picked) — the page has always read ``is not`` that way, both engines
+  agree, and the screen says so where ``is not`` is picked.  0, never NULL: every group has at least one row, and
   ``sum(CASE … ELSE 0 END)`` over at least one row is a number.
 * The % of rows is ``round(100.0 * <count-if> / count(*), 1)``, half away
   from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0)`` guards a

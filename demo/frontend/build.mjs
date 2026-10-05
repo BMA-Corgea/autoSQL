@@ -62,6 +62,7 @@ const SOURCES = [
   // name exactly as a stale app.js does (AC14).
   path.join(HERE, "dashboard-steps.jsx"),
   path.join(HERE, "dashboard-admin.jsx"),
+  path.join(HERE, "dashboard-scoreboard.jsx"),
   path.join(HERE, "dashboard.jsx"),
 ];
 

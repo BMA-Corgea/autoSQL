@@ -288,12 +288,48 @@ function firstField(matchable, shown, admin) {
   return matchable.find((f) => admin || !f.hidden_by_default) || matchable[0];
 }
 
-export function ConditionsStep({ fields, shown, admin, value, opWords, onChange }) {
-  const matchable = fields.filter((f) => f.ops.length);
-  const unmatchable = fields.filter((f) => !f.ops.length);
+// How a set of conditions joins: All / Any / Exactly one / All or none, with
+// what each means said plainly for the number of conditions in play.
+export function logicMeaning(logic, k) {
+  if (logic === "any") return "At least one of these holds.";
+  if (logic === "one") return k === 2 ? "One holds and the other doesn't." : "Exactly one of these holds; the rest don't.";
+  if (logic === "allnone") return k === 2 ? "Both hold, or neither does." : "All of these hold, or none of them does.";
+  return "Every one of these holds.";
+}
+
+// Is a set of conditions ready to send with its logic? "Exactly one" and
+// "All or none" need two conditions with values.
+export function logicReady(logic, completeCount) {
+  return !(logic === "one" || logic === "allnone") || completeCount >= 2;
+}
+
+export function LogicChooser({ logic, onLogic, logics, count, complete, needsTwo, label }) {
+  const value = logic || "all";
+  const ready = logicReady(value, complete);
   return (
-    <Step n={3} title="Only rows where" hint={value.length > 1 ? "All of these must match." : null}>
-      {value.length === 0 ? <p className="dx-quiet">Every row, for now.</p> : null}
+    <div className="dx-logic">
+      <Segmented
+        grid
+        label={label}
+        value={value}
+        options={[["all", "All"], ["any", "Any"], ["one", "Exactly one"], ["allnone", "All or none"]]}
+        onChange={onLogic}
+      />
+      <p className="dx-step-hint dx-logic-meaning" title={logics[value]}>{logicMeaning(value, count)}</p>
+      {ready ? null : (
+        <p className="dx-waiting">Not used yet: “{logics[value]}” {needsTwo} with values.</p>
+      )}
+    </div>
+  );
+}
+
+// A list of condition rows with its own "+ Add" — the page's "Only rows
+// where", and each count column of a scoreboard, use the same one.
+export function ConditionList({ fields, shown, admin, value, opWords, onChange, logic, onLogic, logics, needsTwo, addLabel, action }) {
+  const matchable = fields.filter((f) => f.ops.length);
+  const complete = value.filter((c) => isComplete(c, fields.find((f) => f.path === c.field))).length;
+  return (
+    <>
       {value.map((c, i) => (
         <ConditionRow
           key={c._k}
@@ -305,11 +341,32 @@ export function ConditionsStep({ fields, shown, admin, value, opWords, onChange 
           onRemove={() => onChange(value.filter((_, j) => j !== i))}
         />
       ))}
+      {value.length > 1 ? (
+        <LogicChooser logic={logic} onLogic={onLogic} logics={logics} count={value.length}
+          complete={complete} needsTwo={needsTwo} label={`${addLabel}: how they join`} />
+      ) : null}
       {matchable.length ? (
-        <button type="button" className="dx-add" data-action="add-condition"
+        <button type="button" className="dx-add" data-action={action}
           onClick={() => onChange([...value, freshCondition(firstField(matchable, shown, admin))])}>
-          + Add a condition
+          + {addLabel}
         </button>
+      ) : null}
+    </>
+  );
+}
+
+export function ConditionsStep({ fields, shown, admin, value, opWords, onChange, logic, onLogic, logics, needsTwo, scoreboardOn }) {
+  const unmatchable = fields.filter((f) => !f.ops.length);
+  return (
+    <Step n={3} title="Only rows where">
+      {value.length === 0 ? <p className="dx-quiet">Every row, for now.</p> : null}
+      <ConditionList fields={fields} shown={shown} admin={admin} value={value} opWords={opWords}
+        onChange={onChange} logic={logic} onLogic={onLogic} logics={logics} needsTwo={needsTwo}
+        addLabel="Add a condition" action="add-condition" />
+      {scoreboardOn ? (
+        <p className="dx-step-hint dx-teach" data-testid="before-grouping">
+          This removes rows before grouping. To count rows instead, add a count column.
+        </p>
       ) : null}
       {groupedWhy(unmatchable).map(([why, names]) => (
         <p key={why} className="dx-step-hint dx-why">
