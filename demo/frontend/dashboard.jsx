@@ -452,7 +452,7 @@ function App() {
         </aside>
 
         <main className="dx-result" aria-label="Answer">
-          {admin ? <AdminPanel answer={answer} updating={updating} /> : null}
+          {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
           <Answer answer={answer} updating={updating} failed={failed} onPage={setPage} />
         </main>
       </div>

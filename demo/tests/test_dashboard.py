@@ -805,6 +805,9 @@ class TestTheEnginesOwnRefusalIsSaidPlainly:
         assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
         assert a["admin"]["refusal"]["why"].startswith("XPR01: ")
         assert a["sentence"].startswith("Edge cases where ")
+        # Admin still reads the statement the database refused (S4 check, 2)
+        assert a["admin"]["statement"].startswith("SELECT ") and a["admin"]["sent"] is True
+        assert '"A"' in a["admin"]["statement"] and a["admin"]["parameters"]
 
     def test_only_that_refusal_is_caught(self, monkeypatch, setup):
         """Any other database error still propagates: a pick must never

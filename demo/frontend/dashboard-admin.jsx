@@ -67,7 +67,7 @@ function Checked({ admin }) {
   return <p className="dx-checked is-none" data-testid="checked">Not double-checked: this one was refused before an answer existed.</p>;
 }
 
-export function AdminPanel({ answer, updating }) {
+export function AdminPanel({ answer, updating, failed }) {
   const admin = answer && answer.admin;
   const statement = admin ? admin.statement : null;
   const lines = statement ? statement.split("\n") : [];
@@ -86,13 +86,29 @@ export function AdminPanel({ answer, updating }) {
 
   if (!admin) return null;
   const params = admin.parameters || [];
+  // The panel only ever presents the statement that produced the answer on
+  // screen as current. While a newer question is out it is dimmed and says
+  // so, with no double-checked mark and nothing to copy; after a failed
+  // request it shows no statement at all.
+  const current = !updating && !failed;
+  if (failed) {
+    return (
+      <section className="dx-admin is-stale" aria-label="SQL for this view" data-testid="admin">
+        <header className="dx-admin-head">
+          <h2 className="dx-admin-title">SQL for this view</h2>
+          <a className="dx-link" href="/" data-testid="two-pane">Two-pane screen →</a>
+        </header>
+        <p className="dx-admin-stale" data-testid="stale">No statement to show: the last request didn't get through, so nothing here would match these choices.</p>
+      </section>
+    );
+  }
   return (
-    <section className={"dx-admin" + (updating ? " is-updating" : "")} aria-label="SQL for this view" data-testid="admin">
+    <section className={"dx-admin" + (updating ? " is-updating" : "")} aria-label="SQL for this view" data-testid="admin" aria-busy={updating}>
       <header className="dx-admin-head">
         <h2 className="dx-admin-title">SQL for this view</h2>
         <span className="dx-admin-actions">
           {statement ? (
-            <button type="button" className="dx-btn dx-btn-small" data-action="copy"
+            <button type="button" className="dx-btn dx-btn-small" data-action="copy" disabled={!current}
               onClick={async () => { setCopied(await copyText(statement)); setTimeout(() => setCopied(false), 1800); }}>
               {copied ? "Copied" : "Copy"}
             </button>
@@ -100,7 +116,9 @@ export function AdminPanel({ answer, updating }) {
           <a className="dx-link" href="/" data-testid="two-pane">Two-pane screen →</a>
         </span>
       </header>
-      <Checked admin={admin} />
+      {current ? <Checked admin={admin} /> : (
+        <p className="dx-admin-stale" data-testid="stale">Updating — below is the statement for the previous choices.</p>
+      )}
       {admin.refusal ? (
         <p className="dx-admin-refusal"><strong>{admin.refusal.headline}.</strong> {admin.refusal.why}</p>
       ) : null}

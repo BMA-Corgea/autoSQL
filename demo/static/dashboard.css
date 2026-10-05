@@ -271,7 +271,11 @@ body.dx-body * { box-sizing: border-box; }
   margin-bottom: 18px; padding: 12px 14px; border: 1px solid var(--border2);
   border-radius: var(--radius); background: var(--surface);
 }
-.dx-admin.is-updating .dx-sql { opacity: 0.55; }
+.dx-admin.is-updating .dx-sql,
+.dx-admin.is-updating .dx-admin-note,
+.dx-admin.is-updating .dx-admin-refusal,
+.dx-admin.is-updating .dx-sent { opacity: 0.45; }
+.dx-admin-stale { margin: 8px 0; font-size: 12px; font-weight: 600; color: var(--text-mid); }
 .dx-admin-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .dx-admin-title { margin: 0; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-mid); }
 .dx-admin-actions { display: flex; align-items: center; gap: 12px; }

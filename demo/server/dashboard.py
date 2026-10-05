@@ -1028,6 +1028,33 @@ _CACHE: "OrderedDict[str, dict]" = OrderedDict()
 _CACHE_SIZE = 8
 
 
+def _statement_for_admin(conn, pick: dict, server_app) -> dict:
+    """The statement that was sent and refused mid-run, rebuilt for the
+    Admin panel — the engineer wants to read what the database refused.
+
+    The failed statement left the transaction aborted: it is rolled back,
+    the read-only guard is re-applied and read back (``refuse_writes``),
+    and the same pick is built again by the same builder, exactly as
+    ``run_pick`` built it.  If that cannot be done the panel says so; the
+    answer itself is the refusal either way.
+    """
+    import builder
+
+    try:
+        conn.rollback()
+        server_app.refuse_writes(conn)
+        norm = server_app.normalised_pick(pick)
+        built = builder.build(norm, server_app.collection_keys(conn, norm["source"]))
+        return {
+            "display": server_app.render_display_sql(built),
+            "parameterised": built.sql,
+            "params": server_app._param_rows(built.params),
+            "statement_sent": True,
+        }
+    except Exception:  # noqa: BLE001 — display only; the refusal stands
+        return {"display": None, "statement_sent": True}
+
+
 def _run(conn, pick: dict) -> dict:
     """``run_pick`` with every row of the answer, remembered per pick.
 
@@ -1056,7 +1083,7 @@ def _run(conn, pick: dict) -> dict:
         return {
             "accepted": False,
             "verdict": "no-compare",
-            "sql": {"display": None, "statement_sent": True},
+            "sql": _statement_for_admin(conn, pick, server_app),
             "comparison": {},
             "refusal": {
                 "headline": "Refused while running",
