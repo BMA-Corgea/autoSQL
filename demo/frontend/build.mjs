@@ -61,6 +61,7 @@ const SOURCES = [
   // are in the same digest, so a stale dashboard bundle fails the suite by
   // name exactly as a stale app.js does (AC14).
   path.join(HERE, "dashboard-steps.jsx"),
+  path.join(HERE, "dashboard-admin.jsx"),
   path.join(HERE, "dashboard.jsx"),
 ];
 

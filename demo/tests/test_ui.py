@@ -748,6 +748,7 @@ _UI_SOURCES = [
     "demo/frontend/sqlpane.jsx",
     "demo/frontend/app.jsx",
     "demo/frontend/dashboard-steps.jsx",
+    "demo/frontend/dashboard-admin.jsx",
     "demo/frontend/dashboard.jsx",
 ]
 

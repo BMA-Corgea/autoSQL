@@ -258,9 +258,53 @@ body.dx-body * { box-sizing: border-box; }
 .dx-bar { fill: var(--blue); }
 .dx-bar.is-hover { fill: var(--blue-deep); }
 .dx-hit { fill: transparent; cursor: default; }
+.dx-empty-mark { stroke: var(--text-mute); stroke-width: 3; stroke-dasharray: 2 2; }
 .dx-grid { stroke: var(--border); stroke-width: 1; }
 .dx-axis { stroke: var(--border2); stroke-width: 1; }
 .dx-tick { fill: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* View as, and the Admin panel */
+.dx-viewas { display: flex; align-items: center; gap: 8px; flex: none; }
+.dx-viewas-label { font-size: 12px; color: var(--text-soft); }
+
+.dx-admin {
+  margin-bottom: 18px; padding: 12px 14px; border: 1px solid var(--border2);
+  border-radius: var(--radius); background: var(--surface);
+}
+.dx-admin.is-updating .dx-sql { opacity: 0.55; }
+.dx-admin-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dx-admin-title { margin: 0; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-mid); }
+.dx-admin-actions { display: flex; align-items: center; gap: 12px; }
+.dx-btn-small { padding: 3px 10px; font-size: 12px; }
+.dx-checked { margin: 8px 0; font-size: 12px; color: var(--text-soft); }
+.dx-checked span { color: var(--green); font-weight: 700; }
+.dx-checked.is-none { color: var(--text-soft); }
+.dx-disagree {
+  margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 14px;
+  background: var(--red-light); border: 2px solid var(--red); color: var(--text);
+}
+.dx-admin-refusal { margin: 8px 0; font-size: 12px; color: var(--text-mid); overflow-wrap: anywhere; }
+.dx-sql {
+  margin: 6px 0 0; padding: 10px 12px; max-height: 34vh; overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
+}
+.dx-sql-line { display: block; border-radius: 2px; }
+.dx-sql-line.is-new { animation: dx-flash 2.4s ease-out; }
+@keyframes dx-flash {
+  0%, 35% { background: var(--blue-light); box-shadow: inset 3px 0 0 var(--blue); }
+  100% { background: transparent; box-shadow: inset 3px 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dx-sql-line.is-new { animation: none; background: var(--blue-light); box-shadow: inset 3px 0 0 var(--blue); }
+}
+.dx-admin-note { margin: 8px 0 0; font-size: 12px; color: var(--text-mid); }
+.dx-sent { margin-top: 8px; font-size: 12px; }
+.dx-sent summary { cursor: pointer; color: var(--blue); }
+.dx-params { border-collapse: collapse; margin-top: 6px; font-size: 12px; }
+.dx-params th, .dx-params td { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid var(--border); }
+.dx-params td { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
 
 /* ── phone ─────────────────────────────────────────────────────────────── */
 @media (max-width: 760px) {
@@ -287,4 +331,7 @@ body.dx-body * { box-sizing: border-box; }
   .dx-row + .dx-seg { margin-left: 0; }
   .dx-select, .dx-input { font-size: 16px; }  /* no zoom-on-focus on a phone */
   .dx-hero-value { font-size: 48px; }
+  .dx-header { flex-wrap: wrap; }
+  .dx-viewas-label { display: none; }
+  .dx-sql { max-height: 40vh; }
 }

@@ -15,6 +15,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete } from "./dashboard-steps.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
@@ -27,9 +28,21 @@ async function getJSON(url, init) {
   return body;
 }
 
-function viewFor(setup, datasetId) {
-  return JSON.parse(JSON.stringify(setup.default_views[datasetId]));
+function viewFor(setup, datasetId, admin) {
+  return JSON.parse(JSON.stringify((admin ? setup.admin_default_views : setup.default_views)[datasetId]));
 }
+
+// View as: remembered for the visit. Storage can be missing or refuse
+// (a private window, blocked site data): the page then simply starts as
+// Everyone.
+const VIEW_AS_KEY = "autosql.dashboard.view-as";
+function loadViewAs() {
+  try { return window.localStorage.getItem(VIEW_AS_KEY) === "admin"; } catch (_) { return false; }
+}
+function saveViewAs(admin) {
+  try { window.localStorage.setItem(VIEW_AS_KEY, admin ? "admin" : "everyone"); } catch (_) { /* not remembered */ }
+}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 // The choices that are off for this view, and why — the contract's own
 // verdicts, carried in the setup (setup.unavailable, from /api/operations).
@@ -159,7 +172,7 @@ function BarChart({ answer }) {
         {read ? (
           <>
             <span className="dx-chart-read-label">{hover !== null ? read.label : `Highest: ${read.label}`}</span>
-            <span className="dx-chart-read-value">{read.text === null ? "—" : read.text}</span>
+            <span className="dx-chart-read-value">{read.empty ? "no rows" : read.text === null ? "—" : read.text}</span>
           </>
         ) : null}
       </figcaption>
@@ -179,15 +192,22 @@ function BarChart({ answer }) {
             const r = Math.min(4, h, bw / 2);
             const d = h <= 0 ? null
               : `M${x},${base} V${base - h + r} Q${x},${base - h} ${x + r},${base - h} H${x + bw - r} Q${x + bw},${base - h} ${x + bw},${base - h + r} V${base} Z`;
-            const label = unit === "day" ? b.label : (b.start.slice(11, 13) === "00" ? b.label.split(",")[0] : null);
+            // A day's label is "Aug 14" while the bars have room for it, and
+            // just the day ("15") when they don't; an hour chart labels each
+            // midnight only.
+            const roomy = slot >= 52;
+            const label = unit === "day"
+              ? (roomy || i === 0 ? b.label : b.label.split(" ")[1])
+              : (b.start.slice(11, 13) === "00" ? b.label.split(",")[0] : null);
             return (
               <g key={b.start} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
                 <rect x={left + i * slot} y={top} width={slot} height={plotH} className="dx-hit" />
                 {d ? <path d={d} className={"dx-bar" + (hover === i ? " is-hover" : "")} /> : null}
+                {b.empty ? <line x1={x} x2={x + bw} y1={base - 1.5} y2={base - 1.5} className="dx-empty-mark" /> : null}
                 {label ? (
                   <text x={unit === "day" ? x + bw / 2 : x} y={base + 16} className="dx-tick" textAnchor={unit === "day" ? "middle" : "start"}>{label}</text>
                 ) : null}
-                <title>{`${b.label}: ${b.text === null ? "no value" : b.text}`}</title>
+                <title>{`${b.label}: ${b.empty ? "no rows" : b.text === null ? "no value" : b.text}`}</title>
               </g>
             );
           })}
@@ -271,6 +291,7 @@ function App() {
   const [updating, setUpdating] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
+  const [admin, setAdmin] = useState(loadViewAs);
 
   const seq = useRef(0);
   const inflight = useRef(null);
@@ -278,7 +299,7 @@ function App() {
 
   useEffect(() => {
     getJSON("/api/dashboard/setup")
-      .then((s) => { setSetup(s); setView(s.default_view); })
+      .then((s) => { setSetup(s); setView(viewFor(s, s.default_view.dataset, loadViewAs())); })
       .catch(() => setSetupFailed(true));
   }, []);
 
@@ -288,6 +309,7 @@ function App() {
     const ctl = new AbortController();
     inflight.current = ctl;
     setUpdating(true);
+    setFailed(false); // a new question is out: the last failure is not this answer
     getJSON("/api/dashboard/answer", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -329,6 +351,7 @@ function App() {
     seq.current += 1;
     if (inflight.current) inflight.current.abort();
     setUpdating(true);
+    setFailed(false); // a new question is out: the last failure is not this answer
     timer.current = setTimeout(() => ask(v, page), WAIT_BEFORE_ASKING);
     return () => clearTimeout(timer.current);
   }, [question, page]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -343,6 +366,17 @@ function App() {
     [setup, view],
   );
 
+  const flipViewAs = (toAdmin) => {
+    if (toAdmin === admin) return;
+    setAdmin(toAdmin);
+    saveViewAs(toAdmin);
+    // A data set still on the other view's starting columns moves to this
+    // view's (Edge cases' Label is on for Admin, off for Everyone).
+    const from = (toAdmin ? setup.default_views : setup.admin_default_views)[view.dataset];
+    const to = (toAdmin ? setup.admin_default_views : setup.default_views)[view.dataset];
+    if (same(view.columns, from.columns) && !same(from.columns, to.columns)) change({ columns: [...to.columns] });
+  };
+
   if (setupFailed) {
     return <main className="dx-shell"><p className="dx-problem" role="alert">Couldn't reach the data just now. Is the demo still running?</p></main>;
   }
@@ -356,6 +390,15 @@ function App() {
         <div className="dx-brand">
           <h1 className="dx-title">Data explorer</h1>
           <span className="dx-tag">Invented demo data</span>
+        </div>
+        <div className="dx-viewas">
+          <span className="dx-viewas-label" id="dx-viewas-label">View as</span>
+          <div className="dx-seg" role="radiogroup" aria-labelledby="dx-viewas-label">
+            {[[false, "Everyone"], [true, "Admin"]].map(([v, text]) => (
+              <button key={text} type="button" role="radio" aria-checked={admin === v} data-viewas={v ? "admin" : "everyone"}
+                className={"dx-seg-btn" + (admin === v ? " is-on" : "")} onClick={() => flipViewAs(v)}>{text}</button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -376,7 +419,7 @@ function App() {
           <DatasetStep
             datasets={setup.datasets}
             value={view.dataset}
-            onPick={(id) => { if (id !== view.dataset) { setPage(0); setView(viewFor(setup, id)); } }}
+            onPick={(id) => { if (id !== view.dataset) { setPage(0); setView(viewFor(setup, id, admin)); } }}
           />
           <ColumnsStep
             fields={ds.fields}
@@ -409,6 +452,7 @@ function App() {
         </aside>
 
         <main className="dx-result" aria-label="Answer">
+          {admin ? <AdminPanel answer={answer} updating={updating} /> : null}
           <Answer answer={answer} updating={updating} failed={failed} onPage={setPage} />
         </main>
       </div>

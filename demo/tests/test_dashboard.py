@@ -672,14 +672,17 @@ class TestSummaries:
         _, a = ask(client, summed(setup, show=25,
                                   conditions=[cond("status", "eq", value="error")],
                                   summary={"fn": "count", "field": None, "per": "hour"}))
-        assert a["total"] == 25
-        assert a["sentence"] == "Number of Heartbeats where Status is error, per hour — the first 25 hours"
+        assert a["sentence"] == ("Number of Heartbeats where Status is error, per hour"
+                                 " — the first 25 hours with rows")
         hours: dict = {}
         for r in _HEARTBEATS:
             if r["status"] == "error":
                 hours[r["ts"]] = hours.get(r["ts"], 0) + 1
         first = sorted(hours.items())[:25]
-        assert [(b["start"], int(b["value"])) for b in a["bars"]] == first
+        assert [(b["start"], int(b["value"])) for b in a["bars"] if not b["empty"]] == first
+        # the axis between them is whole: every hour from the first to the 25th
+        assert a["bars"][0]["start"] == first[0][0] and a["bars"][-1]["start"] == first[-1][0]
+        assert a["total"] == len(dashboard._slots("hour", first[0][0], first[-1][0]))
 
     @pytest.mark.parametrize("fn, want", [
         ("sum", lambda v: str(sum(v))), ("min", lambda v: str(min(v))), ("max", lambda v: str(max(v))),
@@ -829,3 +832,107 @@ class TestSentenceWording:
         assert "Txt is “”" in a["sentence"] and a["total"] == 1
         _, a = ask(client, view(setup, conditions=[cond("status", "eq", value="warn")]))
         assert "Status is warn" in a["sentence"]
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# S4 — the Admin view's data (AC10).  What the page does with it is driven
+#      headless in dash-check.mjs; here, what the contract hands it.
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestTheAdminBlock:
+    def test_the_readable_statement_and_what_is_actually_sent(self, client, setup):
+        _, a = ask(client, view(setup, conditions=[cond("status", "eq", value="warn")]))
+        adm = a["admin"]
+        assert adm["sent"] is True
+        assert "'warn'" in adm["statement"]                 # written in, for reading
+        assert "warn" not in adm["parameterised"]           # never in what is sent
+        warn = [p for p in adm["parameters"] if p["value"] == "warn"]
+        assert len(warn) == 1 and warn[0]["name"].startswith("flt_")
+        assert f"%({warn[0]['name']})s" in adm["parameterised"]
+
+    def test_the_statement_changes_with_every_kind_of_pick(self, client, setup):
+        seen = set()
+        for v in (view(setup), view(setup, columns=["status"]),
+                  view(setup, conditions=[cond("payload.load", "gt", value=50)]),
+                  view(setup, sort={"field": "payload.load", "dir": "asc"}),
+                  view(setup, show=25),
+                  summed(setup, summary={"fn": "avg", "field": "payload.load", "per": "day"})):
+            _, a = ask(client, v)
+            seen.add(a["admin"]["statement"])
+        assert len(seen) == 6
+
+    def test_agreement_is_reported(self, client, setup):
+        _, a = ask(client, view(setup, "samples"))
+        assert a["admin"]["verdict"] == "agree" and a["admin"]["differing_rows"] == 0
+        assert a["admin"]["compared_rows"] == 2000
+
+    def test_a_refusal_carries_the_engines_own_words(self, client, setup):
+        _, a = ask(client, view(setup, "edge", columns=["a"], conditions=[cond("huge", "gt", value=5)]))
+        assert "out-of-range magnitude" in a["admin"]["refusal"]["why"]
+
+    def test_admin_starts_edge_cases_with_label(self, setup):
+        assert "label" in setup["admin_default_views"]["edge"]["columns"]
+        assert "label" not in setup["default_views"]["edge"]["columns"]
+        assert setup["admin_default_views"]["heartbeats"] == setup["default_views"]["heartbeats"]
+
+
+
+class TestTheTimeAxisIsWhole:
+    """The S3 check's MEDIUM: an hour or day with no rows keeps its place on
+    the axis, marked, and the sentence says so."""
+
+    def test_an_empty_day_keeps_its_slot(self, client, setup):
+        days = {r["ts"][:10] for r in _HEARTBEATS if r["payload"]["load"] > 99}
+        assert 0 < len(days) < 7      # the seed has a day with no load above 99
+        _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=99)],
+                                  summary={"fn": "count", "field": None, "per": "day"}))
+        assert a["total"] == 7 and [b["label"] for b in a["bars"]] == [f"Aug {d}" for d in range(14, 21)]
+        assert {b["start"][:10] for b in a["bars"] if not b["empty"]} == days
+        empty = [b for b in a["bars"] if b["empty"]]
+        assert empty and all(b["value"] is None and b["text"] is None for b in empty)
+        assert a["sentence"].endswith(f"per day — {len(days)} of 7 days have rows")
+        assert ["Aug " + empty[0]["start"][8:10].lstrip("0"), "no rows"] in a["rows"]
+
+    def test_every_hour_is_on_the_axis(self, client, setup):
+        _, a = ask(client, summed(setup, conditions=[cond("status", "eq", value="error")],
+                                  summary={"fn": "count", "field": None, "per": "hour"}))
+        assert a["total"] == 168
+        have = len({r["ts"] for r in _HEARTBEATS if r["status"] == "error"})
+        assert sum(1 for b in a["bars"] if not b["empty"]) == have
+        if have < 168:
+            assert a["sentence"].endswith(f"— {have} of 168 hours have rows")
+
+    def test_no_rows_at_all_draws_nothing(self, client, setup):
+        _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=1000)],
+                                  summary={"fn": "count", "field": None, "per": "day"}))
+        assert a["total"] == 0 and a["bars"] == [] and a["sentence"].endswith("— no rows match")
+
+
+class TestHugeNumbersAreShownNotFatal:
+    """The S3 check's MEDIUM: an average over Edge cases' 1e300 crashed the
+    two-place rounding.  Numbers outside the plain range read as exponents,
+    every digit kept, and a formatting problem never becomes an error."""
+
+    def test_the_average_of_a_huge_number(self, client, setup):
+        status, a = ask(client, summed(setup, "edge", summary={"fn": "avg", "field": "a", "per": "all"}))
+        assert status == 200 and a["kind"] == "number"
+        assert a["number"]["value"] == "1e+300"
+
+    @pytest.mark.parametrize("fn", ["sum", "min", "max"])
+    def test_other_summaries_of_it(self, client, setup, fn):
+        status, a = ask(client, summed(setup, "edge", summary={"fn": fn, "field": "a", "per": "all"}))
+        assert status == 200 and a["number"]["value"] == "1e+300"
+
+    @pytest.mark.parametrize("text, places, want", [
+        ("1" + "0" * 300 + ".000000", 2, "1e+300"),
+        ("1" + "0" * 300, None, "1e+300"),
+        (str(int(Decimal("1.7976931348623157e308"))), None, "1.7976931348623157e+308"),
+        ("1234567890123456789012345678901234", None, "1.234567890123456789012345678901234e+33"),
+        ("0.0000001", None, "1e-7"),
+        ("999999999999999", None, "999,999,999,999,999"),
+        ("-0.125", 2, "-0.13"),
+        ("2.675", 2, "2.68"),                      # half-up, as the engine rounds
+        ("not a number", 2, "not a number"),
+    ])
+    def test_fmt_number_is_total(self, text, places, want):
+        assert dashboard.fmt_number(text, places=places) == want

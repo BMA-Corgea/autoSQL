@@ -37,7 +37,7 @@ import re
 import sys
 import threading
 from collections import OrderedDict
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -359,6 +359,14 @@ def setup(conn) -> dict:
             "page_size": PAGE_SIZE,
             "default_view": default_view_from(out),
             "default_views": {d["id"]: default_view_from(out, d["id"]) for d in out},
+            # Admin starts every data set with every field ticked — Edge
+            # cases' Label included, whose text is written for engineers.
+            "admin_default_views": {
+                d["id"]: dict(default_view_from(out, d["id"]),
+                              columns=[f["path"] for f in d["fields"]])
+                if d["id"] == "edge" else default_view_from(out, d["id"])
+                for d in out
+            },
             "op_words": OP_WORDS,
             "sort_words": SORT_WORDS,
             "summary_fns": SUMMARY_FNS,
@@ -883,32 +891,51 @@ def _number_text(value) -> str:
     and an exponent only past fifteen digits (``1e+300``)."""
     d = Decimal(value) if not isinstance(value, Decimal) else value
     if abs(d) >= Decimal("1e15"):
-        return f"{d.normalize():.17g}".replace("E", "e")
-    return format(d.normalize(), "f")
+        return format(_normal(d), "e").replace("E", "e")
+    return format(_normal(d), "f")
+
+
+#: Past these, a number reads as an exponent (``1e+300``): grouping 301
+#: digits, or rounding them to two places, makes nothing easier to read.
+_PLAIN_MAX_ADJUSTED = 15     # 1,000,000,000,000,000 and up
+_PLAIN_MIN_ADJUSTED = -6     # below 0.000001
+
+
+def _normal(d: Decimal) -> Decimal:
+    """``d`` without trailing zeros, EXACTLY: ``Decimal.normalize`` rounds to
+    the default context's 28 digits, which would lose digits of a long
+    number."""
+    return d.normalize(Context(prec=max(28, len(d.as_tuple().digits))))
 
 
 def fmt_number(text: str, *, places: int | None = None) -> str:
     """Thousands separators, the digits otherwise as stored.
 
-    ``places`` rounds for display only (an average); the exact value stays
-    in the payload beside it.  A value written with an exponent
-    (``1e+300``) is left exactly as written: grouping 301 digits would not
-    make it easier to read.
+    ``places`` rounds half-up for display only (an average); the exact
+    value stays in the payload beside it.  A number outside the plain range
+    is written as an exponent with every one of its digits
+    (``1e+300``, ``1.7976931348623157e+308``), never rounded.  Total: a
+    value it cannot read comes back as the text it was given, so formatting
+    can never turn an answer into an error (the S3 check's finding).
     """
+    raw = str(text)
     try:
-        d = Decimal(text)
-    except (InvalidOperation, TypeError):
-        return str(text)
-    if not d.is_finite() or "e" in str(text).lower():
-        return str(text)
-    if places is not None:
-        d = d.quantize(Decimal(1).scaleb(-places))
-        return f"{d:,.{places}f}"
-    sign = "-" if d < 0 else ""
-    digits = str(abs(d))
-    whole, _, frac = digits.partition(".")
-    whole = f"{int(whole):,}"
-    return sign + whole + ("." + frac if frac else "")
+        d = Decimal(raw)
+    except (InvalidOperation, TypeError, ValueError):
+        return raw
+    if not d.is_finite() or "e" in raw.lower():
+        return raw
+    try:
+        if d and not (_PLAIN_MIN_ADJUSTED <= d.adjusted() < _PLAIN_MAX_ADJUSTED):
+            return format(_normal(d), "e").replace("E", "e")
+        if places is not None:
+            q = d.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+            return f"{q:,.{places}f}"
+        sign = "-" if d < 0 else ""
+        whole, _, frac = format(d.copy_abs(), "f").partition(".")
+        return sign + f"{int(whole):,}" + ("." + frac if frac else "")
+    except (ArithmeticError, ValueError):
+        return raw
 
 
 def _plain_json(value: Any) -> str:
@@ -1073,7 +1100,12 @@ def _admin_block(answer: dict) -> dict:
     comparison = answer.get("comparison") or {}
     refusal = answer.get("refusal")
     return {
+        # What an admin reads: the statement with its values written in.
         "statement": sql.get("display"),
+        # What the database actually receives: the statement with
+        # placeholders, and the values beside it, sent separately.
+        "parameterised": sql.get("parameterised"),
+        "parameters": list(sql.get("params") or []),
         "sent": bool(sql.get("statement_sent")),
         "verdict": answer.get("verdict"),
         "differing_rows": comparison.get("differing_rows", 0),
@@ -1150,9 +1182,33 @@ def _summary_value(text: str, tag: str, fn: str):
     if fn == "avg":
         shown = fmt_number(text, places=2)
     else:
-        shown = fmt_number(format(d.normalize(), "f") if d == d.to_integral_value()
-                           else str(d.normalize()))
-    return shown, exact, float(d)
+        n = _normal(d)
+        plain = n == 0 or _PLAIN_MIN_ADJUSTED <= n.adjusted() < _PLAIN_MAX_ADJUSTED
+        shown = fmt_number(format(n, "f") if plain else text)
+    drawn = float(d)
+    return shown, exact, drawn if math.isfinite(drawn) else None
+
+
+def _span(fields: dict) -> tuple[str, str]:
+    """The data set's whole time span, read from the data at setup."""
+    r = fields["ts"]["range"]
+    return r["min"], r["max"]
+
+
+def _slots(unit: str, lo: str, hi: str) -> list:
+    """Every hour or day from ``lo`` to ``hi``, in the engine's own label
+    form (``2026-08-14T00:00:00Z``)."""
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    t = _dt.datetime.strptime(lo, fmt)
+    end = _dt.datetime.strptime(hi, fmt)
+    if unit == "day":
+        t, end = t.replace(hour=0, minute=0, second=0), end.replace(hour=0, minute=0, second=0)
+    step = _dt.timedelta(days=1) if unit == "day" else _dt.timedelta(hours=1)
+    out = []
+    while t <= end:
+        out.append(t.strftime(fmt))
+        t += step
+    return out
 
 
 def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
@@ -1185,29 +1241,53 @@ def _summary_answer(ds, view, fields, summary, pick, pane, page, admin) -> dict:
         }
 
     unit = summary["per"]
-    bars = []
+    label_of = (lambda w: fmt_day(w)) if unit == "day" else (lambda w: fmt_time(w).removesuffix(" UTC"))
+    got = []
     for row in pane["rows"]:
         when = row["c"][0]
         shown, exact, num = _summary_value(row["c"][1], row["t"][1], fn)
-        bars.append({
-            "label": fmt_day(when) if unit == "day" else fmt_time(when).removesuffix(" UTC"),
-            "start": when, "value": num, "text": shown, "exact": exact,
-        })
-    total = len(bars)
+        got.append({"label": label_of(when), "start": when, "value": num,
+                    "text": shown, "exact": exact, "empty": False})
+
+    # The engine returns only the hours or days that have rows.  The time
+    # axis is kept whole — every hour or day of the data set's span gets a
+    # slot, and one with no rows is an empty, marked slot — so two days
+    # either side of an empty one never sit side by side as if adjacent
+    # (the S3 check's finding).  With a cap, the engine returned the first
+    # N buckets that have rows; the axis is filled between those.
     show = view.get("show")
-    if total == 0:
-        tail = "no rows match"
-    elif show is not None and total >= show:
-        tail = f"the first {plural(show, unit)}"
+    capped = show is not None and len(got) >= show
+    with_rows = len(got)
+    by_start = {b["start"]: b for b in got}
+    if not got:
+        bars = []
     else:
+        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields)
+        bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
+                                    "text": None, "exact": None, "empty": True}
+                for t in _slots(unit, lo, hi)]
+        placed = {b["start"] for b in bars}
+        if any(b["start"] not in placed for b in got):
+            # A bucket with rows outside the axis would vanish from the
+            # chart: fail loudly rather than draw a picture missing data.
+            raise RuntimeError("a bucket with rows fell outside the time axis")
+    total = len(bars)
+    if with_rows == 0:
+        tail = "no rows match"
+    elif capped:
+        tail = f"the first {plural(show, unit)} with rows"
+    elif with_rows == total:
         tail = plural(total, unit)
+    else:
+        tail = f"{fmt_number(str(with_rows))} of {plural(total, unit)} have rows"
 
     if not isinstance(page, int) or isinstance(page, bool) or page < 0:
         page = 0
     last = max(0, (total - 1) // PAGE_SIZE)
     page = min(page, last)
     start = page * PAGE_SIZE
-    rows = [[b["label"], b["text"]] for b in bars[start:start + PAGE_SIZE]]
+    rows = [[b["label"], "no rows" if b["empty"] else b["text"]]
+            for b in bars[start:start + PAGE_SIZE]]
     return {
         "kind": "chart",
         "sentence": f"{head} — {tail}",
