@@ -49,6 +49,7 @@ _DEMO_DIR = str(Path(__file__).resolve().parent.parent)
 if _DEMO_DIR not in sys.path:
     sys.path.insert(0, _DEMO_DIR)
 
+import group  # noqa: E402
 import legality  # noqa: E402
 
 from . import db, settings  # noqa: E402
@@ -299,6 +300,7 @@ def _read_fields(conn, collection: str) -> list:
             "picker": None,
             "range": None,
         }
+        field["group"] = _groupable(conn, collection, path, kind, ts, field["label"], strings)
         if kind == "text" and len(strings) <= VALUE_LIMIT:
             field["values"] = strings
             field["picker"] = "chips" if len(strings) <= CHIP_LIMIT else "list"
@@ -312,6 +314,38 @@ def _read_fields(conn, collection: str) -> list:
             field["range"] = {"min": strings[0], "max": strings[-1]}
         fields.append(field)
     return fields
+
+
+#: One row per value works up to this many different values (T-73 AC1).
+#: Chosen against the seed: the widest honest grouping is Heartbeats' 50
+#: senders; the next field up is Samples' ID, 2,000 values, one row each —
+#: a "scoreboard" of it is the table again.  500 is ten times the widest
+#: real grouping, a quarter of the degenerate one, and ten pages of 50.
+GROUP_LIMIT = 500
+
+_DISTINCT_SQL = """
+SELECT count(DISTINCT nullif(r.data #> %(path)s, 'null'::jsonb))
+     + max(CASE WHEN nullif(r.data #> %(path)s, 'null'::jsonb) IS NULL THEN 1 ELSE 0 END)
+  FROM demo.records r
+ WHERE r.collection = %(collection)s
+"""
+
+
+def _groupable(conn, collection, path, kind, types, label, strings) -> dict:
+    """Can the page give one row per value of this field, and if not, why
+    — in plain words.  The blank group counts as a value."""
+    if kind not in ("text", "number", "yesno") or types & {"object", "array"}:
+        why = ("Times and dates are grouped per hour or per day under Summarize."
+               if kind in ("time", "date") else
+               "Its rows hold different kinds of value, so there is no one value to group by.")
+        return {"ok": False, "why": why, "groups": None}
+    n = int(conn.execute(_DISTINCT_SQL, {"collection": collection,
+                                         "path": path.split(".")}).fetchone()[0])
+    if n > GROUP_LIMIT:
+        return {"ok": False, "groups": n, "why": (
+            f"{label} has {n:,} different values — one row per value would be about as "
+            f"long as the table itself. One row per value works up to {GROUP_LIMIT} different values.")}
+    return {"ok": True, "why": "", "groups": n}
 
 
 def _ordered(fields: list, order: tuple) -> list:
@@ -373,6 +407,10 @@ def setup(conn) -> dict:
             "op_words": OP_WORDS,
             "sort_words": SORT_WORDS,
             "summary_fns": SUMMARY_FNS,
+            "logics": LOGICS,
+            "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
+            "max_counts": group.MAX_COUNTS,
+            "label_max": LABEL_MAX,
             "unavailable": _reasons_table(out),
         }
         return _SETUP
@@ -404,7 +442,8 @@ class ViewError(ValueError):
 #: condition and sort.  Anything else is REFUSED by name, never ignored: a
 #: choice the page shows but the answer drops would be a pick silently
 #: ignored, which is the one thing this page must never do.
-VIEW_KEYS = {"dataset", "columns", "conditions", "sort", "show", "summary"}
+VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "sort", "show", "summary",
+             "scoreboard"}
 CONDITION_KEYS = {"field", "op", "value", "value2", "values"}
 SORT_KEYS = {"field", "dir"}
 
@@ -470,6 +509,8 @@ def to_pick(setup_payload: dict, view: dict) -> dict:
     pick (AC3).  The source is chosen from a closed set of three.
     """
     ds, fields = _dataset(setup_payload, view)
+    if view.get("scoreboard") is not None:
+        raise ViewError("A scoreboard is answered as a scoreboard, not as rows.")
     pick = legality.default_pick()
     pick["source"] = next(d["source"] for d in DATASETS if d["id"] == ds["id"])
     pick["computed"] = [
@@ -808,14 +849,77 @@ def _conditions(view: dict, fields: dict) -> list:
     return out
 
 
-def filter_expression(view: dict, fields: dict) -> str | None:
-    """Every condition, all of which must match: ``(a) and (b)``."""
-    parts = [expr for expr, _ in _conditions(view, fields)]
-    if not parts:
+#: How a set of conditions joins (T-73 AC3), as the page names each.  For two
+#: conditions "one" and "allnone" are XOR and XNOR; for three or more they
+#: are their names — exactly one holds / all hold or none does.
+LOGICS = {
+    "all": "All of these",
+    "any": "Any of these",
+    "one": "Exactly one of these",
+    "allnone": "All of these, or none of them",
+}
+WHY_LOGIC_NEEDS_TWO = "needs two or more conditions"
+
+
+def _logic(value, n: int, where: str) -> str:
+    logic = "all" if value is None else value
+    if logic not in LOGICS:
+        raise ViewError(f"{where} joins its conditions by all, any, exactly one, or all or none.")
+    if logic in ("one", "allnone") and n < 2:
+        raise ViewError(f"“{LOGICS[logic]}” {WHY_LOGIC_NEEDS_TWO}.")
+    return logic
+
+
+def compose(exprs: list, logic: str) -> str | None:
+    """A set of condition expressions → ONE expression of the language both
+    engines already share, so neither engine needs a new rule:
+
+    * all     ``(a) and (b) and (c)``
+    * any     ``(a) or (b) or (c)``
+    * one     ``(if(a, 1, 0) + if(b, 1, 0) + if(c, 1, 0)) == 1``
+    * allnone ``(S) == 0 or (S) == k`` with S that same sum, k the count
+
+    ``if`` reads its condition by the language's truthiness, so a missing
+    value counts as "does not hold" — exactly as it filters out today.
+    """
+    if not exprs:
         return None
-    if len(parts) == 1:
-        return parts[0]
-    return " and ".join(f"({p})" for p in parts)
+    if len(exprs) == 1 and logic in ("all", "any"):
+        return exprs[0]
+    if logic == "all":
+        return " and ".join(f"({e})" for e in exprs)
+    if logic == "any":
+        return " or ".join(f"({e})" for e in exprs)
+    total = "(" + " + ".join(f"if({e}, 1, 0)" for e in exprs) + ")"
+    if logic == "one":
+        return f"{total} == 1"
+    return f"({total} == 0) or ({total} == {len(exprs)})"
+
+
+def joined_words(said: list, logic: str) -> str:
+    """The conditions as the sentence says them, joined by their logic."""
+    if len(said) == 1:
+        return said[0]
+    if logic == "all":
+        return " and ".join(said)
+    if logic == "any":
+        return " or ".join(said)
+    listed = ", ".join(said[:-1]) + " and " + said[-1]
+    if logic == "one":
+        return f"exactly one of: {listed}"
+    return f"all or none of: {listed}"
+
+
+def filter_expression(view: dict, fields: dict) -> str | None:
+    """Every condition on the page, joined by the page's logic (default
+    all): ``(a) and (b)``."""
+    conds = _conditions(view, fields)
+    parts = [expr for expr, _ in conds]
+    if not parts:
+        if view.get("logic") not in (None, "all"):
+            _logic(view.get("logic"), 0, "Only rows where")
+        return None
+    return compose(parts, _logic(view.get("logic"), len(parts), "Only rows where"))
 
 
 #: How each kind reads a sort direction.
@@ -996,7 +1100,7 @@ def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> 
     head = ds["name"]
     said = [words for _, words in _conditions(view, fields)]
     if said:
-        head += " where " + " and ".join(said)
+        head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
     order = sort_words(view, fields) if sort else ""
     if order:
         head += ", " + order
@@ -1192,6 +1296,8 @@ def _admin_block(answer: dict) -> dict:
 def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
     """One view → what the dashboard draws."""
     ds, fields = _dataset(setup_payload, view)
+    if view.get("scoreboard") is not None:
+        return scoreboard_answer(conn, setup_payload, view, page)
     pick = to_pick(setup_payload, view)
     result = _run(conn, pick)
     admin = _admin_block(result)
@@ -1411,6 +1517,294 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     }
 
 
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5b · Scoreboards (T-73): one row per group, "count if" columns
+# ═════════════════════════════════════════════════════════════════════════
+
+SCOREBOARD_KEYS = {"by", "counts", "time", "measure", "sort"}
+COUNT_KEYS = {"label", "logic", "conditions", "pct"}
+TIME_KEYS = {"fn", "field"}
+MEASURE_KEYS = {"fn", "field"}
+SB_SORT_KEYS = {"column", "dir"}
+TIME_WORDS = {"latest": ("max", "Latest"), "earliest": ("min", "Earliest")}
+
+#: A count-if column's label: what the person typed, shown in the answer
+#: and nowhere else — it never reaches the statement (the column is c1…c6).
+LABEL_MAX = 40
+
+
+def check_label(label) -> str:
+    """A label a person typed, checked: plain text, 1 to LABEL_MAX
+    characters once trimmed, no control or invisible formatting
+    characters."""
+    import unicodedata
+
+    if not isinstance(label, str):
+        raise ViewError("A column's name must be text.")
+    text = label.strip()
+    if not text:
+        raise ViewError("Give each count column a name.")
+    if len(text) > LABEL_MAX:
+        raise ViewError(f"A column's name can be at most {LABEL_MAX} characters.")
+    if any(unicodedata.category(ch).startswith("C") for ch in text):
+        raise ViewError("A column's name can't hold control or invisible characters.")
+    return text
+
+
+def _plural_noun(label: str, n: int) -> str:
+    word = label.lower()
+    if len(word) <= 2:
+        word = f"{label} value"
+    if n == 1:
+        return f"1 {word}"
+    if word.endswith(("s", "x", "ch", "sh")):
+        many = word + "es"
+    elif word.endswith("y") and word[-2:-1] not in "aeiou":
+        many = word[:-1] + "ies"
+    else:
+        many = word + "s"
+    return f"{fmt_number(str(n))} {many}"
+
+
+def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
+    conds = c.get("conditions")
+    if not isinstance(conds, list) or not conds:
+        raise ViewError(f"{where} needs at least one condition.")
+    parsed = []
+    for cond in conds:
+        if not isinstance(cond, dict) or cond.get("field") not in fields:
+            raise ViewError("A condition names a field this data set doesn't have.")
+        parsed.append(condition(fields[cond["field"]], cond))
+    logic = _logic(c.get("logic"), len(parsed), where)
+    return compose([e for e, _ in parsed], logic), joined_words([w for _, w in parsed], logic)
+
+
+def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
+    """A scoreboard view → (the engine's spec, what the screen needs to
+    label it).  Everything the view carries is honoured or refused by name."""
+    ds, fields = _dataset(setup_payload, view)
+    sb = view.get("scoreboard")
+    if not isinstance(sb, dict):
+        raise ViewError("A scoreboard must be a set of choices.")
+    _refuse_extra(sb, SCOREBOARD_KEYS, "a scoreboard")
+    if view.get("summary") is not None:
+        raise ViewError("A scoreboard and a summary can't be asked at once.")
+    if _columns(view, fields):
+        raise ViewError("Columns don't apply to a scoreboard; untick them first.")
+    if view.get("sort") is not None:
+        raise ViewError("Sort a scoreboard by one of its own columns.")
+
+    by = sb.get("by")
+    if by not in fields:
+        raise ViewError("Pick the field to give one row per value of.")
+    if not fields[by]["group"]["ok"]:
+        raise ViewError(f"{fields[by]['label']} can't be grouped by: {fields[by]['group']['why']}")
+
+    counts_in = sb.get("counts") or []
+    if not isinstance(counts_in, list):
+        raise ViewError("Count columns must be a list.")
+    if len(counts_in) > group.MAX_COUNTS:
+        raise ViewError(f"A scoreboard has at most {group.MAX_COUNTS} count columns.")
+    counts, labels = [], []
+    for i, c in enumerate(counts_in, start=1):
+        if not isinstance(c, dict):
+            raise ViewError("A count column must be a set of choices.")
+        _refuse_extra(c, COUNT_KEYS, "a count column")
+        label = check_label(c.get("label"))
+        if label in [x["label"] for x in labels]:
+            raise ViewError(f"Two count columns are both called “{label}”.")
+        if not isinstance(c.get("pct", False), bool):
+            raise ViewError("“% of rows” is on or off.")
+        expr, said = _count_conditions(c, fields, f"“{label}”")
+        counts.append({"expr": expr, "pct": bool(c.get("pct"))})
+        labels.append({"label": label, "said": said, "pct": bool(c.get("pct"))})
+
+    time = sb.get("time")
+    time_spec = None
+    if time is not None:
+        if not isinstance(time, dict):
+            raise ViewError("Latest or earliest must be a set of choices.")
+        _refuse_extra(time, TIME_KEYS, "latest or earliest")
+        if time.get("fn") not in TIME_WORDS:
+            raise ViewError("Pick latest or earliest.")
+        f = fields.get(time.get("field"))
+        if not f or f["kind"] not in ("time", "date"):
+            raise ViewError("Latest and earliest read a time or a date field.")
+        time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
+
+    measure = sb.get("measure")
+    measure_spec = None
+    if measure is not None:
+        if not isinstance(measure, dict):
+            raise ViewError("A total or average must be a set of choices.")
+        _refuse_extra(measure, MEASURE_KEYS, "a total or average")
+        if measure.get("fn") not in group.MEASURE_FNS:
+            raise ViewError("Summarize by total, average, smallest or largest.")
+        f = fields.get(measure.get("field"))
+        if not f or f["kind"] != "number":
+            raise ViewError(f"{SUMMARY_FNS[measure['fn']]} of what? Pick a field that holds numbers.")
+        measure_spec = {"fn": measure["fn"], "field": f["path"]}
+
+    spec = {
+        "source": next(d["source"] for d in DATASETS if d["id"] == ds["id"]),
+        "group": by,
+        "filter": filter_expression(view, fields),
+        "counts": counts,
+        "time": time_spec,
+        "measure": measure_spec,
+        "sort": None,
+        "cap": _show(view),
+    }
+
+    sort = sb.get("sort")
+    if sort is not None:
+        if not isinstance(sort, dict):
+            raise ViewError("Sort a scoreboard by one of its own columns.")
+        _refuse_extra(sort, SB_SORT_KEYS, "a sort")
+        names = {"group": "grp", "rows": "rows", "time": "time", "measure": "measure"}
+        for i, c in enumerate(counts, start=1):
+            names[f"count:{i}"] = f"c{i}"
+            if c["pct"]:
+                names[f"pct:{i}"] = f"c{i}_pct"
+        column = names.get(sort.get("column"))
+        if column is None or column not in group.columns_of(spec):
+            raise ViewError("Sort a scoreboard by one of its own columns.")
+        if sort.get("dir") not in ("asc", "desc"):
+            raise ViewError("Sort one way or the other.")
+        spec["sort"] = {"column": column, "dir": sort["dir"]}
+
+    return spec, {"ds": ds, "fields": fields, "by": fields[by], "counts": labels,
+                  "time": time, "measure": measure}
+
+
+def _run_group(conn, spec: dict) -> dict:
+    """``run_group`` with the whole answer, remembered per spec — and the
+    runtime's named refusal answered, as ``_run`` answers it."""
+    from . import app as server_app
+    from . import scoreboard
+
+    key = "group:" + json.dumps(spec, sort_keys=True)
+    with _CACHE_LOCK:
+        hit = _CACHE.get(key)
+        if hit is not None:
+            _CACHE.move_to_end(key)
+            return hit
+    try:
+        result = scoreboard.run_group(conn, spec)
+    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+        if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
+            raise
+        conn.rollback()
+        for statement in settings.PINNED_SESSION_SQL:
+            conn.execute(statement)
+        server_app.refuse_writes(conn)
+        built = group.build(spec)
+        return {
+            "accepted": False, "verdict": "no-compare", "comparison": {},
+            "sql": {"display": server_app.render_display_sql(built),
+                    "parameterised": built.sql,
+                    "params": server_app._param_rows(built.params),
+                    "statement_sent": True},
+            "refusal": {"headline": "Refused while running",
+                        "why": f"{exc.sqlstate}: {str(exc).splitlines()[0]}"},
+        }
+    with _CACHE_LOCK:
+        _CACHE[key] = result
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > _CACHE_SIZE:
+            _CACHE.popitem(last=False)
+    return result
+
+
+def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
+    spec, about = to_spec(setup_payload, view)
+    ds, fields, by = about["ds"], about["fields"], about["by"]
+    head = f"{ds['name']} per {by['label']}"
+    said = [w for _, w in _conditions(view, fields)]
+    if said:
+        head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
+
+    result = _run_group(conn, spec)
+    admin = _admin_block(result)
+    if not result.get("accepted"):
+        return {"kind": "refused", "sentence": head,
+                "message": plain_refusal(result.get("refusal")), "admin": admin}
+
+    pane = result["panes"]["sql"]
+    names = pane["columns"]
+    total = pane["row_count"]
+
+    columns = [{"id": "group", "label": by["label"], "kind": by["kind"],
+                "title": f"One row per {by['label']} found in the rows kept."},
+               {"id": "rows", "label": "Rows", "kind": "number",
+                "title": "How many rows each group holds."}]
+    for i, c in enumerate(about["counts"], start=1):
+        columns.append({"id": f"count:{i}", "label": c["label"], "kind": "number",
+                        "title": f"Counts the rows in each group where {c['said']}."})
+        if c["pct"]:
+            columns.append({"id": f"pct:{i}", "label": f"% {c['label']}", "kind": "number",
+                            "title": f"“{c['label']}” as a share of the group's rows, to one decimal place."})
+    if spec["time"]:
+        word = TIME_WORDS[about["time"]["fn"]][1]
+        f = fields[spec["time"]["field"]]
+        columns.append({"id": "time", "label": f"{word} {f['label']}", "kind": f["kind"],
+                        "title": f"The {word.lower()} {f['label']} in each group."})
+    if spec["measure"]:
+        f = fields[spec["measure"]["field"]]
+        label = f"{SUMMARY_FNS[spec['measure']['fn']]} {f['label']}"
+        columns.append({"id": "measure", "label": label, "kind": "number",
+                        "title": f"The {label.lower()} over each group's rows."})
+
+    def cell(name: str, text: str, tag: str):
+        if name == "grp":
+            return "(blank)" if tag == "null" else fmt_cell(text, tag, by["kind"])
+        if tag == "null":
+            return None
+        if name.endswith("_pct"):
+            return fmt_number(text, places=1) + "%"
+        if name == "time":
+            return fmt_cell(text, "string", fields[spec["time"]["field"]]["kind"])
+        if name == "measure":
+            return _summary_value(text, tag, spec["measure"]["fn"])[0]
+        return fmt_number(text)
+
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = [[cell(names[j], r["c"][j], r["t"][j]) for j in range(len(names))]
+            for r in pane["rows"][start:start + PAGE_SIZE]]
+
+    show = view.get("show")
+    if total == 0:
+        tail = "no rows match"
+    elif show is not None and total >= show:
+        full = _run_group(conn, dict(spec, cap=None))
+        of = (full["panes"]["sql"]["row_count"]
+              if full.get("accepted") and full.get("verdict") == "agree" else None)
+        if of is not None and of <= show:
+            tail = _plural_noun(by["label"], of)
+        elif of is not None:
+            tail = f"the first {fmt_number(str(show))} of {_plural_noun(by['label'], of)}"
+        else:
+            tail = f"the first {_plural_noun(by['label'], show)}"
+    else:
+        tail = _plural_noun(by["label"], total)
+
+    return {
+        "kind": "scoreboard",
+        "sentence": f"{head} — {tail}",
+        "total": total,
+        "columns": columns,
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start,
+                 "count": len(rows), "last": last},
+        "unavailable": {"sort": "A scoreboard sorts by its own columns."},
+        "admin": admin,
+    }
 
 
 # ═════════════════════════════════════════════════════════════════════════
