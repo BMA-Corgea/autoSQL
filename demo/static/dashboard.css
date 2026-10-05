@@ -108,6 +108,74 @@ body.dx-body * { box-sizing: border-box; }
 .dx-check.is-on { border-color: var(--blue-border); background: var(--blue-light); }
 .dx-check input { margin: 0; accent-color: var(--blue); }
 
+/* conditions */
+.dx-quiet { margin: 0 0 10px; font-size: 13px; color: var(--text-soft); }
+.dx-cond {
+  display: grid; gap: 8px; padding: 10px; margin-bottom: 8px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg);
+}
+.dx-cond.is-waiting { border-style: dashed; }
+.dx-cond-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.dx-waiting { margin: 0; font-size: 12px; color: var(--text-soft); }
+.dx-remove {
+  width: 30px; height: 30px; border-radius: 50%; border: 0; background: none; cursor: pointer;
+  font-size: 18px; line-height: 1; color: var(--text-soft);
+}
+.dx-remove:hover { background: var(--surface2); color: var(--text); }
+.dx-add {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--blue); cursor: pointer;
+  background: none; border: 1px dashed var(--border2); border-radius: var(--radius-sm);
+  padding: 7px 12px; width: 100%; text-align: left;
+}
+.dx-add:hover { border-color: var(--blue); }
+.dx-why { margin: 10px 0 0; }
+
+.dx-select, .dx-input {
+  font: inherit; font-size: 13px; color: var(--text); background: var(--card);
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  padding: 6px 8px; min-width: 0; width: 100%; max-width: 100%;
+}
+.dx-select:focus, .dx-input:focus { outline: 2px solid var(--blue-border); outline-offset: 0; }
+.dx-input-num { max-width: 140px; }
+.dx-between { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dx-between .dx-input-num { width: 110px; }
+.dx-and { font-size: 12px; color: var(--text-soft); }
+.dx-when { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+.dx-unit { font-size: 12px; color: var(--text-soft); }
+
+.dx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dx-chip {
+  font: inherit; font-size: 13px; cursor: pointer; padding: 4px 10px; border-radius: 999px;
+  color: var(--text); background: var(--card); border: 1px solid var(--border2);
+}
+.dx-chip.is-on { background: var(--blue); border-color: var(--blue); color: var(--bg); }
+.dx-search { display: grid; gap: 6px; }
+.dx-options {
+  max-height: 180px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--card);
+}
+.dx-option {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 10px; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text);
+}
+.dx-option:last-child { border-bottom: 0; }
+.dx-option:hover { background: var(--blue-light); }
+.dx-options-more { margin: 0; padding: 6px 10px; font-size: 12px; color: var(--text-soft); }
+
+/* sort and show */
+.dx-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; }
+.dx-row-gap { margin-top: 12px; }
+.dx-label { font-size: 13px; color: var(--text-mid); }
+.dx-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border2); border-radius: var(--radius-sm); overflow: hidden; }
+.dx-seg-btn {
+  font: inherit; font-size: 13px; padding: 5px 10px; cursor: pointer; border: 0;
+  border-right: 1px solid var(--border2); background: var(--card); color: var(--text);
+}
+.dx-seg-btn:last-child { border-right: 0; }
+.dx-seg-btn.is-on { background: var(--blue); color: var(--bg); }
+.dx-seg-btn:disabled { opacity: 0.45; cursor: default; }
+.dx-row + .dx-seg { margin-left: 80px; }
+
 /* buttons */
 .dx-btn {
   font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
@@ -183,4 +251,6 @@ body.dx-body * { box-sizing: border-box; }
   .dx-answer-head { flex-direction: column; gap: 4px; }
   .dx-sentence { font-size: 16px; }
   .dx-table-box { max-height: 70vh; }
+  .dx-row + .dx-seg { margin-left: 0; }
+  .dx-select, .dx-input { font-size: 16px; }  /* no zoom-on-focus on a phone */
 }

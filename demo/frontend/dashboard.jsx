@@ -15,7 +15,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ColumnsStep, DatasetStep } from "./dashboard-steps.jsx";
+import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, isComplete } from "./dashboard-steps.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -28,15 +28,17 @@ async function getJSON(url, init) {
 }
 
 function viewFor(setup, datasetId) {
-  const ds = setup.datasets.find((d) => d.id === datasetId);
-  return {
-    dataset: ds.id,
-    columns: [...ds.default_columns],
-    conditions: [],
-    sort: null,
-    show: null,
-    summary: null,
-  };
+  return JSON.parse(JSON.stringify(setup.default_views[datasetId]));
+}
+
+// What is sent: the view without the conditions still waiting for a value,
+// and without the screen's own row handles.
+function sendable(setup, view) {
+  const ds = setup.datasets.find((d) => d.id === view.dataset);
+  const conditions = view.conditions
+    .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
+    .map(({ _k, ...c }) => c); // eslint-disable-line no-unused-vars
+  return { ...view, conditions };
 }
 
 // ── the answer ───────────────────────────────────────────────────────────
@@ -47,7 +49,7 @@ function Cell({ value, kind }) {
   return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
 }
 
-function Table({ answer, onPage }) {
+function Table({ answer, onPage, updating }) {
   const { columns, rows, page, total } = answer;
   if (!columns.length) {
     return <p className="dx-empty">Pick at least one column to see the rows.</p>;
@@ -75,8 +77,8 @@ function Table({ answer, onPage }) {
           Rows {first.toLocaleString("en-US")}–{last.toLocaleString("en-US")} of {total.toLocaleString("en-US")}
         </span>
         <span className="dx-pager-buttons">
-          <button type="button" className="dx-btn" data-page="prev" disabled={page.index === 0} onClick={() => onPage(page.index - 1)}>Previous</button>
-          <button type="button" className="dx-btn" data-page="next" disabled={page.index >= page.last} onClick={() => onPage(page.index + 1)}>Next</button>
+          <button type="button" className="dx-btn" data-page="prev" disabled={updating || page.index === 0} onClick={() => onPage(page.index - 1)}>Previous</button>
+          <button type="button" className="dx-btn" data-page="next" disabled={updating || page.index >= page.last} onClick={() => onPage(page.index + 1)}>Next</button>
         </span>
       </nav>
     </>
@@ -110,7 +112,7 @@ function Answer({ answer, updating, failed, onPage }) {
           <p className="dx-nothing-hint">Try removing a condition.</p>
         </div>
       ) : (
-        <Table answer={answer} onPage={onPage} />
+        <Table answer={answer} onPage={onPage} updating={updating} />
       )}
     </div>
   );
@@ -121,7 +123,14 @@ function Answer({ answer, updating, failed, onPage }) {
 function summaryLine(setup, view) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const parts = [ds.name];
-  parts.push(view.columns.length === 1 ? "1 column" : `${view.columns.length} columns`);
+  const n = view.conditions.length;
+  if (n) parts.push(n === 1 ? "1 condition" : `${n} conditions`);
+  if (view.sort) {
+    const f = ds.fields.find((x) => x.path === view.sort.field);
+    const words = setup.sort_words[f.kind][view.sort.dir];
+    parts.push(f.path === "ts" ? words : `${f.label}, ${words}`);
+  }
+  if (view.show) parts.push(`first ${view.show}`);
   return parts.join(" · ");
 }
 
@@ -172,16 +181,21 @@ function App() {
       });
   }, []);
 
+  // What is actually asked. Editing a condition that is still waiting for
+  // its value changes the view but not the question, and asks nothing.
+  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view)) : null), [setup, view]);
+
   // A changed question waits a moment for the clicks to settle; a page
   // turn is asked at once (the server remembers the whole answer).
-  const lastView = useRef(null);
+  const lastQuestion = useRef(null);
   useEffect(() => {
-    if (!view) return;
+    if (!question) return;
     clearTimeout(timer.current);
-    const sameQuestion = lastView.current === view;
-    lastView.current = view;
+    const sameQuestion = lastQuestion.current === question;
+    lastQuestion.current = question;
+    const v = JSON.parse(question);
     if (sameQuestion || answer === null) {
-      ask(view, page);
+      ask(v, page);
       return;
     }
     // Mark the answer as out of date the moment the question changes,
@@ -189,9 +203,9 @@ function App() {
     seq.current += 1;
     if (inflight.current) inflight.current.abort();
     setUpdating(true);
-    timer.current = setTimeout(() => ask(view, page), WAIT_BEFORE_ASKING);
+    timer.current = setTimeout(() => ask(v, page), WAIT_BEFORE_ASKING);
     return () => clearTimeout(timer.current);
-  }, [view, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [question, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const change = useCallback((patch) => {
     setPage(0);
@@ -242,6 +256,20 @@ function App() {
             fields={ds.fields}
             value={view.columns}
             onChange={(columns) => change({ columns })}
+          />
+          <ConditionsStep
+            fields={ds.fields}
+            value={view.conditions}
+            opWords={setup.op_words}
+            onChange={(conditions) => change({ conditions })}
+          />
+          <SortShowStep
+            fields={ds.fields}
+            sort={view.sort}
+            show={view.show}
+            showChoices={setup.show}
+            sortWords={setup.sort_words}
+            onChange={change}
           />
         </aside>
 

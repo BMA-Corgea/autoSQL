@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import re
 import sys
 import threading
@@ -104,7 +105,10 @@ DATASETS = (
         "one": "edge case",
         "about": "Ten odd values kept on purpose: huge numbers, empty lists, blanks.",
         "order": ("label",),
-        "default_columns": None,   # every field: the oddness is the point
+        # Every field but Label, whose text was written for engineers
+        # ("…SQL answers 1…", "XPR01"); a ticked box still shows it.
+        "default_columns": None,
+        "not_by_default": ("label",),
     },
 )
 _BY_ID = {d["id"]: d for d in DATASETS}
@@ -336,7 +340,9 @@ def setup(conn) -> dict:
             taken: set = set()
             for f in fields:
                 f["alias"] = _alias(f["label"], taken)
-            default = d["default_columns"] or tuple(f["path"] for f in fields)
+            default = d["default_columns"] or tuple(
+                f["path"] for f in fields
+                if f["path"] not in d.get("not_by_default", ()))
             out.append({
                 "id": d["id"],
                 "name": d["name"],
@@ -352,17 +358,22 @@ def setup(conn) -> dict:
             "show": list(SHOW_CHOICES),
             "page_size": PAGE_SIZE,
             "default_view": default_view_from(out),
+            "default_views": {d["id"]: default_view_from(out, d["id"]) for d in out},
+            "op_words": OP_WORDS,
+            "sort_words": SORT_WORDS,
         }
         return _SETUP
 
 
 def default_view_from(datasets: list, dataset_id: str = "heartbeats") -> dict:
+    """A fresh question on one data set.  Heartbeats open newest first: the
+    latest beats are what a person looks at a heartbeat log for."""
     ds = next(d for d in datasets if d["id"] == dataset_id)
     return {
         "dataset": ds["id"],
         "columns": list(ds["default_columns"]),
         "conditions": [],
-        "sort": None,
+        "sort": {"field": "ts", "dir": "desc"} if ds["has_time"] else None,
         "show": None,
         "summary": None,
     }
@@ -376,9 +387,38 @@ class ViewError(ValueError):
     """A view this contract cannot translate — said in plain words."""
 
 
+#: Every part of a view this contract honours, and the parts of each
+#: condition and sort.  Anything else is REFUSED by name, never ignored: a
+#: choice the page shows but the answer drops would be a pick silently
+#: ignored, which is the one thing this page must never do.
+VIEW_KEYS = {"dataset", "columns", "conditions", "sort", "show", "summary"}
+CONDITION_KEYS = {"field", "op", "value", "value2", "values"}
+SORT_KEYS = {"field", "dir"}
+
+#: Which value slots each condition reads.  A slot it doesn't read must be
+#: empty — "", [] or null — or the condition is refused.
+_SLOTS = {
+    "in": {"values"}, "between": {"value", "value2"},
+    "present": set(), "blank": set(), "yes": set(), "no": set(),
+}
+
+
+def _empty(v) -> bool:
+    return v is None or v == "" or v == []
+
+
+def _refuse_extra(given: dict, allowed: set, what: str) -> None:
+    extra = sorted(set(given) - allowed)
+    if extra:
+        raise ViewError(f"This page can't use {extra[0]!r} in {what} yet.")
+
+
 def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     if not isinstance(view, dict):
         raise ViewError("The question must be a set of choices.")
+    _refuse_extra(view, VIEW_KEYS, "a question")
+    if view.get("summary") is not None:
+        raise ViewError("Summaries aren't available on this page yet.")
     ds_id = view.get("dataset")
     ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
     if ds is None:
@@ -424,6 +464,12 @@ def to_pick(setup_payload: dict, view: dict) -> dict:
         {"name": fields[c]["alias"], "expr": field_ref(c)}
         for c in _columns(view, fields)
     ]
+    flt = filter_expression(view, fields)
+    if flt:
+        pick["filter"] = flt
+    sort = _sort(view, fields)
+    if sort:
+        pick["sort"] = sort
     pick["cap"] = _show(view)
     return pick
 
@@ -466,6 +512,213 @@ def string_literal(value: str) -> str:
         else:
             out.append(ch)
     return '"' + "".join(out) + '"'
+
+
+def number_literal(value) -> str:
+    """A number as a literal of the expression language.  Only a finite
+    JSON number is accepted; ``-5`` is the language's own unary minus."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ViewError("A number value must be a number.")
+    try:
+        as_double = float(value)
+    except OverflowError:
+        raise ViewError("That number is too large to compare with.") from None
+    if not math.isfinite(as_double):
+        raise ViewError("That number is too large to compare with.")
+    text = str(value) if isinstance(value, int) else repr(float(value))
+    return text
+
+
+_DAY_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})\Z")
+_MINUTE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z?\Z")
+
+
+def _day(value) -> _dt.date:
+    if not isinstance(value, str) or not _DAY_RE.match(value):
+        raise ViewError("A day must be picked as a date.")
+    try:
+        return _dt.date.fromisoformat(value)
+    except ValueError:
+        raise ViewError("A day must be picked as a date.") from None
+
+
+def _instant(value) -> str:
+    """A picked time → the data's own fixed-width UTC text, which orders as
+    time orders (``2026-08-18T06:00:00Z``)."""
+    m = _MINUTE_RE.match(value) if isinstance(value, str) else None
+    if not m:
+        raise ViewError("A time must be picked as a date and a time.")
+    day = _day(m.group(1))
+    hh, mm, ss = int(m.group(2)), int(m.group(3)), int(m.group(4) or 0)
+    if hh > 23 or mm > 59 or ss > 59:
+        raise ViewError("A time must be picked as a date and a time.")
+    return f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+
+
+#: The words each condition reads as, by kind.  The screen shows these in
+#: its condition picker; the sentence uses them too, so the two agree.
+OP_WORDS = {
+    "eq": "is", "ne": "is not", "in": "is one of",
+    "gt": "is more than", "lt": "is less than",
+    "ge": "is at least", "le": "is at most", "between": "is between",
+    "on": "is on", "after": "is after", "before": "is before",
+    "yes": "is yes", "no": "is no",
+    "present": "has a value", "blank": "is blank",
+}
+
+#: The most values one "is one of" may carry.
+IN_LIMIT = 200
+
+
+def _value_for(field: dict, value):
+    """One picked value → (its literal, how the sentence reads it)."""
+    kind = field["kind"]
+    if kind == "number":
+        return number_literal(value), fmt_number(str(value))
+    if kind == "time":
+        t = _instant(value)
+        return string_literal(t), fmt_time(t)
+    if kind == "date":
+        d = _day(value).isoformat()
+        return string_literal(d), fmt_date(d)
+    return string_literal(value), value
+
+
+def _order_key(field: dict, value):
+    if field["kind"] == "number":
+        return value
+    if field["kind"] == "time":
+        return _instant(value)
+    if field["kind"] == "date":
+        return _day(value).isoformat()
+    return value
+
+
+def condition(field: dict, cond: dict) -> tuple[str, str]:
+    """One clicked condition → (its expression, its words in the sentence).
+
+    The expression is only ever comparisons, ``and``, ``or`` and ``null`` —
+    every one inside the gate's subset — over one field read with ``$.``
+    and values written by :func:`string_literal` / :func:`number_literal`.
+    """
+    _refuse_extra(cond, CONDITION_KEYS, "a condition")
+    op = cond.get("op")
+    if op not in field["ops"]:
+        raise ViewError(f"{field['label']} can't be matched that way.")
+    reads = _SLOTS.get(op, {"value"})
+    unread = [k for k in ("value", "value2", "values")
+              if k not in reads and not _empty(cond.get(k))]
+    if unread:
+        slot = {"value": "value", "value2": "second value",
+                "values": "list of values"}[unread[0]]
+        raise ViewError(f"“{field['label']} {OP_WORDS[op]}” takes no {slot}.")
+    ref = field_ref(field["path"])
+    label = field["label"]
+    words = OP_WORDS[op]
+
+    if op == "present":
+        return f"{ref} != null", f"{label} {words}"
+    if op == "blank":
+        return f"{ref} == null", f"{label} {words}"
+    if op in ("yes", "no"):
+        return f"{ref} == {'true' if op == 'yes' else 'false'}", f"{label} {words}"
+
+    if op == "in":
+        values = cond.get("values")
+        if not isinstance(values, list) or not values:
+            raise ViewError(f"Pick at least one value for {label}.")
+        if len(values) > IN_LIMIT:
+            raise ViewError(f"Pick at most {IN_LIMIT} values for {label}.")
+        unique = list(dict.fromkeys(values))
+        pairs = [_value_for(field, v) for v in unique]
+        if len(pairs) == 1:
+            lit, said = pairs[0]
+            return f"{ref} == {lit}", f"{label} is {said}"
+        expr = " or ".join(f"{ref} == {lit}" for lit, _ in pairs)
+        said = [s for _, s in pairs]
+        return f"({expr})", f"{label} is {', '.join(said[:-1])} or {said[-1]}"
+
+    if op == "on" and field["kind"] == "time":
+        d = _day(cond.get("value"))
+        start = string_literal(f"{d.isoformat()}T00:00:00Z")
+        end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00Z")
+        return (f"({ref} >= {start} and {ref} < {end})",
+                f"{label} {words} {fmt_day(d.isoformat())}")
+
+    if op == "between":
+        lo, hi = cond.get("value"), cond.get("value2")
+        a, said_a = _value_for(field, lo)
+        b, said_b = _value_for(field, hi)
+        # "between 50 and 10" means the same as "between 10 and 50" to a
+        # person; the two ends are put in order rather than matching nothing.
+        key = (lambda v: float(v)) if field["kind"] == "number" else (lambda v: v)
+        if key(_order_key(field, lo)) > key(_order_key(field, hi)):
+            (a, said_a), (b, said_b) = (b, said_b), (a, said_a)
+        return (f"({ref} >= {a} and {ref} <= {b})",
+                f"{label} {words} {said_a} and {said_b}")
+
+    sym = {"eq": "==", "on": "==", "ne": "!=", "gt": ">", "lt": "<",
+           "ge": ">=", "le": "<=", "after": ">", "before": "<"}[op]
+    lit, said = _value_for(field, cond.get("value"))
+    return f"{ref} {sym} {lit}", f"{label} {words} {said}"
+
+
+def _conditions(view: dict, fields: dict) -> list:
+    conds = view.get("conditions") or []
+    if not isinstance(conds, list):
+        raise ViewError("Conditions must be a list.")
+    out = []
+    for c in conds:
+        if not isinstance(c, dict) or c.get("field") not in fields:
+            raise ViewError("A condition names a field this data set doesn't have.")
+        out.append(condition(fields[c["field"]], c))
+    return out
+
+
+def filter_expression(view: dict, fields: dict) -> str | None:
+    """Every condition, all of which must match: ``(a) and (b)``."""
+    parts = [expr for expr, _ in _conditions(view, fields)]
+    if not parts:
+        return None
+    if len(parts) == 1:
+        return parts[0]
+    return " and ".join(f"({p})" for p in parts)
+
+
+#: How each kind reads a sort direction.
+SORT_WORDS = {
+    "time": {"desc": "newest first", "asc": "oldest first"},
+    "date": {"desc": "latest first", "asc": "earliest first"},
+    "number": {"desc": "largest first", "asc": "smallest first"},
+    "text": {"asc": "A to Z", "desc": "Z to A"},
+    "yesno": {"desc": "yes first", "asc": "no first"},
+}
+
+
+def _sort(view: dict, fields: dict):
+    sort = view.get("sort")
+    if sort is None:
+        return None
+    if not isinstance(sort, dict) or sort.get("field") not in fields:
+        raise ViewError("Sort by a field of this data set.")
+    _refuse_extra(sort, SORT_KEYS, "a sort")
+    field = fields[sort["field"]]
+    if field["kind"] not in SORT_WORDS:
+        raise ViewError(f"{field['label']} can't be sorted: its rows hold different kinds of value.")
+    if sort.get("dir") not in ("asc", "desc"):
+        raise ViewError("Sort one way or the other.")
+    return {"field": field["path"], "dir": sort["dir"]}
+
+
+def sort_words(view: dict, fields: dict) -> str:
+    sort = _sort(view, fields)
+    if not sort:
+        return ""
+    field = fields[sort["field"]]
+    words = SORT_WORDS[field["kind"]][sort["dir"]]
+    if field["path"] == "ts":
+        return words
+    return f"by {field['label']}, {words}"
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -584,11 +837,24 @@ def plural(n: int, one: str, many: str | None = None) -> str:
 # 4 · The sentence (AC8) — by template, from the picks
 # ═════════════════════════════════════════════════════════════════════════
 
+def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> str:
+    """The question without its answer: ``Heartbeats where Status is warn,
+    newest first``."""
+    head = ds["name"]
+    said = [words for _, words in _conditions(view, fields)]
+    if said:
+        head += " where " + " and ".join(said)
+    order = sort_words(view, fields) if sort else ""
+    if order:
+        head += ", " + order
+    return head
+
+
 def sentence(ds: dict, view: dict, fields: dict, total: int) -> str:
     """The question, restated in one line.  A template over the picks, never
-    a model: ``Heartbeats — 8,400 rows``."""
+    a model: ``Heartbeats where Status is warn, newest first — 412 rows``."""
     show = view.get("show")
-    head = ds["name"]
+    head = question_words(ds, view, fields)
     if total == 0:
         tail = "no rows match"
     elif show is not None and total >= show:
@@ -680,7 +946,7 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
     if not result.get("accepted"):
         return {
             "kind": "refused",
-            "sentence": ds["name"],
+            "sentence": question_words(ds, view, fields),
             "message": plain_refusal(result.get("refusal")),
             "admin": admin,
         }
@@ -756,8 +1022,8 @@ def api_answer(body: dict) -> JSONResponse:
         try:
             out = answer(conn, payload, view, page)
         except ViewError as exc:
-            return JSONResponse({"kind": "invalid", "message": str(exc)},
-                                status_code=422)
+            return JSONResponse({"kind": "invalid", "sentence": "",
+                                 "message": str(exc)}, status_code=422)
         return JSONResponse(out)
     finally:
         conn.close()
