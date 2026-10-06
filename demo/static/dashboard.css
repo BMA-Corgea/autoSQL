@@ -245,6 +245,8 @@ body.dx-body * { box-sizing: border-box; }
 .dx-hero-label { margin: 0 0 4px; font-size: 13px; color: var(--text-mid); }
 .dx-hero-value { margin: 0; font-size: 56px; font-weight: 650; line-height: 1.1; letter-spacing: -0.02em; }
 .dx-hero-none { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-soft); }
+.dx-hero-note { margin: 6px 0 0; font-size: 14px; color: var(--text-soft); }
+.dx-admin-note-loud { margin: 8px 0; padding: 6px 10px; font-size: 12px; border-left: 3px solid var(--amber); background: var(--amber-light); color: var(--text); }
 
 .dx-chart {
   margin: 0 0 16px; padding: 12px 12px 4px; border: 1px solid var(--border);

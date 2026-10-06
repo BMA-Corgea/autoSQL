@@ -30,6 +30,7 @@ page is switched to *View as: Admin*.
 
 from __future__ import annotations
 
+import contextvars
 import datetime as _dt
 import json
 import math
@@ -442,6 +443,14 @@ class ViewError(ValueError):
     """A view this contract cannot translate — said in plain words."""
 
 
+def _name(value):
+    """A name a view uses to look something up (a field, a function, a
+    logic, a column): the text itself, or None for anything else — so a list
+    or an object where a name belongs is refused by name as unknown, never
+    met with a crash at the first lookup (T-75)."""
+    return value if isinstance(value, str) else None
+
+
 #: Every part of a view this contract honours, and the parts of each
 #: condition and sort.  Anything else is REFUSED by name, never ignored: a
 #: choice the page shows but the answer drops would be a pick silently
@@ -565,7 +574,7 @@ def _summary(view: dict, fields: dict, ds: dict):
         raise ViewError("A summary must be a set of choices.")
     _refuse_extra(summary, SUMMARY_KEYS, "a summary")
     fn = summary.get("fn")
-    if fn not in SUMMARY_FNS:
+    if _name(fn) not in SUMMARY_FNS:
         raise ViewError("Summarize by count, total, average, smallest or largest.")
     per = summary.get("per", "all")
     if per not in PERS:
@@ -575,7 +584,7 @@ def _summary(view: dict, fields: dict, ds: dict):
         if not _empty(path):
             raise ViewError("A count counts rows; it takes no field.")
         return {"fn": fn, "field": None, "per": per}
-    if path not in fields or fields[path]["kind"] != "number":
+    if _name(path) not in fields or fields[path]["kind"] != "number":
         raise ViewError(f"{SUMMARY_FNS[fn]} of what? Pick a field that holds numbers.")
     return {"fn": fn, "field": path, "per": per}
 
@@ -666,6 +675,10 @@ def string_literal(value: str) -> str:
     """
     if not isinstance(value, str):
         raise ViewError("A text value must be text.")
+    # The database's text cannot hold a NUL, and a lone surrogate is not a
+    # character at all: both are refused here, by name, before any SQL.
+    if "\x00" in value or any(0xD800 <= ord(ch) <= 0xDFFF for ch in value):
+        raise ViewError("That value holds a character the data can't store.")
     out = []
     for ch in value:
         if ch == "\\":
@@ -807,6 +820,8 @@ def condition(field: dict, cond: dict) -> tuple[str, str]:
             raise ViewError(f"Pick at least one value for {label}.")
         if len(values) > IN_LIMIT:
             raise ViewError(f"Pick at most {IN_LIMIT} values for {label}.")
+        if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool) for v in values):
+            raise ViewError(f"Each value for {label} must be one value.")
         unique = list(dict.fromkeys(values))
         pairs = [_value_for(field, v) for v in unique]
         if len(pairs) == 1:
@@ -847,7 +862,7 @@ def _conditions(view: dict, fields: dict) -> list:
         raise ViewError("Conditions must be a list.")
     out = []
     for c in conds:
-        if not isinstance(c, dict) or c.get("field") not in fields:
+        if not isinstance(c, dict) or _name(c.get("field")) not in fields:
             raise ViewError("A condition names a field this data set doesn't have.")
         out.append(condition(fields[c["field"]], c))
     return out
@@ -867,7 +882,7 @@ WHY_LOGIC_NEEDS_TWO = "needs two or more conditions"
 
 def _logic(value, n: int, where: str) -> str:
     logic = "all" if value is None else value
-    if logic not in LOGICS:
+    if _name(logic) not in LOGICS:
         raise ViewError(f"{where} joins its conditions by all, any, exactly one, or all or none.")
     if logic in ("one", "allnone") and n < 2:
         raise ViewError(f"“{LOGICS[logic]}” {WHY_LOGIC_NEEDS_TWO}.")
@@ -941,7 +956,7 @@ def _sort(view: dict, fields: dict):
     sort = view.get("sort")
     if sort is None:
         return None
-    if not isinstance(sort, dict) or sort.get("field") not in fields:
+    if not isinstance(sort, dict) or _name(sort.get("field")) not in fields:
         raise ViewError("Sort by a field of this data set.")
     _refuse_extra(sort, SORT_KEYS, "a sort")
     field = fields[sort["field"]]
@@ -972,12 +987,14 @@ _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 
 def fmt_time(text: str) -> str:
-    """``2026-08-20T23:00:00Z`` → ``Aug 20, 23:00 UTC``."""
+    """``2026-08-20T23:00:00Z`` → ``Aug 20, 23:00 UTC``; ``…23:00:15Z`` →
+    ``Aug 20, 23:00:15 UTC``."""
     try:
         t = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError:
         return text
-    return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d} UTC"
+    seconds = f":{t.second:02d}" if t.second else ""      # shown when not zero (T-75)
+    return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d}{seconds} UTC"
 
 
 def fmt_date(text: str) -> str:
@@ -1051,7 +1068,10 @@ def fmt_number(text: str, *, places: int | None = None) -> str:
         return raw
 
 
-def _plain_json(value: Any) -> str:
+def _plain_json(value: Any, *, inside: bool = False) -> str:
+    """A list or group value, readably.  Text INSIDE a list or group is
+    quoted, so ``["a, b"]`` (one item) and ``["a", "b"]`` (two) never read
+    the same: “a, b” against “a”, “b” (T-75)."""
     if value is None:
         return "blank"
     if isinstance(value, bool):
@@ -1059,13 +1079,13 @@ def _plain_json(value: Any) -> str:
     if isinstance(value, (int, float, Decimal)):
         return fmt_number(str(value).replace("E", "e"))
     if isinstance(value, str):
-        return value
+        return f"“{value}”" if inside else value
     if isinstance(value, list):
-        return "(empty list)" if not value else ", ".join(_plain_json(v) for v in value)
+        return "(empty list)" if not value else ", ".join(_plain_json(v, inside=True) for v in value)
     if isinstance(value, dict):
         if not value:
             return "(empty group)"
-        return ", ".join(f"{k}: {_plain_json(v)}" for k, v in value.items())
+        return ", ".join(f"{k}: {_plain_json(v, inside=True)}" for k, v in value.items())
     return str(value)
 
 
@@ -1136,6 +1156,21 @@ def sentence(ds: dict, view: dict, fields: dict, total: int,
     return f"{head} — {tail}"
 
 
+#: Notes for Admin about this one answer (T-75): set per request by the
+#: route, appended to by any helper that had to leave something unsaid.
+_NOTES: "contextvars.ContextVar[list | None]" = contextvars.ContextVar("dashboard_notes", default=None)
+
+
+def _note(text: str) -> None:
+    notes = _NOTES.get()
+    if notes is not None and text not in notes:
+        notes.append(text)
+
+
+_DISAGREED_TOTAL = ("The two engines disagreed on how many {what} these choices match "
+                    "({a} against {b}), so the sentence states no total.")
+
+
 def agreed_count(conn, pick: dict) -> int | None:
     """How many rows these choices match, counted through ``run_pick`` —
     both engines — and returned ONLY when the two agree.  ``None`` when
@@ -1144,7 +1179,11 @@ def agreed_count(conn, pick: dict) -> int | None:
     count_pick = dict(pick, aggregate={"fn": "count", "field": None},
                       bucket="off", computed=[], sort=None, cap=None)
     result = _run(conn, count_pick)
-    if not result.get("accepted") or result.get("verdict") != "agree":
+    if not result.get("accepted"):
+        return None
+    if result.get("verdict") != "agree":
+        _note(_DISAGREED_TOTAL.format(what="rows", a=result["panes"]["sql"]["rows"][0]["c"][0],
+                                      b=result["panes"]["python"]["rows"][0]["c"][0]))
         return None
     return int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
 
@@ -1154,7 +1193,12 @@ def agreed_rows(conn, pick: dict) -> int | None:
     per-hour / per-day answer, the number of hours or days with rows —
     through both engines, ONLY when they agree."""
     result = _run(conn, dict(pick, cap=None))
-    if not result.get("accepted") or result.get("verdict") != "agree":
+    if not result.get("accepted"):
+        return None
+    if result.get("verdict") != "agree":
+        cmp_ = result.get("comparison") or {}
+        _note(_DISAGREED_TOTAL.format(what="hours or days", a=cmp_.get("sql_row_count"),
+                                      b=cmp_.get("python_row_count")))
         return None
     return int(result["panes"]["sql"]["row_count"])
 
@@ -1172,6 +1216,20 @@ ENGINE_REFUSAL_SQLSTATE = "XPR01"
 _CACHE_LOCK = threading.Lock()
 _CACHE: "OrderedDict[str, dict]" = OrderedDict()
 _CACHE_SIZE = 8
+
+
+def _second_engine_overflow(conn, exc, sql: dict) -> dict:
+    """The second engine met a number Python cannot turn into a double
+    (``OverflowError`` — a 401-digit integer, Edge cases' 1e400) on a row the
+    statement itself never had to read: possible only when the statement
+    stops early (a LIMIT).  No number is shown from a comparison that could
+    not finish; the answer is a refusal, named (T-75)."""
+    return {
+        "accepted": False, "verdict": "no-compare", "comparison": {},
+        "sql": sql,
+        "refusal": {"headline": "The second engine could not finish",
+                    "why": f"out-of-range magnitude in the second engine: {exc}"},
+    }
 
 
 def _statement_for_admin(conn, pick: dict, server_app) -> dict:
@@ -1226,6 +1284,8 @@ def _run(conn, pick: dict) -> dict:
             return hit
     try:
         answer = server_app.run_pick(conn, pick, whole=True)
+    except OverflowError as exc:
+        return _second_engine_overflow(conn, exc, _statement_for_admin(conn, pick, server_app))
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
             raise
@@ -1443,10 +1503,14 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         if shown is None:
             # count is never blank; every other function can be.
             blank = blank_reason(conn, pick, fields[summary["field"]]["label"])
+        # A count of nothing IS 0 — and says why, in the same words the other
+        # summaries use when no row matched (T-75).
+        note = "No rows match" if fn == "count" and row["c"][0] == "0" else None
         return {
             "kind": "number",
             "sentence": head,
-            "number": {"label": label, "value": shown, "exact": exact, "blank": blank},
+            "number": {"label": label, "value": shown, "exact": exact, "blank": blank,
+                       "note": note},
             "unavailable": unavailable(pick),
             "admin": admin,
         }
@@ -1568,7 +1632,8 @@ def check_label(label) -> str:
 def _plural_noun(label: str, n: int) -> str:
     word = label.lower()
     if len(word) <= 2:
-        word = f"{label} value"
+        # "2 A values" reads oddly; "2 values of A" reads for any name (T-75)
+        return f"1 value of {label}" if n == 1 else f"{fmt_number(str(n))} values of {label}"
     if n == 1:
         return f"1 {word}"
     if word.endswith(("s", "x", "ch", "sh")):
@@ -1586,7 +1651,7 @@ def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
         raise ViewError(f"{where} needs at least one condition.")
     parsed = []
     for cond in conds:
-        if not isinstance(cond, dict) or cond.get("field") not in fields:
+        if not isinstance(cond, dict) or _name(cond.get("field")) not in fields:
             raise ViewError("A condition names a field this data set doesn't have.")
         parsed.append(condition(fields[cond["field"]], cond))
     logic = _logic(c.get("logic"), len(parsed), where)
@@ -1609,7 +1674,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         raise ViewError("Sort a scoreboard by one of its own columns.")
 
     by = sb.get("by")
-    if by not in fields:
+    if _name(by) not in fields:
         raise ViewError("Pick the field to give one row per value of.")
     if not fields[by]["group"]["ok"]:
         raise ViewError(f"{fields[by]['label']} can't be grouped by: {fields[by]['group']['why']}")
@@ -1646,9 +1711,9 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         if not isinstance(time, dict):
             raise ViewError("Latest or earliest must be a set of choices.")
         _refuse_extra(time, TIME_KEYS, "latest or earliest")
-        if time.get("fn") not in TIME_WORDS:
+        if _name(time.get("fn")) not in TIME_WORDS:
             raise ViewError("Pick latest or earliest.")
-        f = fields.get(time.get("field"))
+        f = fields.get(_name(time.get("field")))
         if not f or f["kind"] not in ("time", "date"):
             raise ViewError("Latest and earliest read a time or a date field.")
         time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
@@ -1661,7 +1726,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         _refuse_extra(measure, MEASURE_KEYS, "a total or average")
         if measure.get("fn") not in group.MEASURE_FNS:
             raise ViewError("Summarize by total, average, smallest or largest.")
-        f = fields.get(measure.get("field"))
+        f = fields.get(_name(measure.get("field")))
         if not f or f["kind"] != "number":
             raise ViewError(f"{SUMMARY_FNS[measure['fn']]} of what? Pick a field that holds numbers.")
         measure_spec = {"fn": measure["fn"], "field": f["path"]}
@@ -1687,7 +1752,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             names[f"count:{c['id']}"] = f"c{i}"
             if c["pct"]:
                 names[f"pct:{c['id']}"] = f"c{i}_pct"
-        column = names.get(sort.get("column"))
+        column = names.get(_name(sort.get("column")))
         if column is None or column not in group.columns_of(spec):
             raise ViewError("Sort a scoreboard by one of its own columns.")
         if sort.get("dir") not in ("asc", "desc"):
@@ -1712,6 +1777,11 @@ def _run_group(conn, spec: dict) -> dict:
             return hit
     try:
         result = scoreboard.run_group(conn, spec)
+    except OverflowError as exc:
+        built = group.build(spec)
+        return _second_engine_overflow(conn, exc, {
+            "display": server_app.render_display_sql(built), "parameterised": built.sql,
+            "params": server_app._param_rows(built.params), "statement_sent": True})
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
             raise
@@ -1804,6 +1874,10 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
         full = _run_group(conn, dict(spec, cap=None))
         of = (full["panes"]["sql"]["row_count"]
               if full.get("accepted") and full.get("verdict") == "agree" else None)
+        if full.get("accepted") and full.get("verdict") != "agree":
+            cmp_ = full.get("comparison") or {}
+            _note(_DISAGREED_TOTAL.format(what="groups", a=cmp_.get("sql_row_count"),
+                                          b=cmp_.get("python_row_count")))
         if of is not None and of <= show:
             tail = _plural_noun(by["label"], of)
         elif of is not None:
@@ -1856,7 +1930,13 @@ def api_setup() -> JSONResponse:
 def api_answer(body: dict) -> JSONResponse:
     view = body.get("view") if isinstance(body, dict) else None
     page = body.get("page", 0) if isinstance(body, dict) else 0
+    # The statement and the engines' verdict go only to a request that asks
+    # for the Admin view (T-75): the Everyone view's response carries none
+    # of it.  The demo has no login, so this is the shape GIMS must keep,
+    # not a lock.
+    wants_admin = isinstance(body, dict) and body.get("admin") is True
     conn = _connect()
+    token = _NOTES.set([])
     try:
         payload = setup(conn)
         try:
@@ -1864,6 +1944,12 @@ def api_answer(body: dict) -> JSONResponse:
         except ViewError as exc:
             return JSONResponse({"kind": "invalid", "sentence": "",
                                  "message": str(exc)}, status_code=422)
+        if wants_admin:
+            if "admin" in out:
+                out["admin"] = dict(out["admin"], notes=list(_NOTES.get() or []))
+        else:
+            out.pop("admin", None)
         return JSONResponse(out)
     finally:
+        _NOTES.reset(token)
         conn.close()

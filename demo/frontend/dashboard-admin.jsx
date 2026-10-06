@@ -132,7 +132,8 @@ export function AdminPanel({ answer, updating, failed }) {
       )}
       {open && !failed ? (
         <div id="dx-sql-body">
-          {admin.refusal ? (
+          {(admin.notes || []).map((n) => <p key={n} className="dx-admin-note-loud" data-testid="admin-note">{n}</p>)}
+      {admin.refusal ? (
             <p className="dx-admin-refusal"><strong>{admin.refusal.headline}.</strong> {admin.refusal.why}</p>
           ) : null}
           {statement ? (

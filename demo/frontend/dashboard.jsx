@@ -195,6 +195,7 @@ function Hero({ number }) {
       ) : (
         <p className="dx-hero-value" title={number.exact !== number.value ? `To six places: ${number.exact}` : undefined}>{number.value}</p>
       )}
+      {number.note ? <p className="dx-hero-note" data-testid="note">{number.note}</p> : null}
     </div>
   );
 }
@@ -381,6 +382,11 @@ function App() {
       .catch(() => setSetupFailed(true));
   }, []);
 
+  // The statement and the engines' verdict are asked for only in the Admin
+  // view: the Everyone view's answers carry none of it (T-75).
+  const adminRef = useRef(admin);
+  adminRef.current = admin;
+
   const ask = useCallback((v, p) => {
     const mine = ++seq.current;
     if (inflight.current) inflight.current.abort();
@@ -391,7 +397,7 @@ function App() {
     getJSON("/api/dashboard/answer", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ view: v, page: p }),
+      body: JSON.stringify({ view: v, page: p, admin: adminRef.current }),
       signal: ctl.signal,
     })
       .then((a) => {
@@ -432,7 +438,7 @@ function App() {
     setFailed(false); // a new question is out: the last failure is not this answer
     timer.current = setTimeout(() => ask(v, page), WAIT_BEFORE_ASKING);
     return () => clearTimeout(timer.current);
-  }, [question, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [question, page, admin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const change = useCallback((patch) => {
     setPage(0);
