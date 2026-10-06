@@ -520,7 +520,7 @@ class TestFieldNamesAreBound:
         # And the rows are all still there.
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10410
+        ).fetchone()[0] == 10465
 
     @pytest.mark.parametrize("field", [
         '$["a\";b"]',   # the bracket spelling builder._field_path misreads
@@ -559,7 +559,7 @@ class TestFieldNamesAreBound:
         # And nothing was dropped: the demo's rows are all still there.
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10410
+        ).fetchone()[0] == 10465
 
     def test_the_alias_is_the_one_piece_of_typed_text_that_is_not_bound(
         self, conn
@@ -576,7 +576,7 @@ class TestFieldNamesAreBound:
         assert body["sql"]["parameterised"] is None
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10410
+        ).fetchone()[0] == 10465
 
 
 # ═════════════════════════════════════════════════════════════════════════

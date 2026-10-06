@@ -1477,7 +1477,7 @@ def api_fields(source: str | None = None) -> JSONResponse:
     if collection not in legality.SOURCES:
         return JSONResponse(
             {"detail": f"unknown source {collection!r}: the sources are a "
-                       "closed set of three"},
+                       "closed set of four"},
             status_code=422,
         )
     conn = db.connect(application_name="autosql-demo-fields")

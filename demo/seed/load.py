@@ -9,7 +9,7 @@ This module owns the write path into the demo database (T-2-plan.md §5, W5):
      as one statement batch through the driver (B21 — this machine has no
      Postgres client binaries, and nothing in the demo tree shells out to
      one).
-  3. The 10,410 generated rows, via the driver's COPY … FROM STDIN (B21),
+  3. The 10,465 generated rows, via the driver's COPY … FROM STDIN (B21),
      inside one transaction — a failed run leaves nothing behind.
 
 Every row is invented (AC-11, B31 third place): fabricated by
@@ -70,6 +70,7 @@ EXPECTED_COUNTS = {
     "noun:Heartbeat": 8400,
     "noun:Sample": 2000,
     "noun:EdgeCase": 10,
+    "noun:Sender": 55,       # T-74
 }
 
 _DEMO_DB_PORT = 55440  # the ONLY port anything in this tree may dial
@@ -165,13 +166,16 @@ def install_runtime_sql(conn) -> None:
     conn.execute(raw.decode())
 
 
-def copy_rows(conn) -> int:
-    """COPY all generated rows in through the driver (B21), returning how
-    many were written."""
+def copy_rows(conn, only=None) -> int:
+    """COPY the generated rows in through the driver (B21), returning how
+    many were written.  ``only`` limits it to those collections (T-74: a
+    database seeded before Senders existed gets just the Senders)."""
     written = 0
     with conn.cursor() as cur:
         with cur.copy("COPY demo.records (collection, key, data) FROM STDIN") as copy:
             for collection, key, data in generate.rows():
+                if only is not None and collection not in only:
+                    continue
                 copy.write_row((collection, key, data))
                 written += 1
     return written
@@ -208,7 +212,19 @@ def run(conn, record_digest: bool = False) -> str:
         written = copy_rows(conn)
         print(f"demo/seed: wrote {written:,} invented rows into demo.records")
     else:
-        print(f"demo/seed: demo.records already holds {existing:,} rows — not reseeding")
+        # T-74: a database seeded before a collection existed (Senders) gets
+        # that collection — ONLY a collection with no rows at all, never a
+        # top-up of a partial one.  Every other row is left exactly as it
+        # is, and the AC-10 digest below must then match the manifest, so a
+        # database that held anything else still fails loudly.
+        have = collection_counts(conn)
+        missing = [c for c in EXPECTED_COUNTS if have.get(c, 0) == 0]
+        if missing:
+            written = copy_rows(conn, only=set(missing))
+            print(f"demo/seed: demo.records held {existing:,} rows; added the "
+                  f"{written:,} rows of {', '.join(sorted(missing))}, which it lacked")
+        else:
+            print(f"demo/seed: demo.records already holds {existing:,} rows — not reseeding")
 
     counts = collection_counts(conn)
     if counts != EXPECTED_COUNTS:

@@ -2,7 +2,7 @@
 # start.sh — the front door.
 #
 # One command: bring the demo up and put it on screen. Everything it needs it
-# builds itself (its own Postgres in Docker, its own venv, 10,410 invented rows).
+# builds itself (its own Postgres in Docker, its own venv, 10,465 invented rows).
 #
 #   ./start.sh          bring it up and open the screen
 #   ./start.sh stop     tear it down (container and volume removed)

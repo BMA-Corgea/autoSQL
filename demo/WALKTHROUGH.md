@@ -88,11 +88,13 @@ yet — this step is about the infrastructure starting up, not about the data.
 `8787`<!--#steps[0].expect.app_port-->. Neither of those is the port the owner's
 live database runs on — this demo never touches that machine, under any
 circumstance. Once the database is seeded, it holds
-`10,410`<!--#steps[0].expect.rows_loaded--> rows in total, all of them
+`10,465`<!--#steps[0].expect.rows_loaded--> rows in total, all of them
 invented: `8,400`<!--#corpus.heartbeat_rows--> in the collection
 `noun:Heartbeat`, `2,000`<!--#corpus.sample_rows--> in `noun:Sample`, and
 `10`<!--#corpus.edge_case_rows--> in `noun:EdgeCase` — the three collections
-every other step below picks from.
+every other step below picks from — and `55`<!--#corpus.sender_rows--> in
+`noun:Sender`, the senders' profiles the dashboard's scoreboards join
+Heartbeats to (this screen does not offer it).
 
 ---
 

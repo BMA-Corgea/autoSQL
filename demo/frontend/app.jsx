@@ -351,7 +351,7 @@ function App() {
           <b>Every record on this screen is invented</b>, and the heartbeat shape in
           particular was made up — no heartbeat schema exists in either GIMS
           checkout. The database behind it is this demo's own, on 127.0.0.1:55440,
-          seeded with 10,410 rows from a fixed seed and nothing else.
+          seeded with 10,465 rows from a fixed seed and nothing else.
         </div>
       </div>
 

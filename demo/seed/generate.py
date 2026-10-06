@@ -15,7 +15,7 @@ Determinism (plan §5.5, B27):
     Python versions by construction and independent of loop order — running
     the generator twice produces byte-identical rows (AC-10).
 
-The three collections (plan §5.1–§5.4):
+The four collections (plan §5.1–§5.4, and T-74 for Senders):
   * noun:Heartbeat — 8,400 rows: 50 senders × 168 hourly beats (R5, R16,
     R17, R19, B27).
   * noun:Sample    — 2,000 rows: the record rule of
@@ -23,6 +23,8 @@ The three collections (plan §5.1–§5.4):
     key format and B26's id-matches-key correction.
   * noun:EdgeCase  — 10 rows, all named at B24, written as raw JSON text so
     values no Python float can hold (1e400) survive exactly (AC-13).
+  * noun:Sender    — 55 rows (T-74): a profile per sender hb-01 … hb-55, the
+    parent Heartbeats join to; hb-51 … hb-55 have no heartbeats.
 """
 
 from __future__ import annotations
@@ -233,22 +235,92 @@ def edge_case_rows() -> Iterator[Row]:
 
 
 # ---------------------------------------------------------------------------
+# noun:Sender — 55 rows (T-74): one profile per sender, hb-01 … hb-55.
+#
+# The parent the dashboard joins Heartbeats to (Heartbeats.sender_id →
+# Senders.id). hb-01 … hb-50 are the fifty senders that beat; hb-51 … hb-55
+# have NO heartbeats — the sql-gauntlet's "customers with no orders", the
+# rows a LEFT JOIN must keep and a COUNT(*) would miscount.
+#
+# Added in T-74 without touching a byte of the three collections above: every
+# draw here comes from streams whose seed text ("sender-profile:…") no other
+# collection uses, and "noun:Sender" sorts after "noun:Sample", so the new
+# rows append to the corpus and the digest's order of the old rows is
+# unchanged. demo/tests/test_data.py proves both halves.
+# ---------------------------------------------------------------------------
+
+SENDER_PROFILES = 55   # hb-01 … hb-55
+SILENT_FROM = 51       # hb-51 … hb-55 never beat
+SITES = ["North", "South", "East", "West"]
+KINDS = ["gateway", "meter", "pump", "sensor"]
+# Invented place-like names: one first word and one second word per sender,
+# drawn without repeats so every sender's name is its own.
+_NAME_FIRST = ["Amber", "Birch", "Cedar", "Dune", "Ember", "Fern", "Granite",
+               "Harbor", "Iris", "Juniper", "Kestrel"]
+_NAME_SECOND = ["Ridge", "Hollow", "Point", "Crossing", "Field"]
+# Installed on a day between 2025-01-01 and 2026-07-31, held as an ordinal and
+# advanced by integer addition (the same no-clock rule as the samples).
+_INSTALLED_BASE_ORDINAL = datetime.date(2025, 1, 1).toordinal()
+_INSTALLED_SPAN_DAYS = 576
+
+
+def _sender_names() -> list:
+    """55 distinct names, in a fixed shuffled order."""
+    pairs = [f"{a} {b}" for a in _NAME_FIRST for b in _NAME_SECOND]
+    rng = _stream("sender-profile:names")
+    rng.shuffle(pairs)
+    return pairs[:SENDER_PROFILES]
+
+
+def sender_rows() -> Iterator[Row]:
+    """55 sender profiles, keys hb-01 … hb-55 (the heartbeats' sender_id)."""
+    names = _sender_names()
+    for s in range(1, SENDER_PROFILES + 1):
+        key = f"hb-{s:02d}"
+        rng = _stream(f"sender-profile:{key}")
+        installed = datetime.date.fromordinal(
+            _INSTALLED_BASE_ORDINAL + rng.randint(0, _INSTALLED_SPAN_DAYS))
+        data = json.dumps(
+            {
+                "id": key,
+                "name": names[s - 1],
+                "site": rng.choice(SITES),
+                "kind": rng.choice(KINDS),
+                "installed": installed.isoformat(),
+            },
+            separators=(",", ":"),
+        )
+        yield ("noun:Sender", key, data)
+
+
+# ---------------------------------------------------------------------------
 # The whole corpus, in (collection, key) order — the digest's order (AC-10).
 # ---------------------------------------------------------------------------
 
+#: The three collections the corpus held before T-74. Their rows are pinned
+#: byte for byte: OLD_CORPUS_SHA256 is corpus_sha256 over exactly these,
+#: measured on the generator as it stood before Senders were added.
+OLD_COLLECTIONS = ("noun:EdgeCase", "noun:Heartbeat", "noun:Sample")
+OLD_CORPUS_SHA256 = "7d8170d2b34d4f6519b1433d074c9a264060036b6d37abfb6412fa22aea28221"
+
+
 def rows() -> Iterator[Row]:
-    """All 10,410 rows, emitted in (collection, key) text order."""
+    """All 10,465 rows, emitted in (collection, key) text order."""
     yield from edge_case_rows()   # noun:EdgeCase
     yield from heartbeat_rows()   # noun:Heartbeat
     yield from sample_rows()      # noun:Sample
+    yield from sender_rows()      # noun:Sender (T-74) — sorts last
 
 
-def corpus_sha256() -> str:
+def corpus_sha256(collections=None) -> str:
     """A digest over the generated stream itself (not the database) — what
     lets a test prove two in-process runs are byte-identical (AC-10's
-    generator half) without a second checkout."""
+    generator half) without a second checkout.  ``collections`` restricts it
+    (T-74: over OLD_COLLECTIONS it must equal OLD_CORPUS_SHA256)."""
     h = hashlib.sha256()
     for collection, key, data in rows():
+        if collections is not None and collection not in collections:
+            continue
         h.update(collection.encode())
         h.update(b"\x1f")
         h.update(key.encode())

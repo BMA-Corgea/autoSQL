@@ -27,7 +27,7 @@ applies the pick itself, in Python, from scratch.  It must not be handed the
 SQL query's result (it would be checking the SQL against itself), and it
 must not rebuild the data from the seed script's memory (the two panes would
 describe different worlds).  Reading a whole collection is affordable
-because Q21 kept the data small (10,410 rows).
+because Q21 kept the data small (10,465 rows).
 
 Independence (W12's whole point): this module imports nothing from
 ``demo/builder.py`` or ``demo/probes.py``, and does NOT import the database
