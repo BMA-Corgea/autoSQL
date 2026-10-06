@@ -112,8 +112,28 @@ DATASETS = (
         "default_columns": None,
         "not_by_default": ("label",),
     },
+    {
+        "id": "senders",
+        "source": "noun:Sender",
+        "name": "Senders",
+        "one": "sender",
+        "about": "A profile per sender: its name, site, kind and the day it was installed.",
+        "order": ("id", "name", "site", "kind", "installed"),
+        "default_columns": ("id", "name", "site", "kind", "installed"),
+        # Here a sender's id IS the sender: called that, not "ID".
+        "labels": {"id": "Sender"},
+    },
 )
 _BY_ID = {d["id"]: d for d in DATASETS}
+
+#: The relationships a scoreboard may count across — declared here, once,
+#: never guessed from field names (T-74).  A Senders scoreboard can count
+#: each sender's Heartbeats: Heartbeats.sender_id → Senders.id.
+RELATIONS = {
+    "senders": [
+        {"to": "heartbeats", "key": "sender_id", "parent_key": "id"},
+    ],
+}
 
 #: Plain names for the fields that have one.  Every other field is named by
 #: :func:`_humanize` (``field_7`` → "Field 7").
@@ -372,6 +392,8 @@ def setup(conn) -> dict:
         out = []
         for d in DATASETS:
             fields = _ordered(_read_fields(conn, d["source"]), d["order"])
+            for f in fields:
+                f["label"] = d.get("labels", {}).get(f["path"], f["label"])
             taken: set = set()
             for f in fields:
                 f["alias"] = _alias(f["label"], taken)
@@ -390,6 +412,8 @@ def setup(conn) -> dict:
                 "default_columns": [p for p in default
                                     if any(f["path"] == p for f in fields)],
                 "has_time": d["source"] == legality.HEARTBEAT,
+                "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"]}
+                               for r in RELATIONS.get(d["id"], [])],
             })
         _SETUP = {
             "datasets": out,
@@ -1609,7 +1633,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
 # 5b · Scoreboards (T-73): one row per group, "count if" columns
 # ═════════════════════════════════════════════════════════════════════════
 
-SCOREBOARD_KEYS = {"by", "counts", "time", "measure", "sort"}
+SCOREBOARD_KEYS = {"by", "count_from", "counts", "time", "measure", "sort"}
 COUNT_KEYS = {"id", "label", "logic", "conditions", "pct"}
 
 #: A count column's id: the handle the screen keeps for it, echoed back in
@@ -1696,6 +1720,19 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     if not fields[by]["group"]["ok"]:
         raise ViewError(f"{fields[by]['label']} can't be grouped by: {fields[by]['group']['why']}")
 
+    # T-74: count each group's OWN rows (the default), or the rows of a
+    # declared related data set — the parents are grouped, the related rows
+    # are counted.  Count columns, latest and the measure then read the
+    # related data set's fields; the page's conditions still read the parent.
+    count_from = sb.get("count_from")
+    relation, rel_ds = None, None
+    if count_from is not None:
+        relation = next((r for r in RELATIONS.get(ds["id"], []) if r["to"] == _name(count_from)), None)
+        if relation is None:
+            raise ViewError(f"{ds['name']} has no related data set to count from by that name.")
+        rel_ds = next(d for d in setup_payload["datasets"] if d["id"] == relation["to"])
+    counted_fields = {f["path"]: f for f in rel_ds["fields"]} if rel_ds else fields
+
     counts_in = sb.get("counts") or []
     if not isinstance(counts_in, list):
         raise ViewError("Count columns must be a list.")
@@ -1718,7 +1755,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             raise ViewError("A count column's id must be a whole number.")
         if cid in [x["id"] for x in labels]:
             raise ViewError("Two count columns share one id.")
-        expr, said = _count_conditions(c, fields, f"“{label}”")
+        expr, said = _count_conditions(c, counted_fields, f"“{label}”")
         counts.append({"expr": expr, "pct": bool(c.get("pct"))})
         labels.append({"id": cid, "label": label, "said": said, "pct": bool(c.get("pct"))})
 
@@ -1730,7 +1767,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         _refuse_extra(time, TIME_KEYS, "latest or earliest")
         if _name(time.get("fn")) not in TIME_WORDS:
             raise ViewError("Pick latest or earliest.")
-        f = fields.get(_name(time.get("field")))
+        f = counted_fields.get(_name(time.get("field")))
         if not f or f["kind"] not in ("time", "date"):
             raise ViewError("Latest and earliest read a time or a date field.")
         time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
@@ -1743,7 +1780,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         _refuse_extra(measure, MEASURE_KEYS, "a total or average")
         if measure.get("fn") not in group.MEASURE_FNS:
             raise ViewError("Summarize by total, average, smallest or largest.")
-        f = fields.get(_name(measure.get("field")))
+        f = counted_fields.get(_name(measure.get("field")))
         if not f or f["kind"] != "number":
             raise ViewError(f"{SUMMARY_FNS[measure['fn']]} of what? Pick a field that holds numbers.")
         measure_spec = {"fn": measure["fn"], "field": f["path"]}
@@ -1758,6 +1795,12 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         "sort": None,
         "cap": _show(view),
     }
+    if relation:
+        spec["related"] = {
+            "source": next(d["source"] for d in DATASETS if d["id"] == relation["to"]),
+            "key": relation["key"],
+            "parent_key": relation["parent_key"],
+        }
 
     sort = sb.get("sort")
     if sort is not None:
@@ -1777,7 +1820,8 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         spec["sort"] = {"column": column, "dir": sort["dir"]}
 
     return spec, {"ds": ds, "fields": fields, "by": fields[by], "counts": labels,
-                  "time": time, "measure": measure}
+                  "time": time, "measure": measure, "rel_ds": rel_ds,
+                  "counted_fields": counted_fields}
 
 
 def _run_group(conn, spec: dict) -> dict:
@@ -1827,10 +1871,18 @@ def _run_group(conn, spec: dict) -> dict:
 def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
     spec, about = to_spec(setup_payload, view)
     ds, fields, by = about["ds"], about["fields"], about["by"]
-    head = f"{ds['name']} per {by['label']}"
+    rel_ds, counted = about["rel_ds"], about["counted_fields"]
+    # "Senders, counting their Heartbeats" when there is one row per parent
+    # (grouped by its own key); "Senders per Site, counting their
+    # Heartbeats" when grouped by another field.
+    own_key = rel_ds is not None and spec["related"]["parent_key"] == by["path"]
+    head = ds["name"] if own_key else f"{ds['name']} per {by['label']}"
     said = [w for _, w in _conditions(view, fields)]
     if said:
         head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
+    if rel_ds is not None:
+        head += f", counting their {rel_ds['name']}"
+    what = rel_ds["name"] if rel_ds is not None else "rows"
 
     result = _run_group(conn, spec)
     admin = _admin_block(result)
@@ -1845,20 +1897,21 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
     columns = [{"id": "group", "label": by["label"], "kind": by["kind"],
                 "title": f"One row per {by['label']} found in the rows kept."},
                {"id": "rows", "label": "Rows", "kind": "number",
-                "title": "How many rows each group holds."}]
+                "title": f"How many {what} each group holds." if rel_ds is None
+                         else f"How many {what} each group has (0 when it has none)."}]
     for i, c in enumerate(about["counts"], start=1):
         columns.append({"id": f"count:{c['id']}", "label": c["label"], "kind": "number",
-                        "title": f"Counts the rows in each group where {c['said']}."})
+                        "title": f"Counts the {what} in each group where {c['said']}."})
         if c["pct"]:
             columns.append({"id": f"pct:{c['id']}", "label": f"% {c['label']}", "kind": "number",
                             "title": f"“{c['label']}” as a share of the group's rows, to one decimal place."})
     if spec["time"]:
         word = TIME_WORDS[about["time"]["fn"]][1]
-        f = fields[spec["time"]["field"]]
+        f = counted[spec["time"]["field"]]
         columns.append({"id": "time", "label": f"{word} {f['label']}", "kind": f["kind"],
                         "title": f"The {word.lower()} {f['label']} in each group."})
     if spec["measure"]:
-        f = fields[spec["measure"]["field"]]
+        f = counted[spec["measure"]["field"]]
         label = f"{SUMMARY_FNS[spec['measure']['fn']]} {f['label']}"
         columns.append({"id": "measure", "label": label, "kind": "number",
                         "title": f"The {label.lower()} over each group's rows."})
@@ -1871,7 +1924,7 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
         if name.endswith("_pct"):
             return fmt_number(text, places=1) + "%"
         if name == "time":
-            return fmt_cell(text, "string", fields[spec["time"]["field"]]["kind"])
+            return fmt_cell(text, "string", counted[spec["time"]["field"]]["kind"])
         if name == "measure":
             return _summary_value(text, tag, spec["measure"]["fn"])[0]
         return fmt_number(text)

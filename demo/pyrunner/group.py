@@ -114,11 +114,48 @@ def _order(rows: List[dict], spec: dict) -> List[dict]:
     return sorted(rows, key=cmp_to_key(compare))
 
 
-def answer(rows: Sequence[SourceRow], spec: dict) -> Dict[str, Any]:
-    """The scoreboard for *spec* over one collection's source rows."""
+def _join_key(value: Any, side: str):
+    """A relation key, as the join compares it: text.  A missing key or a
+    JSON null joins to nothing (SQL: NULL never equals).  Any other value
+    is refused loudly — the statement compares keys as text, and a number
+    quietly turned into text here could join differently there."""
+    if value is MISSING or value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    raise TypeError(f"the {side} key holds a {type(value).__name__}, not text")
+
+
+def answer(rows: Sequence[SourceRow], spec: dict,
+           related_rows: Sequence[SourceRow] = ()) -> Dict[str, Any]:
+    """The scoreboard for *spec* over one collection's source rows.
+
+    With ``spec["related"]`` (T-74), *rows* are the PARENTS — the page
+    filter keeps parents, and the groups come from them — and everything
+    counted is the parents' related rows, found here by the declared keys
+    (a dict from key text to rows; no database lookup).  A parent with no
+    related rows is still a group, holding none: Rows 0, every count 0,
+    every % 0, latest and measure blank — a LEFT JOIN, done by hand."""
     if spec.get("filter"):
         flt = ev.expr.parse(spec["filter"])
         rows = [r for r in rows if ev.keep_by_filter(r, flt)]
+
+    rel = spec.get("related")
+    if rel:
+        child_steps = ev.dollar_path("$." + rel["key"])
+        parent_steps = ev.dollar_path("$." + rel["parent_key"])
+        by_key: Dict[str, List[SourceRow]] = {}
+        for c in related_rows:
+            k = _join_key(ev.resolve(c.record_d, child_steps), "related rows'")
+            if k is not None:
+                by_key.setdefault(k, []).append(c)
+
+        def counted(parent: SourceRow) -> List[SourceRow]:
+            k = _join_key(ev.resolve(parent.record_d, parent_steps), "parent's")
+            return by_key.get(k, []) if k is not None else []
+    else:
+        def counted(parent: SourceRow) -> List[SourceRow]:
+            return [parent]
 
     steps = ev.dollar_path("$." + spec["group"])
     counts = [ev.expr.parse(c["expr"]) for c in spec.get("counts") or []]
@@ -134,7 +171,7 @@ def answer(rows: Sequence[SourceRow], spec: dict) -> Dict[str, Any]:
             "value": None if value is MISSING else value,
             "rows": [],
         })
-        g["rows"].append(r)
+        g["rows"].extend(counted(r))
 
     out = []
     for g in groups.values():
@@ -172,5 +209,8 @@ def answer(rows: Sequence[SourceRow], spec: dict) -> Dict[str, Any]:
 
 
 def python_pane(conn, spec: dict) -> Dict[str, Any]:
-    """Read the source rows and answer the scoreboard — end to end."""
-    return answer(read_rows(conn, spec["source"]), spec)
+    """Read the source rows and answer the scoreboard — end to end.  With a
+    relation, both collections' source rows are read, and joined here."""
+    rel = spec.get("related")
+    related = read_rows(conn, rel["source"]) if rel else ()
+    return answer(read_rows(conn, spec["source"]), spec, related)

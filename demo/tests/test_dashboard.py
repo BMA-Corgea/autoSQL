@@ -156,11 +156,12 @@ class TestNothingLeavesThisHost:
 # ═════════════════════════════════════════════════════════════════════════
 
 class TestTheDataSets:
-    def test_three_data_sets_with_their_row_counts(self, setup):
+    def test_four_data_sets_with_their_row_counts(self, setup):
         got = [(d["id"], d["name"], d["rows"]) for d in setup["datasets"]]
         assert got == [("heartbeats", "Heartbeats", 8400),
                        ("samples", "Samples", 2000),
-                       ("edge", "Edge cases", 10)]
+                       ("edge", "Edge cases", 10),
+                       ("senders", "Senders", 55)]     # T-74
 
     def test_each_says_what_it_is_in_one_line(self, setup):
         for d in setup["datasets"]:

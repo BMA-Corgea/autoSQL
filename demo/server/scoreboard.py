@@ -56,14 +56,22 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
         return _refused(errors.layer_1(exc, kind="expression"), spec)
     display = server_app.render_display_sql(built)
 
-    exprs = [server_app.expr.parse(c["expr"]) for c in spec.get("counts") or []]
-    if spec.get("filter"):
-        exprs.append(server_app.expr.parse(spec["filter"]))
+    counted = [server_app.expr.parse(c["expr"]) for c in spec.get("counts") or []]
     roots = []
     if spec.get("measure"):
         roots.append(server_app.expr.parse("$." + spec["measure"]["field"]))
+    page = [server_app.expr.parse(spec["filter"])] if spec.get("filter") else []
+    rel = spec.get("related")
     try:
-        outcomes = probes.check(conn, spec["source"], exprs, numeric_roots=roots)
+        if rel:
+            # T-74: what is counted is the related rows, so their
+            # expressions are probed over THAT collection; the page filter
+            # reads the parents and is probed over them.
+            outcomes = probes.check(conn, rel["source"], counted, numeric_roots=roots)
+            if page:
+                outcomes = outcomes + probes.check(conn, spec["source"], page)
+        else:
+            outcomes = probes.check(conn, spec["source"], counted + page, numeric_roots=roots)
     except probes.RuntimeRefusal as exc:
         return _refused(errors.layer_2(exc), spec, built=built, display=display)
 
