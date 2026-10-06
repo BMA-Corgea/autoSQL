@@ -245,10 +245,12 @@ function ValueControl({ field, c, set }) {
   return one("value", label);
 }
 
-function ConditionRow({ fields, c, opWords, onChange, onRemove, index }) {
+function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held }) {
   const field = fields.find((f) => f.path === c.field);
   const set = (patch) => onChange({ ...c, ...patch });
-  const ready = isComplete(c, field);
+  // "held": complete, but not applied, because the set's logic is not ready
+  // yet — drawn waiting like an empty row, so nothing looks live that isn't.
+  const ready = isComplete(c, field) && !held;
   return (
     <div className={"dx-cond" + (ready ? "" : " is-waiting")} data-condition={index}>
       <div className="dx-cond-top">
@@ -267,7 +269,7 @@ function ConditionRow({ fields, c, opWords, onChange, onRemove, index }) {
         <button type="button" className="dx-remove" aria-label="Remove this condition" onClick={onRemove}>×</button>
       </div>
       <ValueControl key={c.field + ":" + c.op} field={field} c={c} set={set} />
-      {ready ? null : <p className="dx-waiting">Not used until a value is picked.</p>}
+      {ready ? null : <p className="dx-waiting">{held ? "Not applied yet — see below." : "Not used until a value is picked."}</p>}
     </div>
   );
 }
@@ -317,7 +319,9 @@ export function LogicChooser({ logic, onLogic, logics, count, complete, needsTwo
       />
       <p className="dx-step-hint dx-logic-meaning" title={logics[value]}>{logicMeaning(value, count)}</p>
       {ready ? null : (
-        <p className="dx-waiting">Not used yet: “{logics[value]}” {needsTwo} with values.</p>
+        <p className="dx-waiting dx-held" data-testid="held">
+          None of these conditions apply until two of them have a value — “{logics[value]}” {needsTwo}.
+        </p>
       )}
     </div>
   );
@@ -328,12 +332,14 @@ export function LogicChooser({ logic, onLogic, logics, count, complete, needsTwo
 export function ConditionList({ fields, shown, admin, value, opWords, onChange, logic, onLogic, logics, needsTwo, addLabel, action }) {
   const matchable = fields.filter((f) => f.ops.length);
   const complete = value.filter((c) => isComplete(c, fields.find((f) => f.path === c.field))).length;
+  const held = !logicReady(logic || "all", complete);
   return (
     <>
       {value.map((c, i) => (
         <ConditionRow
           key={c._k}
           index={i}
+          held={held}
           fields={fields}
           c={c}
           opWords={opWords}

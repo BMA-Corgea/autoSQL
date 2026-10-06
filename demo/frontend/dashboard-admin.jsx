@@ -32,6 +32,19 @@ export function changedLines(prev, next) {
     }
     else { changed.add(j); j++; }
   }
+  // A removal right where a line changed is often that line's edit (the
+  // last column goes, and its neighbour loses a comma): each changed line
+  // at the spot absorbs one removed line, so "− 1 line removed" counts the
+  // column, not the comma.
+  // An edited line is one removed plus one changed: it shows as changed
+  // only, with no removal marker.
+  for (const [at, count] of [...removedBefore]) {
+    let run = 0;
+    while (changed.has(at + run)) run += 1;
+    const left = count - run;
+    if (left > 0) removedBefore.set(at, left);
+    else removedBefore.delete(at);
+  }
   changed.removedBefore = removedBefore;
   return changed;
 }
@@ -104,6 +117,18 @@ export function AdminPanel({ answer, updating, failed }) {
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(loadOpen);
   const [tall, setTall] = useState(false);   // the whole statement, unclipped
+  const [clipped, setClipped] = useState(false);
+  const sqlBox = useRef(null);
+  // "Show all" is offered only when the box actually cuts the statement off.
+  useEffect(() => {
+    const el = sqlBox.current;
+    if (!el) return undefined;
+    const measure = () => setClipped(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   useEffect(() => {
     if (statement === prev.current) return undefined;
@@ -156,7 +181,7 @@ export function AdminPanel({ answer, updating, failed }) {
           ) : null}
           {statement ? (
             <>
-              <pre className={"dx-sql" + (tall ? " is-tall" : "")} data-testid="statement" aria-live="polite">
+              <pre ref={sqlBox} className={"dx-sql" + (tall ? " is-tall" : "")} data-testid="statement" aria-live="polite">
                 {lines.map((line, i) => (
                   <React.Fragment key={`${fresh.round}:${i}`}>
                     {fresh.set.removedBefore && fresh.set.removedBefore.get(i) ? <Removed count={fresh.set.removedBefore.get(i)} /> : null}
@@ -165,9 +190,11 @@ export function AdminPanel({ answer, updating, failed }) {
                 ))}
                 {fresh.set.removedBefore && fresh.set.removedBefore.get(lines.length) ? <Removed count={fresh.set.removedBefore.get(lines.length)} /> : null}
               </pre>
-              <button type="button" className="dx-link dx-sql-tall" data-action="sql-tall" onClick={() => setTall(!tall)}>
-                {tall ? "Show less" : `Show all ${lines.length} lines`}
-              </button>
+              {tall || clipped ? (
+                <button type="button" className="dx-link dx-sql-tall" data-action="sql-tall" onClick={() => setTall(!tall)}>
+                  {tall ? "Show less" : `Show all ${lines.length} lines`}
+                </button>
+              ) : null}
               <p className="dx-admin-note">
                 The values are written into the statement above so it reads plainly. The database never receives it that way:
                 it gets the statement with placeholders, and {params.length === 1 ? "one value" : `these ${params.length} values`} separately, as parameters.

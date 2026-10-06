@@ -117,12 +117,24 @@ const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its 
 
 // ── the answer ───────────────────────────────────────────────────────────
 
-function Cell({ value, kind, title }) {
+function Cell({ value, kind, title, pinned }) {
   // A cell with an exact value beside it (a scoreboard average) shows that
   // value on hover, and on a tap or Enter, since a phone has no hover (T-75).
   const [exact, setExact] = useState(false);
   if (value === null || value === undefined) return <td className="dx-td is-blank">—</td>;
   const cls = kind === "number" ? " is-num" : kind === "time" || kind === "date" ? " is-when" : "";
+  if (pinned) {
+    // The pinned group column is capped so the counts beside it stay in view;
+    // a name too long for it is cut short, whole on hover, tap or Enter.
+    return (
+      <td className={"dx-td is-pinned" + cls} title={String(value)}>
+        <span className={"dx-cell dx-pin" + (exact ? " is-open" : "")} role="button" tabIndex={0} data-pinned=""
+          onClick={() => setExact(!exact)} onKeyDown={(e) => { if (e.key === "Enter") setExact(!exact); }}>
+          {value}
+        </span>
+      </td>
+    );
+  }
   if (!title) return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
   return (
     <td className={"dx-td" + cls + " has-exact"} title={title}>
@@ -164,7 +176,7 @@ function Table({ answer, onPage, updating, sort, onSort }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={page.start + i}>
-                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind}
+                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind} pinned={!!onSort && j === 0}
                   title={answer.titles && answer.titles[i] ? answer.titles[i][j] : null} />)}
               </tr>
             ))}
