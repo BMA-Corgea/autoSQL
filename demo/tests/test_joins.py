@@ -209,6 +209,15 @@ class TestWhatAJoinCannotHonour:
         status, a = ask(client, v)
         assert status == 422 and a["message"] == says
 
+    @pytest.mark.parametrize("by, name", [("id", "heartbeats "), ("id", "Sender"), ("site", "SITE")])
+    def test_a_count_cannot_take_a_fixed_columns_name(self, client, setup, by, name):
+        """M3 review LOW-2: a count called "Heartbeats" beside the board's own
+        "Heartbeats" column read as one column twice."""
+        v = senders_board(by=by, counts=[count(name, cond("status", "eq", value="ok"))])
+        status, a = ask(client, v)
+        assert status == 422 and a["message"] == (
+            f"“{name.strip()}” is already a column on this board; call this count something else.")
+
     def test_only_declared_relations(self, client, setup):
         v = senders_board(**_BOARD)
         v["dataset"] = "heartbeats"

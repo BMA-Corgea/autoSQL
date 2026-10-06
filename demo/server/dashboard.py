@@ -1752,6 +1752,11 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         # case-folded, they are refused as duplicates.
         if label.casefold() in [x["label"].casefold() for x in labels]:
             raise ViewError(f"Two count columns are both called “{label}”.")
+        # Nor one of the board's own two columns: "Heartbeats" beside
+        # "Heartbeats" reads as one column twice (M3 review, LOW-2).
+        fixed = (fields[by]["label"], rel_ds["name"] if rel_ds is not None else "Rows")
+        if label.casefold() in [x.casefold() for x in fixed]:
+            raise ViewError(f"“{label}” is already a column on this board; call this count something else.")
         if not isinstance(c.get("pct", False), bool):
             raise ViewError("“% of rows” is on or off.")
         cid = c.get("id", i)

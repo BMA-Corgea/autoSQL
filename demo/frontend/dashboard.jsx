@@ -593,6 +593,7 @@ function App() {
             off={offFor(setup, view)}
           />
           <SummaryStep
+            name={ds.name}
             fields={ds.fields}
             summary={view.summary}
             fns={setup.summary_fns}

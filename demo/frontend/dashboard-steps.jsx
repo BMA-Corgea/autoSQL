@@ -455,8 +455,11 @@ export function answerShape(view) {
   return view.summary.per === "all" ? "number" : "per";
 }
 
-export function SummaryStep({ fields, summary, fns, off, onChange }) {
+export function SummaryStep({ name, fields, summary, fns, off, onChange }) {
   const numeric = fields.filter((f) => f.kind === "number");
+  // Total, Average, Smallest and Largest each read a number field: with none
+  // to read they are shown disabled, with the reason, never a dead end.
+  const needNumbers = numeric.length ? [] : Object.keys(fns).filter((k) => k !== "count");
   const fn = summary ? summary.fn : null;
   const set = (patch) => onChange({ summary: { ...summary, ...patch } });
   const pick = (next) => {
@@ -473,8 +476,15 @@ export function SummaryStep({ fields, summary, fns, off, onChange }) {
         label="Summarize"
         value={fn}
         options={[[null, "Off"], ...Object.entries(fns).map(([k, v]) => [k, k === "count" ? "Count" : v])]}
-        onChange={pick}
+        onChange={(next) => (needNumbers.includes(next) ? null : pick(next))}
+        disabledValues={needNumbers}
       />
+      {needNumbers.length ? (
+        <p className="dx-step-hint dx-why" data-testid="summary-why">
+          {name} has no field that holds numbers, so there is nothing to total, average or find the
+          smallest or largest of. Count works.
+        </p>
+      ) : null}
       {fn && fn !== "count" ? (
         <div className="dx-row dx-row-gap">
           <label className="dx-label" htmlFor="dx-summary-field">Of</label>
