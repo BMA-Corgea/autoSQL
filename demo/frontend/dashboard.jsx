@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady } from "./dashboard-steps.jsx";
-import { ScoreboardStep, countWaiting, nextSort } from "./dashboard-scoreboard.jsx";
+import { ScoreboardStep, countWaiting, countedFields, nextSort } from "./dashboard-scoreboard.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -75,7 +75,7 @@ function sendable(setup, view) {
   if (view.summary || view.scoreboard) out.columns = []; // kept on screen, greyed, for when it is turned off
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
-  if (view.scoreboard) out.scoreboard = sendableScoreboard(ds, view.scoreboard);
+  if (view.scoreboard) out.scoreboard = sendableScoreboard(setup, ds, view.scoreboard);
   return out;
 }
 
@@ -86,8 +86,8 @@ function sendable(setup, view) {
 // "count:<id>" / "pct:<id>", and a sort names a column the same way — one
 // numbering end to end, so a column held back cannot shift which column a
 // header or a sort means. A sort on a column that is not sent is not sent.
-function sendableScoreboard(ds, sb) {
-  const fields = ds.fields;
+function sendableScoreboard(setup, ds, sb) {
+  const fields = countedFields(setup, ds, sb);
   const counts = [];
   sb.counts.forEach((c) => {
     if (countWaiting(c, fields)) return;
@@ -109,7 +109,8 @@ function sendableScoreboard(ds, sb) {
       if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
     }
   }
-  return { by: sb.by, counts, time: sb.time || null, measure: sb.measure || null, sort };
+  return { by: sb.by, count_from: sb.count_from || null, counts, time: sb.time || null,
+           measure: sb.measure || null, sort };
 }
 
 const COLUMNS_OFF = "Columns don't apply to a summary.";
@@ -384,8 +385,10 @@ function summaryLine(setup, view) {
   }
   if (view.scoreboard) {
     const by = ds.fields.find((x) => x.path === view.scoreboard.by);
-    const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, ds.fields)).length;
+    const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, countedFields(setup, ds, view.scoreboard))).length;
     parts.push(`per ${by.label}`);
+    const rel = (ds.count_from || []).find((r) => r.id === view.scoreboard.count_from);
+    if (rel) parts.push(`counting ${rel.name}`);
     if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
@@ -566,7 +569,10 @@ function App() {
             onLogic={(logic) => change({ logic })}
             logics={setup.logics}
             needsTwo={setup.logic_needs_two}
-            scoreboardOn={!!view.scoreboard}
+            scoreboardOn={view.scoreboard ? {
+              rel: ((ds.count_from || []).find((r) => r.id === view.scoreboard.count_from) || {}).name,
+              one: ds.one, many: ds.name.toLowerCase(),
+            } : null}
           />
           <SortShowStep
             fields={ds.fields}
@@ -585,6 +591,7 @@ function App() {
             onChange={(patch) => change(patch.summary ? { ...patch, scoreboard: null } : patch)}
           />
           <ScoreboardStep
+            ds={ds}
             fields={ds.fields}
             value={view.scoreboard || null}
             shown={view.columns}

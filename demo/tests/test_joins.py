@@ -284,3 +284,26 @@ def test_every_join_scoreboard_in_a_matrix_agrees(setup, conn):
         spec = _spec(setup, senders_board(by=by, conditions=page_conds, **sb))
         result = scoreboard.run_group(conn, spec)
         assert result["accepted"] and result["verdict"] == "agree", (by, measure, page_conds, sort)
+
+
+def test_the_first_column_is_named_after_what_it_counts(client, setup):
+    """S12: on a join the first count column reads "Heartbeats" (each
+    sender's beats), not "Rows"; counting a data set's own rows it stays
+    "Rows"."""
+    _, a = ask(client, senders_board(**_BOARD))
+    assert [c["label"] for c in a["columns"]][:2] == ["Sender", "Heartbeats"]
+    own = senders_board(by="site", counts=[])
+    own["scoreboard"].pop("count_from")
+    _, b = ask(client, own)
+    assert [c["label"] for c in b["columns"]][:2] == ["Site", "Rows"]
+    assert next(d for d in setup["datasets"] if d["id"] == "senders")["one"] == "sender"
+
+
+def test_a_board_by_its_own_key_reads_one_row_each(client, setup):
+    """S11 check, LOW 3: not "Senders per Sender"."""
+    own = senders_board(by="id", counts=[])
+    own["scoreboard"].pop("count_from")
+    _, a = ask(client, own)
+    assert a["sentence"] == "Senders, one row each — 55 senders"
+    _, b = ask(client, senders_board(by="id", counts=[]))
+    assert b["sentence"] == "Senders, counting their Heartbeats — 55 senders"

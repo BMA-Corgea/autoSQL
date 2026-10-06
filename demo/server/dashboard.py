@@ -412,6 +412,7 @@ def setup(conn) -> dict:
                 "default_columns": [p for p in default
                                     if any(f["path"] == p for f in fields)],
                 "has_time": d["source"] == legality.HEARTBEAT,
+                "one": d["one"],
                 "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"]}
                                for r in RELATIONS.get(d["id"], [])],
             })
@@ -1875,13 +1876,18 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
     # "Senders, counting their Heartbeats" when there is one row per parent
     # (grouped by its own key); "Senders per Site, counting their
     # Heartbeats" when grouped by another field.
-    own_key = rel_ds is not None and spec["related"]["parent_key"] == by["path"]
+    # Grouped by its own key (a sender's id) a board has one row per parent:
+    # "Senders, counting their Heartbeats", or, counting its own rows,
+    # "Senders, one row each" — never "Senders per Sender" (S11 check, LOW 3).
+    own_key = by["path"] in {r["parent_key"] for r in RELATIONS.get(ds["id"], [])}
     head = ds["name"] if own_key else f"{ds['name']} per {by['label']}"
     said = [w for _, w in _conditions(view, fields)]
     if said:
         head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
     if rel_ds is not None:
         head += f", counting their {rel_ds['name']}"
+    elif own_key:
+        head += ", one row each"
     what = rel_ds["name"] if rel_ds is not None else "rows"
 
     result = _run_group(conn, spec)
@@ -1896,7 +1902,7 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
 
     columns = [{"id": "group", "label": by["label"], "kind": by["kind"],
                 "title": f"One row per {by['label']} found in the rows kept."},
-               {"id": "rows", "label": "Rows", "kind": "number",
+               {"id": "rows", "label": rel_ds["name"] if rel_ds is not None else "Rows", "kind": "number",
                 "title": f"How many {what} each group holds." if rel_ds is None
                          else f"How many {what} each group has (0 when it has none)."}]
     for i, c in enumerate(about["counts"], start=1):

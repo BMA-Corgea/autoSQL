@@ -369,7 +369,12 @@ export function ConditionsStep({ fields, shown, admin, value, opWords, onChange,
       <ConditionList fields={fields} shown={shown} admin={admin} value={value} opWords={opWords}
         onChange={onChange} logic={logic} onLogic={onLogic} logics={logics} needsTwo={needsTwo}
         addLabel="Add a condition" action="add-condition" />
-      {scoreboardOn ? (
+      {scoreboardOn && scoreboardOn.rel ? (
+        <p className="dx-step-hint dx-teach" data-testid="before-grouping">
+          These keep or drop whole {scoreboardOn.many}. To count only some of a {scoreboardOn.one}'s{" "}
+          {scoreboardOn.rel}, add a count column.
+        </p>
+      ) : scoreboardOn ? (
         <p className="dx-step-hint dx-teach" data-testid="before-grouping">
           This removes rows before grouping. To count rows instead, add a count column.
         </p>
