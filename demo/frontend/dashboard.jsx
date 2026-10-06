@@ -386,13 +386,17 @@ function summaryLine(setup, view) {
   if (view.scoreboard) {
     const by = ds.fields.find((x) => x.path === view.scoreboard.by);
     const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, countedFields(setup, ds, view.scoreboard))).length;
-    parts.push(`per ${by.label}`);
     const rel = (ds.count_from || []).find((r) => r.id === view.scoreboard.count_from);
-    if (rel) parts.push(`counting ${rel.name}`);
+    // Short enough for a phone: "Senders · their Heartbeats", as the
+    // sentence reads it — never "Senders · per Sender".
+    const own = (ds.own_keys || []).includes(by.path);
+    if (!own) parts.push(`per ${by.label}`);
+    if (rel) parts.push(`their ${rel.name}`);
+    else if (own) parts.push("one row each");
     if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
-  return parts.join(" · ");
+  return parts;
 }
 
 // ── the page ─────────────────────────────────────────────────────────────
@@ -541,7 +545,12 @@ function App() {
           aria-controls="dx-question"
           onClick={() => setEditing((e) => !e)}
         >
-          <span className="dx-fold-text">{summaryLine(setup, view)}</span>
+          <span className="dx-fold-text">
+            {/* Each part whole: a second line starts at a " · ", never inside "2 counts". */}
+            {summaryLine(setup, view).map((p, i) => (
+              <React.Fragment key={i}>{i ? " · " : ""}<span className="dx-fold-part">{p}</span></React.Fragment>
+            ))}
+          </span>
           <span className="dx-fold-act">{editing ? "Done" : "Edit"}</span>
         </button>
 

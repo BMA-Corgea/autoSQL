@@ -254,6 +254,8 @@ def test_the_senders_data_set(setup):
     assert [f["label"] for f in d["fields"]] == ["Sender", "Name", "Site", "Kind", "Installed"]
     assert d["count_from"] == [{"id": "heartbeats", "name": "Heartbeats"}]
     assert all(x["count_from"] == [] for x in setup["datasets"] if x["id"] != "senders")
+    assert d["own_keys"] == ["id"]
+    assert all(x["own_keys"] == [] for x in setup["datasets"] if x["id"] != "senders")
 
 
 def test_every_join_scoreboard_in_a_matrix_agrees(setup, conn):

@@ -109,7 +109,7 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
       {sb ? (
         <>
           {(ds.count_from || []).length ? (
-            <div className="dx-stack">
+            <div className="dx-stack dx-count-from">
               <span className="dx-label">Count</span>
               <Segmented
                 label="Count"
@@ -127,7 +127,9 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
               count columns look at that {ds.one}'s {rel.name}.
             </p>
           ) : (
-            <p className="dx-step-hint">Each row shows how many rows the group holds, then your count columns.</p>
+            <p className="dx-step-hint">
+              Each row shows how many {ds.name.toLowerCase()} the group holds, then your count columns.
+            </p>
           )}
           {counts.map((c, i) => (
             <CountCard key={c._k} c={c} n={i + 1} fields={counted} shown={rel ? [] : shown} admin={admin}

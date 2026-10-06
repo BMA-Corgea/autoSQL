@@ -181,6 +181,9 @@ body.dx-body * { box-sizing: border-box; }
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1),
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1) ~ .dx-seg-btn { border-bottom: 0; }
 .dx-stack { display: grid; gap: 6px; margin-top: 12px; }
+/* Count: the switch as wide as its two choices, the line under it clear of it. */
+.dx-count-from { justify-items: start; margin-bottom: 8px; }
+.dx-count-from + .dx-step-hint { margin-top: 0; }
 
 /* buttons */
 .dx-btn {
@@ -377,7 +380,12 @@ body.dx-body * { box-sizing: border-box; }
     padding: 12px 14px; margin-bottom: 14px;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   }
-  .dx-fold-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  /* Up to two lines before anything is cut: a board's bar says what it counts. */
+  .dx-fold-text {
+    min-width: 0; overflow: hidden; font-weight: 500;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .dx-fold-part { white-space: nowrap; }
   .dx-fold-act { color: var(--blue); font-weight: 600; flex: none; }
 
   .dx-question { display: none; position: static; max-height: none; margin-bottom: 16px; }

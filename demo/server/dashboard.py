@@ -415,6 +415,9 @@ def setup(conn) -> dict:
                 "one": d["one"],
                 "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"]}
                                for r in RELATIONS.get(d["id"], [])],
+                # The fields that name one row each — a board by one of them
+                # is "Senders", never "Senders per Sender" (the page's bar too).
+                "own_keys": sorted({r["parent_key"] for r in RELATIONS.get(d["id"], [])}),
             })
         _SETUP = {
             "datasets": out,
