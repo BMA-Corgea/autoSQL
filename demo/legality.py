@@ -52,7 +52,7 @@ from __future__ import annotations
 
 HEARTBEAT = "noun:Heartbeat"
 
-#: The three collections, and each one's top-level field vocabulary as a
+#: The four collections (Senders since T-74), and each one's top-level field vocabulary as a
 #: display string — what X1's reason states.  The seed is deterministic
 #: (plan §5), so these are constants of the build:
 #:   noun:Heartbeat  plan §5.2's four fields
@@ -469,7 +469,8 @@ def evaluate(pick: dict) -> dict:
     # (The isinstance guard keeps an unhashable source out of the set
     # lookup; shape_violations has already named it.)
     if not isinstance(source, str) or source not in SOURCES:
-        violate(1, f"unknown source {source!r}: the sources are a closed set of four")
+        violate(1, f"unknown source {source!r}: the sources are a closed set: "
+                   + ", ".join(SOURCES) + " (the two-pane screen offers the first three)")
     if fn not in AGG_FNS:
         violate(6, f"unknown aggregate {fn!r}: the functions are a closed set")
     if _bucket(pick) not in BUCKETS:

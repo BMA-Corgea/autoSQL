@@ -73,6 +73,28 @@ EXPECTED_COUNTS = {
     "noun:Sender": 55,       # T-74
 }
 
+#: Collections added to the seed AFTER a database could already have been
+#: seeded without them — and so the only ones the loader will add to a
+#: non-empty database.  Every other collection missing from a non-empty
+#: database is damage, refused loudly as it always was (S10's check).
+ADDED_AFTER_FIRST_SEED = ("noun:Sender",)     # T-74
+
+
+def collections_to_add(have: dict) -> list:
+    """Which collections a non-empty database may be given, from what it
+    holds (``{collection: rows}``).  Only a collection on
+    ADDED_AFTER_FIRST_SEED with no rows at all; any OTHER collection with no
+    rows is refused here, before anything is written."""
+    lost = [c for c in EXPECTED_COUNTS
+            if have.get(c, 0) == 0 and c not in ADDED_AFTER_FIRST_SEED]
+    if lost:
+        raise SeedError(
+            f"demo.records is not empty but holds no rows of {', '.join(sorted(lost))} — "
+            "that collection was in the seed from the start, so its absence is damage, "
+            "not an older seed; refusing to add it back (run ./run-demo down, then up)"
+        )
+    return [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) == 0]
+
 _DEMO_DB_PORT = 55440  # the ONLY port anything in this tree may dial
 
 
@@ -212,13 +234,13 @@ def run(conn, record_digest: bool = False) -> str:
         written = copy_rows(conn)
         print(f"demo/seed: wrote {written:,} invented rows into demo.records")
     else:
-        # T-74: a database seeded before a collection existed (Senders) gets
-        # that collection — ONLY a collection with no rows at all, never a
-        # top-up of a partial one.  Every other row is left exactly as it
-        # is, and the AC-10 digest below must then match the manifest, so a
-        # database that held anything else still fails loudly.
+        # T-74: a database seeded before Senders existed gets the Senders —
+        # ONLY a collection named on ADDED_AFTER_FIRST_SEED with no rows at
+        # all, never a top-up of a partial one, never an old collection.
+        # Every other row is left exactly as it is, and the AC-10 digest
+        # below must then match the manifest.
         have = collection_counts(conn)
-        missing = [c for c in EXPECTED_COUNTS if have.get(c, 0) == 0]
+        missing = collections_to_add(have)
         if missing:
             written = copy_rows(conn, only=set(missing))
             print(f"demo/seed: demo.records held {existing:,} rows; added the "

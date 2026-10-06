@@ -69,7 +69,9 @@ import legality  # noqa: E402  (path bootstrap above)
 # ── static descriptions of the nine controls (design part 3.1.1) ────────
 
 #: Row counts are §5's arithmetic: 50 × 168, 2,000, 10.
-_SOURCE_OPTIONS = [
+#: The sources this screen offers (T-74: the database also holds Senders,
+#: which only the dashboard uses; this list stays three, pinned by a test).
+SOURCE_OPTIONS = _SOURCE_OPTIONS = [
     {"value": "noun:Heartbeat", "label": "noun:Heartbeat · 8,400 rows"},
     {"value": "noun:Sample", "label": "noun:Sample · 2,000 rows"},
     {"value": "noun:EdgeCase", "label": "noun:EdgeCase · 10 rows"},

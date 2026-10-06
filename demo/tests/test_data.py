@@ -468,3 +468,71 @@ def test_t74_the_two_pane_screen_still_offers_three_sources():
     assert [o["value"] for o in operations._SOURCE_OPTIONS] == [
         "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
     assert "noun:Sender" in legality.SOURCES
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-74, S10's check — the loader adds ONLY a collection named as added
+# after first seed; an old collection gone missing is still refused.
+# ═════════════════════════════════════════════════════════════════════════
+
+_FULL = {"noun:Heartbeat": 8400, "noun:Sample": 2000, "noun:EdgeCase": 10, "noun:Sender": 55}
+
+
+def test_t74_collections_to_add():
+    from demo.seed import load
+
+    assert load.ADDED_AFTER_FIRST_SEED == ("noun:Sender",)
+    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0})) == ["noun:Sender"]
+    assert load.collections_to_add(_FULL) == []
+    for lost in ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase"):
+        with pytest.raises(load.SeedError, match="absence is damage"):
+            load.collections_to_add(dict(_FULL, **{lost: 0}))
+    with pytest.raises(load.SeedError):     # an old one lost AND Senders missing
+        load.collections_to_add(dict(_FULL, **{"noun:Heartbeat": 0, "noun:Sender": 0}))
+
+
+def _fake_run(monkeypatch, before: dict):
+    """load.run() on a database holding ``before``, with every call that
+    would touch a real database replaced — what it writes is recorded."""
+    from demo.seed import load
+
+    wrote = []
+    state = {"counts": dict(before)}
+
+    class _Result:
+        def __init__(self, v): self.v = v
+        def fetchone(self): return (self.v,)
+
+    class _Conn:
+        def execute(self, sql, *a):
+            assert sql.strip().startswith("SELECT"), sql   # nothing but reads here
+            return _Result(sum(state["counts"].values()))
+        def commit(self): pass
+
+    def copy_rows(conn, only=None):
+        wrote.append(set(only) if only is not None else None)
+        for c in (only or _FULL):
+            state["counts"][c] = _FULL[c]
+        return sum(_FULL[c] for c in (only or _FULL))
+
+    manifest = json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())
+    monkeypatch.setattr(load, "_table_exists", lambda conn: True)
+    monkeypatch.setattr(load, "install_runtime_sql", lambda conn: None)
+    monkeypatch.setattr(load, "collection_counts", lambda conn: dict(state["counts"]))
+    monkeypatch.setattr(load, "copy_rows", copy_rows)
+    monkeypatch.setattr(load, "records_digest", lambda conn: manifest[load.MANIFEST_DIGEST_KEY])
+    return load, _Conn(), wrote
+
+
+def test_t74_an_older_database_gets_its_senders_and_is_held_to_the_digest(monkeypatch):
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    digest = load.run(conn)
+    assert wrote == [{"noun:Sender"}]
+    assert digest == json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())[load.MANIFEST_DIGEST_KEY]
+
+
+def test_t74_a_database_missing_an_old_collection_is_refused(monkeypatch):
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Heartbeat": 0}))
+    with pytest.raises(load.SeedError, match="noun:Heartbeat"):
+        load.run(conn)
+    assert wrote == []          # refused before anything was written

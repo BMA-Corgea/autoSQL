@@ -261,7 +261,9 @@ function App() {
       setAnswer(body);
       setRanFrom(preset || null);
       canon.current = JSON.stringify(p);
-      if (body.operations) setContract(body.operations);
+      // An answer carries the contract for its pick, without the database
+      // block (that comes from /api/operations): keep the one we have.
+      if (body.operations) setContract((prev) => ({ ...body.operations, database: prev && prev.database }));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -351,7 +353,7 @@ function App() {
           <b>Every record on this screen is invented</b>, and the heartbeat shape in
           particular was made up — no heartbeat schema exists in either GIMS
           checkout. The database behind it is this demo's own, on 127.0.0.1:55440,
-          seeded with 10,465 rows from a fixed seed and nothing else.
+          seeded with <span data-testid="banner-total">{contract && contract.database ? nf(contract.database.total) : "—"}</span> rows from a fixed seed and nothing else.
         </div>
       </div>
 

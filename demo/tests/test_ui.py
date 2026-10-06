@@ -1417,3 +1417,31 @@ class TestTheDifferingColumnSitsBesideTheMarker:
         assert "column_order" in src, "the view never reads the published order"
         bundle = (_REPO_ROOT / "demo" / "static" / "js" / "app.js").read_text(encoding="utf-8")
         assert "column_order" in bundle, "the built bundle is stale — run ./run-demo build-ui"
+
+
+class TestTheSeededDatabaseBoxIsTheDatabase:
+    """S10's check (T-74): the two-pane screen's "seeded database" box said
+    "total 10,410 rows" while its banner said 10,465 — a literal nobody
+    rendered.  Both now read ``database`` from the contract, which reads the
+    database itself; this pins that block to the live data."""
+
+    def test_the_contract_carries_what_the_database_holds(self, client, conn):
+        body = client.get("/api/operations").json()
+        db_block = body["database"]
+        live = dict(conn.execute(
+            "SELECT collection, count(*) FROM demo.records GROUP BY collection").fetchall())
+        assert db_block["total"] == sum(live.values()) == conn.execute(
+            "SELECT count(*) FROM demo.records").fetchone()[0]
+        assert {c["name"]: c["rows"] for c in db_block["collections"]} == live
+        assert sum(c["rows"] for c in db_block["collections"]) == db_block["total"]
+
+    def test_the_offered_sources_are_the_screens_three_and_their_rows_agree(self, client):
+        body = client.get("/api/operations").json()
+        cols = body["database"]["collections"]
+        assert [c["name"] for c in cols if c["offered"]] == [
+            "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
+        assert [c["name"] for c in cols if not c["offered"]] == ["noun:Sender"]
+        op1 = next(o for o in body["operations"] if o["n"] == 1)
+        labelled = {o["value"]: int(o["label"].split("·")[1].split()[0].replace(",", ""))
+                    for o in op1["controls"][0]["options"]}
+        assert labelled == {c["name"]: c["rows"] for c in cols if c["offered"]}
