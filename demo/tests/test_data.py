@@ -46,7 +46,7 @@ _MANIFEST = _REPO_ROOT / "demo" / "manifest.json"
 
 
 # ---------------------------------------------------------------------------
-# AC-7 — the three counts.
+# AC-7 — the counts (four collections since T-74 S10 added Senders).
 # ---------------------------------------------------------------------------
 
 def test_ac7_counts(db):
@@ -54,11 +54,14 @@ def test_ac7_counts(db):
         ("noun:Heartbeat", 8400),
         ("noun:Sample", 2000),
         ("noun:EdgeCase", 10),
+        ("noun:Sender", 55),
     ]:
         n = db.execute(
             "SELECT count(*) FROM demo.records WHERE collection = %s", (collection,)
         ).fetchone()[0]
         assert n == expected, f"{collection}: count(*) = {n}, expected exactly {expected}"
+    present = {r[0] for r in db.execute("SELECT DISTINCT collection FROM demo.records").fetchall()}
+    assert present == {"noun:Heartbeat", "noun:Sample", "noun:EdgeCase", "noun:Sender"}, present
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """INVENTED DATA — every row this module produces is fabricated.
 
-This is the deterministic generator for the demo's three collections
-(T-2-plan.md §5; spec §8.3/§8.4). None of it is real: no sender exists, no
+This is the deterministic generator for the demo's four collections
+(T-2-plan.md §5; spec §8.3/§8.4; T-74 for Senders). None of it is real: no sender exists, no
 sample was measured, nothing here was ever observed anywhere. The data is
 invented so the demo can show its SQL against rows whose right answers are
 known by construction (AC-11, B31 third place).

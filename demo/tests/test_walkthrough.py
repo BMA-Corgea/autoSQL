@@ -505,6 +505,8 @@ def test_step_1_the_two_ports_and_the_seeded_total(answers, wconn):
     assert per[HEARTBEAT] == answers["corpus"]["heartbeat_rows"]["value"] == 8400
     assert per["noun:Sample"] == answers["corpus"]["sample_rows"]["value"] == 2000
     assert per[EDGECASE] == answers["corpus"]["edge_case_rows"]["value"] == 10
+    assert per["noun:Sender"] == answers["corpus"]["sender_rows"]["value"] == 55
+    assert set(per) == {HEARTBEAT, "noun:Sample", EDGECASE, "noun:Sender"}
 
 
 def test_step_2_the_whole_collection_in_key_order(ran, answers, wconn):
@@ -1235,7 +1237,9 @@ def test_ac31_the_sweep_covers_every_entry_in_the_file(answers, observed):
     assert not stray, (
         "the sweep names entries the file does not have: " + ", ".join(sorted(stray))
     )
-    assert len(every) == 59, f"the file grew or shrank: {len(every)} entries"
+    # 60 since T-74 S10: the seed's re-pin added corpus.sender_rows (the 55
+    # Senders) to expected-answers.json; it was 59 before.
+    assert len(every) == 60, f"the file grew or shrank: {len(every)} entries"
 
 
 def test_ac31_all_three_producers_agree(answers, observed):
