@@ -62,8 +62,10 @@ def view(setup, ds_id="heartbeats", **kw):
     return v
 
 
-def ask(client, v, page=0):
-    r = client.post("/api/dashboard/answer", json={"view": v, "page": page})
+def ask(client, v, page=0, *, admin=True):
+    """One answer; as the Admin view asks for it unless ``admin=False``
+    (only Admin's answers carry the statement and the engines' verdict)."""
+    r = client.post("/api/dashboard/answer", json={"view": v, "page": page, "admin": admin})
     return r.status_code, r.json()
 
 
@@ -154,11 +156,12 @@ class TestNothingLeavesThisHost:
 # ═════════════════════════════════════════════════════════════════════════
 
 class TestTheDataSets:
-    def test_three_data_sets_with_their_row_counts(self, setup):
+    def test_four_data_sets_with_their_row_counts(self, setup):
         got = [(d["id"], d["name"], d["rows"]) for d in setup["datasets"]]
         assert got == [("heartbeats", "Heartbeats", 8400),
                        ("samples", "Samples", 2000),
-                       ("edge", "Edge cases", 10)]
+                       ("edge", "Edge cases", 10),
+                       ("senders", "Senders", 55)]     # T-74
 
     def test_each_says_what_it_is_in_one_line(self, setup):
         for d in setup["datasets"]:
@@ -283,7 +286,7 @@ class TestFormatting:
         f = dashboard.fmt_cell
         assert f("null", "null", "text") is None
         assert f("true", "boolean", "mixed") == "Yes"
-        assert f('{"code":"alpha","n":7}', "object", "mixed") == "code: alpha, n: 7"
+        assert f('{"code":"alpha","n":7}', "object", "mixed") == "code: “alpha”, n: 7"
         assert f("[]", "array", "mixed") == "(empty list)"
         assert f("[1e+300,1]", "array", "mixed") == "1e+300, 1"
 
@@ -699,7 +702,8 @@ class TestSummaries:
 
     def test_count_and_an_exact_average_on_samples(self, client, setup):
         _, a = ask(client, summed(setup, "samples", summary={"fn": "count", "field": None, "per": "all"}))
-        assert a["number"] == {"label": "Number", "value": "2,000", "exact": "2000", "blank": None}
+        assert a["number"] == {"label": "Number", "value": "2,000", "exact": "2000", "blank": None,
+                               "note": None}
         _, a = ask(client, summed(setup, "samples", summary={"fn": "avg", "field": "priority", "per": "all"}))
         pr = [r["priority"] for r in _SAMPLES]
         assert a["number"]["exact"] == q6(Decimal(sum(pr)) / len(pr))
@@ -1090,3 +1094,200 @@ class TestTheCappedAnswerStatesTheTotal:
                 assert a["sentence"].endswith(f"— the first 25 of {want:,} rows"), (status, a["sentence"])
         finally:
             conn.close()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-75 S8 — the later list, server side
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestTheStatementGoesOnlyToAdmin:
+    """Item 19: the Everyone view's response carries no statement and no
+    verdict; a request that asks for the Admin view gets them."""
+
+    def test_everyone_gets_no_admin_block(self, client, setup):
+        _, a = ask(client, view(setup, conditions=[cond("status", "eq", value="warn")]), admin=False)
+        assert "admin" not in a and "SELECT" not in json.dumps(a)
+        _, b = ask(client, view(setup, conditions=[cond("status", "eq", value="warn")]))
+        assert b["admin"]["statement"].startswith("SELECT") and b["admin"]["notes"] == []
+
+    def test_anything_but_true_is_everyone(self, client, setup):
+        for flag in (False, None, 1, "true", [True]):
+            r = client.post("/api/dashboard/answer",
+                            json={"view": view(setup, "samples"), "admin": flag})
+            assert r.status_code == 200 and "admin" not in r.json(), flag
+
+
+class TestListCellsAreDistinguishable:
+    """Item 2: one item holding a comma never reads like two items."""
+
+    def test_quoted_inside_a_list(self):
+        one = dashboard.fmt_cell('["a, b"]', "array", "mixed")
+        two = dashboard.fmt_cell('["a","b"]', "array", "mixed")
+        assert one == "“a, b”" and two == "“a”, “b”" and one != two
+        nested = dashboard.fmt_cell('[["a","b"],["c"]]', "array", "mixed")
+        flat = dashboard.fmt_cell('["a","b","c"]', "array", "mixed")
+        assert nested == "[“a”, “b”], [“c”]" and flat == "“a”, “b”, “c”"
+        assert dashboard.fmt_cell('[{"k":"v"},[]]', "array", "mixed") == "{k: “v”}, [ ]"
+        assert dashboard.fmt_cell('{"code":"alpha","n":7}', "object", "mixed") == "code: “alpha”, n: 7"
+        assert dashboard.fmt_cell("[]", "array", "mixed") == "(empty list)"
+
+
+def test_time_shows_seconds_when_not_zero():
+    """Item 3."""
+    assert dashboard.fmt_time("2026-08-20T23:00:15Z") == "Aug 20, 23:00:15 UTC"
+    assert dashboard.fmt_time("2026-08-20T23:00:00Z") == "Aug 20, 23:00 UTC"
+
+
+def test_a_count_of_nothing_says_so(client, setup):
+    """Item 4: a count over no rows is 0, and says "No rows match" as the
+    other summaries do."""
+    _, a = ask(client, summed(setup, conditions=[cond("payload.load", "gt", value=1000)],
+                              summary={"fn": "count", "field": None, "per": "all"}))
+    assert a["number"]["value"] == "0" and a["number"]["note"] == "No rows match"
+    _, b = ask(client, summed(setup, summary={"fn": "count", "field": None, "per": "all"}))
+    assert b["number"]["value"] == "8,400" and b["number"]["note"] is None
+
+
+#: Item 5: values that don't belong in a slot, swept over every slot of a
+#: rows view, a summary and a scoreboard — never a 500, always an answer or
+#: a plain refusal.
+_WRONG = [None, [], ["status"], {"a": 1}, "\x00", "a\ud800b", True]
+
+
+def _paths(o, pre=()):
+    yield pre
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield from _paths(v, pre + (k,))
+    elif isinstance(o, list):
+        for i, v in enumerate(o):
+            yield from _paths(v, pre + (i,))
+
+
+def _set(o, path, value):
+    import copy
+    o = copy.deepcopy(o)
+    if not path:
+        return value
+    t = o
+    for k in path[:-1]:
+        t = t[k]
+    t[path[-1]] = value
+    return o
+
+
+def test_no_hand_built_request_is_a_500():
+    from fastapi.testclient import TestClient
+
+    loose = TestClient(server_app.app, raise_server_exceptions=False)
+    rows = {"dataset": "heartbeats", "columns": ["status"], "logic": "all", "show": 25,
+            "conditions": [cond("status", "eq", value="warn"), cond("status", "in", values=["ok"])],
+            "sort": {"field": "ts", "dir": "desc"}, "summary": None}
+    summ = dict(rows, columns=[], sort=None, show=None,
+                summary={"fn": "avg", "field": "payload.load", "per": "day"})
+    board = dict(rows, columns=[], sort=None, scoreboard={
+        "by": "status", "time": {"fn": "latest", "field": "ts"},
+        "measure": {"fn": "avg", "field": "payload.load"},
+        "sort": {"column": "count:3", "dir": "desc"},
+        "counts": [{"id": 3, "label": "W", "logic": "any", "pct": True,
+                    "conditions": [cond("status", "eq", value="warn"),
+                                   cond("payload.load", "gt", value=5)]}]})
+    crashes = []
+    for base in (rows, summ, board):
+        for path in list(_paths(base)):
+            for wrong in _WRONG:
+                body = json.dumps({"view": _set(base, path, wrong), "admin": True})
+                r = loose.post("/api/dashboard/answer", content=body,
+                               headers={"content-type": "application/json"})
+                if r.status_code >= 500:
+                    crashes.append((path, wrong))
+    assert crashes == []
+
+
+def test_a_nul_or_a_broken_character_is_refused_by_name(client, setup):
+    for value in ("\x00", "ok\x00", "a\ud800b"):
+        body = json.dumps({"view": view(setup, conditions=[cond("status", "eq", value=value)])})
+        r = client.post("/api/dashboard/answer", content=body,
+                        headers={"content-type": "application/json"})
+        assert r.status_code == 422
+        assert r.json()["message"] == "That value holds a character the data can't store."
+
+
+def test_the_second_engine_overflowing_is_a_named_refusal(client, setup, monkeypatch):
+    """Item 12: if the second engine meets a number it cannot turn into a
+    double on a row the statement never read (a LIMIT that stopped early),
+    the answer is a plain refusal, never a 500 and never a number."""
+    dashboard._CACHE.clear()
+
+    def overflow(*a, **k):
+        raise OverflowError("int too large to convert to float")
+
+    monkeypatch.setattr(server_app, "python_pane", overflow)
+    status, a = ask(client, view(setup, "edge", columns=["a"], show=25))
+    assert status == 200 and a["kind"] == "refused"
+    assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
+    assert a["admin"]["statement"].startswith("SELECT")
+    dashboard._CACHE.clear()
+
+
+def test_admin_hears_when_the_engines_disagree_on_a_total(client, setup, monkeypatch):
+    """Item 10: the sentence falls back to wording with no total (unchanged
+    for Everyone), and Admin gets a plain note saying why."""
+    dashboard._CACHE.clear()
+    real = dashboard._run
+
+    def run(conn, pick):
+        out = real(conn, pick)
+        if (pick.get("aggregate") or {}).get("fn") == "count":
+            out = dict(out, verdict="disagree")
+        return out
+
+    monkeypatch.setattr(dashboard, "_run", run)
+    v = view(setup, show=100, sort={"field": "ts", "dir": "desc"},
+             conditions=[cond("status", "eq", value="warn")])
+    _, a = ask(client, v)
+    assert a["sentence"].endswith("— the first 100 rows")
+    assert a["admin"]["notes"] == ["The two engines found the same number of rows (588) but "
+                                   "disagreed on a value in them, so the sentence states no total."]
+    _, e = ask(client, v, admin=False)
+    assert e["sentence"] == a["sentence"] and "admin" not in e
+    dashboard._CACHE.clear()
+
+
+def test_a_cap_that_cut_nothing_keeps_the_whole_axis(client, setup):
+    """T-75 item 9: exactly Show hours have rows — the cap cut nothing, so
+    the axis is the whole span, as it is with a larger Show."""
+    v = summed(setup, conditions=[cond("ts", "between", value="2026-08-14T00:00",
+                                       value2="2026-08-15T00:00")],
+               summary={"fn": "count", "field": None, "per": "hour"})
+    _, at_cap = ask(client, dict(v, show=25))
+    _, above = ask(client, dict(v, show=100))
+    assert at_cap["total"] == above["total"] == 168
+    assert at_cap["sentence"].endswith("— 25 of 168 hours have rows")
+    assert [b["start"] for b in at_cap["bars"]] == [b["start"] for b in above["bars"]]
+
+
+
+def test_the_disagreement_note_reads_right_both_ways():
+    """S8 check LOW: the same count with a value that differs, and two
+    different counts, each worded truly."""
+    assert dashboard._disagreed_total("groups", 50, 50) == (
+        "The two engines found the same number of groups (50) but disagreed on a value "
+        "in them, so the sentence states no total.")
+    assert dashboard._disagreed_total("rows", 588, 587) == (
+        "The two engines disagreed on how many rows these choices match (588 against 587), "
+        "so the sentence states no total.")
+
+
+def test_a_count_with_an_empty_second_pane_does_not_crash(monkeypatch, setup):
+    """S8 check LOW: agreed_count must not index into an empty pane."""
+    def run(conn, pick):
+        return {"accepted": True, "verdict": "disagree",
+                "panes": {"sql": {"rows": [{"c": ["5"]}]}, "python": {"rows": []}}}
+    monkeypatch.setattr(dashboard, "_run", run)
+    token = dashboard._NOTES.set([])
+    try:
+        assert dashboard.agreed_count(None, {"source": "noun:Heartbeat"}) is None
+        assert dashboard._NOTES.get() == [dashboard._disagreed_total("rows", "5", "none")]
+    finally:
+        dashboard._NOTES.reset(token)

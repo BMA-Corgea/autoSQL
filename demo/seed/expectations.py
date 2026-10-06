@@ -432,10 +432,11 @@ def build_answers() -> Dict[str, Any]:
             "db_port": entry(55440, "The demo's own Postgres port, fixed at plan §11.2. It is deliberately not the port of the live database on this machine, which this demo must never reach — and AC-3 forbids that number appearing anywhere in the demo tree, including in this sentence."),
             "app_port": entry(8787, "The demo's own app port, fixed at plan §11.2."),
             "rows_loaded": entry(
-                total_rows + generate.SAMPLES + len(generate.EDGE_CASES),
+                total_rows + generate.SAMPLES + len(generate.EDGE_CASES) + generate.SENDER_PROFILES,
                 f"{total_rows} heartbeats + {generate.SAMPLES} samples + "
-                f"{len(generate.EDGE_CASES)} edge cases = "
-                f"{total_rows + generate.SAMPLES + len(generate.EDGE_CASES)} rows, counted from the generator's own streams.",
+                f"{len(generate.EDGE_CASES)} edge cases + {generate.SENDER_PROFILES} senders = "
+                f"{total_rows + generate.SAMPLES + len(generate.EDGE_CASES) + generate.SENDER_PROFILES} rows, "
+                "counted from the generator's own streams.",
             ),
         },
     })
@@ -913,6 +914,8 @@ def build_answers() -> Dict[str, Any]:
             "heartbeat_rows": entry(total_rows, f"{len(senders)} senders x {beats} beats (R5, R17)."),
             "sample_rows": entry(generate.SAMPLES, "generate.SAMPLES — the literal 2,000 of plan §5.3."),
             "edge_case_rows": entry(len(generate.EDGE_CASES), "The ten rows B24 names individually."),
+            "sender_rows": entry(generate.SENDER_PROFILES, "generate.SENDER_PROFILES — hb-01 … hb-55 (T-74); "
+                                 "hb-51 … hb-55 have no heartbeats."),
         },
         "steps": steps,
     }

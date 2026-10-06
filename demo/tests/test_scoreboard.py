@@ -68,8 +68,10 @@ def board(setup, ds_id="heartbeats", **sb):
     return v
 
 
-def ask(client, v, page=0):
-    r = client.post("/api/dashboard/answer", json={"view": v, "page": page})
+def ask(client, v, page=0, *, admin=True):
+    """One answer; as the Admin view asks for it unless ``admin=False``
+    (only Admin's answers carry the statement and the engines' verdict)."""
+    r = client.post("/api/dashboard/answer", json={"view": v, "page": page, "admin": admin})
     return r.status_code, r.json()
 
 
@@ -580,3 +582,37 @@ class TestOneNumberingForCountColumns:
             c["id"] = i
         status, a = ask(client, board(setup, **sb))
         assert status == 422 and a["message"] == says
+
+
+def test_one_letter_group_names_read_plainly(client, setup):
+    """T-75 item 13: "2 values of A", not "2 A values"."""
+    _, a = ask(client, board(setup, "edge", by="a", counts=[count("Zero", cond("z", "eq", value=0))]))
+    assert a["sentence"] == "Edge cases per A — 2 values of A"
+
+
+def test_the_second_engine_overflowing_is_a_named_refusal(client, setup, monkeypatch):
+    """T-75 item 12, for scoreboards."""
+    dashboard._CACHE.clear()
+
+    def overflow(*a, **k):
+        raise OverflowError("int too large to convert to float")
+
+    monkeypatch.setattr(pygroup, "python_pane", overflow)
+    status, a = ask(client, board(setup, "edge", by="a", counts=[count("Zero", cond("z", "eq", value=0))]))
+    assert status == 200 and a["kind"] == "refused"
+    assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
+    assert "GROUP BY 1" in a["admin"]["statement"]
+    dashboard._CACHE.clear()
+
+
+def test_scoreboard_averages_carry_their_exact_value(client, setup, conn):
+    """T-75 item 18: an average reads to two places, with its six-place
+    value beside it for hover / tap."""
+    _, a = ask(client, board(setup, by="status", measure={"fn": "avg", "field": "payload.load"}))
+    hand = dict(conn.execute(
+        "SELECT data ->> 'status', ROUND(AVG((data -> 'payload' ->> 'load')::numeric), 6) "
+        "FROM demo.records WHERE collection = 'noun:Heartbeat' GROUP BY 1").fetchall())
+    for row, titles in zip(a["rows"], a["titles"]):
+        assert titles[:2] == [None, None]
+        assert titles[2] == f"To six places: {hand[row[0]]}"
+        assert row[2] == f"{hand[row[0]]:.2f}"

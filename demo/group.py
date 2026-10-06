@@ -136,46 +136,73 @@ def check(spec: dict) -> None:
     if cap is not None and (isinstance(cap, bool) or not isinstance(cap, int)
                             or not legality.CAP_MIN <= cap <= legality.CAP_MAX):
         raise ValueError(f"the cap must be a whole number from 1 to {legality.CAP_MAX}")
+    rel = spec.get("related")
+    if rel is not None:
+        if not isinstance(rel, dict) or rel.get("source") not in legality.SOURCES:
+            raise ValueError(f"unknown related source {rel!r}")
+        _path(rel.get("key"), "the related rows' key")
+        _path(rel.get("parent_key"), "the parent's key")
 
 
 def build(spec: dict) -> Built:
-    """One scoreboard spec → one parameterised statement (shape E)."""
+    """One scoreboard spec → one parameterised statement (shape E).
+
+    With ``related`` (T-74), the groups come from the PARENT rows (``r``)
+    and everything counted comes from their related rows (``c``), joined by
+    the declared keys with a LEFT JOIN — so a parent with no related rows
+    is still a group, with Rows = ``count(c.key)`` = 0 (never ``count(*)``,
+    which would read 1 for it), every count-if 0 (a count-if also requires
+    ``c.key IS NOT NULL``, so a condition that holds on a missing value —
+    ``is not`` — cannot count the empty side of the join), its % 0, and
+    its latest / measure blank.  The page filter reads the parent."""
     check(spec)
     params: dict = {"collection": spec["source"], "grp_path": _path(spec["group"], "the group")}
-    col = "r.data"
+    rel = spec.get("related")
+    col = "c.data" if rel else "r.data"          # what is counted
+    rows_sql = "count(c.key)" if rel else "count(*)"
+    present = "c.key IS NOT NULL AND " if rel else ""
 
     select = ['nullif( r.data #> %(grp_path)s, \'null\'::jsonb )  AS "grp"',
-              'count(*)  AS "rows"']
+              f'{rows_sql}  AS "rows"']
 
     for i, c in enumerate(spec.get("counts") or [], start=1):
         frag = builder._compile_expression(c["expr"], ctx_param=f"k{i}_ctx", column=col)
         sql, prm = builder.namespace(frag, f"k{i}")
         builder.merge_params(params, prm)
-        hit = f"sum( CASE WHEN xpr.truthy( {sql} ) THEN 1 ELSE 0 END )"
+        hit = f"sum( CASE WHEN {present}xpr.truthy( {sql} ) THEN 1 ELSE 0 END )"
         select.append(f'{hit}  AS "c{i}"')
         if c.get("pct"):
             # The count-if's own text again, with the same bind names: one
             # condition, one set of values, read twice.
             select.append(
-                f"coalesce( round( 100.0 * {hit} / nullif( count(*), 0 ), 1 ), 0 )"
+                f"coalesce( round( 100.0 * {hit} / nullif( {rows_sql}, 0 ), 1 ), 0 )"
                 f'  AS "c{i}_pct"')
 
     t = spec.get("time")
     if t:
         params["time_path"] = _path(t["field"], "the time field")
-        select.append(f'{TIME_FNS[t["fn"]]}( r.data #>> %(time_path)s )  AS "time"')
+        select.append(f'{TIME_FNS[t["fn"]]}( {col} #>> %(time_path)s )  AS "time"')
 
     m = spec.get("measure")
     if m:
         params["msr_path"] = _path(m["field"], "the measured field")
-        body = f'{m["fn"]}( {builder.numeric_read("r.data #> %(msr_path)s")} )'
+        body = f'{m["fn"]}( {builder.numeric_read(col + " #> %(msr_path)s")} )'
         if m["fn"] in ("sum", "avg"):
             body = f"round( {body}, 6)"
         select.append(f'{body}  AS "measure"')
 
+    source = "  FROM demo.records AS r\n"
+    if rel:
+        params["rel_source"] = rel["source"]
+        params["rel_key"] = _path(rel["key"], "the related rows' key")
+        params["rel_parent_key"] = _path(rel["parent_key"], "the parent's key")
+        source += ("  LEFT JOIN demo.records AS c\n"
+                   "    ON c.collection = %(rel_source)s\n"
+                   "   AND ( c.data #>> %(rel_key)s ) = ( r.data #>> %(rel_parent_key)s )\n")
+
     where = " WHERE r.collection = %(collection)s"
     if spec.get("filter"):
-        frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column=col)
+        frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data")
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f"\n   AND xpr.truthy( {sql} )"
@@ -192,7 +219,7 @@ def build(spec: dict) -> Built:
 
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        "  FROM demo.records AS r\n"
+        + source
         + where + "\n"
         " GROUP BY 1\n"
         f" ORDER BY {order}"

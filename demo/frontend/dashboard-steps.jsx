@@ -245,10 +245,12 @@ function ValueControl({ field, c, set }) {
   return one("value", label);
 }
 
-function ConditionRow({ fields, c, opWords, onChange, onRemove, index }) {
+function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held }) {
   const field = fields.find((f) => f.path === c.field);
   const set = (patch) => onChange({ ...c, ...patch });
-  const ready = isComplete(c, field);
+  // "held": complete, but not applied, because the set's logic is not ready
+  // yet — drawn waiting like an empty row, so nothing looks live that isn't.
+  const ready = isComplete(c, field) && !held;
   return (
     <div className={"dx-cond" + (ready ? "" : " is-waiting")} data-condition={index}>
       <div className="dx-cond-top">
@@ -267,7 +269,7 @@ function ConditionRow({ fields, c, opWords, onChange, onRemove, index }) {
         <button type="button" className="dx-remove" aria-label="Remove this condition" onClick={onRemove}>×</button>
       </div>
       <ValueControl key={c.field + ":" + c.op} field={field} c={c} set={set} />
-      {ready ? null : <p className="dx-waiting">Not used until a value is picked.</p>}
+      {ready ? null : <p className="dx-waiting">{held ? "Not applied yet — see below." : "Not used until a value is picked."}</p>}
     </div>
   );
 }
@@ -317,7 +319,9 @@ export function LogicChooser({ logic, onLogic, logics, count, complete, needsTwo
       />
       <p className="dx-step-hint dx-logic-meaning" title={logics[value]}>{logicMeaning(value, count)}</p>
       {ready ? null : (
-        <p className="dx-waiting">Not used yet: “{logics[value]}” {needsTwo} with values.</p>
+        <p className="dx-waiting dx-held" data-testid="held">
+          None of these conditions apply until two of them have a value — “{logics[value]}” {needsTwo}.
+        </p>
       )}
     </div>
   );
@@ -328,12 +332,14 @@ export function LogicChooser({ logic, onLogic, logics, count, complete, needsTwo
 export function ConditionList({ fields, shown, admin, value, opWords, onChange, logic, onLogic, logics, needsTwo, addLabel, action }) {
   const matchable = fields.filter((f) => f.ops.length);
   const complete = value.filter((c) => isComplete(c, fields.find((f) => f.path === c.field))).length;
+  const held = !logicReady(logic || "all", complete);
   return (
     <>
       {value.map((c, i) => (
         <ConditionRow
           key={c._k}
           index={i}
+          held={held}
           fields={fields}
           c={c}
           opWords={opWords}
@@ -363,7 +369,12 @@ export function ConditionsStep({ fields, shown, admin, value, opWords, onChange,
       <ConditionList fields={fields} shown={shown} admin={admin} value={value} opWords={opWords}
         onChange={onChange} logic={logic} onLogic={onLogic} logics={logics} needsTwo={needsTwo}
         addLabel="Add a condition" action="add-condition" />
-      {scoreboardOn ? (
+      {scoreboardOn && scoreboardOn.rel ? (
+        <p className="dx-step-hint dx-teach" data-testid="before-grouping">
+          These keep or drop whole {scoreboardOn.many}. To count only some of a {scoreboardOn.one}'s{" "}
+          {scoreboardOn.rel}, add a count column.
+        </p>
+      ) : scoreboardOn ? (
         <p className="dx-step-hint dx-teach" data-testid="before-grouping">
           This removes rows before grouping. To count rows instead, add a count column.
         </p>
@@ -444,8 +455,11 @@ export function answerShape(view) {
   return view.summary.per === "all" ? "number" : "per";
 }
 
-export function SummaryStep({ fields, summary, fns, off, onChange }) {
+export function SummaryStep({ name, fields, summary, fns, off, onChange }) {
   const numeric = fields.filter((f) => f.kind === "number");
+  // Total, Average, Smallest and Largest each read a number field: with none
+  // to read they are shown disabled, with the reason, never a dead end.
+  const needNumbers = numeric.length ? [] : Object.keys(fns).filter((k) => k !== "count");
   const fn = summary ? summary.fn : null;
   const set = (patch) => onChange({ summary: { ...summary, ...patch } });
   const pick = (next) => {
@@ -462,8 +476,15 @@ export function SummaryStep({ fields, summary, fns, off, onChange }) {
         label="Summarize"
         value={fn}
         options={[[null, "Off"], ...Object.entries(fns).map(([k, v]) => [k, k === "count" ? "Count" : v])]}
-        onChange={pick}
+        onChange={(next) => (needNumbers.includes(next) ? null : pick(next))}
+        disabledValues={needNumbers}
       />
+      {needNumbers.length ? (
+        <p className="dx-step-hint dx-why" data-testid="summary-why">
+          {name} has no field that holds numbers, so there is nothing to total, average or find the
+          smallest or largest of. Count works.
+        </p>
+      ) : null}
       {fn && fn !== "count" ? (
         <div className="dx-row dx-row-gap">
           <label className="dx-label" htmlFor="dx-summary-field">Of</label>

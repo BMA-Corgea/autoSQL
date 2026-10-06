@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady } from "./dashboard-steps.jsx";
-import { ScoreboardStep, countWaiting, nextSort } from "./dashboard-scoreboard.jsx";
+import { ScoreboardStep, countWaiting, countedFields, nextSort } from "./dashboard-scoreboard.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -68,11 +68,14 @@ function sendable(setup, view) {
   // is not a question yet: the conditions are marked "not used yet" on
   // screen and not sent.
   const logic = view.logic || "all";
-  const out = { ...view, conditions: logicReady(logic, conditions.length) ? conditions : [], logic };
+  // Not ready: no conditions and the logic All, so the answer matches the
+  // "Not used yet" note on screen instead of being refused (T-75).
+  const ready = logicReady(logic, conditions.length);
+  const out = { ...view, conditions: ready ? conditions : [], logic: ready ? logic : "all" };
   if (view.summary || view.scoreboard) out.columns = []; // kept on screen, greyed, for when it is turned off
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
-  if (view.scoreboard) out.scoreboard = sendableScoreboard(ds, view.scoreboard);
+  if (view.scoreboard) out.scoreboard = sendableScoreboard(setup, ds, view.scoreboard);
   return out;
 }
 
@@ -83,8 +86,8 @@ function sendable(setup, view) {
 // "count:<id>" / "pct:<id>", and a sort names a column the same way — one
 // numbering end to end, so a column held back cannot shift which column a
 // header or a sort means. A sort on a column that is not sent is not sent.
-function sendableScoreboard(ds, sb) {
-  const fields = ds.fields;
+function sendableScoreboard(setup, ds, sb) {
+  const fields = countedFields(setup, ds, sb);
   const counts = [];
   sb.counts.forEach((c) => {
     if (countWaiting(c, fields)) return;
@@ -106,7 +109,8 @@ function sendableScoreboard(ds, sb) {
       if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
     }
   }
-  return { by: sb.by, counts, time: sb.time || null, measure: sb.measure || null, sort };
+  return { by: sb.by, count_from: sb.count_from || null, counts, time: sb.time || null,
+           measure: sb.measure || null, sort };
 }
 
 const COLUMNS_OFF = "Columns don't apply to a summary.";
@@ -114,10 +118,33 @@ const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its 
 
 // ── the answer ───────────────────────────────────────────────────────────
 
-function Cell({ value, kind }) {
+function Cell({ value, kind, title, pinned }) {
+  // A cell with an exact value beside it (a scoreboard average) shows that
+  // value on hover, and on a tap or Enter, since a phone has no hover (T-75).
+  const [exact, setExact] = useState(false);
   if (value === null || value === undefined) return <td className="dx-td is-blank">—</td>;
   const cls = kind === "number" ? " is-num" : kind === "time" || kind === "date" ? " is-when" : "";
-  return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
+  if (pinned) {
+    // The pinned group column is capped so the counts beside it stay in view;
+    // a name too long for it is cut short, whole on hover, tap or Enter.
+    return (
+      <td className={"dx-td is-pinned" + cls} title={String(value)}>
+        <span className={"dx-cell dx-pin" + (exact ? " is-open" : "")} role="button" tabIndex={0} data-pinned=""
+          onClick={() => setExact(!exact)} onKeyDown={(e) => { if (e.key === "Enter") setExact(!exact); }}>
+          {value}
+        </span>
+      </td>
+    );
+  }
+  if (!title) return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
+  return (
+    <td className={"dx-td" + cls + " has-exact"} title={title}>
+      <span className="dx-cell" role="button" tabIndex={0} data-exact={title.replace("To six places: ", "")}
+        onClick={() => setExact(!exact)} onKeyDown={(e) => { if (e.key === "Enter") setExact(!exact); }}>
+        {exact ? title.replace("To six places: ", "") : value}
+      </span>
+    </td>
+  );
 }
 
 function Table({ answer, onPage, updating, sort, onSort }) {
@@ -130,7 +157,7 @@ function Table({ answer, onPage, updating, sort, onSort }) {
   return (
     <>
       <div className="dx-table-box" tabIndex={0} aria-label="Rows">
-        <table className="dx-table">
+        <table className={"dx-table" + (onSort ? " is-board" : "")}>
           <thead>
             <tr>{columns.map((c, j) => (
               <th key={c.path || c.id} className={c.kind === "number" ? "is-num" : ""} title={c.title || undefined}
@@ -150,7 +177,8 @@ function Table({ answer, onPage, updating, sort, onSort }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={page.start + i}>
-                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind} />)}
+                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind} pinned={!!onSort && j === 0}
+                  title={answer.titles && answer.titles[i] ? answer.titles[i][j] : null} />)}
               </tr>
             ))}
           </tbody>
@@ -195,6 +223,7 @@ function Hero({ number }) {
       ) : (
         <p className="dx-hero-value" title={number.exact !== number.value ? `To six places: ${number.exact}` : undefined}>{number.value}</p>
       )}
+      {number.note ? <p className="dx-hero-note" data-testid="note">{number.note}</p> : null}
     </div>
   );
 }
@@ -223,7 +252,7 @@ function BarChart({ answer }) {
   const [box, width] = useWidth();
   const [hover, setHover] = useState(null);
   const n = bars.length;
-  const left = 48, right = 8, top = 10, plotH = 200, bottom = 26;
+  const left = 48, right = 8, top = 24, plotH = 200, bottom = 26;
   const slot = Math.max(unit === "hour" ? 6 : 24, ((width || 600) - left - right) / Math.max(n, 1));
   const bw = Math.max(2, Math.min(24, slot - 2));
   const W = Math.ceil(left + n * slot + right);
@@ -274,6 +303,12 @@ function BarChart({ answer }) {
                 <rect x={left + i * slot} y={top} width={slot} height={plotH} className="dx-hit" />
                 {d ? <path d={d} className={"dx-bar" + (hover === i ? " is-hover" : "")} /> : null}
                 {b.empty ? <line x1={x} x2={x + bw} y1={base - 1.5} y2={base - 1.5} className="dx-empty-mark" /> : null}
+                {/* Each bar's value, written above it where the slot is wide
+                    enough to hold it (T-75); hours are too narrow, and the
+                    table below always has every value. */}
+                {b.text !== null && !b.empty && slot >= b.text.length * 6.2 + 4 ? (
+                  <text x={x + bw / 2} y={base - h - 6} className="dx-bar-value" textAnchor="middle" data-bar-value={i}>{b.text}</text>
+                ) : null}
                 {label ? (
                   <text x={unit === "day" ? x + bw / 2 : x} y={base + 16} className="dx-tick" textAnchor={unit === "day" ? "middle" : "start"}>{label}</text>
                 ) : null}
@@ -350,12 +385,18 @@ function summaryLine(setup, view) {
   }
   if (view.scoreboard) {
     const by = ds.fields.find((x) => x.path === view.scoreboard.by);
-    const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, ds.fields)).length;
-    parts.push(`per ${by.label}`);
+    const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, countedFields(setup, ds, view.scoreboard))).length;
+    const rel = (ds.count_from || []).find((r) => r.id === view.scoreboard.count_from);
+    // Short enough for a phone: "Senders · their Heartbeats", as the
+    // sentence reads it — never "Senders · per Sender".
+    const own = (ds.own_keys || []).includes(by.path);
+    if (!own) parts.push(`per ${by.label}`);
+    if (rel) parts.push(`their ${rel.name}`);
+    else if (own) parts.push("one row each");
     if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
-  return parts.join(" · ");
+  return parts;
 }
 
 // ── the page ─────────────────────────────────────────────────────────────
@@ -381,6 +422,11 @@ function App() {
       .catch(() => setSetupFailed(true));
   }, []);
 
+  // The statement and the engines' verdict are asked for only in the Admin
+  // view: the Everyone view's answers carry none of it (T-75).
+  const adminRef = useRef(admin);
+  adminRef.current = admin;
+
   const ask = useCallback((v, p) => {
     const mine = ++seq.current;
     if (inflight.current) inflight.current.abort();
@@ -391,7 +437,7 @@ function App() {
     getJSON("/api/dashboard/answer", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ view: v, page: p }),
+      body: JSON.stringify({ view: v, page: p, admin: adminRef.current }),
       signal: ctl.signal,
     })
       .then((a) => {
@@ -432,7 +478,7 @@ function App() {
     setFailed(false); // a new question is out: the last failure is not this answer
     timer.current = setTimeout(() => ask(v, page), WAIT_BEFORE_ASKING);
     return () => clearTimeout(timer.current);
-  }, [question, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [question, page, admin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const change = useCallback((patch) => {
     setPage(0);
@@ -453,6 +499,17 @@ function App() {
     const from = (toAdmin ? setup.default_views : setup.admin_default_views)[view.dataset];
     const to = (toAdmin ? setup.admin_default_views : setup.default_views)[view.dataset];
     if (same(view.columns, from.columns) && !same(from.columns, to.columns)) change({ columns: [...to.columns] });
+    // A scoreboard grouped by a field Everyone doesn't see (Edge cases'
+    // Label) moves to the first group Everyone may use (T-75).
+    const sb = view.scoreboard;
+    if (!toAdmin && sb) {
+      const fields = setup.datasets.find((d) => d.id === view.dataset).fields;
+      const by = fields.find((f) => f.path === sb.by);
+      if (by && by.hidden_by_default) {
+        const next = fields.find((f) => f.group.ok && !f.hidden_by_default);
+        change({ scoreboard: next ? { ...sb, by: next.path, sort: null } : null });
+      }
+    }
   };
 
   if (setupFailed) {
@@ -488,7 +545,12 @@ function App() {
           aria-controls="dx-question"
           onClick={() => setEditing((e) => !e)}
         >
-          <span className="dx-fold-text">{summaryLine(setup, view)}</span>
+          <span className="dx-fold-text">
+            {/* Each part whole: a second line starts at a " · ", never inside "2 counts". */}
+            {summaryLine(setup, view).map((p, i) => (
+              <React.Fragment key={i}>{i ? " · " : ""}<span className="dx-fold-part">{p}</span></React.Fragment>
+            ))}
+          </span>
           <span className="dx-fold-act">{editing ? "Done" : "Edit"}</span>
         </button>
 
@@ -516,7 +578,10 @@ function App() {
             onLogic={(logic) => change({ logic })}
             logics={setup.logics}
             needsTwo={setup.logic_needs_two}
-            scoreboardOn={!!view.scoreboard}
+            scoreboardOn={view.scoreboard ? {
+              rel: ((ds.count_from || []).find((r) => r.id === view.scoreboard.count_from) || {}).name,
+              one: ds.one, many: ds.name.toLowerCase(),
+            } : null}
           />
           <SortShowStep
             fields={ds.fields}
@@ -528,6 +593,7 @@ function App() {
             off={offFor(setup, view)}
           />
           <SummaryStep
+            name={ds.name}
             fields={ds.fields}
             summary={view.summary}
             fns={setup.summary_fns}
@@ -535,6 +601,7 @@ function App() {
             onChange={(patch) => change(patch.summary ? { ...patch, scoreboard: null } : patch)}
           />
           <ScoreboardStep
+            ds={ds}
             fields={ds.fields}
             value={view.scoreboard || null}
             shown={view.columns}

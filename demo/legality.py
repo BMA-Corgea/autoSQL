@@ -52,7 +52,7 @@ from __future__ import annotations
 
 HEARTBEAT = "noun:Heartbeat"
 
-#: The three collections, and each one's top-level field vocabulary as a
+#: The four collections (Senders since T-74), and each one's top-level field vocabulary as a
 #: display string — what X1's reason states.  The seed is deterministic
 #: (plan §5), so these are constants of the build:
 #:   noun:Heartbeat  plan §5.2's four fields
@@ -70,6 +70,10 @@ SOURCES: dict[str, str] = {
         "a, arr, d, g, huge, l, label, n, obj, present, "
         "s, t, tags, txt, where, z"
     ),
+    # T-74: the senders' profiles, the parent the dashboard joins Heartbeats
+    # to.  The two-pane screen still offers only the three above
+    # (server/operations.py :: _SOURCE_OPTIONS, pinned by a test).
+    "noun:Sender": "id, installed, kind, name, site",
 }
 
 #: Operation 6's functions — "a closed set of five" plus ``none``.
@@ -465,7 +469,8 @@ def evaluate(pick: dict) -> dict:
     # (The isinstance guard keeps an unhashable source out of the set
     # lookup; shape_violations has already named it.)
     if not isinstance(source, str) or source not in SOURCES:
-        violate(1, f"unknown source {source!r}: the sources are a closed set of three")
+        violate(1, f"unknown source {source!r}: the sources are a closed set: "
+                   + ", ".join(SOURCES) + " (the two-pane screen offers the first three)")
     if fn not in AGG_FNS:
         violate(6, f"unknown aggregate {fn!r}: the functions are a closed set")
     if _bucket(pick) not in BUCKETS:

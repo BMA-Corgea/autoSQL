@@ -67,13 +67,14 @@ and which this demo is never allowed to dial.
 
 ## What's in it
 
-Three made-up collections, `10,410` rows in total:
+Four made-up collections, `10,465` rows in total:
 
 | Collection | Rows | What it's for |
 |---|---|---|
 | `noun:Heartbeat` | 8,400 | Most of the walkthrough — 50 senders, one row an hour, for a week |
 | `noun:Sample` | 2,000 | A second, differently-shaped collection, used to show the same controls behaving the same way on different data |
 | `noun:EdgeCase` | 10 | Ten specific, deliberately unusual rows, used to show what happens at the edges — very large numbers, values of the wrong shape, and so on |
+| `noun:Sender` | 55 | A profile per sender (name, site, kind, installed date), hb-01 … hb-55 — the parent the dashboard's scoreboards join Heartbeats to. hb-51 … hb-55 have no heartbeats. Added in T-74; the two-pane screen offers the other three |
 
 ## The walkthrough
 

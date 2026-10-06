@@ -475,9 +475,18 @@ export function PickPanel({ contract, vocab, pick, answer, onChange, onCommit, o
                 </div>
               );
             })}
-            <div className="srcrow dim">
+            {/* The rest of the database and its total, read from the
+                database itself (contract.database), never written here. */}
+            {((contract && contract.database && contract.database.collections) || [])
+              .filter((c) => !c.offered).map((c) => (
+                <div className="srcrow dim" key={c.name} data-collection={c.name}>
+                  <span className="k">{c.name}</span>
+                  <span className="v">{c.rows.toLocaleString("en-US")} rows · not on this screen</span>
+                </div>
+              ))}
+            <div className="srcrow dim" data-testid="db-total">
               <span className="k">total</span>
-              <span className="v">10,410 rows</span>
+              <span className="v">{contract && contract.database ? contract.database.total.toLocaleString("en-US") + " rows" : "—"}</span>
             </div>
           </div>
         </div>

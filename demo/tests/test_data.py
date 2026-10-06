@@ -46,7 +46,7 @@ _MANIFEST = _REPO_ROOT / "demo" / "manifest.json"
 
 
 # ---------------------------------------------------------------------------
-# AC-7 — the three counts.
+# AC-7 — the counts (four collections since T-74 S10 added Senders).
 # ---------------------------------------------------------------------------
 
 def test_ac7_counts(db):
@@ -54,11 +54,14 @@ def test_ac7_counts(db):
         ("noun:Heartbeat", 8400),
         ("noun:Sample", 2000),
         ("noun:EdgeCase", 10),
+        ("noun:Sender", 55),
     ]:
         n = db.execute(
             "SELECT count(*) FROM demo.records WHERE collection = %s", (collection,)
         ).fetchone()[0]
         assert n == expected, f"{collection}: count(*) = {n}, expected exactly {expected}"
+    present = {r[0] for r in db.execute("SELECT DISTINCT collection FROM demo.records").fetchall()}
+    assert present == {"noun:Heartbeat", "noun:Sample", "noun:EdgeCase", "noun:Sender"}, present
 
 
 # ---------------------------------------------------------------------------
@@ -367,3 +370,169 @@ def test_seed_never_reads_the_clock():
         "the seed must be deterministic — plan §5.5 forbids these in demo/seed/: "
         + ", ".join(hits)
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-74 S10 — Senders added; the three old collections byte-identical
+# ═════════════════════════════════════════════════════════════════════════
+
+#: The generator's digest over the three collections as they stood BEFORE
+#: Senders were added, measured on the pre-T-74 generator (commit 4852e72)
+#: and written here as a literal — a second pin beside generate.py's own.
+_PRE_T74_CORPUS_SHA256 = "7d8170d2b34d4f6519b1433d074c9a264060036b6d37abfb6412fa22aea28221"
+#: AC-10's md5 of demo.records as seeded before T-74 (the manifest's value
+#: until T-74 re-pinned it).  Restricted to the three old collections, the
+#: database must still give exactly this.
+_PRE_T74_RECORDS_MD5 = "65d83e813f47aebd100723723138ba40"
+
+
+def test_t74_old_collections_are_byte_identical_in_the_generator():
+    assert generate.OLD_CORPUS_SHA256 == _PRE_T74_CORPUS_SHA256
+    assert generate.corpus_sha256(generate.OLD_COLLECTIONS) == _PRE_T74_CORPUS_SHA256
+
+
+def test_t74_old_collections_are_byte_identical_in_the_database():
+    """The live database's old rows, digested exactly as AC-10 digests the
+    table, restricted to the three old collections."""
+    from demo.seed.load import demo_connection
+
+    with demo_connection() as conn:
+        conn.execute("SET TRANSACTION READ ONLY")
+        got = conn.execute(
+            r"SELECT md5(string_agg(collection || E'\x1f' || key || E'\x1f' || data::text, "
+            r"E'\n' ORDER BY collection, key)) FROM demo.records "
+            "WHERE collection = ANY(%(c)s)", {"c": list(generate.OLD_COLLECTIONS)}
+        ).fetchone()[0]
+    assert got == _PRE_T74_RECORDS_MD5
+
+
+def test_t74_senders_are_fifty_five_profiles():
+    rows = [json.loads(d) for _c, _k, d in generate.sender_rows()]
+    keys = [k for _c, k, _d in generate.sender_rows()]
+    assert keys == [f"hb-{i:02d}" for i in range(1, 56)]
+    assert [r["id"] for r in rows] == keys
+    assert len({r["name"] for r in rows}) == 55
+    for r in rows:
+        assert set(r) == {"id", "name", "site", "kind", "installed"}
+        assert r["site"] in generate.SITES and r["kind"] in generate.KINDS
+        assert "2025-01-01" <= r["installed"] <= "2026-07-31"
+
+
+def test_t74_five_senders_never_beat_and_every_beat_has_a_sender():
+    beating = {json.loads(d)["sender_id"] for _c, _k, d in generate.heartbeat_rows()}
+    profiles = {k for _c, k, _d in generate.sender_rows()}
+    assert beating == {f"hb-{i:02d}" for i in range(1, 51)}
+    assert profiles - beating == {f"hb-{i:02d}" for i in range(51, 56)}
+    assert beating <= profiles
+
+
+def test_t74_senders_are_deterministic_and_append_last():
+    assert list(generate.sender_rows()) == list(generate.sender_rows())
+    order = [(c.encode(), k.encode()) for c, k, _d in generate.rows()]
+    assert order == sorted(order)          # (collection, key) byte order: C collation
+    assert [c for c, _k, _d in generate.rows()][-55:] == ["noun:Sender"] * 55
+    assert sum(1 for _ in generate.rows()) == 10465
+
+
+def test_t74_the_loader_seeds_only_a_collection_that_is_missing():
+    """copy_rows(only=…) writes the missing collection and nothing else —
+    what an older, non-empty database gets on its next start."""
+    from demo.seed import load
+
+    written = []
+
+    class _Copy:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def write_row(self, row): written.append(row)
+
+    class _Cursor:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def copy(self, sql): return _Copy()
+
+    class _Conn:
+        def cursor(self): return _Cursor()
+
+    assert load.copy_rows(_Conn(), only={"noun:Sender"}) == 55
+    assert {r[0] for r in written} == {"noun:Sender"}
+    assert load.EXPECTED_COUNTS["noun:Sender"] == 55
+
+
+def test_t74_the_two_pane_screen_still_offers_three_sources():
+    """Senders are a source for the dashboard (legality.SOURCES) but the
+    two-pane screen's closed set stays the three it always had."""
+    from demo import legality
+    from demo.server import operations
+
+    assert [o["value"] for o in operations._SOURCE_OPTIONS] == [
+        "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
+    assert "noun:Sender" in legality.SOURCES
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-74, S10's check — the loader adds ONLY a collection named as added
+# after first seed; an old collection gone missing is still refused.
+# ═════════════════════════════════════════════════════════════════════════
+
+_FULL = {"noun:Heartbeat": 8400, "noun:Sample": 2000, "noun:EdgeCase": 10, "noun:Sender": 55}
+
+
+def test_t74_collections_to_add():
+    from demo.seed import load
+
+    assert load.ADDED_AFTER_FIRST_SEED == ("noun:Sender",)
+    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0})) == ["noun:Sender"]
+    assert load.collections_to_add(_FULL) == []
+    for lost in ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase"):
+        with pytest.raises(load.SeedError, match="absence is damage"):
+            load.collections_to_add(dict(_FULL, **{lost: 0}))
+    with pytest.raises(load.SeedError):     # an old one lost AND Senders missing
+        load.collections_to_add(dict(_FULL, **{"noun:Heartbeat": 0, "noun:Sender": 0}))
+
+
+def _fake_run(monkeypatch, before: dict):
+    """load.run() on a database holding ``before``, with every call that
+    would touch a real database replaced — what it writes is recorded."""
+    from demo.seed import load
+
+    wrote = []
+    state = {"counts": dict(before)}
+
+    class _Result:
+        def __init__(self, v): self.v = v
+        def fetchone(self): return (self.v,)
+
+    class _Conn:
+        def execute(self, sql, *a):
+            assert sql.strip().startswith("SELECT"), sql   # nothing but reads here
+            return _Result(sum(state["counts"].values()))
+        def commit(self): pass
+
+    def copy_rows(conn, only=None):
+        wrote.append(set(only) if only is not None else None)
+        for c in (only or _FULL):
+            state["counts"][c] = _FULL[c]
+        return sum(_FULL[c] for c in (only or _FULL))
+
+    manifest = json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())
+    monkeypatch.setattr(load, "_table_exists", lambda conn: True)
+    monkeypatch.setattr(load, "install_runtime_sql", lambda conn: None)
+    monkeypatch.setattr(load, "collection_counts", lambda conn: dict(state["counts"]))
+    monkeypatch.setattr(load, "copy_rows", copy_rows)
+    monkeypatch.setattr(load, "records_digest", lambda conn: manifest[load.MANIFEST_DIGEST_KEY])
+    return load, _Conn(), wrote
+
+
+def test_t74_an_older_database_gets_its_senders_and_is_held_to_the_digest(monkeypatch):
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    digest = load.run(conn)
+    assert wrote == [{"noun:Sender"}]
+    assert digest == json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())[load.MANIFEST_DIGEST_KEY]
+
+
+def test_t74_a_database_missing_an_old_collection_is_refused(monkeypatch):
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Heartbeat": 0}))
+    with pytest.raises(load.SeedError, match="noun:Heartbeat"):
+        load.run(conn)
+    assert wrote == []          # refused before anything was written

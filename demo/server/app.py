@@ -1462,7 +1462,40 @@ def api_operations(pick: str | None = None) -> JSONResponse:
             )},
             status_code=422,
         )
-    return JSONResponse(operations.contract(current))
+    body = operations.contract(current)
+    body["database"] = seeded_database()
+    return JSONResponse(body)
+
+
+_DATABASE_LOCK = __import__("threading").Lock()
+_DATABASE: dict | None = None
+
+
+def seeded_database() -> dict:
+    """What the demo's database holds, read FROM the database (T-74, S10's
+    check): every collection with its row count, whether this screen offers
+    it, and the total — so the screen's "seeded database" box and its banner
+    show numbers that cannot disagree with the data or with each other.
+    Read once per process: the seed is pinned and the session read-only."""
+    global _DATABASE
+    with _DATABASE_LOCK:
+        if _DATABASE is None:
+            conn = db.connect(application_name="autosql-demo-database")
+            try:
+                refuse_writes(conn)
+                counts = dict(conn.execute(
+                    "SELECT collection, count(*) FROM demo.records GROUP BY collection"
+                ).fetchall())
+            finally:
+                conn.close()
+            offered = [o["value"] for o in operations.SOURCE_OPTIONS]
+            names = offered + sorted(c for c in counts if c not in offered)
+            _DATABASE = {
+                "collections": [{"name": c, "rows": int(counts.get(c, 0)),
+                                 "offered": c in offered} for c in names],
+                "total": int(sum(counts.values())),
+            }
+        return _DATABASE
 
 
 @app.get("/api/fields")
@@ -1476,8 +1509,8 @@ def api_fields(source: str | None = None) -> JSONResponse:
     collection = source or legality.HEARTBEAT
     if collection not in legality.SOURCES:
         return JSONResponse(
-            {"detail": f"unknown source {collection!r}: the sources are a "
-                       "closed set of three"},
+            {"detail": f"unknown source {collection!r}: the sources are a closed set: "
+                       + ", ".join(legality.SOURCES) + " (the two-pane screen offers the first three)"},
             status_code=422,
         )
     conn = db.connect(application_name="autosql-demo-fields")

@@ -181,6 +181,9 @@ body.dx-body * { box-sizing: border-box; }
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1),
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1) ~ .dx-seg-btn { border-bottom: 0; }
 .dx-stack { display: grid; gap: 6px; margin-top: 12px; }
+/* Count: the switch as wide as its two choices, the line under it clear of it. */
+.dx-count-from { justify-items: start; margin-bottom: 8px; }
+.dx-count-from + .dx-step-hint { margin-top: 0; }
 
 /* buttons */
 .dx-btn {
@@ -218,6 +221,15 @@ body.dx-body * { box-sizing: border-box; }
 .dx-table tbody tr:hover { background: var(--surface); }
 .dx-table .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dx-td.is-blank { color: var(--text-mute); }
+.dx-td.has-exact .dx-cell { text-decoration: underline dotted var(--text-mute); text-underline-offset: 3px; cursor: help; }
+/* the scoreboard's group column stays in view while a wide board scrolls sideways (T-75) */
+.dx-table.is-board th:first-child, .dx-table.is-board td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
+.dx-table.is-board th:first-child { background: var(--surface); z-index: 2; }
+.dx-table.is-board th:first-child, .dx-table.is-board td:first-child { width: 1%; }  /* spare width goes to the counts */
+.dx-pin { max-width: min(calc(40vw - 24px), 28em);   /* the whole cell, padding included, about 40% of a phone */ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.dx-pin.is-open { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.dx-held { color: var(--text); font-weight: 600; }
+.dx-table.is-board tbody tr:hover td:first-child { background: var(--surface); }
 .dx-td.is-when { white-space: nowrap; }
 
 .dx-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
@@ -245,6 +257,8 @@ body.dx-body * { box-sizing: border-box; }
 .dx-hero-label { margin: 0 0 4px; font-size: 13px; color: var(--text-mid); }
 .dx-hero-value { margin: 0; font-size: 56px; font-weight: 650; line-height: 1.1; letter-spacing: -0.02em; }
 .dx-hero-none { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-soft); }
+.dx-hero-note { margin: 6px 0 0; font-size: 14px; color: var(--text-soft); }
+.dx-admin-note-loud { margin: 8px 0; padding: 6px 10px; font-size: 12px; border-left: 3px solid var(--amber); background: var(--amber-light); color: var(--text); }
 
 .dx-chart {
   margin: 0 0 16px; padding: 12px 12px 4px; border: 1px solid var(--border);
@@ -262,6 +276,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-grid { stroke: var(--border); stroke-width: 1; }
 .dx-axis { stroke: var(--border2); stroke-width: 1; }
 .dx-tick { fill: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dx-bar-value { fill: var(--text-mid); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* View as, and the Admin panel */
 .dx-viewas { display: flex; align-items: center; gap: 8px; flex: none; }
@@ -297,6 +312,10 @@ body.dx-body * { box-sizing: border-box; }
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
 }
 .dx-sql-line { display: block; border-radius: 2px; }
+.dx-sql.is-tall { max-height: none; }
+.dx-sql-tall { margin-top: 4px; }
+.dx-sql-removed { display: block; color: var(--red-text); background: var(--red-light); border-radius: 2px; font-style: italic; animation: dx-flash-out 2.4s ease-out forwards; }
+@keyframes dx-flash-out { 0%, 60% { opacity: 1; } 100% { opacity: .55; } }
 .dx-sql-line.is-new { animation: dx-flash 2.4s ease-out; }
 @keyframes dx-flash {
   0%, 35% { background: var(--blue-light); box-shadow: inset 3px 0 0 var(--blue); }
@@ -361,7 +380,12 @@ body.dx-body * { box-sizing: border-box; }
     padding: 12px 14px; margin-bottom: 14px;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   }
-  .dx-fold-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  /* Up to two lines before anything is cut: a board's bar says what it counts. */
+  .dx-fold-text {
+    min-width: 0; overflow: hidden; font-weight: 500;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  }
+  .dx-fold-part { white-space: nowrap; }
   .dx-fold-act { color: var(--blue); font-weight: 600; flex: none; }
 
   .dx-question { display: none; position: static; max-height: none; margin-bottom: 16px; }
