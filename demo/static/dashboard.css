@@ -218,6 +218,11 @@ body.dx-body * { box-sizing: border-box; }
 .dx-table tbody tr:hover { background: var(--surface); }
 .dx-table .is-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dx-td.is-blank { color: var(--text-mute); }
+.dx-td.has-exact .dx-cell { text-decoration: underline dotted var(--text-mute); text-underline-offset: 3px; cursor: help; }
+/* the scoreboard's group column stays in view while a wide board scrolls sideways (T-75) */
+.dx-table.is-board th:first-child, .dx-table.is-board td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
+.dx-table.is-board th:first-child { background: var(--surface); z-index: 2; }
+.dx-table.is-board tbody tr:hover td:first-child { background: var(--surface); }
 .dx-td.is-when { white-space: nowrap; }
 
 .dx-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
@@ -264,6 +269,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-grid { stroke: var(--border); stroke-width: 1; }
 .dx-axis { stroke: var(--border2); stroke-width: 1; }
 .dx-tick { fill: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dx-bar-value { fill: var(--text-mid); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* View as, and the Admin panel */
 .dx-viewas { display: flex; align-items: center; gap: 8px; flex: none; }
@@ -299,6 +305,10 @@ body.dx-body * { box-sizing: border-box; }
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
 }
 .dx-sql-line { display: block; border-radius: 2px; }
+.dx-sql.is-tall { max-height: none; }
+.dx-sql-tall { margin-top: 4px; }
+.dx-sql-removed { display: block; color: var(--red-text); background: var(--red-light); border-radius: 2px; font-style: italic; animation: dx-flash-out 2.4s ease-out forwards; }
+@keyframes dx-flash-out { 0%, 60% { opacity: 1; } 100% { opacity: .55; } }
 .dx-sql-line.is-new { animation: dx-flash 2.4s ease-out; }
 @keyframes dx-flash {
   0%, 35% { background: var(--blue-light); box-shadow: inset 3px 0 0 var(--blue); }

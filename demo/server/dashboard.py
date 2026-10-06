@@ -1081,11 +1081,17 @@ def _plain_json(value: Any, *, inside: bool = False) -> str:
     if isinstance(value, str):
         return f"“{value}”" if inside else value
     if isinstance(value, list):
-        return "(empty list)" if not value else ", ".join(_plain_json(v, inside=True) for v in value)
+        if not value:
+            return "[ ]" if inside else "(empty list)"
+        body = ", ".join(_plain_json(v, inside=True) for v in value)
+        # a list inside a list keeps its brackets, so [["a","b"],["c"]]
+        # never reads like ["a","b","c"] (T-75)
+        return f"[{body}]" if inside else body
     if isinstance(value, dict):
         if not value:
-            return "(empty group)"
-        return ", ".join(f"{k}: {_plain_json(v, inside=True)}" for k, v in value.items())
+            return "{ }" if inside else "(empty group)"
+        body = ", ".join(f"{k}: {_plain_json(v, inside=True)}" for k, v in value.items())
+        return f"{{{body}}}" if inside else body
     return str(value)
 
 
@@ -1167,8 +1173,14 @@ def _note(text: str) -> None:
         notes.append(text)
 
 
-_DISAGREED_TOTAL = ("The two engines disagreed on how many {what} these choices match "
-                    "({a} against {b}), so the sentence states no total.")
+def _disagreed_total(what: str, a, b) -> str:
+    """Admin's note when the engines disagree behind a total — worded for
+    both ways that can happen (T-75)."""
+    if a == b:
+        return (f"The two engines found the same number of {what} ({a}) but disagreed on a "
+                "value in them, so the sentence states no total.")
+    return (f"The two engines disagreed on how many {what} these choices match "
+            f"({a} against {b}), so the sentence states no total.")
 
 
 def agreed_count(conn, pick: dict) -> int | None:
@@ -1182,8 +1194,10 @@ def agreed_count(conn, pick: dict) -> int | None:
     if not result.get("accepted"):
         return None
     if result.get("verdict") != "agree":
-        _note(_DISAGREED_TOTAL.format(what="rows", a=result["panes"]["sql"]["rows"][0]["c"][0],
-                                      b=result["panes"]["python"]["rows"][0]["c"][0]))
+        def first(pane):
+            rows = (result.get("panes") or {}).get(pane, {}).get("rows") or []
+            return rows[0]["c"][0] if rows and rows[0].get("c") else "none"
+        _note(_disagreed_total("rows", first("sql"), first("python")))
         return None
     return int(Decimal(result["panes"]["sql"]["rows"][0]["c"][0]))
 
@@ -1197,8 +1211,8 @@ def agreed_rows(conn, pick: dict) -> int | None:
         return None
     if result.get("verdict") != "agree":
         cmp_ = result.get("comparison") or {}
-        _note(_DISAGREED_TOTAL.format(what="hours or days", a=cmp_.get("sql_row_count"),
-                                      b=cmp_.get("python_row_count")))
+        _note(_disagreed_total("hours or days", cmp_.get("sql_row_count"),
+                               cmp_.get("python_row_count")))
         return None
     return int(result["panes"]["sql"]["row_count"])
 
@@ -1532,6 +1546,12 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     # N buckets that have rows; the axis is filled between those.
     show = view.get("show")
     capped = show is not None and len(got) >= show
+    # A cap that cut nothing (exactly Show hours or days have rows) is no cap:
+    # the axis is the whole span, as it is one step below Show (T-75).  Only
+    # when both engines agree on the uncapped count.
+    of = agreed_rows(conn, pick) if capped else None
+    if capped and of is not None and of <= show:
+        capped = False
     with_rows = len(got)
     by_start = {b["start"]: b for b in got}
     if not got:
@@ -1550,10 +1570,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     if with_rows == 0:
         tail = "no rows match"
     elif capped:
-        of = agreed_rows(conn, pick)
-        if of is not None and of <= show:
-            tail = f"{plural(of, unit)}" if of == total else f"{fmt_number(str(of))} of {plural(total, unit)} have rows"
-        elif of is not None:
+        if of is not None:
             tail = f"the first {fmt_number(str(show))} of {plural(of, unit)} with rows"
         else:
             tail = f"the first {plural(show, unit)} with rows"
@@ -1866,6 +1883,16 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
     start = page * PAGE_SIZE
     rows = [[cell(names[j], r["c"][j], r["t"][j]) for j in range(len(names))]
             for r in pane["rows"][start:start + PAGE_SIZE]]
+    # An average is shown to two places; its six-place value rides beside
+    # it for hover / tap, as it does for a single summary (T-75), so two
+    # cells that read 3.02 and 3.02 are visibly not a tie.
+    exact = []
+    for r in pane["rows"][start:start + PAGE_SIZE]:
+        exact.append([
+            (f"To six places: {r['c'][j]}"
+             if names[j] == "measure" and spec["measure"]["fn"] == "avg" and r["t"][j] != "null"
+             else None)
+            for j in range(len(names))])
 
     show = view.get("show")
     if total == 0:
@@ -1876,8 +1903,8 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
               if full.get("accepted") and full.get("verdict") == "agree" else None)
         if full.get("accepted") and full.get("verdict") != "agree":
             cmp_ = full.get("comparison") or {}
-            _note(_DISAGREED_TOTAL.format(what="groups", a=cmp_.get("sql_row_count"),
-                                          b=cmp_.get("python_row_count")))
+            _note(_disagreed_total("groups", cmp_.get("sql_row_count"),
+                                   cmp_.get("python_row_count")))
         if of is not None and of <= show:
             tail = _plural_noun(by["label"], of)
         elif of is not None:
@@ -1893,6 +1920,7 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
         "total": total,
         "columns": columns,
         "rows": rows,
+        "titles": exact,
         "page": {"index": page, "size": PAGE_SIZE, "start": start,
                  "count": len(rows), "last": last},
         "unavailable": {"sort": "A scoreboard sorts by its own columns."},

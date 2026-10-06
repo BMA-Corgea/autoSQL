@@ -603,3 +603,16 @@ def test_the_second_engine_overflowing_is_a_named_refusal(client, setup, monkeyp
     assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
     assert "GROUP BY 1" in a["admin"]["statement"]
     dashboard._CACHE.clear()
+
+
+def test_scoreboard_averages_carry_their_exact_value(client, setup, conn):
+    """T-75 item 18: an average reads to two places, with its six-place
+    value beside it for hover / tap."""
+    _, a = ask(client, board(setup, by="status", measure={"fn": "avg", "field": "payload.load"}))
+    hand = dict(conn.execute(
+        "SELECT data ->> 'status', ROUND(AVG((data -> 'payload' ->> 'load')::numeric), 6) "
+        "FROM demo.records WHERE collection = 'noun:Heartbeat' GROUP BY 1").fetchall())
+    for row, titles in zip(a["rows"], a["titles"]):
+        assert titles[:2] == [None, None]
+        assert titles[2] == f"To six places: {hand[row[0]]}"
+        assert row[2] == f"{hand[row[0]]:.2f}"

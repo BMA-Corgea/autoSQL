@@ -1123,6 +1123,10 @@ class TestListCellsAreDistinguishable:
         one = dashboard.fmt_cell('["a, b"]', "array", "mixed")
         two = dashboard.fmt_cell('["a","b"]', "array", "mixed")
         assert one == "“a, b”" and two == "“a”, “b”" and one != two
+        nested = dashboard.fmt_cell('[["a","b"],["c"]]', "array", "mixed")
+        flat = dashboard.fmt_cell('["a","b","c"]', "array", "mixed")
+        assert nested == "[“a”, “b”], [“c”]" and flat == "“a”, “b”, “c”"
+        assert dashboard.fmt_cell('[{"k":"v"},[]]', "array", "mixed") == "{k: “v”}, [ ]"
         assert dashboard.fmt_cell('{"code":"alpha","n":7}', "object", "mixed") == "code: “alpha”, n: 7"
         assert dashboard.fmt_cell("[]", "array", "mixed") == "(empty list)"
 
@@ -1242,8 +1246,47 @@ def test_admin_hears_when_the_engines_disagree_on_a_total(client, setup, monkeyp
              conditions=[cond("status", "eq", value="warn")])
     _, a = ask(client, v)
     assert a["sentence"].endswith("— the first 100 rows")
-    assert a["admin"]["notes"] == ["The two engines disagreed on how many rows these choices "
-                                   "match (588 against 588), so the sentence states no total."]
+    assert a["admin"]["notes"] == ["The two engines found the same number of rows (588) but "
+                                   "disagreed on a value in them, so the sentence states no total."]
     _, e = ask(client, v, admin=False)
     assert e["sentence"] == a["sentence"] and "admin" not in e
     dashboard._CACHE.clear()
+
+
+def test_a_cap_that_cut_nothing_keeps_the_whole_axis(client, setup):
+    """T-75 item 9: exactly Show hours have rows — the cap cut nothing, so
+    the axis is the whole span, as it is with a larger Show."""
+    v = summed(setup, conditions=[cond("ts", "between", value="2026-08-14T00:00",
+                                       value2="2026-08-15T00:00")],
+               summary={"fn": "count", "field": None, "per": "hour"})
+    _, at_cap = ask(client, dict(v, show=25))
+    _, above = ask(client, dict(v, show=100))
+    assert at_cap["total"] == above["total"] == 168
+    assert at_cap["sentence"].endswith("— 25 of 168 hours have rows")
+    assert [b["start"] for b in at_cap["bars"]] == [b["start"] for b in above["bars"]]
+
+
+
+def test_the_disagreement_note_reads_right_both_ways():
+    """S8 check LOW: the same count with a value that differs, and two
+    different counts, each worded truly."""
+    assert dashboard._disagreed_total("groups", 50, 50) == (
+        "The two engines found the same number of groups (50) but disagreed on a value "
+        "in them, so the sentence states no total.")
+    assert dashboard._disagreed_total("rows", 588, 587) == (
+        "The two engines disagreed on how many rows these choices match (588 against 587), "
+        "so the sentence states no total.")
+
+
+def test_a_count_with_an_empty_second_pane_does_not_crash(monkeypatch, setup):
+    """S8 check LOW: agreed_count must not index into an empty pane."""
+    def run(conn, pick):
+        return {"accepted": True, "verdict": "disagree",
+                "panes": {"sql": {"rows": [{"c": ["5"]}]}, "python": {"rows": []}}}
+    monkeypatch.setattr(dashboard, "_run", run)
+    token = dashboard._NOTES.set([])
+    try:
+        assert dashboard.agreed_count(None, {"source": "noun:Heartbeat"}) is None
+        assert dashboard._NOTES.get() == [dashboard._disagreed_total("rows", "5", "none")]
+    finally:
+        dashboard._NOTES.reset(token)

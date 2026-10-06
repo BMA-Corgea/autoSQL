@@ -194,6 +194,12 @@ a { color: var(--blue-text); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 @media (max-width: 40rem) { .start { grid-template-columns: 1fr; } .status { text-align: left; } }
+/* T-75: on a phone the three columns of 16-digit numbers cannot sit side by side at full width; the
+   table keeps its columns and lets a long number wrap inside its cell, so the page never scrolls sideways. */
+@media (max-width: 40rem) {
+  table.cmp { table-layout: fixed; }
+  table.cmp th, table.cmp td { overflow-wrap: anywhere; padding-right: .5rem; }
+}
 </style>
 </head>
 <body>

@@ -12,13 +12,16 @@ import { ConditionList, Step, isComplete, logicReady } from "./dashboard-steps.j
 
 let nextKey = 1;
 
-// A new count column, named "Count N" with the smallest N no column on
-// screen already uses.
+// A new count column, named "Count N" with N one past the highest "Count N"
+// on screen — so the names stay in order down the list, and never collide
+// (T-75: removing "Count 1" and adding read "Count 2, Count 3, Count 1").
 export function freshCount(existing) {
-  const taken = new Set(existing.map((c) => c.label.trim().toLowerCase()));
-  let n = 1;
-  while (taken.has(`count ${n}`)) n += 1;
-  return { _k: nextKey++, label: `Count ${n}`, logic: "all", conditions: [], pct: false };
+  let n = existing.length;
+  for (const c of existing) {
+    const m = /^count (\d+)$/i.exec(c.label.trim());
+    if (m) n = Math.max(n, Number(m[1]));
+  }
+  return { _k: nextKey++, label: `Count ${n + 1}`, logic: "all", conditions: [], pct: false };
 }
 
 // Is a count column ready to send? A name, at least one condition with a

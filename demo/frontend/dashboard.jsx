@@ -68,7 +68,10 @@ function sendable(setup, view) {
   // is not a question yet: the conditions are marked "not used yet" on
   // screen and not sent.
   const logic = view.logic || "all";
-  const out = { ...view, conditions: logicReady(logic, conditions.length) ? conditions : [], logic };
+  // Not ready: no conditions and the logic All, so the answer matches the
+  // "Not used yet" note on screen instead of being refused (T-75).
+  const ready = logicReady(logic, conditions.length);
+  const out = { ...view, conditions: ready ? conditions : [], logic: ready ? logic : "all" };
   if (view.summary || view.scoreboard) out.columns = []; // kept on screen, greyed, for when it is turned off
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
@@ -114,10 +117,21 @@ const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its 
 
 // ── the answer ───────────────────────────────────────────────────────────
 
-function Cell({ value, kind }) {
+function Cell({ value, kind, title }) {
+  // A cell with an exact value beside it (a scoreboard average) shows that
+  // value on hover, and on a tap or Enter, since a phone has no hover (T-75).
+  const [exact, setExact] = useState(false);
   if (value === null || value === undefined) return <td className="dx-td is-blank">—</td>;
   const cls = kind === "number" ? " is-num" : kind === "time" || kind === "date" ? " is-when" : "";
-  return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
+  if (!title) return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
+  return (
+    <td className={"dx-td" + cls + " has-exact"} title={title}>
+      <span className="dx-cell" role="button" tabIndex={0} data-exact={title.replace("To six places: ", "")}
+        onClick={() => setExact(!exact)} onKeyDown={(e) => { if (e.key === "Enter") setExact(!exact); }}>
+        {exact ? title.replace("To six places: ", "") : value}
+      </span>
+    </td>
+  );
 }
 
 function Table({ answer, onPage, updating, sort, onSort }) {
@@ -130,7 +144,7 @@ function Table({ answer, onPage, updating, sort, onSort }) {
   return (
     <>
       <div className="dx-table-box" tabIndex={0} aria-label="Rows">
-        <table className="dx-table">
+        <table className={"dx-table" + (onSort ? " is-board" : "")}>
           <thead>
             <tr>{columns.map((c, j) => (
               <th key={c.path || c.id} className={c.kind === "number" ? "is-num" : ""} title={c.title || undefined}
@@ -150,7 +164,8 @@ function Table({ answer, onPage, updating, sort, onSort }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={page.start + i}>
-                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind} />)}
+                {r.map((v, j) => <Cell key={j} value={v} kind={columns[j].kind}
+                  title={answer.titles && answer.titles[i] ? answer.titles[i][j] : null} />)}
               </tr>
             ))}
           </tbody>
@@ -224,7 +239,7 @@ function BarChart({ answer }) {
   const [box, width] = useWidth();
   const [hover, setHover] = useState(null);
   const n = bars.length;
-  const left = 48, right = 8, top = 10, plotH = 200, bottom = 26;
+  const left = 48, right = 8, top = 24, plotH = 200, bottom = 26;
   const slot = Math.max(unit === "hour" ? 6 : 24, ((width || 600) - left - right) / Math.max(n, 1));
   const bw = Math.max(2, Math.min(24, slot - 2));
   const W = Math.ceil(left + n * slot + right);
@@ -275,6 +290,12 @@ function BarChart({ answer }) {
                 <rect x={left + i * slot} y={top} width={slot} height={plotH} className="dx-hit" />
                 {d ? <path d={d} className={"dx-bar" + (hover === i ? " is-hover" : "")} /> : null}
                 {b.empty ? <line x1={x} x2={x + bw} y1={base - 1.5} y2={base - 1.5} className="dx-empty-mark" /> : null}
+                {/* Each bar's value, written above it where the slot is wide
+                    enough to hold it (T-75); hours are too narrow, and the
+                    table below always has every value. */}
+                {b.text !== null && !b.empty && slot >= b.text.length * 6.2 + 4 ? (
+                  <text x={x + bw / 2} y={base - h - 6} className="dx-bar-value" textAnchor="middle" data-bar-value={i}>{b.text}</text>
+                ) : null}
                 {label ? (
                   <text x={unit === "day" ? x + bw / 2 : x} y={base + 16} className="dx-tick" textAnchor={unit === "day" ? "middle" : "start"}>{label}</text>
                 ) : null}
@@ -459,6 +480,17 @@ function App() {
     const from = (toAdmin ? setup.default_views : setup.admin_default_views)[view.dataset];
     const to = (toAdmin ? setup.admin_default_views : setup.default_views)[view.dataset];
     if (same(view.columns, from.columns) && !same(from.columns, to.columns)) change({ columns: [...to.columns] });
+    // A scoreboard grouped by a field Everyone doesn't see (Edge cases'
+    // Label) moves to the first group Everyone may use (T-75).
+    const sb = view.scoreboard;
+    if (!toAdmin && sb) {
+      const fields = setup.datasets.find((d) => d.id === view.dataset).fields;
+      const by = fields.find((f) => f.path === sb.by);
+      if (by && by.hidden_by_default) {
+        const next = fields.find((f) => f.group.ok && !f.hidden_by_default);
+        change({ scoreboard: next ? { ...sb, by: next.path, sort: null } : null });
+      }
+    }
   };
 
   if (setupFailed) {
