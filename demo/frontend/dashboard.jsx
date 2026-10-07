@@ -13,11 +13,11 @@
 // a newer question. While a request is out, the previous answer stays on
 // screen dimmed under an "Updating" label, never presented as current.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
-import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady } from "./dashboard-steps.jsx";
-import { ScoreboardStep, countWaiting, countedFields, nextSort } from "./dashboard-scoreboard.jsx";
+import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
+import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -109,7 +109,7 @@ function sendableScoreboard(setup, ds, sb) {
       if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
     }
   }
-  return { by: sb.by, count_from: sb.count_from || null, counts, time: sb.time || null,
+  return { by: sb.by, count_from: asMatch(ds, sb.count_from), counts, time: sb.time || null,
            measure: sb.measure || null, sort };
 }
 
@@ -118,24 +118,51 @@ const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its 
 
 // ── the answer ───────────────────────────────────────────────────────────
 
+// Is this element's text cut short? Measured after layout, and again when
+// its box changes size (a phone turned, a window resized).
+function useCutShort(ref, deps) {
+  const [cut, setCut] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, deps);
+  return cut;
+}
+
+function PinnedCell({ value, cls }) {
+  // The pinned group column is capped so the counts beside it stay in view;
+  // a name too long for it is cut short, whole on hover, tap or Enter. Only
+  // such a cell (or one opened) is a tab stop: a board of short names is not
+  // one stop per row (T-77).
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const cut = useCutShort(ref, [value]);
+  const acts = cut || open;
+  return (
+    <td className={"dx-td is-pinned" + cls} title={String(value)}>
+      <span ref={ref} className={"dx-cell dx-pin" + (open ? " is-open" : "")} data-pinned=""
+        role={acts ? "button" : undefined} tabIndex={acts ? 0 : undefined}
+        onClick={() => { if (acts) setOpen(!open); }}
+        onKeyDown={(e) => { if (acts && e.key === "Enter") setOpen(!open); }}>
+        {value}
+      </span>
+    </td>
+  );
+}
+
 function Cell({ value, kind, title, pinned }) {
   // A cell with an exact value beside it (a scoreboard average) shows that
   // value on hover, and on a tap or Enter, since a phone has no hover (T-75).
   const [exact, setExact] = useState(false);
   if (value === null || value === undefined) return <td className="dx-td is-blank">—</td>;
   const cls = kind === "number" ? " is-num" : kind === "time" || kind === "date" ? " is-when" : "";
-  if (pinned) {
-    // The pinned group column is capped so the counts beside it stay in view;
-    // a name too long for it is cut short, whole on hover, tap or Enter.
-    return (
-      <td className={"dx-td is-pinned" + cls} title={String(value)}>
-        <span className={"dx-cell dx-pin" + (exact ? " is-open" : "")} role="button" tabIndex={0} data-pinned=""
-          onClick={() => setExact(!exact)} onKeyDown={(e) => { if (e.key === "Enter") setExact(!exact); }}>
-          {value}
-        </span>
-      </td>
-    );
-  }
+  if (pinned) return <PinnedCell value={value} cls={cls} />;
   if (!title) return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
   return (
     <td className={"dx-td" + cls + " has-exact"} title={title}>
@@ -323,7 +350,7 @@ function BarChart({ answer }) {
   );
 }
 
-function Answer({ answer, updating, failed, onPage, sort, onSort }) {
+function Answer({ answer, updating, failed, current, onPage, sort, onSort }) {
   if (failed) {
     return (
       <div className="dx-answer">
@@ -341,7 +368,9 @@ function Answer({ answer, updating, failed, onPage, sort, onSort }) {
         <p className="dx-status" aria-live="polite">{updating ? "Updating…" : ""}</p>
       </div>
       {answer.kind === "refused" ? (
-        <p className="dx-problem" role="alert">{answer.message}</p>
+        // A refusal says why one pick can't be answered: never left standing
+        // under another pick while that one is asked (S17 check, MEDIUM).
+        current ? <p className="dx-problem" role="alert">{answer.message}</p> : null
       ) : answer.kind === "invalid" ? (
         <p className="dx-problem" role="alert">{answer.message}</p>
       ) : answer.kind === "number" ? (
@@ -386,7 +415,7 @@ function summaryLine(setup, view) {
   if (view.scoreboard) {
     const by = ds.fields.find((x) => x.path === view.scoreboard.by);
     const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, countedFields(setup, ds, view.scoreboard))).length;
-    const rel = (ds.count_from || []).find((r) => r.id === view.scoreboard.count_from);
+    const rel = countedSet(setup, view.scoreboard);
     // Short enough for a phone: "Senders · their Heartbeats", as the
     // sentence reads it — never "Senders · per Sender".
     const own = (ds.own_keys || []).includes(by.path);
@@ -407,6 +436,10 @@ function App() {
   const [view, setView] = useState(null);
   const [page, setPage] = useState(0);
   const [answer, setAnswer] = useState(null);
+  // The question the answer on screen was asked for (S17 check, MEDIUM): a
+  // line that describes a pick — the match preview, a refusal — is drawn only
+  // while that question is the one on screen and its request didn't fail.
+  const [answered, setAnswered] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
@@ -443,6 +476,7 @@ function App() {
       .then((a) => {
         if (mine !== seq.current) return; // a newer question is out: drop this
         setAnswer(a);
+        setAnswered(JSON.stringify(v));
         setFailed(false);
         setUpdating(false);
       })
@@ -456,6 +490,8 @@ function App() {
   // What is actually asked. Editing a condition that is still waiting for
   // its value changes the view but not the question, and asks nothing.
   const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view)) : null), [setup, view]);
+  // Is the answer on screen the answer to the pick on screen?
+  const current = !!answer && !failed && answered === question;
 
   // A changed question waits a moment for the clicks to settle; a page
   // turn is asked at once (the server remembers the whole answer).
@@ -494,22 +530,51 @@ function App() {
     if (toAdmin === admin) return;
     setAdmin(toAdmin);
     saveViewAs(toAdmin);
+    const patch = {};
     // A data set still on the other view's starting columns moves to this
     // view's (Edge cases' Label is on for Admin, off for Everyone).
     const from = (toAdmin ? setup.default_views : setup.admin_default_views)[view.dataset];
     const to = (toAdmin ? setup.admin_default_views : setup.default_views)[view.dataset];
-    if (same(view.columns, from.columns) && !same(from.columns, to.columns)) change({ columns: [...to.columns] });
-    // A scoreboard grouped by a field Everyone doesn't see (Edge cases'
-    // Label) moves to the first group Everyone may use (T-75).
-    const sb = view.scoreboard;
-    if (!toAdmin && sb) {
-      const fields = setup.datasets.find((d) => d.id === view.dataset).fields;
-      const by = fields.find((f) => f.path === sb.by);
-      if (by && by.hidden_by_default) {
-        const next = fields.find((f) => f.group.ok && !f.hidden_by_default);
-        change({ scoreboard: next ? { ...sb, by: next.path, sort: null } : null });
+    if (same(view.columns, from.columns) && !same(from.columns, to.columns)) patch.columns = [...to.columns];
+    if (!toAdmin) {
+      // Everyone keeps nothing that names a field hidden from it (T-77):
+      // not a column, a condition, the sort, the group or a count's condition.
+      const hiddenIn = (fields) => new Set(fields.filter((f) => f.hidden_by_default).map((f) => f.path));
+      const hidden = hiddenIn(ds.fields);
+      const cols = (patch.columns || view.columns).filter((p) => !hidden.has(p));
+      if (cols.length !== (patch.columns || view.columns).length) patch.columns = cols;
+      const conds = view.conditions.filter((c) => !hidden.has(c.field));
+      if (conds.length !== view.conditions.length) {
+        patch.conditions = conds;
+        if (conds.length < 2) patch.logic = "all";
+      }
+      if (view.sort && hidden.has(view.sort.field)) patch.sort = null;
+      const sb = view.scoreboard;
+      if (sb) {
+        let next = sb;
+        // A scoreboard grouped by a field Everyone doesn't see moves to the
+        // first group Everyone may use (T-75).
+        if (hidden.has(sb.by)) {
+          const by = ds.fields.find((f) => f.group.ok && !f.hidden_by_default);
+          next = by ? { ...sb, by: by.path, sort: null } : null;
+        }
+        // A match on a field Everyone doesn't see is dropped, with what it
+        // counted (T-76: the match pickers follow T-77's rule too).
+        const m = next && asMatch(ds, next.count_from);
+        if (m && (hidden.has(m.matches) || hiddenIn(countedFields(setup, ds, next)).has(m.field))) {
+          next = { ...next, count_from: null, picking: false, counts: [], time: null, measure: null, sort: null };
+        }
+        const hiddenCounted = hiddenIn(countedFields(setup, ds, next || sb));
+        if (next && next.counts.some((c) => c.conditions.some((x) => hiddenCounted.has(x.field)))) {
+          next = { ...next, counts: next.counts.map((c) => {
+            const kept = c.conditions.filter((x) => !hiddenCounted.has(x.field));
+            return kept.length === c.conditions.length ? c : { ...c, conditions: kept, logic: kept.length < 2 ? "all" : c.logic };
+          }) };
+        }
+        if (next !== sb) patch.scoreboard = next;
       }
     }
+    if (Object.keys(patch).length) change(patch);
   };
 
   if (setupFailed) {
@@ -518,6 +583,7 @@ function App() {
   if (!setup || !view) {
     return <main className="dx-shell"><p className="dx-status">Loading…</p></main>;
   }
+  const picks = offered(ds.fields, admin);
 
   return (
     <div className="dx-shell">
@@ -562,13 +628,13 @@ function App() {
             onPick={(id) => { if (id !== view.dataset) { setPage(0); setView(viewFor(setup, id, admin)); } }}
           />
           <ColumnsStep
-            fields={ds.fields}
+            fields={picks}
             value={view.columns}
             onChange={(columns) => change({ columns })}
             why={view.scoreboard ? COLUMNS_OFF_SCOREBOARD : view.summary ? COLUMNS_OFF : null}
           />
           <ConditionsStep
-            fields={ds.fields}
+            fields={picks}
             shown={view.columns}
             admin={admin}
             value={view.conditions}
@@ -579,12 +645,12 @@ function App() {
             logics={setup.logics}
             needsTwo={setup.logic_needs_two}
             scoreboardOn={view.scoreboard ? {
-              rel: ((ds.count_from || []).find((r) => r.id === view.scoreboard.count_from) || {}).name,
+              rel: (countedSet(setup, view.scoreboard) || {}).name,
               one: ds.one, many: ds.name.toLowerCase(),
             } : null}
           />
           <SortShowStep
-            fields={ds.fields}
+            fields={picks}
             sort={view.sort}
             show={view.show}
             showChoices={setup.show}
@@ -594,7 +660,7 @@ function App() {
           />
           <SummaryStep
             name={ds.name}
-            fields={ds.fields}
+            fields={picks}
             summary={view.summary}
             fns={setup.summary_fns}
             off={offFor(setup, view)}
@@ -602,18 +668,19 @@ function App() {
           />
           <ScoreboardStep
             ds={ds}
-            fields={ds.fields}
+            fields={picks}
             value={view.scoreboard || null}
             shown={view.columns}
             admin={admin}
             setup={setup}
+            match={current && answer.kind !== "invalid" ? answer.match : null}
             onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
           />
         </aside>
 
         <main className="dx-result" aria-label="Answer">
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
-          <Answer answer={answer} updating={updating} failed={failed} onPage={setPage}
+          <Answer answer={answer} updating={updating} failed={failed} current={current} onPage={setPage}
             sort={view.scoreboard ? view.scoreboard.sort : null}
             onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>

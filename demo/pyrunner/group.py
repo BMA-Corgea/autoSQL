@@ -34,7 +34,7 @@ from . import evaluate as ev
 from .order import MISSING, compare_jsonb
 from .rows import SourceRow, read_rows
 
-__all__ = ["answer", "python_pane", "columns_of"]
+__all__ = ["answer", "python_pane", "columns_of", "profile", "python_profile"]
 
 _PCT_CONTEXT = Context(prec=60, rounding=ROUND_HALF_UP)
 _ONE_PLACE = Decimal("0.1")
@@ -114,16 +114,81 @@ def _order(rows: List[dict], spec: dict) -> List[dict]:
     return sorted(rows, key=cmp_to_key(compare))
 
 
-def _join_key(value: Any, side: str):
-    """A relation key, as the join compares it: text.  A missing key or a
-    JSON null joins to nothing (SQL: NULL never equals).  Any other value
-    is refused loudly — the statement compares keys as text, and a number
-    quietly turned into text here could join differently there."""
+def _match_key(value: Any, match: str):
+    """A match value, as this engine compares it (T-76) — ``None`` matches
+    nothing.  Its own rule, written from the one stated in demo/group.py's
+    docstring, not from its code:
+
+    * a missing value or a JSON null matches nothing;
+    * ``"string"``: a str, compared exactly (case and spaces count);
+    * ``"number"``: an int or Decimal from the exact parse, compared by value
+      — ``Decimal`` equality and hashing make 2 and 2.0 one key, and keep
+      9007199254740993 apart from 9007199254740992 (no float anywhere);
+    * anything of another kind matches nothing: a number never matches text,
+      and ``True`` is not the number 1 (Python's ``True == 1`` is kept out by
+      the tag and the explicit bool test); lists and objects never match.
+
+    The tag keeps the kinds apart even in one dict."""
     if value is MISSING or value is None:
         return None
-    if isinstance(value, str):
-        return value
-    raise TypeError(f"the {side} key holds a {type(value).__name__}, not text")
+    if match == "string":
+        return ("s", value) if isinstance(value, str) else None
+    if match == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, Decimal)):
+            return None
+        return ("n", Decimal(value))
+    raise ValueError(f"unknown match type {match!r}")
+
+
+def _matches(rows: Sequence[SourceRow], related_rows: Sequence[SourceRow], rel: dict):
+    """For each parent row, the related rows it matches — a join done by
+    hand, through a dict, with no database lookup."""
+    child_steps = ev.dollar_path("$." + rel["key"])
+    parent_steps = ev.dollar_path("$." + rel["parent_key"])
+    by_key: Dict[Any, List[SourceRow]] = {}
+    for c in related_rows:
+        k = _match_key(ev.resolve(c.record_d, child_steps), rel["match"])
+        if k is not None:
+            by_key.setdefault(k, []).append(c)
+
+    def matched(parent: SourceRow) -> List[SourceRow]:
+        k = _match_key(ev.resolve(parent.record_d, parent_steps), rel["match"])
+        return by_key.get(k, []) if k is not None else []
+    return matched
+
+
+def _kept(rows: Sequence[SourceRow], spec: dict) -> List[SourceRow]:
+    if spec.get("filter"):
+        flt = ev.expr.parse(spec["filter"])
+        return [r for r in rows if ev.keep_by_filter(r, flt)]
+    return list(rows)
+
+
+def profile(rows: Sequence[SourceRow], spec: dict,
+            related_rows: Sequence[SourceRow]) -> Dict[str, Any]:
+    """The match profile (T-76) — what the chosen match does over the KEPT
+    parents, computed here from the rows: the columns demo/group.py's
+    ``build_profile`` documents, in its order."""
+    parents = _kept(rows, spec)
+    matched = _matches(parents, related_rows, spec["related"])
+    per_parent = [len(matched(p)) for p in parents]
+    hits: Dict[str, int] = {c.key: 0 for c in related_rows}
+    for p in parents:
+        for c in matched(p):
+            hits[c.key] += 1
+    some = [n for n in per_parent if n > 0]
+    per_counted = list(hits.values())
+    twice = [n for n in per_counted if n > 1]
+    return {
+        "parents": len(parents),
+        "parents_none": sum(1 for n in per_parent if n == 0),
+        "least": min(some) if some else None,
+        "most": max(some) if some else None,
+        "counted": len(per_counted),
+        "counted_none": sum(1 for n in per_counted if n == 0),
+        "counted_twice": len(twice),
+        "most_parents": max((n for n in per_counted if n > 0), default=None),
+    }
 
 
 def answer(rows: Sequence[SourceRow], spec: dict,
@@ -132,27 +197,16 @@ def answer(rows: Sequence[SourceRow], spec: dict,
 
     With ``spec["related"]`` (T-74), *rows* are the PARENTS — the page
     filter keeps parents, and the groups come from them — and everything
-    counted is the parents' related rows, found here by the declared keys
-    (a dict from key text to rows; no database lookup).  A parent with no
+    counted is the parents' related rows, found here by the match
+    (:func:`_match_key`, a dict from tagged match value to rows; no
+    database lookup).  A parent with no
     related rows is still a group, holding none: Rows 0, every count 0,
     every % 0, latest and measure blank — a LEFT JOIN, done by hand."""
-    if spec.get("filter"):
-        flt = ev.expr.parse(spec["filter"])
-        rows = [r for r in rows if ev.keep_by_filter(r, flt)]
+    rows = _kept(rows, spec)
 
     rel = spec.get("related")
     if rel:
-        child_steps = ev.dollar_path("$." + rel["key"])
-        parent_steps = ev.dollar_path("$." + rel["parent_key"])
-        by_key: Dict[str, List[SourceRow]] = {}
-        for c in related_rows:
-            k = _join_key(ev.resolve(c.record_d, child_steps), "related rows'")
-            if k is not None:
-                by_key.setdefault(k, []).append(c)
-
-        def counted(parent: SourceRow) -> List[SourceRow]:
-            k = _join_key(ev.resolve(parent.record_d, parent_steps), "parent's")
-            return by_key.get(k, []) if k is not None else []
+        counted = _matches(rows, related_rows, rel)
     else:
         def counted(parent: SourceRow) -> List[SourceRow]:
             return [parent]
@@ -214,3 +268,9 @@ def python_pane(conn, spec: dict) -> Dict[str, Any]:
     rel = spec.get("related")
     related = read_rows(conn, rel["source"]) if rel else ()
     return answer(read_rows(conn, spec["source"]), spec, related)
+
+
+def python_profile(conn, spec: dict) -> Dict[str, Any]:
+    """Read both collections' source rows and profile the match — end to end."""
+    rel = spec["related"]
+    return profile(read_rows(conn, spec["source"]), spec, read_rows(conn, rel["source"]))

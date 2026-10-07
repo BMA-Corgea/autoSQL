@@ -1,7 +1,7 @@
 """INVENTED DATA — every row this module produces is fabricated.
 
-This is the deterministic generator for the demo's four collections
-(T-2-plan.md §5; spec §8.3/§8.4; T-74 for Senders). None of it is real: no sender exists, no
+This is the deterministic generator for the demo's five collections
+(T-2-plan.md §5; spec §8.3/§8.4; T-74 for Senders; T-76 for Sites). None of it is real: no sender exists, no
 sample was measured, nothing here was ever observed anywhere. The data is
 invented so the demo can show its SQL against rows whose right answers are
 known by construction (AC-11, B31 third place).
@@ -15,7 +15,7 @@ Determinism (plan §5.5, B27):
     Python versions by construction and independent of loop order — running
     the generator twice produces byte-identical rows (AC-10).
 
-The four collections (plan §5.1–§5.4, and T-74 for Senders):
+The five collections (plan §5.1–§5.4, T-74 for Senders, T-76 for Sites):
   * noun:Heartbeat — 8,400 rows: 50 senders × 168 hourly beats (R5, R16,
     R17, R19, B27).
   * noun:Sample    — 2,000 rows: the record rule of
@@ -25,6 +25,8 @@ The four collections (plan §5.1–§5.4, and T-74 for Senders):
     values no Python float can hold (1e400) survive exactly (AC-13).
   * noun:Sender    — 55 rows (T-74): a profile per sender hb-01 … hb-55, the
     parent Heartbeats join to; hb-51 … hb-55 have no heartbeats.
+  * noun:Site      — 5 rows (T-76): one per place the senders name (North,
+    South, East, West) and Quarry, which no sender names.
 """
 
 from __future__ import annotations
@@ -294,6 +296,47 @@ def sender_rows() -> Iterator[Row]:
 
 
 # ---------------------------------------------------------------------------
+# noun:Site — 5 rows (T-76): one per place, site-01 … site-05.
+#
+# The level above Senders: a person counts a site's senders by matching
+# Senders' Site to this Name. North, South, East and West are SITES above,
+# the four places the senders name; Quarry is named by no sender, so it is
+# the site a LEFT JOIN must keep at 0.
+#
+# Added in T-76 the way Senders were in T-74, without touching a byte of the
+# four collections above: every draw comes from streams whose seed text
+# ("site-profile:…") no other collection uses, and "noun:Site" sorts after
+# "noun:Sender", so the rows append to the corpus and the digest's order of
+# the old rows is unchanged. demo/tests/test_data.py proves both halves.
+# ---------------------------------------------------------------------------
+
+SITE_NAMES = SITES + ["Quarry"]   # site-01 … site-05; Quarry has no senders
+# Opened on a day between 2018-01-01 and 2024-12-31, held as an ordinal and
+# advanced by integer addition (the same no-clock rule as the senders).
+_OPENED_BASE_ORDINAL = datetime.date(2018, 1, 1).toordinal()
+_OPENED_SPAN_DAYS = 2556
+_CAPACITY_LOW, _CAPACITY_HIGH = 10, 30   # how many senders a site is built for
+
+
+def site_rows() -> Iterator[Row]:
+    """5 site profiles, keys site-01 … site-05; Name is what Senders' Site holds."""
+    for s, name in enumerate(SITE_NAMES, start=1):
+        key = f"site-{s:02d}"
+        rng = _stream(f"site-profile:{key}")
+        opened = datetime.date.fromordinal(
+            _OPENED_BASE_ORDINAL + rng.randint(0, _OPENED_SPAN_DAYS))
+        data = json.dumps(
+            {
+                "name": name,
+                "opened": opened.isoformat(),
+                "capacity": rng.randint(_CAPACITY_LOW, _CAPACITY_HIGH),
+            },
+            separators=(",", ":"),
+        )
+        yield ("noun:Site", key, data)
+
+
+# ---------------------------------------------------------------------------
 # The whole corpus, in (collection, key) order — the digest's order (AC-10).
 # ---------------------------------------------------------------------------
 
@@ -303,20 +346,28 @@ def sender_rows() -> Iterator[Row]:
 OLD_COLLECTIONS = ("noun:EdgeCase", "noun:Heartbeat", "noun:Sample")
 OLD_CORPUS_SHA256 = "7d8170d2b34d4f6519b1433d074c9a264060036b6d37abfb6412fa22aea28221"
 
+#: The four collections the corpus held before T-76 added Sites, pinned the
+#: same way: corpus_sha256 over exactly these, measured on the generator at
+#: cb5c59b (T-77's tip), before Sites existed.
+PRE_SITES_COLLECTIONS = OLD_COLLECTIONS + ("noun:Sender",)
+PRE_SITES_CORPUS_SHA256 = "5e54012ee203fe132499f096ddb396908a915d70b14ac185b8bca9fa763cbe4d"
+
 
 def rows() -> Iterator[Row]:
-    """All 10,465 rows, emitted in (collection, key) text order."""
+    """All 10,470 rows, emitted in (collection, key) text order."""
     yield from edge_case_rows()   # noun:EdgeCase
     yield from heartbeat_rows()   # noun:Heartbeat
     yield from sample_rows()      # noun:Sample
-    yield from sender_rows()      # noun:Sender (T-74) — sorts last
+    yield from sender_rows()      # noun:Sender (T-74)
+    yield from site_rows()        # noun:Site (T-76) — sorts last
 
 
 def corpus_sha256(collections=None) -> str:
     """A digest over the generated stream itself (not the database) — what
     lets a test prove two in-process runs are byte-identical (AC-10's
     generator half) without a second checkout.  ``collections`` restricts it
-    (T-74: over OLD_COLLECTIONS it must equal OLD_CORPUS_SHA256)."""
+    (T-74: over OLD_COLLECTIONS it must equal OLD_CORPUS_SHA256; T-76: over
+    PRE_SITES_COLLECTIONS it must equal PRE_SITES_CORPUS_SHA256)."""
     h = hashlib.sha256()
     for collection, key, data in rows():
         if collections is not None and collection not in collections:

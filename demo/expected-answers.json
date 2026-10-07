@@ -29,6 +29,10 @@
     "sender_rows": {
       "value": 55,
       "derivation": "generate.SENDER_PROFILES \u2014 hb-01 \u2026 hb-55 (T-74); hb-51 \u2026 hb-55 have no heartbeats."
+    },
+    "site_rows": {
+      "value": 5,
+      "derivation": "generate.SITE_NAMES \u2014 North, South, East, West and Quarry (T-76); no sender names Quarry."
     }
   },
   "steps": [
@@ -50,8 +54,8 @@
           "derivation": "The demo's own app port, fixed at plan \u00a711.2."
         },
         "rows_loaded": {
-          "value": 10465,
-          "derivation": "8400 heartbeats + 2000 samples + 10 edge cases + 55 senders = 10465 rows, counted from the generator's own streams."
+          "value": 10470,
+          "derivation": "8400 heartbeats + 2000 samples + 10 edge cases + 55 senders + 5 sites = 10470 rows, counted from the generator's own streams."
         }
       }
     },

@@ -5,7 +5,7 @@ which a person asks for different parts of a database, and the SQL writes
 itself from the picks (README: "The dashboard: SQL analysis, kept out of
 sight").  A person clicks; nothing is typed in any language.  This module is everything between those clicks and the engine:
 
-* **the setup** — the three data sets, their row counts, and each field's
+* **the setup** — the data sets, their row counts, and each field's
   plain name, its kind, the conditions it can take and the values found in
   the data (``GET /api/dashboard/setup``);
 * **the translation** — a *view* (the clicks) becomes one *pick* (the
@@ -123,15 +123,28 @@ DATASETS = (
         # Here a sender's id IS the sender: called that, not "ID".
         "labels": {"id": "Sender"},
     },
+    {
+        "id": "sites",
+        "source": "noun:Site",
+        "name": "Sites",
+        "one": "site",
+        "about": "A profile per site: its name, the day it opened and how many senders it was built for.",
+        "order": ("name", "opened", "capacity"),
+        "default_columns": ("name", "opened", "capacity"),
+    },
 )
 _BY_ID = {d["id"]: d for d in DATASETS}
 
 #: The relationships a scoreboard may count across — declared here, once,
 #: never guessed from field names (T-74).  A Senders scoreboard can count
-#: each sender's Heartbeats: Heartbeats.sender_id → Senders.id.
+#: each sender's Heartbeats: Heartbeats.sender_id → Senders.id; a Sites
+#: scoreboard each site's Senders: Senders.site → Sites.name (T-76).
 RELATIONS = {
     "senders": [
         {"to": "heartbeats", "key": "sender_id", "parent_key": "id"},
+    ],
+    "sites": [
+        {"to": "senders", "key": "site", "parent_key": "name"},
     ],
 }
 
@@ -413,7 +426,8 @@ def setup(conn) -> dict:
                                     if any(f["path"] == p for f in fields)],
                 "has_time": d["source"] == legality.HEARTBEAT,
                 "one": d["one"],
-                "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"]}
+                "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"],
+                                "field": r["key"], "matches": r["parent_key"]}
                                for r in RELATIONS.get(d["id"], [])],
                 # The fields that name one row each — a board by one of them
                 # is "Senders", never "Senders per Sender" (the page's bar too).
@@ -443,6 +457,9 @@ def setup(conn) -> dict:
             "op_labels": dict(OP_WORDS, ne="is not (rows without a value count too)"),
             "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
             "max_counts": group.MAX_COUNTS,
+            # T-76: the field kinds a match may pair (two of the same kind);
+            # the gate reads the same table.
+            "match_kinds": list(MATCH_TYPE_OF_KIND),
             "label_max": LABEL_MAX,
             "unavailable": _reasons_table(out),
         }
@@ -514,7 +531,7 @@ def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     ds_id = view.get("dataset")
     ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
     if ds is None:
-        raise ViewError("Pick one of the three data sets.")
+        raise ViewError("Pick one of the data sets.")
     fields = {f["path"]: f for f in ds["fields"]}
     return ds, fields
 
@@ -1400,11 +1417,31 @@ def _admin_block(answer: dict) -> dict:
     }
 
 
-def answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
-    """One view → what the dashboard draws."""
+def _refuse_hidden(view: dict, fields: dict) -> None:
+    """The Everyone view names no field hidden from it (T-77's rule, held at
+    the gate by T-76 AC8): not a column, a condition, the sort, a summary's
+    field or a scoreboard's group.  A count's conditions and a match are
+    checked in to_spec, which knows the counted data set."""
+    named = list(view.get("columns") or []) if isinstance(view.get("columns"), list) else []
+    conds = view.get("conditions")
+    named += [c.get("field") for c in conds if isinstance(c, dict)] if isinstance(conds, list) else []
+    for part, key in (("sort", "field"), ("summary", "field"), ("scoreboard", "by")):
+        if isinstance(view.get(part), dict):
+            named.append(view[part].get(key))
+    for path in named:
+        f = fields.get(_name(path))
+        if f and f.get("hidden_by_default"):
+            raise ViewError(f"{f['label']} isn't offered in this view.")
+
+
+def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
+    """One view → what the dashboard draws.  ``admin`` False is the Everyone
+    view, which may not name a field hidden from it."""
     ds, fields = _dataset(setup_payload, view)
+    if not admin:
+        _refuse_hidden(view, fields)
     if view.get("scoreboard") is not None:
-        return scoreboard_answer(conn, setup_payload, view, page)
+        return scoreboard_answer(conn, setup_payload, view, page, admin)
     pick = to_pick(setup_payload, view)
     result = _run(conn, pick)
     admin = _admin_block(result)
@@ -1648,6 +1685,17 @@ COUNT_KEYS = {"id", "label", "logic", "conditions", "pct"}
 COUNT_ID_MAX = 10 ** 9
 TIME_KEYS = {"fn", "field"}
 MEASURE_KEYS = {"fn", "field"}
+#: A chosen match (T-76): count the rows of ``dataset`` whose ``field``
+#: equals this row's ``matches``.
+COUNT_FROM_KEYS = {"dataset", "field", "matches"}
+
+#: Which field kinds can be matched, and how the engines compare them
+#: (demo/group.py :: MATCH_TYPES).  Dates and times are ISO text, so they
+#: compare as text — but only date with date and time with time: a match
+#: pairs two fields of the SAME kind.  Mixed fields (lists, groups, values of
+#: more than one kind) are never matched.
+MATCH_TYPE_OF_KIND = {"text": "string", "date": "string", "time": "string", "number": "number"}
+_KIND_WORDS = {"text": "text", "date": "dates", "time": "times", "number": "numbers"}
 SB_SORT_KEYS = {"column", "dir"}
 TIME_WORDS = {"latest": ("max", "Latest"), "earliest": ("min", "Earliest")}
 
@@ -1672,6 +1720,14 @@ def check_label(label) -> str:
     if any(unicodedata.category(ch).startswith("C") for ch in text):
         raise ViewError("A column's name can't hold control or invisible characters.")
     return text
+
+
+def _same_name(label: str) -> str:
+    """A column name as a person reads it: case folded and every run of
+    Unicode whitespace — two spaces, a no-break space, an em-space — one
+    space (S13 check, MEDIUM).  "Latest  Time" and "Latest Time" are one
+    name; so are "Big hit" and "Big\u00a0hit"."""
+    return re.sub(r"\s+", " ", label).strip().casefold()
 
 
 def _plural_noun(label: str, n: int) -> str:
@@ -1703,9 +1759,61 @@ def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
     return compose([e for e, _ in parsed], logic), joined_words([w for _, w in parsed], logic)
 
 
-def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
+def _count_from(setup_payload: dict, ds: dict, fields: dict, count_from, admin: bool):
+    """The match a scoreboard counts across (T-76), checked — or (None, None)
+    for its own rows.  Returns ``({"to", "key", "parent_key", "match",
+    "declared"}, the counted data set)``.  Every pick the screen can't make
+    is refused by name (AC8)."""
+    if count_from is None:
+        return None, None
+    if isinstance(count_from, str):
+        # T-74's form: a declared relation, named by the data set it counts.
+        relation = next((r for r in RELATIONS.get(ds["id"], []) if r["to"] == count_from), None)
+        if relation is None:
+            raise ViewError(f"{ds['name']} has no related data set to count from by that name.")
+        count_from = {"dataset": relation["to"], "field": relation["key"], "matches": relation["parent_key"]}
+    if not isinstance(count_from, dict):
+        raise ViewError("Count from must name a data set and the two fields that match.")
+    _refuse_extra(count_from, COUNT_FROM_KEYS, "count from")
+    other = _name(count_from.get("dataset"))
+    rel_ds = next((d for d in setup_payload["datasets"] if d["id"] == other), None)
+    if rel_ds is None:
+        raise ViewError(f"There's no data set called “{other}” to count from." if other
+                        else "There's no data set by that name to count from.")
+    if rel_ds["id"] == ds["id"]:
+        raise ViewError("A data set can't be matched with itself.")
+    theirs = {f["path"]: f for f in rel_ds["fields"]}
+    def no_field(owner: dict, name) -> ViewError:
+        # A name that isn't text (or is empty) is said plainly, never as “”.
+        return ViewError(f"{owner['name']} has no field “{name}” to match on." if name
+                         else f"{owner['name']} has no field by that name to match on.")
+
+    f_counted = theirs.get(_name(count_from.get("field")))
+    if f_counted is None:
+        raise no_field(rel_ds, _name(count_from.get("field")))
+    f_parent = fields.get(_name(count_from.get("matches")))
+    if f_parent is None:
+        raise no_field(ds, _name(count_from.get("matches")))
+    for f in (f_parent, f_counted):
+        if not admin and f.get("hidden_by_default"):
+            raise ViewError(f"{f['label']} isn't offered in this view.")
+        if f["kind"] not in MATCH_TYPE_OF_KIND:
+            raise ViewError(f"{f['label']} holds lists or mixed values, which can't be matched.")
+    if f_parent["kind"] != f_counted["kind"]:
+        raise ViewError(f"{f_parent['label']} holds {_KIND_WORDS[f_parent['kind']]} and "
+                        f"{f_counted['label']} holds {_KIND_WORDS[f_counted['kind']]}; "
+                        "a match pairs two fields of the same kind.")
+    declared = any(r["to"] == rel_ds["id"] and r["key"] == f_counted["path"]
+                   and r["parent_key"] == f_parent["path"] for r in RELATIONS.get(ds["id"], []))
+    return ({"to": rel_ds["id"], "key": f_counted["path"], "parent_key": f_parent["path"],
+             "match": MATCH_TYPE_OF_KIND[f_parent["kind"]], "declared": declared,
+             "field": f_counted, "matches": f_parent}, rel_ds)
+
+
+def to_spec(setup_payload: dict, view: dict, admin: bool = True) -> tuple[dict, dict]:
     """A scoreboard view → (the engine's spec, what the screen needs to
-    label it).  Everything the view carries is honoured or refused by name."""
+    label it).  Everything the view carries is honoured or refused by name.
+    ``admin`` False is the Everyone view: a field hidden from it is refused."""
     ds, fields = _dataset(setup_payload, view)
     sb = view.get("scoreboard")
     if not isinstance(sb, dict):
@@ -1724,18 +1832,21 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     if not fields[by]["group"]["ok"]:
         raise ViewError(f"{fields[by]['label']} can't be grouped by: {fields[by]['group']['why']}")
 
-    # T-74: count each group's OWN rows (the default), or the rows of a
-    # declared related data set — the parents are grouped, the related rows
-    # are counted.  Count columns, latest and the measure then read the
-    # related data set's fields; the page's conditions still read the parent.
-    count_from = sb.get("count_from")
-    relation, rel_ds = None, None
-    if count_from is not None:
-        relation = next((r for r in RELATIONS.get(ds["id"], []) if r["to"] == _name(count_from)), None)
-        if relation is None:
-            raise ViewError(f"{ds['name']} has no related data set to count from by that name.")
-        rel_ds = next(d for d in setup_payload["datasets"] if d["id"] == relation["to"])
+    # T-74: count each group's OWN rows (the default), or the rows of
+    # another data set — the parents are grouped, the other rows are
+    # counted.  Count columns, latest and the measure then read the counted
+    # data set's fields; the page's conditions still read the parent.
+    # T-76: the match is the person's to choose (see _count_from); T-74's
+    # string form names a declared relation and is its shorthand.
+    relation, rel_ds = _count_from(setup_payload, ds, fields, sb.get("count_from"), admin)
     counted_fields = {f["path"]: f for f in rel_ds["fields"]} if rel_ds else fields
+    if not admin:
+        # Everyone never picks a field hidden from it, here either (T-77).
+        for c in sb.get("counts") or []:
+            for x in (c.get("conditions") if isinstance(c, dict) and isinstance(c.get("conditions"), list) else []):
+                f = counted_fields.get(_name(x.get("field")) if isinstance(x, dict) else None)
+                if f and f.get("hidden_by_default"):
+                    raise ViewError(f"{f['label']} isn't offered in this view.")
 
     counts_in = sb.get("counts") or []
     if not isinstance(counts_in, list):
@@ -1750,13 +1861,8 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         label = check_label(c.get("label"))
         # "A" and "a " read as the same name to a person: trimmed and
         # case-folded, they are refused as duplicates.
-        if label.casefold() in [x["label"].casefold() for x in labels]:
+        if _same_name(label) in [_same_name(x["label"]) for x in labels]:
             raise ViewError(f"Two count columns are both called “{label}”.")
-        # Nor one of the board's own two columns: "Heartbeats" beside
-        # "Heartbeats" reads as one column twice (M3 review, LOW-2).
-        fixed = (fields[by]["label"], rel_ds["name"] if rel_ds is not None else "Rows")
-        if label.casefold() in [x.casefold() for x in fixed]:
-            raise ViewError(f"“{label}” is already a column on this board; call this count something else.")
         if not isinstance(c.get("pct", False), bool):
             raise ViewError("“% of rows” is on or off.")
         cid = c.get("id", i)
@@ -1794,6 +1900,20 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             raise ViewError(f"{SUMMARY_FNS[measure['fn']]} of what? Pick a field that holds numbers.")
         measure_spec = {"fn": measure["fn"], "field": f["path"]}
 
+    # Nor the name of any other column on the board — its own two ("Heartbeats"
+    # beside "Heartbeats", M3 review LOW-2), a count's "% …", "Latest …" or a
+    # total's header (T-77): one name, one column.
+    headers = [fields[by]["label"], rel_ds["name"] if rel_ds is not None else "Rows"]
+    headers += [f"% {x['label']}" for x in labels if x["pct"]]
+    if time_spec:
+        headers.append(f"{TIME_WORDS[time['fn']][1]} {counted_fields[time_spec['field']]['label']}")
+    if measure_spec:
+        headers.append(f"{SUMMARY_FNS[measure_spec['fn']]} {counted_fields[measure_spec['field']]['label']}")
+    taken = {_same_name(h) for h in headers}
+    for x in labels:
+        if _same_name(x["label"]) in taken:
+            raise ViewError(f"“{x['label']}” is already a column on this board; call this count something else.")
+
     spec = {
         "source": next(d["source"] for d in DATASETS if d["id"] == ds["id"]),
         "group": by,
@@ -1809,6 +1929,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
             "source": next(d["source"] for d in DATASETS if d["id"] == relation["to"]),
             "key": relation["key"],
             "parent_key": relation["parent_key"],
+            "match": relation["match"],
         }
 
     sort = sb.get("sort")
@@ -1830,7 +1951,7 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
 
     return spec, {"ds": ds, "fields": fields, "by": fields[by], "counts": labels,
                   "time": time, "measure": measure, "rel_ds": rel_ds,
-                  "counted_fields": counted_fields}
+                  "counted_fields": counted_fields, "relation": relation}
 
 
 def _run_group(conn, spec: dict) -> dict:
@@ -1877,8 +1998,55 @@ def _run_group(conn, spec: dict) -> dict:
     return result
 
 
-def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> dict:
-    spec, about = to_spec(setup_payload, view)
+def _n(k: int, ds: dict) -> str:
+    """"1 site", "19 senders" — a count in the data set's own words."""
+    return f"{fmt_number(str(k))} {ds['one'] if k == 1 else ds['name'].lower()}"
+
+
+def match_preview(ds: dict, rel_ds: dict, prof: dict, kept: bool) -> str:
+    """T-76 AC3: what the chosen match does, in one plain line, from the
+    agreed match profile — parents that match none, the spread of matches
+    per parent, and counted rows that match no kept parent (not counted).
+    ``kept`` says the page's conditions narrowed the parents."""
+    if prof["parents"] == 0:
+        return f"No {ds['name'].lower()} are kept here, so nothing is counted."
+    if prof["most"] is None:
+        return f"No {ds['one']} matches any {rel_ds['one']}, so every count is 0."
+    matching = prof["parents"] - prof["parents_none"]
+    least, most = prof["least"], prof["most"]
+    spread = fmt_number(str(most)) if least == most else f"{fmt_number(str(least))} to {fmt_number(str(most))}"
+    line = (f"{_n(matching, ds)} {'matches' if matching == 1 else 'match'} {spread} "
+            f"{rel_ds['one'] if most == 1 else rel_ds['name'].lower()}{' each' if matching > 1 else ''}")
+    if prof["parents_none"]:
+        k = prof["parents_none"]
+        line += f"; {_n(k, ds)} {'matches' if k == 1 else 'match'} none"
+    line += "."
+    k = prof["counted_none"]
+    if k == 0:
+        line += f" Every {rel_ds['one']} is counted."
+    else:
+        line += (f" {_n(k, rel_ds)} {'matches' if k == 1 else 'match'} no {ds['one']}"
+                 f"{' kept here' if kept else ''} and {'isn' if k == 1 else 'aren'}'t counted.")
+    return line
+
+
+def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
+    """T-76's refusal, in one line with its numbers: a counted row matching
+    more than one kept parent would be counted once per parent."""
+    line = (f"Each {rel_ds['one']} would be counted once for every {ds['one']} that matches it "
+            f"— up to {fmt_number(str(prof['most_parents']))} times, for "
+            f"{fmt_number(str(prof['counted_twice']))} of the {_n(prof['counted'], rel_ds)} "
+            "— and a row is counted only once.")
+    if any(r["to"] == ds["id"] for r in RELATIONS.get(rel_ds["id"], [])):
+        line += f" Count it the other way round: {rel_ds['name']}, counting their {ds['name']}."
+    return line
+
+
+MATCH_UNCHECKED = "This match couldn't be double-checked, so it isn't counted."
+
+
+def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
+    spec, about = to_spec(setup_payload, view, admin)
     ds, fields, by = about["ds"], about["fields"], about["by"]
     rel_ds, counted = about["rel_ds"], about["counted_fields"]
     # "Senders, counting their Heartbeats" when there is one row per parent
@@ -1892,17 +2060,52 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
     said = [w for _, w in _conditions(view, fields)]
     if said:
         head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
+    relation = about["relation"]
     if rel_ds is not None:
         head += f", counting their {rel_ds['name']}"
+        # A declared match reads as T-74's sentence, word for word; any other
+        # match names the field it matches by (T-76 AC9).
+        if not relation["declared"]:
+            head += f" (by {relation['field']['label']})"
     elif own_key:
         head += ", one row each"
     what = rel_ds["name"] if rel_ds is not None else "rows"
+    # What the tail counts: a board by the parent's own key has one row per
+    # parent, so it counts those ("5 sites", not "5 names" — T-76: Sites'
+    # own key is labelled Name); any other board counts its groups.
+    noun = ds["one"] if own_key else by["label"]
 
     result = _run_group(conn, spec)
-    admin = _admin_block(result)
+    admin_block = _admin_block(result)
+    match = result.get("match")
+    preview = None
+    if relation is not None:
+        f, m = relation["field"], relation["matches"]
+        _note(f"The match: {rel_ds['name']}' {f['label']} = {ds['name']}' {m['label']}"
+              + (f", over the {ds['name'].lower()} kept." if spec.get("filter") else "."))
+        if match and match.get("verdict") == "agree" and match.get("profile"):
+            preview = match_preview(ds, rel_ds, match["profile"], bool(spec.get("filter")))
     if not result.get("accepted"):
-        return {"kind": "refused", "sentence": head,
-                "message": plain_refusal(result.get("refusal")), "admin": admin}
+        kind = (result.get("refusal") or {}).get("kind")
+        if kind == "double-count":
+            message = double_count_line(ds, rel_ds, match["profile"])
+        elif kind == "match-disagree":
+            message = MATCH_UNCHECKED
+            if match.get("python_error"):
+                _note("The second engine could not profile the match "
+                      f"({match['python_error']}), so it couldn't be double-checked and nothing is counted.")
+            else:
+                _note("The two engines disagree on what the match does — the statement's profile "
+                      f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
+                      f"{json.dumps(match.get('python'), default=str)} — so nothing is counted.")
+        else:
+            message = plain_refusal(result.get("refusal"))
+        out = {"kind": "refused", "sentence": head, "message": message, "admin": admin_block}
+        if relation is not None:
+            out["match"] = {"preview": None if kind == "double-count" else preview,
+                            "refused": kind in ("double-count", "match-disagree")}
+        return out
+    admin = admin_block
 
     pane = result["panes"]["sql"]
     names = pane["columns"]
@@ -1973,13 +2176,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
             _note(_disagreed_total("groups", cmp_.get("sql_row_count"),
                                    cmp_.get("python_row_count")))
         if of is not None and of <= show:
-            tail = _plural_noun(by["label"], of)
+            tail = _plural_noun(noun, of)
         elif of is not None:
-            tail = f"the first {fmt_number(str(show))} of {_plural_noun(by['label'], of)}"
+            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of)}"
         else:
-            tail = f"the first {_plural_noun(by['label'], show)}"
+            tail = f"the first {_plural_noun(noun, show)}"
     else:
-        tail = _plural_noun(by["label"], total)
+        tail = _plural_noun(noun, total)
 
     return {
         "kind": "scoreboard",
@@ -1991,6 +2194,7 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
         "page": {"index": page, "size": PAGE_SIZE, "start": start,
                  "count": len(rows), "last": last},
         "unavailable": {"sort": "A scoreboard sorts by its own columns."},
+        "match": None if relation is None else {"preview": preview, "refused": False},
         "admin": admin,
     }
 
@@ -2035,7 +2239,7 @@ def api_answer(body: dict) -> JSONResponse:
     try:
         payload = setup(conn)
         try:
-            out = answer(conn, payload, view, page)
+            out = answer(conn, payload, view, page, admin=wants_admin)
         except ViewError as exc:
             return JSONResponse({"kind": "invalid", "sentence": "",
                                  "message": str(exc)}, status_code=422)

@@ -43,8 +43,9 @@ THE RULES IT WRITES DOWN
   agree, and the screen says so where ``is not`` is picked.  0, never NULL: every group has at least one row, and
   ``sum(CASE … ELSE 0 END)`` over at least one row is a number.
 * The % of rows is ``round(100.0 * <count-if> / count(*), 1)``, half away
-  from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0)`` guards a
-  zero count even though a group cannot have one.
+  from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0.0)`` gives a
+  group with nothing counted (a sender with no heartbeats) ``0.0``, the same
+  text the second engine writes (T-77).
 * Latest / earliest compare the field's TEXT (``#>>``) under the database's
   C collation; only fixed-width ISO time and date fields are offered, whose
   text order is time order.
@@ -68,6 +69,20 @@ import builder  # noqa: E402
 import legality  # noqa: E402
 
 GROUP = "GROUP"
+PROFILE = "PROFILE"
+
+#: How a match compares (T-76): the jsonb type a counted row's match value
+#: must have.  Text, dates and times are JSON strings; numbers are numbers.
+#: With the type guard on one side, jsonb's own ``=`` does the rest: text
+#: exactly, numbers by value (2 = 2.0, exact past 2^53, 1e400 intact), never
+#: across types (1 is not "1") — and a JSON null, list or object, which the
+#: guard keeps out, never matches anything.
+MATCH_TYPES = ("string", "number")
+
+#: The match profile's columns (T-76): what the preview says and what the
+#: double-count check reads, in both engines.
+PROFILE_COLUMNS = ("parents", "parents_none", "least", "most",
+                   "counted", "counted_none", "counted_twice", "most_parents")
 
 #: At most this many count-if columns (T-73 AC2).
 MAX_COUNTS = 6
@@ -142,14 +157,27 @@ def check(spec: dict) -> None:
             raise ValueError(f"unknown related source {rel!r}")
         _path(rel.get("key"), "the related rows' key")
         _path(rel.get("parent_key"), "the parent's key")
+        if rel.get("match") not in MATCH_TYPES:
+            raise ValueError(f"unknown match type {rel.get('match')!r}")
+
+
+def _match_on(rel: dict, params: dict, counted: str, parent: str) -> str:
+    """The one way a counted row matches a parent, in both statements: the
+    type guard on the counted side, then jsonb ``=`` — never ``#>>`` text."""
+    params["rel_key"] = _path(rel["key"], "the related rows' key")
+    params["rel_parent_key"] = _path(rel["parent_key"], "the parent's key")
+    params["rel_match"] = rel["match"]
+    return (f"jsonb_typeof( {counted} #> %(rel_key)s ) = %(rel_match)s\n"
+            f"   AND ( {counted} #> %(rel_key)s ) = ( {parent} #> %(rel_parent_key)s )")
 
 
 def build(spec: dict) -> Built:
     """One scoreboard spec → one parameterised statement (shape E).
 
-    With ``related`` (T-74), the groups come from the PARENT rows (``r``)
-    and everything counted comes from their related rows (``c``), joined by
-    the declared keys with a LEFT JOIN — so a parent with no related rows
+    With ``related`` (T-74; any chosen match since T-76), the groups come
+    from the PARENT rows (``r``) and everything counted comes from their
+    related rows (``c``), joined by the match (:func:`_match_on` — the type
+    guard and jsonb ``=``) with a LEFT JOIN — so a parent with no related rows
     is still a group, with Rows = ``count(c.key)`` = 0 (never ``count(*)``,
     which would read 1 for it), every count-if 0 (a count-if also requires
     ``c.key IS NOT NULL``, so a condition that holds on a missing value —
@@ -175,7 +203,7 @@ def build(spec: dict) -> Built:
             # The count-if's own text again, with the same bind names: one
             # condition, one set of values, read twice.
             select.append(
-                f"coalesce( round( 100.0 * {hit} / nullif( {rows_sql}, 0 ), 1 ), 0 )"
+                f"coalesce( round( 100.0 * {hit} / nullif( {rows_sql}, 0 ), 1 ), 0.0 )"
                 f'  AS "c{i}_pct"')
 
     t = spec.get("time")
@@ -194,11 +222,9 @@ def build(spec: dict) -> Built:
     source = "  FROM demo.records AS r\n"
     if rel:
         params["rel_source"] = rel["source"]
-        params["rel_key"] = _path(rel["key"], "the related rows' key")
-        params["rel_parent_key"] = _path(rel["parent_key"], "the parent's key")
         source += ("  LEFT JOIN demo.records AS c\n"
                    "    ON c.collection = %(rel_source)s\n"
-                   "   AND ( c.data #>> %(rel_key)s ) = ( r.data #>> %(rel_parent_key)s )\n")
+                   f"   AND {_match_on(rel, params, 'c.data', 'r.data')}\n")
 
     where = " WHERE r.collection = %(collection)s"
     if spec.get("filter"):
@@ -229,3 +255,53 @@ def build(spec: dict) -> Built:
     # builder.build does for its own shapes.
     builder._bind_ctx_values(sql, params, builder._ctx_json(None))
     return Built(sql, params, GROUP, tuple(columns_of(spec)))
+
+
+def build_profile(spec: dict) -> Built:
+    """The match profile (T-76): one row saying what the chosen match does
+    over the KEPT parents (the page filter applies), before anything is
+    counted — read by the preview and by the double-count check.
+
+    * parents / parents_none — kept parents, and those matching no row;
+    * least / most — the fewest and most rows a parent matches, among the
+      parents that match any (NULL when none does);
+    * counted / counted_none — rows of the counted data set, and those
+      matching no kept parent (they are not counted);
+    * counted_twice / most_parents — rows matching MORE THAN ONE kept parent
+      (any is a refusal: a row is counted at most once), and the most parents
+      any one row matches.
+
+    Keys are unique per collection (demo.records' primary key), so counting
+    keys counts rows."""
+    check(spec)
+    rel = spec.get("related")
+    if not rel:
+        raise ValueError("a match profile needs a related data set")
+    params: dict = {"collection": spec["source"], "rel_source": rel["source"]}
+    on = _match_on(rel, params, "c.data", "p.data")
+    where = "WHERE r.collection = %(collection)s"
+    if spec.get("filter"):
+        frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data")
+        sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
+        builder.merge_params(params, prm)
+        where += f" AND xpr.truthy( {sql} )"
+    sql = (
+        "WITH p AS (SELECT r.key, r.data FROM demo.records AS r\n"
+        f"            {where}),\n"
+        "     c AS (SELECT c.key, c.data FROM demo.records AS c\n"
+        "            WHERE c.collection = %(rel_source)s),\n"
+        "     m AS (SELECT p.key AS pk, c.key AS ck FROM p JOIN c\n"
+        f"             ON {on}),\n"
+        "     per_p AS (SELECT p.key, count(m.ck) AS n FROM p LEFT JOIN m ON m.pk = p.key GROUP BY p.key),\n"
+        "     per_c AS (SELECT c.key, count(m.pk) AS n FROM c LEFT JOIN m ON m.ck = c.key GROUP BY c.key)\n"
+        'SELECT (SELECT count(*) FROM per_p)               AS "parents",\n'
+        '       (SELECT count(*) FROM per_p WHERE n = 0)   AS "parents_none",\n'
+        '       (SELECT min(n) FROM per_p WHERE n > 0)     AS "least",\n'
+        '       (SELECT max(n) FROM per_p WHERE n > 0)     AS "most",\n'
+        '       (SELECT count(*) FROM per_c)               AS "counted",\n'
+        '       (SELECT count(*) FROM per_c WHERE n = 0)   AS "counted_none",\n'
+        '       (SELECT count(*) FROM per_c WHERE n > 1)   AS "counted_twice",\n'
+        '       (SELECT max(n) FROM per_c WHERE n > 0)     AS "most_parents";'
+    )
+    builder._bind_ctx_values(sql, params, builder._ctx_json(None))
+    return Built(sql, params, PROFILE, PROFILE_COLUMNS)

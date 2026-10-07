@@ -23,7 +23,7 @@
 #   through the driver (B21 — no psql, no pg_isready on this machine).
 #   `down` tears that container and its volume back out (AC-6).
 #   W5: once the database is ready, `up` installs the schema and runtime.sql
-#   and seeds the 10,465 INVENTED rows if the table is empty, verifying
+#   and seeds the 10,470 INVENTED rows if the table is empty, verifying
 #   AC-10's digest against demo/manifest.json (demo/seed/load.py).
 #   The app itself is not yet wired in (lands with W13/W14) — `up` says so
 #   once the seed is verified. `build-ui` is still a pure stub (W14).
@@ -425,7 +425,7 @@ bootstrap_venv() {
 
 # ── W5: schema + runtime.sql + the invented seed (plan §5, B21, B24–B27) ──
 #   demo/seed/load.py installs demo.records and the xpr schema, writes the
-#   10,465 INVENTED rows through the driver's COPY … FROM STDIN if the table
+#   10,470 INVENTED rows through the driver's COPY … FROM STDIN if the table
 #   is empty, and verifies AC-10's digest against demo/manifest.json —
 #   failing loudly (and rolling everything back) rather than leaving a
 #   database whose rows are not the rows the manifest promises. Its console

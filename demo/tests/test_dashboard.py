@@ -156,12 +156,13 @@ class TestNothingLeavesThisHost:
 # ═════════════════════════════════════════════════════════════════════════
 
 class TestTheDataSets:
-    def test_four_data_sets_with_their_row_counts(self, setup):
+    def test_five_data_sets_with_their_row_counts(self, setup):
         got = [(d["id"], d["name"], d["rows"]) for d in setup["datasets"]]
         assert got == [("heartbeats", "Heartbeats", 8400),
                        ("samples", "Samples", 2000),
                        ("edge", "Edge cases", 10),
-                       ("senders", "Senders", 55)]     # T-74
+                       ("senders", "Senders", 55),    # T-74
+                       ("sites", "Sites", 5)]         # T-76
 
     def test_each_says_what_it_is_in_one_line(self, setup):
         for d in setup["datasets"]:
@@ -257,7 +258,8 @@ class TestTheAnswer:
         assert status == 422 and a["kind"] == "invalid"
         assert "nope" in a["message"]
         status, a = ask(client, {"dataset": "elsewhere"})
-        assert status == 422 and a["message"] == "Pick one of the three data sets."
+        # says what stays true however many data sets there are (S15 check, LOW)
+        assert status == 422 and a["message"] == "Pick one of the data sets."
 
 
 class TestFormatting:

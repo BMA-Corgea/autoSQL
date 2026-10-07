@@ -7,7 +7,7 @@
   "demo/vendor/icons.svg": "4c8ef8978924095ab365e88478d1075d9d0c8215a337f6b925b045c445e0d5cc",
   "demo/vendor/ui.jsx": "df7ac5925b437e0abc0a8adee39b2af8c988025905f8ec34321a252c3739a53c",
   "spikes/T-1/proto/compile.py": "b71b153802d0df9479141ac02b662ca94d86268a940f66f1fb7a9782c8d0f3e2",
-  "seed:demo.records:md5": "67a16b8b5615695a909554452084397f",
-  "ui:frontend-sources:sha256": "d1cf2be30bcdbb068dfa9b0954145702b2fa9490961e14d1a1325186bbb7f5aa",
+  "seed:demo.records:md5": "376496194db0a83b46963341710dba82",
+  "ui:frontend-sources:sha256": "82733a423498d0861860886205b89ff51286b24648f0f479299df8e798656b11",
   "demo/vendor/runtime.sql": "1624ae40e63124de8874242b5b13e027e6c3bf5d4b0c734e3aa25e9c268b3ede"
 }

@@ -9,7 +9,7 @@ This module owns the write path into the demo database (T-2-plan.md §5, W5):
      as one statement batch through the driver (B21 — this machine has no
      Postgres client binaries, and nothing in the demo tree shells out to
      one).
-  3. The 10,465 generated rows, via the driver's COPY … FROM STDIN (B21),
+  3. The 10,470 generated rows, via the driver's COPY … FROM STDIN (B21),
      inside one transaction — a failed run leaves nothing behind.
 
 Every row is invented (AC-11, B31 third place): fabricated by
@@ -71,20 +71,25 @@ EXPECTED_COUNTS = {
     "noun:Sample": 2000,
     "noun:EdgeCase": 10,
     "noun:Sender": 55,       # T-74
+    "noun:Site": 5,          # T-76
 }
 
 #: Collections added to the seed AFTER a database could already have been
 #: seeded without them — and so the only ones the loader will add to a
 #: non-empty database.  Every other collection missing from a non-empty
 #: database is damage, refused loudly as it always was (S10's check).
-ADDED_AFTER_FIRST_SEED = ("noun:Sender",)     # T-74
+ADDED_AFTER_FIRST_SEED = ("noun:Sender", "noun:Site")     # T-74, T-76
 
 
 def collections_to_add(have: dict) -> list:
     """Which collections a non-empty database may be given, from what it
-    holds (``{collection: rows}``).  Only a collection on
-    ADDED_AFTER_FIRST_SEED with no rows at all; any OTHER collection with no
-    rows is refused here, before anything is written."""
+    holds (``{collection: rows}``).  Only a missing TAIL of
+    ADDED_AFTER_FIRST_SEED — the collections added after the seed this
+    database was made by, each with no rows at all.  Everything else is
+    damage, refused here, before anything is written: an old collection with
+    no rows, and an added one missing while a LATER added one has rows (a
+    seed old enough to lack Senders could not hold Sites — S15 check,
+    MEDIUM)."""
     lost = [c for c in EXPECTED_COUNTS
             if have.get(c, 0) == 0 and c not in ADDED_AFTER_FIRST_SEED]
     if lost:
@@ -93,7 +98,17 @@ def collections_to_add(have: dict) -> list:
             "that collection was in the seed from the start, so its absence is damage, "
             "not an older seed; refusing to add it back (run ./run-demo down, then up)"
         )
-    return [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) == 0]
+    missing = [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) == 0]
+    tail = list(ADDED_AFTER_FIRST_SEED[len(ADDED_AFTER_FIRST_SEED) - len(missing):])
+    if missing != tail:
+        later = [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) > 0
+                 and ADDED_AFTER_FIRST_SEED.index(c) > ADDED_AFTER_FIRST_SEED.index(missing[0])]
+        raise SeedError(
+            f"demo.records holds rows of {', '.join(later)} but none of {missing[0]} — "
+            f"no seed ever had {later[0]} without {missing[0]}, so its absence is damage, "
+            "not an older seed; refusing to add it back (run ./run-demo down, then up)"
+        )
+    return missing
 
 _DEMO_DB_PORT = 55440  # the ONLY port anything in this tree may dial
 
@@ -190,8 +205,8 @@ def install_runtime_sql(conn) -> None:
 
 def copy_rows(conn, only=None) -> int:
     """COPY the generated rows in through the driver (B21), returning how
-    many were written.  ``only`` limits it to those collections (T-74: a
-    database seeded before Senders existed gets just the Senders)."""
+    many were written.  ``only`` limits it to those collections (T-74 / T-76:
+    a database seeded before Senders or Sites existed gets just those)."""
     written = 0
     with conn.cursor() as cur:
         with cur.copy("COPY demo.records (collection, key, data) FROM STDIN") as copy:
@@ -234,7 +249,8 @@ def run(conn, record_digest: bool = False) -> str:
         written = copy_rows(conn)
         print(f"demo/seed: wrote {written:,} invented rows into demo.records")
     else:
-        # T-74: a database seeded before Senders existed gets the Senders —
+        # T-74 / T-76: a database seeded before Senders or Sites existed
+        # gets them —
         # ONLY a collection named on ADDED_AFTER_FIRST_SEED with no rows at
         # all, never a top-up of a partial one, never an old collection.
         # Every other row is left exactly as it is, and the AC-10 digest

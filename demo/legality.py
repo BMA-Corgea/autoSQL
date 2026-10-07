@@ -52,7 +52,7 @@ from __future__ import annotations
 
 HEARTBEAT = "noun:Heartbeat"
 
-#: The four collections (Senders since T-74), and each one's top-level field vocabulary as a
+#: The five collections (Senders since T-74, Sites since T-76), and each one's top-level field vocabulary as a
 #: display string — what X1's reason states.  The seed is deterministic
 #: (plan §5), so these are constants of the build:
 #:   noun:Heartbeat  plan §5.2's four fields
@@ -74,6 +74,10 @@ SOURCES: dict[str, str] = {
     # to.  The two-pane screen still offers only the three above
     # (server/operations.py :: _SOURCE_OPTIONS, pinned by a test).
     "noun:Sender": "id, installed, kind, name, site",
+    # T-76: the sites the senders name, and one none names — the level
+    # above Senders a dashboard scoreboard can count across.  Not offered
+    # on the two-pane screen either.
+    "noun:Site": "capacity, name, opened",
 }
 
 #: Operation 6's functions — "a closed set of five" plus ``none``.

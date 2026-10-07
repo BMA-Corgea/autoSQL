@@ -46,7 +46,7 @@ _MANIFEST = _REPO_ROOT / "demo" / "manifest.json"
 
 
 # ---------------------------------------------------------------------------
-# AC-7 — the counts (four collections since T-74 S10 added Senders).
+# AC-7 — the counts (five collections: Senders since T-74 S10, Sites since T-76 S15).
 # ---------------------------------------------------------------------------
 
 def test_ac7_counts(db):
@@ -55,13 +55,14 @@ def test_ac7_counts(db):
         ("noun:Sample", 2000),
         ("noun:EdgeCase", 10),
         ("noun:Sender", 55),
+        ("noun:Site", 5),
     ]:
         n = db.execute(
             "SELECT count(*) FROM demo.records WHERE collection = %s", (collection,)
         ).fetchone()[0]
         assert n == expected, f"{collection}: count(*) = {n}, expected exactly {expected}"
     present = {r[0] for r in db.execute("SELECT DISTINCT collection FROM demo.records").fetchall()}
-    assert present == {"noun:Heartbeat", "noun:Sample", "noun:EdgeCase", "noun:Sender"}, present
+    assert present == {"noun:Heartbeat", "noun:Sample", "noun:EdgeCase", "noun:Sender", "noun:Site"}, present
 
 
 # ---------------------------------------------------------------------------
@@ -430,8 +431,8 @@ def test_t74_senders_are_deterministic_and_append_last():
     assert list(generate.sender_rows()) == list(generate.sender_rows())
     order = [(c.encode(), k.encode()) for c, k, _d in generate.rows()]
     assert order == sorted(order)          # (collection, key) byte order: C collation
-    assert [c for c, _k, _d in generate.rows()][-55:] == ["noun:Sender"] * 55
-    assert sum(1 for _ in generate.rows()) == 10465
+    assert [c for c, _k, _d in generate.rows()][-60:] == ["noun:Sender"] * 55 + ["noun:Site"] * 5
+    assert sum(1 for _ in generate.rows()) == 10470
 
 
 def test_t74_the_loader_seeds_only_a_collection_that_is_missing():
@@ -475,14 +476,16 @@ def test_t74_the_two_pane_screen_still_offers_three_sources():
 # after first seed; an old collection gone missing is still refused.
 # ═════════════════════════════════════════════════════════════════════════
 
-_FULL = {"noun:Heartbeat": 8400, "noun:Sample": 2000, "noun:EdgeCase": 10, "noun:Sender": 55}
+_FULL = {"noun:Heartbeat": 8400, "noun:Sample": 2000, "noun:EdgeCase": 10, "noun:Sender": 55, "noun:Site": 5}
 
 
 def test_t74_collections_to_add():
     from demo.seed import load
 
-    assert load.ADDED_AFTER_FIRST_SEED == ("noun:Sender",)
-    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0})) == ["noun:Sender"]
+    assert load.ADDED_AFTER_FIRST_SEED == ("noun:Sender", "noun:Site")
+    # a database seeded before T-74 had neither Senders nor Sites (T-76)
+    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0, "noun:Site": 0})) == [
+        "noun:Sender", "noun:Site"]
     assert load.collections_to_add(_FULL) == []
     for lost in ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase"):
         with pytest.raises(load.SeedError, match="absence is damage"):
@@ -525,14 +528,115 @@ def _fake_run(monkeypatch, before: dict):
 
 
 def test_t74_an_older_database_gets_its_senders_and_is_held_to_the_digest(monkeypatch):
-    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0, "noun:Site": 0}))
     digest = load.run(conn)
-    assert wrote == [{"noun:Sender"}]
+    assert wrote == [{"noun:Sender", "noun:Site"}]
     assert digest == json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())[load.MANIFEST_DIGEST_KEY]
 
 
 def test_t74_a_database_missing_an_old_collection_is_refused(monkeypatch):
     load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Heartbeat": 0}))
     with pytest.raises(load.SeedError, match="noun:Heartbeat"):
+        load.run(conn)
+    assert wrote == []          # refused before anything was written
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# T-76 S15 — Sites added; the four old collections byte-identical
+# ═════════════════════════════════════════════════════════════════════════
+
+#: The generator's digest over the four collections as they stood BEFORE
+#: Sites were added, measured on the pre-T-76 generator (commit cb5c59b)
+#: and written here as a literal — a second pin beside generate.py's own.
+_PRE_T76_CORPUS_SHA256 = "5e54012ee203fe132499f096ddb396908a915d70b14ac185b8bca9fa763cbe4d"
+#: AC-10's md5 of demo.records as seeded before T-76 (the manifest's value
+#: from T-74 S10 until T-76 re-pinned it).  Restricted to the four old
+#: collections, the database must still give exactly this.
+_PRE_T76_RECORDS_MD5 = "67a16b8b5615695a909554452084397f"
+
+
+def test_t76_old_collections_are_byte_identical_in_the_generator():
+    assert generate.PRE_SITES_CORPUS_SHA256 == _PRE_T76_CORPUS_SHA256
+    assert generate.corpus_sha256(generate.PRE_SITES_COLLECTIONS) == _PRE_T76_CORPUS_SHA256
+    # and T-74's pin over the three before it still holds
+    assert generate.corpus_sha256(generate.OLD_COLLECTIONS) == _PRE_T74_CORPUS_SHA256
+
+
+def test_t76_old_collections_are_byte_identical_in_the_database():
+    """The live database's old rows, digested exactly as AC-10 digests the
+    table, restricted to the four collections it held before Sites."""
+    from demo.seed.load import demo_connection
+
+    with demo_connection() as conn:
+        conn.execute("SET TRANSACTION READ ONLY")
+        got = conn.execute(
+            r"SELECT md5(string_agg(collection || E'\x1f' || key || E'\x1f' || data::text, "
+            r"E'\n' ORDER BY collection, key)) FROM demo.records "
+            "WHERE collection = ANY(%(c)s)", {"c": list(generate.PRE_SITES_COLLECTIONS)}
+        ).fetchone()[0]
+    assert got == _PRE_T76_RECORDS_MD5
+
+
+def test_t76_sites_are_five_and_quarry_is_named_by_no_sender():
+    rows = [json.loads(d) for _c, _k, d in generate.site_rows()]
+    keys = [k for _c, k, _d in generate.site_rows()]
+    assert keys == [f"site-{i:02d}" for i in range(1, 6)]
+    assert [r["name"] for r in rows] == ["North", "South", "East", "West", "Quarry"]
+    for r in rows:
+        assert set(r) == {"name", "opened", "capacity"}
+        assert "2018-01-01" <= r["opened"] <= "2024-12-31"
+        assert isinstance(r["capacity"], int) and 10 <= r["capacity"] <= 30
+    named = {json.loads(d)["site"] for _c, _k, d in generate.sender_rows()}
+    assert named == {"North", "South", "East", "West"}       # every sender's site is a site …
+    assert {r["name"] for r in rows} - named == {"Quarry"}   # … and Quarry has none
+
+
+def test_t76_sites_are_deterministic_and_append_last():
+    assert list(generate.site_rows()) == list(generate.site_rows())
+    order = [(c.encode(), k.encode()) for c, k, _d in generate.rows()]
+    assert order == sorted(order)          # (collection, key) byte order: C collation
+    assert [c for c, _k, _d in generate.rows()][-5:] == ["noun:Site"] * 5
+
+
+def test_t76_the_loader_tops_up_sites_only():
+    """A database seeded at T-74 (Senders, no Sites) gets the Sites and
+    nothing else; one seeded before T-74 gets both; an old collection lost
+    is still damage."""
+    from demo.seed import load
+
+    assert load.EXPECTED_COUNTS["noun:Site"] == 5
+    assert load.collections_to_add(dict(_FULL, **{"noun:Site": 0})) == ["noun:Site"]
+    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0, "noun:Site": 0})) == [
+        "noun:Sender", "noun:Site"]
+    with pytest.raises(load.SeedError, match="absence is damage"):
+        load.collections_to_add(dict(_FULL, **{"noun:Sample": 0, "noun:Site": 0}))
+
+
+def test_t76_a_t74_database_gets_its_sites_and_is_held_to_the_digest(monkeypatch):
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Site": 0}))
+    digest = load.run(conn)
+    assert wrote == [{"noun:Site"}]
+    assert digest == json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())[load.MANIFEST_DIGEST_KEY]
+
+
+def test_t76_the_two_pane_screen_still_offers_three_sources():
+    from demo import legality
+    from demo.server import operations
+
+    assert [o["value"] for o in operations._SOURCE_OPTIONS] == [
+        "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
+    assert "noun:Site" in legality.SOURCES
+
+
+def test_t76_senders_missing_while_sites_has_rows_is_damage(monkeypatch):
+    """S15 check, MEDIUM: only a missing TAIL of the added collections is an
+    older seed.  Senders gone while Sites has rows is damage — refused, by
+    name, before anything is written."""
+    from demo.seed import load
+
+    with pytest.raises(load.SeedError, match="holds rows of noun:Site but none of noun:Sender"):
+        load.collections_to_add(dict(_FULL, **{"noun:Sender": 0}))
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    with pytest.raises(load.SeedError, match="noun:Sender"):
         load.run(conn)
     assert wrote == []          # refused before anything was written
