@@ -209,7 +209,9 @@ class TestPerSiteAndParentConditions:
 class TestWhatAJoinCannotHonour:
     @pytest.mark.parametrize("patch, says", [
         ({"count_from": "samples"}, "Senders has no related data set to count from by that name."),
-        ({"count_from": ["heartbeats"]}, "Senders has no related data set to count from by that name."),
+        # T-76: a list is neither the declared relation's name nor a chosen
+        # match, so the gate's shape refusal names what count_from must be.
+        ({"count_from": ["heartbeats"]}, "Count from must name a data set and the two fields that match."),
         ({"time": {"fn": "latest", "field": "installed"}}, "Latest and earliest read a time or a date field."),
     ])
     def test_refused_by_name(self, client, setup, patch, says):
