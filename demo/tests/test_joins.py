@@ -97,7 +97,7 @@ SELECT s.data ->> 'id'                                                       AS 
        COUNT(h.key)                                                          AS beats,
        SUM(CASE WHEN h.data ->> 'status' = 'ok' THEN 1 ELSE 0 END)           AS ok,
        COALESCE(ROUND(100.0 * SUM(CASE WHEN h.data ->> 'status' = 'ok' THEN 1 ELSE 0 END)
-                      / NULLIF(COUNT(h.key), 0), 1), 0)                       AS pct_ok,
+                      / NULLIF(COUNT(h.key), 0), 1), 0.0)                     AS pct_ok,
        SUM(CASE WHEN h.data ->> 'status' IN ('warn', 'error') THEN 1 ELSE 0 END) AS trouble,
        MAX(h.data ->> 'ts')                                                  AS latest
   FROM demo.records s
@@ -125,6 +125,15 @@ class TestEverySenderCountingTheirHeartbeats:
         for row, (sender, beats, ok, pct, trouble, latest) in zip(got, want):
             assert row == [sender, str(beats), str(ok), str(pct), str(trouble),
                            "null" if latest is None else latest], sender
+
+    def test_an_empty_groups_percent_is_the_same_text_in_both_engines(self, setup, conn):
+        """T-77 item 7: a sender with no heartbeats read "0" in the statement
+        and "0.0" in the second engine; both now write 0.0, as every other
+        group's one-place % does."""
+        result = scoreboard.run_group(conn, _spec(setup, senders_board(**_BOARD)))
+        for pane in ("sql", "python"):
+            pct = {r["c"][0]: r["c"][3] for r in result["panes"][pane]["rows"] if r["c"][0] in _SILENT}
+            assert pct == {s: "0.0" for s in _SILENT}, pane
 
     def test_against_the_generator(self, client, setup):
         per = defaultdict(lambda: [0, 0, 0])
@@ -217,6 +226,26 @@ class TestWhatAJoinCannotHonour:
         status, a = ask(client, v)
         assert status == 422 and a["message"] == (
             f"“{name.strip()}” is already a column on this board; call this count something else.")
+
+    @pytest.mark.parametrize("name, extra", [
+        ("Latest Time", {"time": {"fn": "latest", "field": "ts"}}),
+        ("earliest time", {"time": {"fn": "earliest", "field": "ts"}}),
+        ("% OK", {}),
+        ("Total Load", {"measure": {"fn": "sum", "field": "payload.load"}}),
+    ])
+    def test_a_count_cannot_take_a_derived_headers_name(self, client, setup, name, extra):
+        """T-77 item 5: nor a header the board derives — a count's "% …",
+        "Latest …" / "Earliest …", a total's — one name, one column."""
+        v = senders_board(counts=[count("OK", cond("status", "eq", value="ok"), pct=True),
+                                  count(name, cond("status", "eq", value="warn"))], **extra)
+        status, a = ask(client, v)
+        assert status == 422 and a["message"] == (
+            f"“{name}” is already a column on this board; call this count something else.")
+
+    def test_a_derived_header_name_is_fine_when_that_column_is_not_there(self, client, setup):
+        v = senders_board(counts=[count("Latest Time", cond("status", "eq", value="ok"))])
+        status, a = ask(client, v)
+        assert status == 200 and [c["label"] for c in a["columns"]][2] == "Latest Time"
 
     def test_only_declared_relations(self, client, setup):
         v = senders_board(**_BOARD)

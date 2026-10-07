@@ -78,6 +78,13 @@ export function ColumnsStep({ fields, value, onChange, why }) {
   );
 }
 
+// The fields a viewer may pick, in every step: Everyone never sees a field
+// the data set hides from it (Edge cases' Label, whose values are engineer
+// text); Admin sees every field (T-77).
+export function offered(fields, admin) {
+  return admin ? fields : fields.filter((f) => !f.hidden_by_default);
+}
+
 // ── 3 · Only rows where ─────────────────────────────────────────────────
 
 const NO_VALUE = new Set(["present", "blank", "yes", "no"]);

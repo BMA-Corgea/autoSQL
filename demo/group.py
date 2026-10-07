@@ -43,8 +43,9 @@ THE RULES IT WRITES DOWN
   agree, and the screen says so where ``is not`` is picked.  0, never NULL: every group has at least one row, and
   ``sum(CASE … ELSE 0 END)`` over at least one row is a number.
 * The % of rows is ``round(100.0 * <count-if> / count(*), 1)``, half away
-  from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0)`` guards a
-  zero count even though a group cannot have one.
+  from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0.0)`` gives a
+  group with nothing counted (a sender with no heartbeats) ``0.0``, the same
+  text the second engine writes (T-77).
 * Latest / earliest compare the field's TEXT (``#>>``) under the database's
   C collation; only fixed-width ISO time and date fields are offered, whose
   text order is time order.
@@ -175,7 +176,7 @@ def build(spec: dict) -> Built:
             # The count-if's own text again, with the same bind names: one
             # condition, one set of values, read twice.
             select.append(
-                f"coalesce( round( 100.0 * {hit} / nullif( {rows_sql}, 0 ), 1 ), 0 )"
+                f"coalesce( round( 100.0 * {hit} / nullif( {rows_sql}, 0 ), 1 ), 0.0 )"
                 f'  AS "c{i}_pct"')
 
     t = spec.get("time")

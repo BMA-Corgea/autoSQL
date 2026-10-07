@@ -403,3 +403,10 @@ body.dx-body * { box-sizing: border-box; }
   .dx-viewas-label { display: none; }
   .dx-sql { max-height: 40vh; }
 }
+
+/* Narrower than the phones the run targets (320): the bar wraps whole, on as
+   many lines as it needs, rather than clip its third (T-77). 390 and 360 keep
+   the two-line limit above. */
+@media (max-width: 359px) {
+  .dx-fold-text { display: block; -webkit-line-clamp: unset; line-clamp: none; }
+}

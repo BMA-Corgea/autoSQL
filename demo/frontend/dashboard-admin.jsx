@@ -78,7 +78,8 @@ async function copyText(text) {
 
 function Checked({ admin, kind }) {
   if (admin.verdict === "agree") {
-    const what = kind === "table"
+    // A table and a scoreboard both say how many rows were checked (T-77).
+    const what = kind === "table" || kind === "scoreboard"
       ? `the same ${admin.compared_rows.toLocaleString("en-US")} ${admin.compared_rows === 1 ? "row" : "rows"}`
       : "the same answer";
     return (

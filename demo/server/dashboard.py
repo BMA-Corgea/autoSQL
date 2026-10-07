@@ -1752,11 +1752,6 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         # case-folded, they are refused as duplicates.
         if label.casefold() in [x["label"].casefold() for x in labels]:
             raise ViewError(f"Two count columns are both called “{label}”.")
-        # Nor one of the board's own two columns: "Heartbeats" beside
-        # "Heartbeats" reads as one column twice (M3 review, LOW-2).
-        fixed = (fields[by]["label"], rel_ds["name"] if rel_ds is not None else "Rows")
-        if label.casefold() in [x.casefold() for x in fixed]:
-            raise ViewError(f"“{label}” is already a column on this board; call this count something else.")
         if not isinstance(c.get("pct", False), bool):
             raise ViewError("“% of rows” is on or off.")
         cid = c.get("id", i)
@@ -1793,6 +1788,20 @@ def to_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
         if not f or f["kind"] != "number":
             raise ViewError(f"{SUMMARY_FNS[measure['fn']]} of what? Pick a field that holds numbers.")
         measure_spec = {"fn": measure["fn"], "field": f["path"]}
+
+    # Nor the name of any other column on the board — its own two ("Heartbeats"
+    # beside "Heartbeats", M3 review LOW-2), a count's "% …", "Latest …" or a
+    # total's header (T-77): one name, one column.
+    headers = [fields[by]["label"], rel_ds["name"] if rel_ds is not None else "Rows"]
+    headers += [f"% {x['label']}" for x in labels if x["pct"]]
+    if time_spec:
+        headers.append(f"{TIME_WORDS[time['fn']][1]} {counted_fields[time_spec['field']]['label']}")
+    if measure_spec:
+        headers.append(f"{SUMMARY_FNS[measure_spec['fn']]} {counted_fields[measure_spec['field']]['label']}")
+    taken = {h.casefold() for h in headers}
+    for x in labels:
+        if x["label"].casefold() in taken:
+            raise ViewError(f"“{x['label']}” is already a column on this board; call this count something else.")
 
     spec = {
         "source": next(d["source"] for d in DATASETS if d["id"] == ds["id"]),

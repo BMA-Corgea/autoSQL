@@ -8,7 +8,7 @@
 // both engines compute the answer; this file draws the choices.
 
 import React from "react";
-import { ConditionList, Segmented, Step, isComplete, logicReady } from "./dashboard-steps.jsx";
+import { ConditionList, Segmented, Step, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
 
 let nextKey = 1;
 
@@ -81,12 +81,16 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
   const notGroupable = fields.filter((f) => !f.group.ok);
   const sb = value;
   // What the counts read: the parent's own rows, or its related rows.
-  const counted = countedFields(setup, ds, sb);
+  const counted = offered(countedFields(setup, ds, sb), admin);
   const rel = sb && sb.count_from ? (ds.count_from || []).find((r) => r.id === sb.count_from) : null;
   const times = counted.filter((f) => f.kind === "time" || f.kind === "date");
   const numbers = counted.filter((f) => f.kind === "number");
   const set = (patch) => onChange({ scoreboard: { ...sb, ...patch } });
   const counts = sb ? sb.counts : [];
+  // The off-state hint's example is this data set's own: its first two
+  // fields to group by, leaving out one with a value per row (Senders' own
+  // Sender and Name), so it never names a field the data set lacks (T-77).
+  const example = groupable.filter((f) => f.group.groups < ds.rows).slice(0, 2);
   return (
     <Step n={6} title="One row per…">
       <div className="dx-row">
@@ -96,7 +100,7 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
             ? { scoreboard: { ...(sb || { counts: [], time: null, measure: null, sort: null }), by: e.target.value, sort: null } }
             : { scoreboard: null })}>
           <option value="">Off — no scoreboard</option>
-          {fields.filter((f) => admin || !f.hidden_by_default || (sb && sb.by === f.path)).map((f) => (
+          {fields.map((f) => (
             <option key={f.path} value={f.path} disabled={!f.group.ok}>
               {f.group.ok ? f.label : `${f.label} (can't)`}
             </option>
@@ -104,7 +108,10 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
         </select>
       </div>
       {sb ? null : (
-        <p className="dx-step-hint">A scoreboard gives one row per value — per Sender, per Status — with counts beside it.</p>
+        <p className="dx-step-hint" data-testid="board-hint">
+          A scoreboard gives one row per value{example.length ? ` — ${example.map((f) => `per ${f.label}`).join(", ")} —` : ""} with
+          counts beside it.
+        </p>
       )}
       {sb ? (
         <>
