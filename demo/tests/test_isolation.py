@@ -143,7 +143,7 @@ class TestPoisonedEnvironment:
             ).fetchone()
             assert (got_db, got_user) == ("autosql_demo", "autosql_demo")
             total = conn.execute("SELECT count(*) FROM demo.records").fetchone()[0]
-            assert total == 10465
+            assert total == 10470
         finally:
             conn.close()
 

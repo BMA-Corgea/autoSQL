@@ -36,7 +36,7 @@ https://github.com/BMA-Corgea/gims-oss
   **generated**: edit `runtime.sql.in`, then run `python3 runtime/generate.py`. Three of its tables
   come from the running Python's `unicodedata` — freeze them as literals and a Python upgrade splits
   the two engines with nobody touching a line of code.
-- **`demo/`** — a self-contained screen for driving the idea by hand: its own Postgres, 10,465
+- **`demo/`** — a self-contained screen for driving the idea by hand: its own Postgres, 10,470
   invented rows, a server, and two answer panes side by side. Its test suite lives here too.
 - **`spikes/`** — one folder per spike: a `FRAMING.md` (the bar, fixed in writing before any
   evidence was collected), a `FINDINGS.md`, and whatever recon, analysis and prototype code that

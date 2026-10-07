@@ -520,7 +520,7 @@ class TestFieldNamesAreBound:
         # And the rows are all still there.
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10465
+        ).fetchone()[0] == 10470
 
     @pytest.mark.parametrize("field", [
         '$["a\";b"]',   # the bracket spelling builder._field_path misreads
@@ -559,7 +559,7 @@ class TestFieldNamesAreBound:
         # And nothing was dropped: the demo's rows are all still there.
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10465
+        ).fetchone()[0] == 10470
 
     def test_the_alias_is_the_one_piece_of_typed_text_that_is_not_bound(
         self, conn
@@ -576,7 +576,7 @@ class TestFieldNamesAreBound:
         assert body["sql"]["parameterised"] is None
         assert conn.execute(
             "SELECT count(*) FROM demo.records"
-        ).fetchone()[0] == 10465
+        ).fetchone()[0] == 10470
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -1440,7 +1440,7 @@ class TestTheSeededDatabaseBoxIsTheDatabase:
         cols = body["database"]["collections"]
         assert [c["name"] for c in cols if c["offered"]] == [
             "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
-        assert [c["name"] for c in cols if not c["offered"]] == ["noun:Sender"]
+        assert [c["name"] for c in cols if not c["offered"]] == ["noun:Sender", "noun:Site"]
         op1 = next(o for o in body["operations"] if o["n"] == 1)
         labelled = {o["value"]: int(o["label"].split("·")[1].split()[0].replace(",", ""))
                     for o in op1["controls"][0]["options"]}

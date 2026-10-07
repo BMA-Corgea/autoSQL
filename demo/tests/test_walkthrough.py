@@ -494,11 +494,11 @@ def test_the_two_spellings_of_each_pick_describe_the_same_step(answers):
 
 
 def test_step_1_the_two_ports_and_the_seeded_total(answers, wconn):
-    """§10 step 1 — the demo's own ports, and 10,465 rows once seeded."""
+    """§10 step 1 — the demo's own ports, and 10,470 rows once seeded."""
     assert settings.DB_PORT == _value(answers, 1, "db_port") == 55440
     assert settings.APP_PORT == _value(answers, 1, "app_port") == 8787
     total = wconn.execute("SELECT count(*) FROM demo.records").fetchone()[0]
-    assert total == _value(answers, 1, "rows_loaded") == 10465
+    assert total == _value(answers, 1, "rows_loaded") == 10470
     per = dict(wconn.execute(
         "SELECT collection, count(*) FROM demo.records GROUP BY collection"
     ).fetchall())
@@ -506,7 +506,8 @@ def test_step_1_the_two_ports_and_the_seeded_total(answers, wconn):
     assert per["noun:Sample"] == answers["corpus"]["sample_rows"]["value"] == 2000
     assert per[EDGECASE] == answers["corpus"]["edge_case_rows"]["value"] == 10
     assert per["noun:Sender"] == answers["corpus"]["sender_rows"]["value"] == 55
-    assert set(per) == {HEARTBEAT, "noun:Sample", EDGECASE, "noun:Sender"}
+    assert per["noun:Site"] == answers["corpus"]["site_rows"]["value"] == 5
+    assert set(per) == {HEARTBEAT, "noun:Sample", EDGECASE, "noun:Sender", "noun:Site"}
 
 
 def test_step_2_the_whole_collection_in_key_order(ran, answers, wconn):
@@ -965,7 +966,7 @@ def test_step_14_the_hostile_column_name_never_reaches_sql(ran, answers, client,
         assert body["panes"][pane]["rows"] == []
 
     # AC-38(b), second half: the table survives, counted rather than assumed.
-    assert wconn.execute("SELECT count(*) FROM demo.records").fetchone()[0] == 10465
+    assert wconn.execute("SELECT count(*) FROM demo.records").fetchone()[0] == 10470
     _, again = _post(client, STEP_PICKS[2])
     survives = _value(answers, 14, "table_survives")
     assert again["panes"]["sql"]["row_count"] == survives == 8400
@@ -1070,6 +1071,7 @@ def observed(ran, wconn, client):
     o["corpus.sample_rows"] = per["noun:Sample"]
     o["corpus.edge_case_rows"] = per[EDGECASE]
     o["corpus.sender_rows"] = per["noun:Sender"]
+    o["corpus.site_rows"] = per["noun:Site"]
 
     o["steps[0].expect.db_port"] = settings.DB_PORT
     o["steps[0].expect.app_port"] = settings.APP_PORT
@@ -1238,8 +1240,9 @@ def test_ac31_the_sweep_covers_every_entry_in_the_file(answers, observed):
         "the sweep names entries the file does not have: " + ", ".join(sorted(stray))
     )
     # 60 since T-74 S10: the seed's re-pin added corpus.sender_rows (the 55
-    # Senders) to expected-answers.json; it was 59 before.
-    assert len(every) == 60, f"the file grew or shrank: {len(every)} entries"
+    # Senders) to expected-answers.json; it was 59 before.  61 since T-76
+    # S15 added corpus.site_rows (the 5 Sites).
+    assert len(every) == 61, f"the file grew or shrank: {len(every)} entries"
 
 
 def test_ac31_all_three_producers_agree(answers, observed):

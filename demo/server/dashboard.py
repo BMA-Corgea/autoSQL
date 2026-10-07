@@ -123,15 +123,28 @@ DATASETS = (
         # Here a sender's id IS the sender: called that, not "ID".
         "labels": {"id": "Sender"},
     },
+    {
+        "id": "sites",
+        "source": "noun:Site",
+        "name": "Sites",
+        "one": "site",
+        "about": "A profile per site: its name, the day it opened and how many senders it was built for.",
+        "order": ("name", "opened", "capacity"),
+        "default_columns": ("name", "opened", "capacity"),
+    },
 )
 _BY_ID = {d["id"]: d for d in DATASETS}
 
 #: The relationships a scoreboard may count across — declared here, once,
 #: never guessed from field names (T-74).  A Senders scoreboard can count
-#: each sender's Heartbeats: Heartbeats.sender_id → Senders.id.
+#: each sender's Heartbeats: Heartbeats.sender_id → Senders.id; a Sites
+#: scoreboard each site's Senders: Senders.site → Sites.name (T-76).
 RELATIONS = {
     "senders": [
         {"to": "heartbeats", "key": "sender_id", "parent_key": "id"},
+    ],
+    "sites": [
+        {"to": "senders", "key": "site", "parent_key": "name"},
     ],
 }
 

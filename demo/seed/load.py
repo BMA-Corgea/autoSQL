@@ -9,7 +9,7 @@ This module owns the write path into the demo database (T-2-plan.md §5, W5):
      as one statement batch through the driver (B21 — this machine has no
      Postgres client binaries, and nothing in the demo tree shells out to
      one).
-  3. The 10,465 generated rows, via the driver's COPY … FROM STDIN (B21),
+  3. The 10,470 generated rows, via the driver's COPY … FROM STDIN (B21),
      inside one transaction — a failed run leaves nothing behind.
 
 Every row is invented (AC-11, B31 third place): fabricated by
@@ -71,13 +71,14 @@ EXPECTED_COUNTS = {
     "noun:Sample": 2000,
     "noun:EdgeCase": 10,
     "noun:Sender": 55,       # T-74
+    "noun:Site": 5,          # T-76
 }
 
 #: Collections added to the seed AFTER a database could already have been
 #: seeded without them — and so the only ones the loader will add to a
 #: non-empty database.  Every other collection missing from a non-empty
 #: database is damage, refused loudly as it always was (S10's check).
-ADDED_AFTER_FIRST_SEED = ("noun:Sender",)     # T-74
+ADDED_AFTER_FIRST_SEED = ("noun:Sender", "noun:Site")     # T-74, T-76
 
 
 def collections_to_add(have: dict) -> list:
@@ -190,8 +191,8 @@ def install_runtime_sql(conn) -> None:
 
 def copy_rows(conn, only=None) -> int:
     """COPY the generated rows in through the driver (B21), returning how
-    many were written.  ``only`` limits it to those collections (T-74: a
-    database seeded before Senders existed gets just the Senders)."""
+    many were written.  ``only`` limits it to those collections (T-74 / T-76:
+    a database seeded before Senders or Sites existed gets just those)."""
     written = 0
     with conn.cursor() as cur:
         with cur.copy("COPY demo.records (collection, key, data) FROM STDIN") as copy:
@@ -234,7 +235,8 @@ def run(conn, record_digest: bool = False) -> str:
         written = copy_rows(conn)
         print(f"demo/seed: wrote {written:,} invented rows into demo.records")
     else:
-        # T-74: a database seeded before Senders existed gets the Senders —
+        # T-74 / T-76: a database seeded before Senders or Sites existed
+        # gets them —
         # ONLY a collection named on ADDED_AFTER_FIRST_SEED with no rows at
         # all, never a top-up of a partial one, never an old collection.
         # Every other row is left exactly as it is, and the AC-10 digest
