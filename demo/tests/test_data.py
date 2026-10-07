@@ -483,7 +483,9 @@ def test_t74_collections_to_add():
     from demo.seed import load
 
     assert load.ADDED_AFTER_FIRST_SEED == ("noun:Sender", "noun:Site")
-    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0})) == ["noun:Sender"]
+    # a database seeded before T-74 had neither Senders nor Sites (T-76)
+    assert load.collections_to_add(dict(_FULL, **{"noun:Sender": 0, "noun:Site": 0})) == [
+        "noun:Sender", "noun:Site"]
     assert load.collections_to_add(_FULL) == []
     for lost in ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase"):
         with pytest.raises(load.SeedError, match="absence is damage"):
@@ -526,9 +528,9 @@ def _fake_run(monkeypatch, before: dict):
 
 
 def test_t74_an_older_database_gets_its_senders_and_is_held_to_the_digest(monkeypatch):
-    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0, "noun:Site": 0}))
     digest = load.run(conn)
-    assert wrote == [{"noun:Sender"}]
+    assert wrote == [{"noun:Sender", "noun:Site"}]
     assert digest == json.loads((_REPO_ROOT / "demo" / "manifest.json").read_text())[load.MANIFEST_DIGEST_KEY]
 
 
@@ -624,3 +626,17 @@ def test_t76_the_two_pane_screen_still_offers_three_sources():
     assert [o["value"] for o in operations._SOURCE_OPTIONS] == [
         "noun:Heartbeat", "noun:Sample", "noun:EdgeCase"]
     assert "noun:Site" in legality.SOURCES
+
+
+def test_t76_senders_missing_while_sites_has_rows_is_damage(monkeypatch):
+    """S15 check, MEDIUM: only a missing TAIL of the added collections is an
+    older seed.  Senders gone while Sites has rows is damage — refused, by
+    name, before anything is written."""
+    from demo.seed import load
+
+    with pytest.raises(load.SeedError, match="holds rows of noun:Site but none of noun:Sender"):
+        load.collections_to_add(dict(_FULL, **{"noun:Sender": 0}))
+    load, conn, wrote = _fake_run(monkeypatch, dict(_FULL, **{"noun:Sender": 0}))
+    with pytest.raises(load.SeedError, match="noun:Sender"):
+        load.run(conn)
+    assert wrote == []          # refused before anything was written

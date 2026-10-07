@@ -258,7 +258,8 @@ class TestTheAnswer:
         assert status == 422 and a["kind"] == "invalid"
         assert "nope" in a["message"]
         status, a = ask(client, {"dataset": "elsewhere"})
-        assert status == 422 and a["message"] == "Pick one of the three data sets."
+        # says what stays true however many data sets there are (S15 check, LOW)
+        assert status == 422 and a["message"] == "Pick one of the data sets."
 
 
 class TestFormatting:

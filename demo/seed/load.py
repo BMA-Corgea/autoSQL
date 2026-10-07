@@ -83,9 +83,13 @@ ADDED_AFTER_FIRST_SEED = ("noun:Sender", "noun:Site")     # T-74, T-76
 
 def collections_to_add(have: dict) -> list:
     """Which collections a non-empty database may be given, from what it
-    holds (``{collection: rows}``).  Only a collection on
-    ADDED_AFTER_FIRST_SEED with no rows at all; any OTHER collection with no
-    rows is refused here, before anything is written."""
+    holds (``{collection: rows}``).  Only a missing TAIL of
+    ADDED_AFTER_FIRST_SEED — the collections added after the seed this
+    database was made by, each with no rows at all.  Everything else is
+    damage, refused here, before anything is written: an old collection with
+    no rows, and an added one missing while a LATER added one has rows (a
+    seed old enough to lack Senders could not hold Sites — S15 check,
+    MEDIUM)."""
     lost = [c for c in EXPECTED_COUNTS
             if have.get(c, 0) == 0 and c not in ADDED_AFTER_FIRST_SEED]
     if lost:
@@ -94,7 +98,17 @@ def collections_to_add(have: dict) -> list:
             "that collection was in the seed from the start, so its absence is damage, "
             "not an older seed; refusing to add it back (run ./run-demo down, then up)"
         )
-    return [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) == 0]
+    missing = [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) == 0]
+    tail = list(ADDED_AFTER_FIRST_SEED[len(ADDED_AFTER_FIRST_SEED) - len(missing):])
+    if missing != tail:
+        later = [c for c in ADDED_AFTER_FIRST_SEED if have.get(c, 0) > 0
+                 and ADDED_AFTER_FIRST_SEED.index(c) > ADDED_AFTER_FIRST_SEED.index(missing[0])]
+        raise SeedError(
+            f"demo.records holds rows of {', '.join(later)} but none of {missing[0]} — "
+            f"no seed ever had {later[0]} without {missing[0]}, so its absence is damage, "
+            "not an older seed; refusing to add it back (run ./run-demo down, then up)"
+        )
+    return missing
 
 _DEMO_DB_PORT = 55440  # the ONLY port anything in this tree may dial
 

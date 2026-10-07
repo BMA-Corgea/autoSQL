@@ -5,7 +5,7 @@ which a person asks for different parts of a database, and the SQL writes
 itself from the picks (README: "The dashboard: SQL analysis, kept out of
 sight").  A person clicks; nothing is typed in any language.  This module is everything between those clicks and the engine:
 
-* **the setup** — the three data sets, their row counts, and each field's
+* **the setup** — the data sets, their row counts, and each field's
   plain name, its kind, the conditions it can take and the values found in
   the data (``GET /api/dashboard/setup``);
 * **the translation** — a *view* (the clicks) becomes one *pick* (the
@@ -527,7 +527,7 @@ def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
     ds_id = view.get("dataset")
     ds = next((d for d in setup_payload["datasets"] if d["id"] == ds_id), None)
     if ds is None:
-        raise ViewError("Pick one of the three data sets.")
+        raise ViewError("Pick one of the data sets.")
     fields = {f["path"]: f for f in ds["fields"]}
     return ds, fields
 
