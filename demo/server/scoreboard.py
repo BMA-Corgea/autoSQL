@@ -65,18 +65,20 @@ def _profile(conn, spec: dict) -> dict:
     columns = list(group.PROFILE_COLUMNS)
     kinds_by_column = dict(zip(sql["columns"], sql["kinds"]))
     kinds = [kinds_by_column.get(c, "json") for c in columns]
-    row = pygroup.python_profile(conn, spec)
+    out = {"profile": dict(sql["rows"][0]) if sql["rows"] else None, "built": built,
+           "display": server_app.render_display_sql(built), "python_error": None}
+    try:
+        row = pygroup.python_profile(conn, spec)
+    except Exception as exc:  # noqa: BLE001 — any failure is "not double-checked"
+        # The second engine couldn't profile the match: the same answer as a
+        # disagreement — nothing is counted (fail closed), never a 500.
+        return dict(out, verdict="disagree", python=None,
+                    python_error=f"{type(exc).__name__}: {exc}")
     python = {"columns": columns, "kinds": kinds, "rows": [row], "row_count": 1,
               "canon": server_app._canon_rows([row], columns, kinds)}
     comparison = server_app.compare_panes(sql, python)
     comparison.pop("_per_row", None)
-    return {
-        "verdict": comparison["verdict"],
-        "profile": dict(sql["rows"][0]) if sql["rows"] else None,
-        "python": row,
-        "built": built,
-        "display": server_app.render_display_sql(built),
-    }
+    return dict(out, verdict=comparison["verdict"], python=row)
 
 
 def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
@@ -110,7 +112,7 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
     if rel:
         prof = _profile(conn, spec)
         match = {"verdict": prof["verdict"], "profile": prof["profile"], "python": prof["python"],
-                 "statement": prof["display"]}
+                 "python_error": prof["python_error"], "statement": prof["display"]}
         if prof["verdict"] != "agree":
             return _refused({"kind": "match-disagree",
                              "headline": "The two engines disagree on what the match does",

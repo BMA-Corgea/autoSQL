@@ -12,8 +12,9 @@ Only the list differs.
     demo/.venv/bin/python demo/tests/t76_mutants.py --dry-run  # anchors only
     demo/.venv/bin/python demo/tests/t76_mutants.py --only T1,T4
 
-Each mutant names its killing test (`selector`). AC7's seven are T1–T7 (T6 in two
-halves, T6 and T8: one per side of the probe split); T9–T16 are the builder's own.
+Each mutant names its killing test (`selector`). AC7's seven are T1–T8 (the probe
+split in two, T6 and T8, one per side); T9–T17 are the builder's own; T18–T20 are the
+S16 check's survivors S1 and S6 (S6 in its two halves).
 """
 
 from __future__ import annotations
@@ -154,6 +155,32 @@ T76_MUTANTS = [
          anchor='    return re.sub(r"\\s+", " ", label).strip().casefold()',
          replacement="    return label.strip().casefold()",
          selector=_M + "test_two_counts_are_one_name_whatever_their_spaces"),
+    # The S16 check's two survivors (checks/S16.md), on T-76's core rule: the
+    # edge of "counted more than once" was right in the code but pinned by
+    # no test.  S6 changes both engines; the runner edits one file per mutant,
+    # so it runs here as its two halves (each alone is also caught, as a
+    # disagreement), and the report shows the two together killed as well.
+    dict(id="T18",
+         defect="refused only when MORE THAN ONE row would be counted twice (S16 check, S1)",
+         criterion="one site counted three times is refused, with its numbers",
+         file="server/scoreboard.py",
+         anchor='        if prof["profile"]["counted_twice"] > 0:',
+         replacement='        if prof["profile"]["counted_twice"] > 1:',
+         selector=_M + "test_one_row_counted_three_times_is_refused"),
+    dict(id="T19",
+         defect="the statement counts a row as doubled only past TWO parents (S16 check, S6, its SQL half)",
+         criterion="a heartbeat matching two sites (Load = Capacity 18) is refused",
+         file="group.py",
+         anchor='per_c WHERE n > 1)   AS "counted_twice"',
+         replacement='per_c WHERE n > 2)   AS "counted_twice"',
+         selector=_M + "test_a_row_matching_exactly_two_parents_is_refused"),
+    dict(id="T20",
+         defect="the second engine counts a row as doubled only past TWO parents (S16 check, S6, its Python half)",
+         criterion="a heartbeat matching two sites (Load = Capacity 18) is refused",
+         file="pyrunner/group.py",
+         anchor="    twice = [n for n in per_counted if n > 1]",
+         replacement="    twice = [n for n in per_counted if n > 2]",
+         selector=_M + "test_a_row_matching_exactly_two_parents_is_refused"),
 ]
 
 

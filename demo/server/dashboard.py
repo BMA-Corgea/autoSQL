@@ -1774,17 +1774,22 @@ def _count_from(setup_payload: dict, ds: dict, fields: dict, count_from, admin: 
     other = _name(count_from.get("dataset"))
     rel_ds = next((d for d in setup_payload["datasets"] if d["id"] == other), None)
     if rel_ds is None:
-        shown = other if other is not None else "that"
-        raise ViewError(f"There's no data set called “{shown}” to count from.")
+        raise ViewError(f"There's no data set called “{other}” to count from." if other
+                        else "There's no data set by that name to count from.")
     if rel_ds["id"] == ds["id"]:
         raise ViewError("A data set can't be matched with itself.")
     theirs = {f["path"]: f for f in rel_ds["fields"]}
+    def no_field(owner: dict, name) -> ViewError:
+        # A name that isn't text (or is empty) is said plainly, never as “”.
+        return ViewError(f"{owner['name']} has no field “{name}” to match on." if name
+                         else f"{owner['name']} has no field by that name to match on.")
+
     f_counted = theirs.get(_name(count_from.get("field")))
     if f_counted is None:
-        raise ViewError(f"{rel_ds['name']} has no field “{_name(count_from.get('field')) or ''}” to match on.")
+        raise no_field(rel_ds, _name(count_from.get("field")))
     f_parent = fields.get(_name(count_from.get("matches")))
     if f_parent is None:
-        raise ViewError(f"{ds['name']} has no field “{_name(count_from.get('matches')) or ''}” to match on.")
+        raise no_field(ds, _name(count_from.get("matches")))
     for f in (f_parent, f_counted):
         if not admin and f.get("hidden_by_default"):
             raise ViewError(f"{f['label']} isn't offered in this view.")
@@ -2082,9 +2087,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
             message = double_count_line(ds, rel_ds, match["profile"])
         elif kind == "match-disagree":
             message = MATCH_UNCHECKED
-            _note("The two engines disagree on what the match does — the statement's profile "
-                  f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
-                  f"{json.dumps(match.get('python'), default=str)} — so nothing is counted.")
+            if match.get("python_error"):
+                _note("The second engine could not profile the match "
+                      f"({match['python_error']}), so it couldn't be double-checked and nothing is counted.")
+            else:
+                _note("The two engines disagree on what the match does — the statement's profile "
+                      f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
+                      f"{json.dumps(match.get('python'), default=str)} — so nothing is counted.")
         else:
             message = plain_refusal(result.get("refusal"))
         out = {"kind": "refused", "sentence": head, "message": message, "admin": admin_block}

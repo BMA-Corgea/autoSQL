@@ -274,6 +274,37 @@ def test_senders_counting_sites_is_refused_with_its_numbers(client):
     assert a["admin"]["sent"] is True and "per_c" in a["admin"]["statement"]
 
 
+def test_one_row_counted_three_times_is_refused(client):
+    """The edge, from below (S16 check, mutant S1): ONE counted row matching
+    more than one kept parent is already a refusal — here three North
+    senders kept, and the North site would be counted under each."""
+    v = board("senders", "id", SENDERS_SITES, [cond("id", "in", values=["hb-07", "hb-11", "hb-27"])])
+    status, a = ask(client, v)
+    assert status == 200 and a["kind"] == "refused" and "rows" not in a
+    assert a["message"] == (
+        "Each site would be counted once for every sender that matches it — up to 3 times, "
+        "for 1 of the 5 sites — and a row is counted only once. "
+        "Count it the other way round: Sites, counting their Senders.")
+
+
+def test_a_row_matching_exactly_two_parents_is_refused(client, conn, setup):
+    """The edge, from the side (S16 check, mutant S6): a row matching TWO kept
+    parents is counted twice — East and West both have Capacity 18, so each
+    heartbeat with Load 18 would be counted under both. Both engines' profiles
+    say so, and the pick is refused with the numbers, never drawn."""
+    load = {"dataset": "heartbeats", "field": "payload.load", "matches": "capacity"}
+    status, a = ask(client, board("sites", "name", load))
+    assert status == 200 and a["kind"] == "refused" and "rows" not in a
+    assert a["message"] == (
+        "Each heartbeat would be counted once for every site that matches it — up to 2 times, "
+        "for 120 of the 8,400 heartbeats — and a row is counted only once.")
+    spec, _ = dashboard.to_spec(setup, board("sites", "name", load))
+    sql = server_app.sql_pane(conn, group.build_profile(spec))["rows"][0]
+    py = pygroup.python_profile(conn, spec)
+    for prof in (sql, py):
+        assert (prof["counted_twice"], prof["most_parents"]) == (120, 2)
+
+
 def test_heartbeats_counting_senders_is_refused_too(client):
     status, a = ask(client, board("heartbeats", "status",
                                   {"dataset": "senders", "field": "id", "matches": "sender_id"}))
@@ -304,6 +335,23 @@ def test_blank_parents_never_trigger_the_check(wconn, monkeypatch):
         spec = _fixture_spec("string")
         for prof in _profiles(wconn, spec):
             assert prof["counted_twice"] == 0 and prof["parents_none"] == 2 and prof["counted_none"] == 2
+
+
+def test_a_second_engine_that_fails_counts_nothing_in_words(client, monkeypatch):
+    """S16 check, LOW: the second engine's profile throwing is "couldn't be
+    double-checked", like a disagreement — never a 500."""
+    def broken(rows, spec, related_rows):
+        raise RuntimeError("profile broke")
+
+    monkeypatch.setattr(pygroup, "profile", broken)
+    dashboard._CACHE.clear()
+    try:
+        status, a = ask(client, board("sites", "name", {"dataset": "senders", "field": "kind", "matches": "name"}))
+    finally:
+        dashboard._CACHE.clear()
+    assert status == 200 and a["kind"] == "refused" and a["message"] == dashboard.MATCH_UNCHECKED
+    assert any("second engine could not profile the match (RuntimeError: profile broke)" in n
+               for n in a["admin"]["notes"])
 
 
 def test_engines_that_disagree_on_the_match_count_nothing(client, monkeypatch):
@@ -439,7 +487,9 @@ def test_k2_a_page_filter_on_edge_cases_is_probed_over_edge_cases(client):
 
 @pytest.mark.parametrize("count_from, says", [
     ({"dataset": "nowhere", "field": "site", "matches": "name"}, "There's no data set called “nowhere” to count from."),
-    ({"dataset": ["senders"], "field": "site", "matches": "name"}, "There's no data set called “that” to count from."),
+    ({"dataset": ["senders"], "field": "site", "matches": "name"}, "There's no data set by that name to count from."),
+    ({"dataset": "senders", "field": 7, "matches": "name"}, "Senders has no field by that name to match on."),
+    ({"dataset": "senders", "field": "site", "matches": ""}, "Sites has no field by that name to match on."),
     ({"dataset": "sites", "field": "name", "matches": "name"}, "A data set can't be matched with itself."),
     ({"dataset": "senders", "field": "postcode", "matches": "name"}, "Senders has no field “postcode” to match on."),
     ({"dataset": "senders", "field": "site", "matches": "town"}, "Sites has no field “town” to match on."),
