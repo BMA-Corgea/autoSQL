@@ -350,7 +350,7 @@ function BarChart({ answer }) {
   );
 }
 
-function Answer({ answer, updating, failed, onPage, sort, onSort }) {
+function Answer({ answer, updating, failed, current, onPage, sort, onSort }) {
   if (failed) {
     return (
       <div className="dx-answer">
@@ -368,7 +368,9 @@ function Answer({ answer, updating, failed, onPage, sort, onSort }) {
         <p className="dx-status" aria-live="polite">{updating ? "Updating…" : ""}</p>
       </div>
       {answer.kind === "refused" ? (
-        <p className="dx-problem" role="alert">{answer.message}</p>
+        // A refusal says why one pick can't be answered: never left standing
+        // under another pick while that one is asked (S17 check, MEDIUM).
+        current ? <p className="dx-problem" role="alert">{answer.message}</p> : null
       ) : answer.kind === "invalid" ? (
         <p className="dx-problem" role="alert">{answer.message}</p>
       ) : answer.kind === "number" ? (
@@ -434,6 +436,10 @@ function App() {
   const [view, setView] = useState(null);
   const [page, setPage] = useState(0);
   const [answer, setAnswer] = useState(null);
+  // The question the answer on screen was asked for (S17 check, MEDIUM): a
+  // line that describes a pick — the match preview, a refusal — is drawn only
+  // while that question is the one on screen and its request didn't fail.
+  const [answered, setAnswered] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
@@ -470,6 +476,7 @@ function App() {
       .then((a) => {
         if (mine !== seq.current) return; // a newer question is out: drop this
         setAnswer(a);
+        setAnswered(JSON.stringify(v));
         setFailed(false);
         setUpdating(false);
       })
@@ -483,6 +490,8 @@ function App() {
   // What is actually asked. Editing a condition that is still waiting for
   // its value changes the view but not the question, and asks nothing.
   const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view)) : null), [setup, view]);
+  // Is the answer on screen the answer to the pick on screen?
+  const current = !!answer && !failed && answered === question;
 
   // A changed question waits a moment for the clicks to settle; a page
   // turn is asked at once (the server remembers the whole answer).
@@ -664,14 +673,14 @@ function App() {
             shown={view.columns}
             admin={admin}
             setup={setup}
-            match={answer && !updating && answer.kind !== "invalid" ? answer.match : null}
+            match={current && answer.kind !== "invalid" ? answer.match : null}
             onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
           />
         </aside>
 
         <main className="dx-result" aria-label="Answer">
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
-          <Answer answer={answer} updating={updating} failed={failed} onPage={setPage}
+          <Answer answer={answer} updating={updating} failed={failed} current={current} onPage={setPage}
             sort={view.scoreboard ? view.scoreboard.sort : null}
             onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>

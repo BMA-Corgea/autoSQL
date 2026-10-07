@@ -30,19 +30,22 @@ export function freshCount(existing) {
 // A match, as the page holds and sends it (T-76): count the rows of
 // `dataset` whose `field` equals this row's `matches`. T-74's string form
 // (a declared relation, by name) is read as the match it declares.
+// A match being picked may be partial (a data set chosen, its fields not
+// yet): it is held on screen and not sent, as a waiting condition is.
 export function asMatch(ds, countFrom) {
   if (!countFrom) return null;
-  if (typeof countFrom !== "string") return countFrom;
+  if (typeof countFrom !== "string") return whole(countFrom) ? countFrom : null;
   const r = (ds.count_from || []).find((x) => x.id === countFrom);
   return r ? declaredMatch(r) : null;
 }
+const whole = (m) => !!m && !!m.dataset && !!m.field && !!m.matches;
 const declaredMatch = (r) => ({ dataset: r.id, field: r.field, matches: r.matches });
 const sameMatch = (a, b) => !!a && !!b && a.dataset === b.dataset && a.field === b.field && a.matches === b.matches;
 
 // The data set a scoreboard counts the rows of, when it is another one.
 export function countedSet(setup, sb) {
   const cf = sb && sb.count_from;
-  const id = cf && (typeof cf === "string" ? cf : cf.dataset);
+  const id = cf && (typeof cf === "string" ? cf : whole(cf) ? cf.dataset : null);
   return id ? setup.datasets.find((d) => d.id === id) || null : null;
 }
 
@@ -63,58 +66,71 @@ function matchPairs(setup, ds, other, admin) {
   return can(other.fields).flatMap((t) => mine.filter((m) => m.kind === t.kind).map((m) => ({ field: t, matches: m })));
 }
 
-// The match a data set opens on: its declared one where there is one,
-// else its first pair.
+// The match a chosen data set opens on: its declared one where there is
+// one (Sites → Senders, Site = Name); else no fields picked yet — never a
+// first pair that may match nothing (S17 check: Heartbeats, Sender = Name,
+// an all-zero board as his first sight).
 function openingMatch(setup, ds, other, admin) {
   const r = (ds.count_from || []).find((x) => x.id === other.id);
   const pairs = matchPairs(setup, ds, other, admin);
   if (r && pairs.some((p) => p.field.path === r.field && p.matches.path === r.matches)) return declaredMatch(r);
-  return pairs.length ? { dataset: other.id, field: pairs[0].field.path, matches: pairs[0].matches.path } : null;
+  return { dataset: other.id, field: null, matches: null };
 }
 
 // Step 6's match: which data set, and which field of it equals which field
 // of this one. Only pairs of one kind are offered; a data set with none is
 // shown, greyed, with the reason.
 function MatchPicker({ setup, ds, admin, value, onChange }) {
+  const v = value || { dataset: null, field: null, matches: null };
   const others = setup.datasets.filter((d) => d.id !== ds.id);
-  const other = setup.datasets.find((d) => d.id === value.dataset);
+  const other = setup.datasets.find((d) => d.id === v.dataset);
   const pairs = other ? matchPairs(setup, ds, other, admin) : [];
   const theirs = pairs.map((p) => p.field).filter((f, i, all) => all.findIndex((g) => g.path === f.path) === i);
-  const mine = pairs.filter((p) => p.field.path === value.field).map((p) => p.matches);
+  const mine = pairs.filter((p) => p.field.path === v.field).map((p) => p.matches);
   return (
     <div className="dx-match" data-testid="match-picker">
       <div className="dx-row">
         <label className="dx-label" htmlFor="dx-match-set">From</label>
-        <select id="dx-match-set" className="dx-select" value={value.dataset}
+        <select id="dx-match-set" className="dx-select" value={v.dataset || ""}
           onChange={(e) => {
             const next = setup.datasets.find((d) => d.id === e.target.value);
-            const m = next && openingMatch(setup, ds, next, admin);
-            if (m) onChange(m);
+            if (next) onChange(openingMatch(setup, ds, next, admin));
           }}>
+          {v.dataset ? null : <option value="">Pick a data set…</option>}
           {others.map((d) => {
             const none = !matchPairs(setup, ds, d, admin).length;
             return <option key={d.id} value={d.id} disabled={none}>{d.name}{none ? " (no field to match)" : ""}</option>;
           })}
         </select>
       </div>
-      <div className="dx-row">
-        <label className="dx-label" htmlFor="dx-match-field">Their</label>
-        <select id="dx-match-field" className="dx-select" value={value.field}
-          onChange={(e) => {
-            const f = e.target.value;
-            const keep = pairs.some((p) => p.field.path === f && p.matches.path === value.matches);
-            onChange({ ...value, field: f, matches: keep ? value.matches : pairs.find((p) => p.field.path === f).matches.path });
-          }}>
-          {theirs.map((f) => <option key={f.path} value={f.path}>{f.label}</option>)}
-        </select>
-      </div>
-      <div className="dx-row">
-        <label className="dx-label" htmlFor="dx-match-matches">Equals its</label>
-        <select id="dx-match-matches" className="dx-select" value={value.matches}
-          onChange={(e) => onChange({ ...value, matches: e.target.value })}>
-          {mine.map((f) => <option key={f.path} value={f.path}>{f.label}</option>)}
-        </select>
-      </div>
+      {other ? (
+        <div className="dx-row">
+          <label className="dx-label" htmlFor="dx-match-field">Their</label>
+          <select id="dx-match-field" className="dx-select" value={v.field || ""}
+            onChange={(e) => {
+              const f = e.target.value;
+              if (!f) return;
+              // Keep this data set's field if it still pairs; else fill it in
+              // only when one field can pair, and leave it to pick otherwise.
+              const can = pairs.filter((p) => p.field.path === f).map((p) => p.matches.path);
+              const matches = can.includes(v.matches) ? v.matches : can.length === 1 ? can[0] : null;
+              onChange({ ...v, field: f, matches });
+            }}>
+            {v.field ? null : <option value="">Pick a field…</option>}
+            {theirs.map((f) => <option key={f.path} value={f.path}>{f.label}</option>)}
+          </select>
+        </div>
+      ) : null}
+      {other && v.field ? (
+        <div className="dx-row">
+          <label className="dx-label" htmlFor="dx-match-matches">Equals its</label>
+          <select id="dx-match-matches" className="dx-select" value={v.matches || ""}
+            onChange={(e) => { if (e.target.value) onChange({ ...v, matches: e.target.value }); }}>
+            {v.matches ? null : <option value="">Pick a field…</option>}
+            {mine.map((f) => <option key={f.path} value={f.path}>{f.label}</option>)}
+          </select>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -164,16 +180,20 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
   // What the counts read: the parent's own rows, or its related rows.
   const counted = offered(countedFields(setup, ds, sb), admin);
   const rel = countedSet(setup, sb);
-  const cf = sb ? asMatch(ds, sb.count_from) : null;
+  const cf = sb ? asMatch(ds, sb.count_from) : null;          // whole, or null
+  const draft = sb && sb.count_from && typeof sb.count_from !== "string" ? sb.count_from : cf;
   // The switch reads the declared chip ("Their Heartbeats") while the match
   // is the declared one and the person hasn't asked to choose another.
   const chip = cf && !sb.picking ? (ds.count_from || []).find((r) => sameMatch(declaredMatch(r), cf)) : null;
   const canOther = setup.datasets.some((d) => d.id !== ds.id && matchPairs(setup, ds, d, admin).length);
   // A new counted data set means new fields to count by: the count columns,
   // the time and the measure start afresh. The same data set keeps them.
-  const pickMatch = (next, picking) => set(next && rel && next.dataset === rel.id
-    ? { count_from: next, picking }
-    : { count_from: next, picking, counts: [], time: null, measure: null, sort: null });
+  const pickMatch = (next, picking) => {
+    const after = asMatch(ds, next);
+    return set((rel ? rel.id : null) === (after ? after.dataset : null)
+      ? { count_from: next, picking }
+      : { count_from: next, picking, counts: [], time: null, measure: null, sort: null });
+  };
   const times = counted.filter((f) => f.kind === "time" || f.kind === "date");
   const numbers = counted.filter((f) => f.kind === "number");
   const set = (patch) => onChange({ scoreboard: { ...sb, ...patch } });
@@ -211,23 +231,30 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
               <span className="dx-label">Count</span>
               <Segmented
                 label="Count"
-                value={!cf ? null : chip ? chip.id : "other"}
+                value={chip ? chip.id : cf || sb.picking ? "other" : null}
                 options={[[null, "Its own rows"], ...(ds.count_from || []).map((r) => [r.id, `Their ${r.name}`]),
                   ...(canOther ? [["other", "Another data set…"]] : [])]}
                 onChange={(v) => {
                   if (v === null) return pickMatch(null, false);
                   if (v === "other") {
                     if (cf) return set({ picking: true });
-                    const first = setup.datasets.find((d) => d.id !== ds.id && matchPairs(setup, ds, d, admin).length);
-                    return pickMatch(openingMatch(setup, ds, first, admin), true);
+                    // Its declared match where it has one; else nothing yet.
+                    const r = (ds.count_from || [])[0];
+                    return pickMatch(r ? declaredMatch(r) : null, true);
                   }
                   return pickMatch(declaredMatch(ds.count_from.find((r) => r.id === v)), false);
                 }}
               />
             </div>
           ) : null}
-          {cf && !chip ? (
-            <MatchPicker setup={setup} ds={ds} admin={admin} value={cf} onChange={(next) => pickMatch(next, true)} />
+          {(cf || sb.picking) && !chip ? (
+            <MatchPicker setup={setup} ds={ds} admin={admin} value={draft} onChange={(next) => pickMatch(next, true)} />
+          ) : null}
+          {sb.picking && !cf ? (
+            <p className="dx-step-hint" data-testid="match-prompt">
+              {draft && draft.dataset ? `Pick which of their fields equals which of this ${ds.one}'s.`
+                : "Pick the data set to count rows from."} Until then, each row counts its own rows.
+            </p>
           ) : null}
           {rel && chip ? (
             <p className="dx-step-hint" data-testid="count-from-hint">
