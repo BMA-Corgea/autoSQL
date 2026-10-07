@@ -426,7 +426,8 @@ def setup(conn) -> dict:
                                     if any(f["path"] == p for f in fields)],
                 "has_time": d["source"] == legality.HEARTBEAT,
                 "one": d["one"],
-                "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"]}
+                "count_from": [{"id": r["to"], "name": _BY_ID[r["to"]]["name"],
+                                "field": r["key"], "matches": r["parent_key"]}
                                for r in RELATIONS.get(d["id"], [])],
                 # The fields that name one row each — a board by one of them
                 # is "Senders", never "Senders per Sender" (the page's bar too).
@@ -456,6 +457,9 @@ def setup(conn) -> dict:
             "op_labels": dict(OP_WORDS, ne="is not (rows without a value count too)"),
             "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
             "max_counts": group.MAX_COUNTS,
+            # T-76: the field kinds a match may pair (two of the same kind);
+            # the gate reads the same table.
+            "match_kinds": list(MATCH_TYPE_OF_KIND),
             "label_max": LABEL_MAX,
             "unavailable": _reasons_table(out),
         }

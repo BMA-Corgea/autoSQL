@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
-import { ScoreboardStep, countWaiting, countedFields, nextSort } from "./dashboard-scoreboard.jsx";
+import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -109,7 +109,7 @@ function sendableScoreboard(setup, ds, sb) {
       if (!sent || (m[1] === "pct" && !sent.pct)) sort = null;
     }
   }
-  return { by: sb.by, count_from: sb.count_from || null, counts, time: sb.time || null,
+  return { by: sb.by, count_from: asMatch(ds, sb.count_from), counts, time: sb.time || null,
            measure: sb.measure || null, sort };
 }
 
@@ -413,7 +413,7 @@ function summaryLine(setup, view) {
   if (view.scoreboard) {
     const by = ds.fields.find((x) => x.path === view.scoreboard.by);
     const ready = view.scoreboard.counts.filter((c) => !countWaiting(c, countedFields(setup, ds, view.scoreboard))).length;
-    const rel = (ds.count_from || []).find((r) => r.id === view.scoreboard.count_from);
+    const rel = countedSet(setup, view.scoreboard);
     // Short enough for a phone: "Senders · their Heartbeats", as the
     // sentence reads it — never "Senders · per Sender".
     const own = (ds.own_keys || []).includes(by.path);
@@ -549,7 +549,13 @@ function App() {
           const by = ds.fields.find((f) => f.group.ok && !f.hidden_by_default);
           next = by ? { ...sb, by: by.path, sort: null } : null;
         }
-        const hiddenCounted = hiddenIn(countedFields(setup, ds, sb));
+        // A match on a field Everyone doesn't see is dropped, with what it
+        // counted (T-76: the match pickers follow T-77's rule too).
+        const m = next && asMatch(ds, next.count_from);
+        if (m && (hidden.has(m.matches) || hiddenIn(countedFields(setup, ds, next)).has(m.field))) {
+          next = { ...next, count_from: null, picking: false, counts: [], time: null, measure: null, sort: null };
+        }
+        const hiddenCounted = hiddenIn(countedFields(setup, ds, next || sb));
         if (next && next.counts.some((c) => c.conditions.some((x) => hiddenCounted.has(x.field)))) {
           next = { ...next, counts: next.counts.map((c) => {
             const kept = c.conditions.filter((x) => !hiddenCounted.has(x.field));
@@ -630,7 +636,7 @@ function App() {
             logics={setup.logics}
             needsTwo={setup.logic_needs_two}
             scoreboardOn={view.scoreboard ? {
-              rel: ((ds.count_from || []).find((r) => r.id === view.scoreboard.count_from) || {}).name,
+              rel: (countedSet(setup, view.scoreboard) || {}).name,
               one: ds.one, many: ds.name.toLowerCase(),
             } : null}
           />
@@ -658,6 +664,7 @@ function App() {
             shown={view.columns}
             admin={admin}
             setup={setup}
+            match={answer && !updating && answer.kind !== "invalid" ? answer.match : null}
             onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
           />
         </aside>

@@ -513,6 +513,13 @@ def test_the_gate_refuses_by_name(client, count_from, says):
         assert a["message"]
 
 
+def test_the_setup_says_which_kinds_a_match_may_pair(setup):
+    """S17: the page offers only pairs of one kind, from the gate's own table."""
+    assert setup["match_kinds"] == ["text", "date", "time", "number"]
+    sites = next(d for d in setup["datasets"] if d["id"] == "sites")
+    assert sites["count_from"] == [{"id": "senders", "name": "Senders", "field": "site", "matches": "name"}]
+
+
 def test_everyone_never_matches_on_a_hidden_field(client):
     v = board("sites", "name", {"dataset": "edge", "field": "label", "matches": "name"})
     status, a = ask(client, v, admin=False)

@@ -71,7 +71,7 @@ def test_the_sites_data_set(setup):
     assert [(f["label"], f["kind"]) for f in d["fields"]] == [
         ("Name", "text"), ("Opened", "date"), ("Capacity", "number")]
     assert d["default_columns"] == ["name", "opened", "capacity"]
-    assert d["count_from"] == [{"id": "senders", "name": "Senders"}]
+    assert d["count_from"] == [{"id": "senders", "name": "Senders", "field": "site", "matches": "name"}]
     assert d["own_keys"] == ["name"]
 
 

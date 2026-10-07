@@ -184,6 +184,16 @@ body.dx-body * { box-sizing: border-box; }
 /* Count: the switch as wide as its two choices, the line under it clear of it. */
 .dx-count-from { justify-items: start; margin-bottom: 8px; }
 .dx-count-from + .dx-step-hint { margin-top: 0; }
+/* T-76: Count has up to three choices (own rows, a declared one, another data
+   set) — stacked, one per row, so the box never shows a half-empty line. */
+.dx-count-from .dx-seg { display: grid; grid-template-columns: minmax(0, 1fr); justify-self: stretch; }
+.dx-count-from .dx-seg-btn { text-align: left; border-right: 0; border-bottom: 1px solid var(--border2); }
+.dx-count-from .dx-seg-btn:last-child { border-bottom: 0; }
+/* T-76: the match — which data set, and which field of it equals which of this one. */
+.dx-match { margin-bottom: 2px; }
+.dx-match + .dx-step-hint { margin-top: 0; }
+/* What the match does, before counting: one line, a shade stronger than a hint. */
+.dx-preview { color: var(--text-mid); }
 
 /* buttons */
 .dx-btn {

@@ -292,7 +292,7 @@ def test_the_senders_data_set(setup):
     d = next(x for x in setup["datasets"] if x["id"] == "senders")
     assert d["rows"] == 55 and d["name"] == "Senders"
     assert [f["label"] for f in d["fields"]] == ["Sender", "Name", "Site", "Kind", "Installed"]
-    assert d["count_from"] == [{"id": "heartbeats", "name": "Heartbeats"}]
+    assert d["count_from"] == [{"id": "heartbeats", "name": "Heartbeats", "field": "sender_id", "matches": "id"}]
     assert all(x["count_from"] == [] for x in setup["datasets"] if x["id"] not in ("senders", "sites"))
     assert d["own_keys"] == ["id"]
     assert all(x["own_keys"] == [] for x in setup["datasets"] if x["id"] not in ("senders", "sites"))
