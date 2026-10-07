@@ -84,7 +84,7 @@ def test_sites_are_browsable_like_any_data_set(client):
 
 
 def test_a_total_over_sites_is_no_dead_end(client):
-    status, a = ask(client, sites_view(summary={"fn": "sum", "field": "capacity", "per": "all"}))
+    status, a = ask(client, sites_view(columns=[], summary={"fn": "sum", "field": "capacity", "per": "all"}))
     assert status == 200 and a["admin"]["verdict"] == "agree"
     assert a["number"]["value"] == f"{sum(s['capacity'] for s in _SITES):,}"
 
@@ -113,7 +113,7 @@ _BOARD = {"by": "name", "count_from": "senders",
 def test_sites_counting_their_senders_equals_hand_written_left_join(client, conn):
     want = [[site, f"{n:,}", f"{k:,}", f"{pct}%"]
             for site, n, k, pct in conn.execute(_HAND_WRITTEN).fetchall()]
-    status, a = ask(client, sites_view(scoreboard=_BOARD))
+    status, a = ask(client, sites_view(columns=[], scoreboard=_BOARD))
     assert status == 200 and a["admin"]["verdict"] == "agree"
     assert a["sentence"] == "Sites, counting their Senders — 5 sites"
     assert [c["label"] for c in a["columns"]] == ["Name", "Senders", "Pumps", "% Pumps"]
@@ -123,7 +123,7 @@ def test_sites_counting_their_senders_equals_hand_written_left_join(client, conn
 def test_against_the_generator_quarry_at_zero(client):
     per_site = Counter(s["site"] for s in _SENDERS)
     pumps = Counter(s["site"] for s in _SENDERS if s["kind"] == "pump")
-    _, a = ask(client, sites_view(scoreboard=_BOARD))
+    _, a = ask(client, sites_view(columns=[], scoreboard=_BOARD))
     got = {r[0]: r[1:3] for r in a["rows"]}
     assert got == {name: [str(per_site[name]), str(pumps[name])] for name in generate.SITE_NAMES}
     assert got["Quarry"] == ["0", "0"] and {r[0]: r[3] for r in a["rows"]}["Quarry"] == "0.0%"
@@ -131,6 +131,6 @@ def test_against_the_generator_quarry_at_zero(client):
 
 
 def test_a_sites_board_by_its_own_name_reads_one_row_each(client):
-    v = sites_view(scoreboard=dict(_BOARD, count_from=None, counts=[]))
+    v = sites_view(columns=[], scoreboard=dict(_BOARD, count_from=None, counts=[]))
     status, a = ask(client, v)
     assert status == 200 and a["sentence"] == "Sites, one row each — 5 sites"
