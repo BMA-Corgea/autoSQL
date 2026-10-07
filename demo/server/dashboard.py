@@ -1919,6 +1919,10 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
     elif own_key:
         head += ", one row each"
     what = rel_ds["name"] if rel_ds is not None else "rows"
+    # What the tail counts: a board by the parent's own key has one row per
+    # parent, so it counts those ("5 sites", not "5 names" — T-76: Sites'
+    # own key is labelled Name); any other board counts its groups.
+    noun = ds["one"] if own_key else by["label"]
 
     result = _run_group(conn, spec)
     admin = _admin_block(result)
@@ -1995,13 +1999,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0) -> d
             _note(_disagreed_total("groups", cmp_.get("sql_row_count"),
                                    cmp_.get("python_row_count")))
         if of is not None and of <= show:
-            tail = _plural_noun(by["label"], of)
+            tail = _plural_noun(noun, of)
         elif of is not None:
-            tail = f"the first {fmt_number(str(show))} of {_plural_noun(by['label'], of)}"
+            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of)}"
         else:
-            tail = f"the first {_plural_noun(by['label'], show)}"
+            tail = f"the first {_plural_noun(noun, show)}"
     else:
-        tail = _plural_noun(by["label"], total)
+        tail = _plural_noun(noun, total)
 
     return {
         "kind": "scoreboard",
