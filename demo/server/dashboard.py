@@ -466,6 +466,24 @@ def setup(conn) -> dict:
         return _SETUP
 
 
+def setup_for(payload: dict, admin: bool) -> dict:
+    """The setup as one view may see it (T-79).  Admin gets all of it.  The
+    Everyone view's copy names no field hidden from it — not its name, its
+    values or its range (Edge cases' Label, whose text was written for
+    engineers) — and no Admin starting view, which ticks that field.  The
+    answers already go to each view this way (T-75); the server keeps the
+    whole setup to check every request against."""
+    if admin:
+        return payload
+    out = dict(payload)
+    out.pop("admin_default_views", None)
+    out["datasets"] = [
+        dict(d, fields=[f for f in d["fields"] if not f.get("hidden_by_default")])
+        for d in payload["datasets"]
+    ]
+    return out
+
+
 def default_view_from(datasets: list, dataset_id: str = "heartbeats") -> dict:
     """A fresh question on one data set.  Heartbeats open newest first: the
     latest beats are what a person looks at a heartbeat log for."""
@@ -1730,11 +1748,20 @@ def _same_name(label: str) -> str:
     return re.sub(r"\s+", " ", label).strip().casefold()
 
 
-def _plural_noun(label: str, n: int) -> str:
-    word = label.lower()
-    if len(word) <= 2:
-        # "2 A values" reads oddly; "2 values of A" reads for any name (T-75)
+#: The field names that read as a thing you can count ("3 statuses", "4
+#: sites").  Declared, never guessed from the word: a name like Present,
+#: Where code or Load is not a noun, and "2 presents" or "101 loads" reads
+#: wrongly (T-79).  Every other field is counted as "2 values of Present".
+COUNT_NOUNS = frozenset({"Sender", "Status", "Note", "Priority", "Name", "Site", "Kind"})
+
+
+def _plural_noun(label: str, n: int, noun: bool = False) -> str:
+    """``n`` groups of a board, in words: a data set's own word ("5 sites")
+    or a declared noun ("3 statuses") is made plural; any other field name
+    is said as "2 values of Present", which reads for every name."""
+    if not (noun or label in COUNT_NOUNS):
         return f"1 value of {label}" if n == 1 else f"{fmt_number(str(n))} values of {label}"
+    word = label.lower()
     if n == 1:
         return f"1 {word}"
     if word.endswith(("s", "x", "ch", "sh")):
@@ -2043,6 +2070,7 @@ def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
 
 
 MATCH_UNCHECKED = "This match couldn't be double-checked, so it isn't counted."
+BOARD_UNCHECKED = "This board couldn't be double-checked, so it isn't shown."
 
 
 def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
@@ -2098,6 +2126,11 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
                 _note("The two engines disagree on what the match does — the statement's profile "
                       f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
                       f"{json.dumps(match.get('python'), default=str)} — so nothing is counted.")
+        elif kind == "board-unchecked":
+            message = BOARD_UNCHECKED
+            _note("The second engine could not compute this board "
+                  f"({(result.get('refusal') or {}).get('why')}), so it couldn't be double-checked "
+                  "and nothing is shown.")
         else:
             message = plain_refusal(result.get("refusal"))
         out = {"kind": "refused", "sentence": head, "message": message, "admin": admin_block}
@@ -2176,13 +2209,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
             _note(_disagreed_total("groups", cmp_.get("sql_row_count"),
                                    cmp_.get("python_row_count")))
         if of is not None and of <= show:
-            tail = _plural_noun(noun, of)
+            tail = _plural_noun(noun, of, own_key)
         elif of is not None:
-            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of)}"
+            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of, own_key)}"
         else:
-            tail = f"the first {_plural_noun(noun, show)}"
+            tail = f"the first {_plural_noun(noun, show, own_key)}"
     else:
-        tail = _plural_noun(noun, total)
+        tail = _plural_noun(noun, total, own_key)
 
     return {
         "kind": "scoreboard",
@@ -2217,10 +2250,12 @@ def dashboard_page() -> HTMLResponse:
 
 
 @router.get("/api/dashboard/setup")
-def api_setup() -> JSONResponse:
+def api_setup(view: str = "everyone") -> JSONResponse:
+    # ``?view=admin`` asks for the Admin view's setup; anything else is the
+    # Everyone view's, which names no field hidden from it (T-79).
     conn = _connect()
     try:
-        return JSONResponse(setup(conn))
+        return JSONResponse(setup_for(setup(conn), view == "admin"))
     finally:
         conn.close()
 

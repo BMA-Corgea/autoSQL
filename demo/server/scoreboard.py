@@ -128,7 +128,18 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
 
     sql = server_app.sql_pane(conn, built)
     kinds_by_column = dict(zip(sql["columns"], sql["kinds"]))
-    answer = pygroup.python_pane(conn, spec)
+    try:
+        answer = pygroup.python_pane(conn, spec)
+    except OverflowError:
+        raise        # a number past a double: dashboard._run_group names it (T-75)
+    except Exception as exc:  # noqa: BLE001 — any other failure is "not double-checked"
+        # The second engine couldn't compute the board: nothing is shown,
+        # as for a match it couldn't profile (fail closed) — never a 500
+        # with no words (T-79; the S16 re-check's last LATER item).
+        return _refused({"kind": "board-unchecked",
+                         "headline": "The second engine could not finish",
+                         "why": f"{type(exc).__name__}: {exc}"},
+                        spec, built=built, display=display, sent=True, match=match)
     columns = list(answer["columns"])
     kinds = [kinds_by_column.get(c, "json") for c in columns]
     python = {

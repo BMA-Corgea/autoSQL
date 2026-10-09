@@ -45,7 +45,9 @@ def client():
 
 @pytest.fixture(scope="module")
 def setup(client):
-    r = client.get("/api/dashboard/setup")
+    # The whole setup, as the Admin view gets it: these tests read Edge
+    # cases' Label too.  The Everyone view's copy is test_t79.py's (T-79).
+    r = client.get("/api/dashboard/setup?view=admin")
     assert r.status_code == 200
     return r.json()
 
