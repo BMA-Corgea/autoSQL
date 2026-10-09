@@ -1290,6 +1290,10 @@ def agreed_rows(conn, pick: dict) -> int | None:
 #: answers HTTP 500 for the same pick; that screen is not changed here).
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
 
+#: The headline of every refusal where the statement answered and the second
+#: engine could not finish (scoreboard.py writes the same words).
+SECOND_ENGINE_HEADLINE = "The second engine could not finish"
+
 _CACHE_LOCK = threading.Lock()
 _CACHE: "OrderedDict[str, dict]" = OrderedDict()
 _CACHE_SIZE = 8
@@ -1304,7 +1308,7 @@ def _second_engine_overflow(conn, exc, sql: dict) -> dict:
     return {
         "accepted": False, "verdict": "no-compare", "comparison": {},
         "sql": sql,
-        "refusal": {"headline": "The second engine could not finish",
+        "refusal": {"headline": SECOND_ENGINE_HEADLINE,
                     "why": f"out-of-range magnitude in the second engine: {exc}"},
     }
 
@@ -1371,7 +1375,7 @@ def _run(conn, pick: dict) -> dict:
             "accepted": False, "verdict": "no-compare", "comparison": {},
             "sql": _statement_for_admin(conn, pick, server_app),
             "refusal": {"kind": "answer-unchecked",
-                        "headline": "The second engine could not finish", "why": str(exc)},
+                        "headline": SECOND_ENGINE_HEADLINE, "why": str(exc)},
         }
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
@@ -1423,6 +1427,29 @@ def plain_refusal(refusal: dict | None) -> str:
     return _PLAIN_REFUSAL_DEFAULT
 
 
+#: Why an answer was not double-checked, for Admin (T-79).  "Refused before
+#: an answer existed" is true only when nothing answered.
+UNCHECKED_REFUSED = "Not double-checked: this one was refused before an answer existed."
+UNCHECKED_SECOND_ENGINE = ("Not double-checked: the statement answered, but the second engine "
+                           "could not finish, so nothing is shown.")
+UNCHECKED_PROFILE = ("Not double-checked: the second engine could not work out what the match "
+                     "does, so nothing is shown.")
+UNCHECKED_MATCH = ("Not double-checked: the two engines disagree on what the match does, "
+                   "so nothing is shown.")
+
+
+def unchecked_line(answer: dict) -> str | None:
+    """Admin's line when an answer was not compared: None when it was."""
+    if answer.get("verdict") in ("agree", "disagree"):
+        return None
+    refusal = answer.get("refusal") or {}
+    if refusal.get("kind") == "match-disagree":
+        return UNCHECKED_PROFILE if (answer.get("match") or {}).get("python_error") else UNCHECKED_MATCH
+    if refusal.get("headline") == SECOND_ENGINE_HEADLINE:
+        return UNCHECKED_SECOND_ENGINE
+    return UNCHECKED_REFUSED
+
+
 def _admin_block(answer: dict) -> dict:
     sql = answer.get("sql") or {}
     comparison = answer.get("comparison") or {}
@@ -1442,6 +1469,9 @@ def _admin_block(answer: dict) -> dict:
             "headline": refusal.get("headline"),
             "why": refusal.get("why") or refusal.get("body"),
         },
+        # Admin's "not double-checked" line, true to what happened (T-79):
+        # the statement may have answered and the second engine not.
+        "unchecked": unchecked_line(answer),
     }
 
 

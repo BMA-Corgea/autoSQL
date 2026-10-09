@@ -370,3 +370,99 @@ def test_the_two_pane_screen_still_answers_its_own_way(client, monkeypatch):
     with pytest.raises(server_app.SecondEngineFailed, match="RuntimeError: table broke"):
         client.post("/api/pick", json=pick)
     dashboard._CACHE.clear()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 3c · S18 check: every call into the second engine, and Admin's words
+# ═════════════════════════════════════════════════════════════════════════
+
+_HUGE = _plain("edge", columns=["a"], conditions=[{"field": "huge", "op": "gt", "value": 5}])
+
+
+@pytest.mark.parametrize("exc", [RuntimeError("fallback broke"), OverflowError("int too large"),
+                                 KeyError("x"), RecursionError("deep")], ids=lambda e: type(e).__name__)
+def test_the_second_engine_failing_on_a_refused_statements_fallback_is_no_500(client, monkeypatch, exc):
+    """When the statement is refused before it runs (a probe fires) or while
+    it runs (float8 overflow), run_pick still asks the second engine for its
+    own reading; that call is caught there, by design, whatever it raises.
+    The dashboard answers the statement's refusal in words, no number."""
+    def boom(*a, **k):
+        raise exc
+
+    monkeypatch.setattr(server_app, "python_pane", boom)
+    dashboard._CACHE.clear()
+    try:
+        status, a = ask(client, _HUGE)
+    finally:
+        dashboard._CACHE.clear()
+    assert status == 200 and a["kind"] == "refused" and "rows" not in a
+    assert a["message"] == "One of these values is too large to compute with, so this can't be answered honestly."
+    # the float8-overflow path, which the page can't reach: the same catch
+    from demo import legality
+    from demo.server import db as _db
+
+    conn = _db.connect(application_name="autosql-demo-t79-overflow")
+    server_app.refuse_writes(conn)
+    try:
+        body = server_app.run_pick(conn, dict(legality.default_pick(), source="noun:EdgeCase",
+                                              computed=[{"name": "sq", "expr": "$.a * $.a"}]))
+    finally:
+        conn.close()
+    assert body["accepted"] is False and body["refusal"]["construct"] == "float8 overflow"
+    assert body["panes"]["python"]["state"] == "raised"
+
+
+def _profile_breaks(monkeypatch):
+    def broken(conn, spec):
+        raise RuntimeError("profile broke")
+    monkeypatch.setattr(pygroup, "python_profile", broken)
+
+
+def _profile_disagrees(monkeypatch):
+    real = pygroup.python_profile
+
+    def off(conn, spec):
+        out = dict(real(conn, spec))
+        out["counted_none"] += 1
+        return out
+    monkeypatch.setattr(pygroup, "python_profile", off)
+
+
+def _overflows(monkeypatch):
+    def boom(*a, **k):
+        raise OverflowError("int too large to convert to float")
+    monkeypatch.setattr(server_app, "python_pane", boom)
+
+
+_SECOND = ("Not double-checked: the statement answered, but the second engine could not finish, "
+           "so nothing is shown.")
+_PROFILE = "Not double-checked: the second engine could not work out what the match does, so nothing is shown."
+_MATCH = "Not double-checked: the two engines disagree on what the match does, so nothing is shown."
+_REFUSED = "Not double-checked: this one was refused before an answer existed."
+_SITES_KIND = board("sites", "name", {"dataset": "senders", "field": "kind", "matches": "name"})
+
+
+@pytest.mark.parametrize("breaks, view, line", [
+    (_broken_table, _plain(), _SECOND),
+    (_broken, board("heartbeats", "status"), _SECOND),
+    (_overflows, _plain("edge", columns=["a"], show=25), _SECOND),
+    (_profile_breaks, _SITES_KIND, _PROFILE),
+    (_profile_disagrees, _SITES_KIND, _MATCH),
+    (None, _plain("edge", columns=["a"], conditions=[{"field": "huge", "op": "eq", "value": 0}]),
+     _REFUSED),
+    (None, board("senders", "id", {"dataset": "sites", "field": "name", "matches": "site"}),
+     _REFUSED),
+    (None, _plain(), None),
+], ids=["table-unchecked", "board-unchecked", "overflow", "profile-throws", "profile-disagrees",
+        "refused-mid-run", "double-count", "checked"])
+def test_admin_says_truly_why_an_answer_was_not_double_checked(client, monkeypatch, breaks, view, line):
+    if breaks:
+        breaks(monkeypatch)
+    dashboard._CACHE.clear()
+    try:
+        _, a = ask(client, view)
+    finally:
+        dashboard._CACHE.clear()
+    assert a["admin"].get("unchecked") == line, (a["admin"]["verdict"], a["admin"].get("refusal"))
+    if line == _SECOND:
+        assert "refused before an answer existed" not in json.dumps(a)
