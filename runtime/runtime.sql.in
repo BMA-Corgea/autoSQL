@@ -229,7 +229,12 @@ LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
     WHEN j IS NULL THEN false
     WHEN jsonb_typeof(j) = 'null'    THEN false
     WHEN jsonb_typeof(j) = 'boolean' THEN (j = 'true'::jsonb)
-    WHEN jsonb_typeof(j) = 'number'  THEN ((j #>> '{}')::numeric <> 0)
+    -- T-37 M1: a number is read as a double, as comparisons read it (xpr.f8 / the compiler's
+    -- _inline_coerce), never as numeric. GIMS hands its evaluator json.loads' double, so 1e-400 is 0.0
+    -- there; numeric kept it non-zero (truthy). Where no double holds the number the cast RAISES 22003
+    -- (out of range, below the smallest or above DBL_MAX) and the caller falls back to Python: never a
+    -- quiet wrong answer. A bare cast, so a number costs what it did before (no plpgsql call).
+    WHEN jsonb_typeof(j) = 'number'  THEN ((j #>> '{}')::float8 <> 0)
     WHEN jsonb_typeof(j) = 'string'  THEN (length(j #>> '{}') > 0)
     WHEN jsonb_typeof(j) = 'array'   THEN (jsonb_array_length(j) > 0)
     WHEN jsonb_typeof(j) = 'object'  THEN (j <> '{}'::jsonb)
