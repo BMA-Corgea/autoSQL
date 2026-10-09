@@ -317,7 +317,7 @@ def _b10_leaked(out: str) -> bool:
 # So the digest is read before the pass and after EVERY mutant, restored when it
 # drifts, and the run ABORTS if it cannot be restored.
 # ---------------------------------------------------------------------------------
-SEEDED = ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase")
+SEEDED = ("noun:Heartbeat", "noun:Sample", "noun:EdgeCase", "noun:Sender", "noun:Site")  # + T-74, T-76
 
 
 def _digest():
