@@ -3,7 +3,7 @@ expression vectors, **reported, never scored**.
 
 AC-19, in the signed spec's own words, is a *reported observation, not a pass
 mark*: with the `GIMS-Project` checkout present, the suite runs
-`demo/gate.py`'s gate over all 130 cases of `tests/fixtures/expr_vectors.json`
+`picks/gate.py`'s gate over all 130 cases of `tests/fixtures/expr_vectors.json`
 and **reports the accept/refuse split per case, with no threshold**; with the
 checkout absent it **skips loudly** in §9.7's four-part sense. The criterion
 passes on the report being produced and being per-case. It never passes or
@@ -275,7 +275,7 @@ def _render_report(
         f"| fixture `float_epsilon` | `{_cell(repr(payload.get('float_epsilon')))}` |"
     )
     out.append(f"| cases | {case_count} (AC-19 names {EXPECTED_CASE_COUNT}) |")
-    out.append("| gate | `demo/gate.py` — the 32-construct allowlist over the 12 AST tags |")
+    out.append("| gate | `picks/gate.py` — the 32-construct allowlist over the 12 AST tags |")
     out.append(
         "| parser | `demo/vendor/expr.py` — the demo's own vendored copy (R4), "
         "never the checkout's, so nothing is executed inside a read-only tree |"

@@ -12,7 +12,7 @@
 | fixture `version` | `1` |
 | fixture `float_epsilon` | `1e-09` |
 | cases | 130 (AC-19 names 130) |
-| gate | `demo/gate.py` — the 32-construct allowlist over the 12 AST tags |
+| gate | `picks/gate.py` — the 32-construct allowlist over the 12 AST tags |
 | parser | `demo/vendor/expr.py` — the demo's own vendored copy (R4), never the checkout's, so nothing is executed inside a read-only tree |
 
 ## The split

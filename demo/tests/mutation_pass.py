@@ -71,21 +71,21 @@ MUTANTS = [
     dict(id="M1",
          defect="Python rolling window divides by 3 always",
          criterion="AC-24(d), Python half, rows 1 and 2",
-         file="pyrunner/evaluate.py",
+         file="../picks/pyrunner/evaluate.py",
          anchor="out[i] = q6(total / Decimal(len(present)))",
          replacement="out[i] = q6(total / Decimal(3))",
          selector="tests/test_pyrunner.py::test_ac24d_divisors_one_two_three_synthetic"),
     dict(id="M2",
          defect="Python rolling window returns None until three rows accumulate",
          criterion="AC-24(d), Python half",
-         file="pyrunner/evaluate.py",
+         file="../picks/pyrunner/evaluate.py",
          anchor="            if not present:\n                out[i] = None",
          replacement="            if len(present) < 3:\n                out[i] = None",
          selector="tests/test_pyrunner.py::test_ac24d_divisors_one_two_three_synthetic"),
     dict(id="M3",
          defect="Python sort uses sorted(..., reverse=True) over a tuple containing key",
          criterion="AC-41(d) -- ten highest keys instead of ten lowest",
-         file="pyrunner/shape.py",
+         file="../picks/pyrunner/shape.py",
          anchor="    indices.sort(\n        key=lambda i: ev.row_sort_key(\n"
                 "            rows[i], sort_steps, cells[i], sort_alias, direction\n        )\n    )",
          replacement="    indices.sort(\n        key=lambda i: ev.row_sort_key(\n"
@@ -100,14 +100,14 @@ MUTANTS = [
     dict(id="M4",
          defect="operation 9 compares the whole record (drop - 'ts')",
          criterion="AC-40(a) -- 8,400 kept against a band of 700-1,100",
-         file="builder.py",
+         file="../picks/builder.py",
          anchor='COMPARED_EXPR = "r.data - \'ts\'"',
          replacement='COMPARED_EXPR = "r.data"',
          selector="tests/test_builder_sql.py::TestShapesRun::test_shape_b_changed_kept_count_in_band"),
     dict(id="M5",
          defect="operation 9 uses <> instead of IS DISTINCT FROM",
          criterion="AC-40(d) -- the 50 first beats vanish",
-         file="builder.py",
+         file="../picks/builder.py",
          anchor="             IS DISTINCT FROM ( {COMPARED_EXPR} ) )",
          replacement="             <> ( {COMPARED_EXPR} ) )",
          selector="tests/test_builder_sql.py::TestShapesRun::test_shape_b_changed_kept_count_in_band"),
@@ -115,7 +115,7 @@ MUTANTS = [
          defect="the bucket cast becomes ::timestamp",
          criterion="AC-43(a) -- AND NOTHING ELSE, which is the point: "
                    "it returns the right answer on this seed",
-         file="builder.py",
+         file="../picks/builder.py",
          anchor="date_trunc({g}, (data ->> 'ts')::timestamptz)",
          replacement="date_trunc({g}, (data ->> 'ts')::timestamp)",
          selector="tests/test_builder_sql.py::TestAC43a::test_expression_and_cast"),
@@ -138,7 +138,7 @@ MUTANTS = [
     dict(id="M8",
          defect="Python rounding left at ROUND_HALF_EVEN",
          criterion="AC-24(b)",
-         file="pyrunner/decimals.py",
+         file="../picks/pyrunner/decimals.py",
          # NOT the _Q6_CONTEXT definition: quantize() is passed `rounding=` explicitly,
          # which overrides the context, so mutating the context changes nothing at all.
          anchor="    result = x.quantize(SIX_PLACES, rounding=ROUND_HALF_UP, context=_Q6_CONTEXT)",
@@ -153,7 +153,7 @@ MUTANTS = [
          # jsonb loader: M9 is "Decimal(v) from the float instead of from the JSON
          # text", and record_d IS that text parse. Mutating db._exact_loads changes
          # what the SQL pane decodes, which the aggregate does not read as jsonb.
-         file="pyrunner/rows.py",
+         file="../picks/pyrunner/rows.py",
          anchor="        record_d=json.loads(raw, parse_float=Decimal),",
          replacement="        record_d=json.loads(raw),",
          # The dedicated end-to-end case the plan asked for, named in the suite as
@@ -165,28 +165,28 @@ MUTANTS = [
          # probes._namespace's inline rewrite is an `except ImportError` FALLBACK that
          # never runs: the import succeeds and it delegates to builder.namespace. Mutating
          # the fallback mutates dead code and every criterion stays green.
-         file="builder.py",
+         file="../picks/builder.py",
          anchor="    if not _PREFIX_RE.match(prefix):",
          replacement="    return frag.sql, dict(frag.params)\n    if not _PREFIX_RE.match(prefix):",
          selector="tests/test_probes.py::TestMechanics::test_b11_namespacing_keeps_three_literals_distinct"),
     dict(id="M11",
          defect="the probe routed through xpr.f8",
          criterion="AC-17 -- 1e400 stops being refused, because the guard returns NULL",
-         file="probes.py",
+         file="../picks/probes.py",
          anchor='"             AND abs( ( " + op_sql + " #>> \'{}\' )::numeric ) >= "',
          replacement='"             AND abs( xpr.f8( " + op_sql + " ) ) >= "',
          selector="tests/test_probes.py::TestAC17::test_1e400_refuses_naming_cause_and_row"),
     dict(id="M12",
          defect="the gate accepts only the ten leaf/structural tags",
          criterion="AC-14's tag half -- and every comparison in the demo is refused",
-         file="gate.py",
+         file="../picks/gate.py",
          anchor='    {"num", "str", "bool", "null", "field", "neg", "not", "and", "or", "cmp", "bin", "call"}',
          replacement='    {"num", "str", "bool", "null", "field", "neg", "not", "and", "or", "call"}',
          selector="tests/test_gate.py::test_each_of_the_twelve_tags_is_accepted_at_the_tag"),
     dict(id="M13",
          defect="re.match instead of re.fullmatch in the alias validator",
          criterion='AC-38(a) -- alive"; DROP TABLE demo.records; -- is accepted',
-         file="gate.py",
+         file="../picks/gate.py",
          anchor="    if re.fullmatch(ALIAS_RE, name) is None:",
          replacement="    if re.match(ALIAS_RE, name) is None:",
          selector="tests/test_alias.py::test_the_injection_name_is_refused_at_the_pattern"),
@@ -194,7 +194,7 @@ MUTANTS = [
          defect="the numeric read's jsonb_typeof guard removed",
          criterion="the noun:Sample aggregate raises 22P02; a LOUD failure, and the mutant "
                    "proves the guard is load-bearing rather than defensive",
-         file="probes.py",
+         file="../picks/probes.py",
          anchor='        "( jsonb_typeof( " + op_sql + " ) = \'number\'\\n"',
          replacement='        "( true\\n"',
          # NOT tests/test_probes.py: no test there issues a noun:Sample aggregate and
@@ -208,7 +208,7 @@ MUTANTS = [
          criterion="AC-41(a) grep, and AC-41(b)'s ten runs",
          # AC-41(a) is test_builder_sql.py's grep over the emitted BUILDER statements;
          # a probe's internal ORDER BY is not what it reads.
-         file="builder.py",
+         file="../picks/builder.py",
          anchor='        return f" ORDER BY {lead}, {q}key ASC"',
          replacement='        return ""',
          # The plan names BOTH halves -- "AC-41(a) grep, AND AC-41(b)'s ten runs" --

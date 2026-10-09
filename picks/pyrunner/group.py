@@ -262,15 +262,15 @@ def answer(rows: Sequence[SourceRow], spec: dict,
     }
 
 
-def python_pane(conn, spec: dict) -> Dict[str, Any]:
+def python_pane(conn, spec: dict, records=None) -> Dict[str, Any]:
     """Read the source rows and answer the scoreboard — end to end.  With a
     relation, both collections' source rows are read, and joined here."""
     rel = spec.get("related")
-    related = read_rows(conn, rel["source"]) if rel else ()
-    return answer(read_rows(conn, spec["source"]), spec, related)
+    related = read_rows(conn, rel["source"], records) if rel else ()
+    return answer(read_rows(conn, spec["source"], records), spec, related)
 
 
-def python_profile(conn, spec: dict) -> Dict[str, Any]:
+def python_profile(conn, spec: dict, records=None) -> Dict[str, Any]:
     """Read both collections' source rows and profile the match — end to end."""
     rel = spec["related"]
-    return profile(read_rows(conn, spec["source"]), spec, read_rows(conn, rel["source"]))
+    return profile(read_rows(conn, spec["source"], records), spec, read_rows(conn, rel["source"], records))

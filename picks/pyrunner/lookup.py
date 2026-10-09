@@ -74,9 +74,9 @@ def profile(rows: Sequence[SourceRow], pick: dict, related_rows: Sequence[Source
 
 
 def answer(rows: Sequence[SourceRow], pick: dict, related_rows: Sequence[SourceRow],
-           lk: dict) -> Dict[str, Any]:
+           lk: dict, records=None) -> Dict[str, Any]:
     """The matched table for *pick* over the table's source rows."""
-    base = shape.answer(rows, dict(pick, cap=None))
+    base = shape.answer(rows, dict(pick, cap=None), records)
     by_key = {r.key: r for r in rows}
     matched = _matcher(related_rows, lk)
     parsed = ev.parse_computed([{"name": c["name"], "expr": "$." + c["path"]}
@@ -99,10 +99,11 @@ def answer(rows: Sequence[SourceRow], pick: dict, related_rows: Sequence[SourceR
     }
 
 
-def python_pane(conn, pick: dict, lk: dict) -> Dict[str, Any]:
+def python_pane(conn, pick: dict, lk: dict, records=None) -> Dict[str, Any]:
     """Read both data sets' source rows and answer — end to end."""
-    return answer(read_rows(conn, pick["source"]), pick, read_rows(conn, lk["source"]), lk)
+    extra = {"records": records} if records is not None else {}
+    return answer(read_rows(conn, pick["source"], records), pick, read_rows(conn, lk["source"], records), lk, **extra)
 
 
-def python_profile(conn, pick: dict, lk: dict) -> Dict[str, Any]:
-    return profile(read_rows(conn, pick["source"]), pick, read_rows(conn, lk["source"]), lk)
+def python_profile(conn, pick: dict, lk: dict, records=None) -> Dict[str, Any]:
+    return profile(read_rows(conn, pick["source"], records), pick, read_rows(conn, lk["source"], records), lk)

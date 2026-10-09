@@ -100,7 +100,7 @@ def source_row(collection: str, key: str, raw: str) -> SourceRow:
     )
 
 
-def read_rows(conn, collection: str) -> List[SourceRow]:
+def read_rows(conn, collection: str, records=None) -> List[SourceRow]:
     """Read one collection's source rows out of the demo database.
 
     ``conn`` is a connection from the demo's one connection factory
@@ -116,9 +116,16 @@ def read_rows(conn, collection: str) -> List[SourceRow]:
     this second calculator exists to not have — and AC-41(b)'s repeat-runs
     are the check that nothing does.
     """
+    from .. import env
+
+    records = env.records(records)
+    if records.rows is not None:
+        # the host's own row provider: [(key, raw JSON text)] for the collection
+        return [source_row(collection, k, raw) for (k, raw) in records.rows(conn, collection)]
+    params = {"collection": collection}
     cur = conn.execute(
-        "SELECT collection, key, data::text FROM demo.records"
-        " WHERE collection = %(collection)s",
-        {"collection": collection},
+        f"SELECT collection, key, data::text FROM {records.table}"
+        " WHERE " + records.scope("", params),
+        params,
     )
     return [source_row(c, k, raw) for (c, k, raw) in cur.fetchall()]

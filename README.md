@@ -107,15 +107,15 @@ written as **parameterised Postgres**, through the same expression compiler as t
 repo:
 
 - rows, a count, a total or a per-hour or per-day chart is **one statement**, written by
-  `demo/builder.py`;
+  `picks/builder.py`;
 - a scoreboard (one row per value, with counts beside it) is **one statement**, written by
-  `demo/group.py`;
+  `picks/group.py`;
 - a scoreboard that counts another data set's rows, matched by two fields the person picks, runs
-  **two**, both from `demo/group.py`: first a profile of what the match does — it gives the line
+  **two**, both from `picks/group.py`: first a profile of what the match does — it gives the line
   that says so before anything is counted, and refuses any match that would count one row twice —
   and only then the board's own;
 - a table with fields from another data set beside each row, matched by two fields the person
-  picks, runs **two** too, both from `demo/lookup.py`: first a profile of what the match does —
+  picks, runs **two** too, both from `picks/lookup.py`: first a profile of what the match does —
   it gives the line that says so, and refuses any match that would show one row twice — and only
   then the table's own, the same table with a `LEFT JOIN`, so a row with no match keeps its place.
 
@@ -133,8 +133,13 @@ want it: switch **View as** to **Admin** and press **Show SQL** to see the state
 current picks rewrite itself as they change, with the second engine's verdict beside it. A
 consumer of the dashboard never needs to know it is there.
 
-Where it lives: `demo/server/dashboard.py` is the contract (the picks → the statements, the
-sentence, the plain-word reasons), `demo/frontend/dashboard*.jsx` draws it, and
+Where it lives: the pick engine is the top-level `picks/` package — what the clicks mean
+(`picks/view.py`), which combinations are legal, the statements, the probes and the second engine
+(`picks/pyrunner/`) — written for any table of JSON records described to it (`picks/records.py`:
+the table, an owner's partition, the collections, a time series), so another program can host it.
+The demo is its first host: `demo/picks_host.py` describes the demo's records, and
+`demo/server/dashboard.py` is the demo's contract on top (its data sets, the sentence, the
+plain-word reasons, the routes), `demo/frontend/dashboard*.jsx` draws it, and
 `demo/tests/test_dashboard.py`, `test_scoreboard.py`, `test_joins.py`, `test_match.py` and
 `test_matched.py` test it against the live demo database.
 

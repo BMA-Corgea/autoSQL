@@ -45,6 +45,10 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEMO_DIR = _REPO_ROOT / "demo"
+#: T-86: the demo's pick engine moved to picks/ — every sweep of the demo's
+#: own code reads it too, or a rule the demo kept would stop covering it.
+_PICKS_DIR = _REPO_ROOT / "picks"
+_SWEPT_ROOTS = (_DEMO_DIR, _PICKS_DIR)
 for _p in (str(_REPO_ROOT), str(_DEMO_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -273,7 +277,7 @@ class TestTheFencesAreLoadBearing:
 # ═════════════════════════════════════════════════════════════════════════
 
 def _python_files():
-    for path in sorted(_DEMO_DIR.rglob("*.py")):
+    for path in sorted(p for root in _SWEPT_ROOTS for p in root.rglob("*.py")):
         parts = set(path.parts)
         if ".venv" in parts or "__pycache__" in parts:
             continue
@@ -426,7 +430,8 @@ _SKIP_DIRECTORIES = {".venv", "__pycache__", ".pytest_cache"}
 
 
 def _demo_tree_files():
-    """Every file of the demo tree: `demo/` plus `./run-demo`.
+    """Every file of the demo tree: `demo/` plus `./run-demo`, and `picks/`,
+    the demo's pick engine since T-86.
 
     The wheelhouse and the committed bundles are INCLUDED — they are in
     `demo/`, they are committed, and AC-3's criterion says "the demo tree"
@@ -435,7 +440,7 @@ def _demo_tree_files():
     `__pycache__/` and `.pytest_cache/`.
     """
     yield _REPO_ROOT / "run-demo"
-    for path in sorted(_DEMO_DIR.rglob("*")):
+    for path in sorted(p for root in _SWEPT_ROOTS for p in root.rglob("*")):
         if not path.is_file():
             continue
         if _SKIP_DIRECTORIES & set(path.parts):
@@ -639,15 +644,16 @@ _AC37_SKIP_STATIC_JS = ("static", "js")
 def _ac37_swept_files():
     """Every file the AC-37 sweep actually reads."""
     yield _REPO_ROOT / "run-demo"
-    for path in sorted(_DEMO_DIR.rglob("*")):
-        if not path.is_file():
-            continue
-        if _AC37_SKIP_DIRECTORIES & set(path.parts):
-            continue
-        rel_parts = path.relative_to(_DEMO_DIR).parts
-        if rel_parts[:2] == _AC37_SKIP_STATIC_JS:
-            continue
-        yield path
+    for root in _SWEPT_ROOTS:
+        for path in sorted(root.rglob("*")):
+            if not path.is_file():
+                continue
+            if _AC37_SKIP_DIRECTORIES & set(path.parts):
+                continue
+            rel_parts = path.relative_to(root).parts
+            if root == _DEMO_DIR and rel_parts[:2] == _AC37_SKIP_STATIC_JS:
+                continue
+            yield path
 
 
 def _timing_hits(paths):
@@ -1834,10 +1840,11 @@ def test_ac32_nothing_the_demo_runs_reaches_out_at_run_time():
         "xmlrpc.client", "webbrowser",
     }
     findings = []
-    for path in sorted(_DEMO_DIR.rglob("*.py")):
+    for path in sorted(p for root in _SWEPT_ROOTS for p in root.rglob("*.py")):
         if _SKIP_DIRECTORIES & set(path.parts):
             continue
-        if "tests" in path.relative_to(_DEMO_DIR).parts:
+        root = _DEMO_DIR if _DEMO_DIR in path.parents else _PICKS_DIR
+        if "tests" in path.relative_to(root).parts:
             continue
         for node in ast.walk(ast.parse(path.read_text(), filename=str(path))):
             names = []
@@ -2052,7 +2059,7 @@ _TOLERANCE_SKIP_DIRECTORIES = {
 
 def _tolerance_swept_files():
     """Every file the no-tolerance sweep actually reads."""
-    for path in sorted(_DEMO_DIR.rglob("*")):
+    for path in sorted(p for root in _SWEPT_ROOTS for p in root.rglob("*")):
         if not path.is_file():
             continue
         if _TOLERANCE_SKIP_DIRECTORIES & set(path.parts):
@@ -2112,8 +2119,8 @@ def test_no_tolerance_the_sweep_actually_covers_the_comparison_path():
     """
     swept = {p.relative_to(_REPO_ROOT).as_posix() for p in _tolerance_swept_files()}
     for required in (
-        "demo/pyrunner/evaluate.py",
-        "demo/pyrunner/order.py",
+        "picks/pyrunner/evaluate.py",     # demo/pyrunner/ until T-86
+        "picks/pyrunner/order.py",
         "demo/server/app.py",
         "demo/tests/test_walkthrough.py",
         "demo/tests/test_decimal.py",

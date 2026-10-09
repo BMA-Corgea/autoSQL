@@ -38,18 +38,11 @@ independence stated as an interface: perturb the SQL side however you like
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from .. import env, legality
 from . import evaluate as ev
 from .rows import SourceRow, read_rows
-
-_REPO_ROOT = str(Path(__file__).resolve().parents[2])
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
-import demo.legality as legality  # noqa: E402  (path bootstrap above)
 
 __all__ = ["answer", "python_pane"]
 
@@ -60,14 +53,16 @@ AGG, BUCKET_COL, ROLLING_AVG = "agg", "bucket", "rolling_avg"
 # B3 detail 3.)
 
 
-def answer(rows: Sequence[SourceRow], pick: dict) -> Dict[str, Any]:
+def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any]:
     """Apply *pick* to *rows* (one collection's source rows), §4.1's way."""
     # The legality matrix is consulted, not re-implemented (§4.5: one
     # function, so nothing can disagree with it).  The pick handler refuses
     # illegal picks before either pane runs; a violation reaching this far
     # is a caller bug, and B4's silent degradations (PARTITION BY NULL, the
     # one-bucket bucket) must never produce a number, so: loud.
-    verdict = legality.evaluate(pick)
+    records = env.records(records)
+    verdict = legality.evaluate(pick, records)
+    series = records.series or {"time": "ts", "member": "sender_id"}
     if verdict["violations"]:
         why = "; ".join(v["why"] for v in verdict["violations"])
         raise ValueError(f"illegal pick reached the Python pane: {why}")
@@ -84,25 +79,27 @@ def answer(rows: Sequence[SourceRow], pick: dict) -> Dict[str, Any]:
     if shape == "SCALAR":
         return _scalar(rows, pick, parsed)
     if shape == "BUCKET":
-        return _bucket(rows, pick, parsed)
-    return _rows(rows, pick, parsed)
+        return _bucket(rows, pick, parsed, series["time"])
+    return _rows(rows, pick, parsed, series)
 
 
-def python_pane(conn, pick: dict) -> Dict[str, Any]:
+def python_pane(conn, pick: dict, records=None) -> Dict[str, Any]:
     """Read the pick's source rows and answer it — the pane, end to end.
 
     The rows come out of the same database the SQL pane reads (spec §9.5:
     not the SQL query's result, not the seed script's memory), and the
     pick is applied from scratch by ``answer``.
     """
-    return answer(read_rows(conn, pick["source"]), pick)
+    return answer(read_rows(conn, pick["source"], records), pick, records)
 
 
 # ── ROWS (shapes A and B) ───────────────────────────────────────────────
 
 def _rows(
-    rows: Sequence[SourceRow], pick: dict, parsed: Sequence[tuple]
+    rows: Sequence[SourceRow], pick: dict, parsed: Sequence[tuple],
+    series: Optional[dict] = None,
 ) -> Dict[str, Any]:
+    series = series or {"time": "ts", "member": "sender_id"}
     windowed = bool(pick.get("window") and pick["window"].get("field"))
     changed_on = bool(pick.get("changed"))
 
@@ -114,12 +111,12 @@ def _rows(
     rolling: Dict[int, Any] = {}
     kept_flags: Optional[Dict[int, bool]] = None
     if windowed or changed_on:
-        partitions = ev.partition_walk(rows)
+        partitions = ev.partition_walk(rows, series["time"], series["member"])
         if windowed:
             read = ev.field_reader(pick["window"]["field"], parsed)
             rolling = ev.rolling_averages(rows, partitions, read)
         if changed_on:
-            kept_flags = ev.changed_flags(rows, partitions)
+            kept_flags = ev.changed_flags(rows, partitions, series["time"])
 
     # step 5 — keep only changed (op 9): WHERE "changed" in the outer query
     indices = [
@@ -210,7 +207,7 @@ _TS_STEPS = [("key", "ts")]
 
 
 def _bucket(
-    rows: Sequence[SourceRow], pick: dict, parsed: Sequence[tuple]
+    rows: Sequence[SourceRow], pick: dict, parsed: Sequence[tuple], time: str = "ts"
 ) -> Dict[str, Any]:
     granularity = pick.get("bucket")
     agg = pick.get("aggregate") or {}
@@ -219,7 +216,7 @@ def _bucket(
 
     groups: Dict[str, List[SourceRow]] = {}
     for r in rows:
-        ts = ev.text_of(ev.resolve(r.record_d, _TS_STEPS))
+        ts = ev.text_of(ev.resolve(r.record_d, _TS_STEPS if time == "ts" else [("key", time)]))
         if ts is None:
             # date_trunc(NULL) would be a silent NULL bucket; B4 restricts
             # bucketing to noun:Heartbeat, where ts is on every row — loud.

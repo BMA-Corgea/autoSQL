@@ -55,24 +55,21 @@ number that runs clean:
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime, timezone
 from decimal import Context, Decimal, ROUND_HALF_UP, localcontext
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .decimals import is_jsonb_number, q6
 from .order import MISSING, sort_key
 from .rows import SourceRow
 
-# The vendored evaluator (spec §9.5, R4).  demo/ is a namespace package off
-# the repo root; make the import hold regardless of cwd, the same way
-# demo/server/operations.py does for its own imports.
-_REPO_ROOT = str(Path(__file__).resolve().parents[2])
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+# The evaluator (spec §9.5, R4): the HOST's expression module, registered
+# once with ``picks.env.use(evaluator=...)`` (T-86) — GIMS's own evaluator,
+# vendored in this repo at demo/vendor/expr.py.  Its own module object: the
+# statement side's parser is registered separately.
+from .. import env as _env  # noqa: E402
 
-from demo.vendor import expr  # noqa: E402  (path bootstrap above)
+expr = _env.get("evaluator")
 
 __all__ = [
     "dollar_path",
@@ -242,17 +239,18 @@ def field_reader(
 
 # ── the frame operations 8 and 9 share (§7.1's window rule, R9) ─────────
 
-def _frame_order_key(row: SourceRow) -> tuple:
+def _frame_order_key(row: SourceRow, time: str = "ts") -> tuple:
     """``ORDER BY (data ->> 'ts'), key`` within one partition — text order,
     which for the seed's fixed-width UTC ISO-8601 is time order, with SQL
     NULL last (Postgres's ASC default) and ``key`` the tiebreak (§7.4)."""
-    ts = text_of(resolve(row.record_d, [("key", "ts")]))
+    ts = text_of(resolve(row.record_d, [("key", time)]))
     if ts is None:
         return (1, b"", row.key.encode("utf-8"))
     return (0, ts.encode("utf-8"), row.key.encode("utf-8"))
 
 
-def partition_walk(rows: Sequence[SourceRow]) -> List[List[int]]:
+def partition_walk(rows: Sequence[SourceRow], time: str = "ts",
+                   member: str = "sender_id") -> List[List[int]]:
     """``PARTITION BY (data ->> 'sender_id') ORDER BY (data ->> 'ts'), key``.
 
     Returns each partition as a list of indices into ``rows``, each list in
@@ -264,13 +262,13 @@ def partition_walk(rows: Sequence[SourceRow]) -> List[List[int]]:
     """
     groups: Dict[tuple, List[int]] = {}
     for i, row in enumerate(rows):
-        sender = text_of(resolve(row.record_d, [("key", "sender_id")]))
+        sender = text_of(resolve(row.record_d, [("key", member)]))
         gkey = (1, b"") if sender is None else (0, sender.encode("utf-8"))
         groups.setdefault(gkey, []).append(i)
     out = []
     for gkey in sorted(groups):
         idxs = groups[gkey]
-        idxs.sort(key=lambda i: _frame_order_key(rows[i]))
+        idxs.sort(key=lambda i: _frame_order_key(rows[i], time))
         out.append(idxs)
     return out
 
@@ -315,7 +313,7 @@ def rolling_averages(
     return out
 
 
-def _compared_value(row: SourceRow) -> dict:
+def _compared_value(row: SourceRow, time: str = "ts") -> dict:
     """§7.1's comparison rule: the record minus its ordering key — the
     spec's own spelling, over the EXACT parse (B7 rules op 9's comparison
     onto ``record_d``: jsonb compares numbers as numerics, exactly, and so
@@ -327,14 +325,14 @@ def _compared_value(row: SourceRow) -> dict:
         # on the seeded collections (every record is an object), and loud
         # here rather than silently comparing scalars.
         raise TypeError(f"record of {row.key!r} is not an object")
-    return {k: v for k, v in record.items() if k != "ts"}
+    return {k: v for k, v in record.items() if k != time}
 
 
 _NO_PREDECESSOR = object()  # lag() before any row: SQL NULL
 
 
 def changed_flags(
-    rows: Sequence[SourceRow], partitions: Sequence[Sequence[int]]
+    rows: Sequence[SourceRow], partitions: Sequence[Sequence[int]], time: str = "ts"
 ) -> Dict[int, bool]:
     """Operation 9: ``lag(data - 'ts') OVER w IS DISTINCT FROM (data - 'ts')``
     — {row index: kept?}.
@@ -348,7 +346,7 @@ def changed_flags(
     for part in partitions:
         prev: Any = _NO_PREDECESSOR
         for i in part:
-            cur = _compared_value(rows[i])
+            cur = _compared_value(rows[i], time)
             out[i] = prev is _NO_PREDECESSOR or cur != prev
             prev = cur
     return out

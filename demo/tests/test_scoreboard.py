@@ -456,7 +456,8 @@ def test_the_engines_name_the_same_columns():
 
 
 def test_the_second_engine_imports_nothing_from_the_first():
-    text = (_DEMO_DIR / "pyrunner" / "group.py").read_text()
+    # picks/pyrunner/ since T-86 (demo/pyrunner/ before)
+    text = (_REPO_ROOT / "picks" / "pyrunner" / "group.py").read_text()
     for name in ("builder", "probes", "demo.group", "import group", "psycopg"):
         assert name not in text.split('"""', 2)[2], name
 

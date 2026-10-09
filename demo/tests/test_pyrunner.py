@@ -332,27 +332,41 @@ def test_ac23a_mutating_a_row_in_postgres_moves_the_python_pane():
 # AC-23(b) — the Python pane cannot follow a perturbed SQL side
 # ─────────────────────────────────────────────────────────────────────────
 
-_FORBIDDEN_IMPORTS = ("demo.builder", "builder", "demo.probes", "probes", "psycopg")
+_FORBIDDEN_IMPORTS = ("demo.builder", "builder", "demo.probes", "probes", "psycopg",
+                      # T-86: the engine moved to picks/; its builder and probes too
+                      "picks.builder", "picks.probes")
 
 
-def _imported_names(path: Path) -> set:
+def _imported_names(path: Path, package: str = "picks.pyrunner") -> set:
+    """Every module a file imports, by full name — relative imports resolved
+    against ``package`` (T-86: picks/pyrunner imports its siblings and
+    ``picks.env`` relatively), and each name a ``from X import name`` brings
+    in counted as ``X.name`` too, so ``from .. import builder`` is caught."""
     tree = pyast.parse(path.read_text(encoding="utf-8"))
     names = set()
     for node in pyast.walk(tree):
         if isinstance(node, pyast.Import):
             names.update(alias.name for alias in node.names)
-        elif isinstance(node, pyast.ImportFrom) and node.level == 0 and node.module:
-            names.add(node.module)
+        elif isinstance(node, pyast.ImportFrom):
+            if node.level:
+                base = package.split(".")[: len(package.split(".")) - (node.level - 1)]
+                module = ".".join(base + ([node.module] if node.module else []))
+            else:
+                module = node.module
+            if module:
+                names.add(module)
+                names.update(f"{module}.{alias.name}" for alias in node.names)
     return names
 
 
 def test_ac23b_pyrunner_imports_nothing_from_the_sql_side():
-    """Structural half: no module of demo/pyrunner/ imports the query
+    """Structural half: no module of picks/pyrunner/ (demo/pyrunner/ until
+    T-86 moved it) imports the query
     builder, the probes, or the database driver (plan §4.5: only the
     connection factory imports the driver; W12's brief: the second
     calculator must not import from builder or probes).  This is the
     same enforcement shape B8 pins for expectations.py."""
-    pkg = _REPO_ROOT / "demo" / "pyrunner"
+    pkg = _REPO_ROOT / "picks" / "pyrunner"
     checked = 0
     for module in sorted(pkg.glob("*.py")):
         names = _imported_names(module)
