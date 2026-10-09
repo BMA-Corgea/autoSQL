@@ -96,7 +96,9 @@ function Checked({ admin, kind }) {
       </div>
     );
   }
-  return <p className="dx-checked is-none" data-testid="checked">Not double-checked: this one was refused before an answer existed.</p>;
+  // The server says why, true to what happened: the statement may have
+  // answered and the second engine not (T-79).
+  return <p className="dx-checked is-none" data-testid="checked">{admin.unchecked || "Not double-checked."}</p>;
 }
 
 // Open or folded: remembered for the visit (T-72: admins see the SQL,

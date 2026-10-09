@@ -46,7 +46,7 @@ export function DatasetStep({ datasets, value, onPick }) {
   );
 }
 
-export function ColumnsStep({ fields, value, onChange, why }) {
+export function ColumnsStep({ fields, value, onChange, why, children }) {
   const on = new Set(value);
   const toggle = (path) => {
     // Keep the data set's own field order, whatever order they were clicked in.
@@ -73,6 +73,7 @@ export function ColumnsStep({ fields, value, onChange, why }) {
           </label>
         ))}
       </div>
+      {children}
       </fieldset>
     </Step>
   );

@@ -18,6 +18,7 @@ import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
+import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -58,7 +59,7 @@ function offFor(setup, view) {
 // greyed out right now. A greyed choice is kept on screen (it comes back
 // when the summary is turned off), shown as off with its reason, and not
 // asked about.
-function sendable(setup, view) {
+function sendable(setup, view, admin) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const conditions = view.conditions
     .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
@@ -76,6 +77,11 @@ function sendable(setup, view) {
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
   if (view.scoreboard) out.scoreboard = sendableScoreboard(setup, ds, view.scoreboard);
+  // Columns from another data set (T-78): beside a table's rows only, and
+  // only once whole with a field ticked; kept on screen otherwise.
+  const matched = view.summary || view.scoreboard ? null : sendableMatched(setup, ds, view.matched, admin);
+  if (matched) out.matched = matched;
+  else delete out.matched;
   return out;
 }
 
@@ -372,7 +378,8 @@ function Answer({ answer, updating, failed, current, onPage, sort, onSort }) {
         // under another pick while that one is asked (S17 check, MEDIUM).
         current ? <p className="dx-problem" role="alert">{answer.message}</p> : null
       ) : answer.kind === "invalid" ? (
-        <p className="dx-problem" role="alert">{answer.message}</p>
+        // The same for a pick the page could not ask (T-79).
+        current ? <p className="dx-problem" role="alert">{answer.message}</p> : null
       ) : answer.kind === "number" ? (
         <Hero number={answer.number} />
       ) : answer.total === 0 ? (
@@ -424,6 +431,9 @@ function summaryLine(setup, view) {
     else if (own) parts.push("one row each");
     if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
+  const m = !view.summary && !view.scoreboard && view.matched;
+  const sent = m && m.dataset && m.field && m.matches && m.columns.length;
+  if (sent) parts.push(`with their ${setup.datasets.find((d) => d.id === m.dataset).one}`);
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
   return parts;
 }
@@ -440,6 +450,10 @@ function App() {
   // line that describes a pick — the match preview, a refusal — is drawn only
   // while that question is the one on screen and its request didn't fail.
   const [answered, setAnswered] = useState(null);
+  // Which view the answer on screen was asked for: an Admin answer (Edge
+  // cases' Label in it) is never drawn once the page is back on Everyone,
+  // not even dimmed while the Everyone answer is asked (T-79).
+  const [answeredAdmin, setAnsweredAdmin] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
@@ -449,11 +463,22 @@ function App() {
   const inflight = useRef(null);
   const timer = useRef(null);
 
-  useEffect(() => {
-    getJSON("/api/dashboard/setup")
-      .then((s) => { setSetup(s); setView(viewFor(s, s.default_view.dataset, loadViewAs())); })
-      .catch(() => setSetupFailed(true));
+  // The setup, as each view gets it (T-79): the Everyone view's names no
+  // field hidden from it, so it is fetched for the view on screen, and the
+  // other view's is fetched when the switch is flipped. Each is kept once
+  // fetched: the seed can't change under the page.
+  const setups = useRef({});
+  const loadSetup = useCallback((asAdmin) => {
+    const key = asAdmin ? "admin" : "everyone";
+    if (setups.current[key]) return Promise.resolve(setups.current[key]);
+    return getJSON(`/api/dashboard/setup?view=${key}`).then((s) => { setups.current[key] = s; return s; });
   }, []);
+  useEffect(() => {
+    const asAdmin = loadViewAs();
+    loadSetup(asAdmin)
+      .then((s) => { setSetup(s); setView(viewFor(s, s.default_view.dataset, asAdmin)); })
+      .catch(() => setSetupFailed(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The statement and the engines' verdict are asked for only in the Admin
   // view: the Everyone view's answers carry none of it (T-75).
@@ -465,18 +490,20 @@ function App() {
     if (inflight.current) inflight.current.abort();
     const ctl = new AbortController();
     inflight.current = ctl;
+    const asAdmin = adminRef.current;
     setUpdating(true);
     setFailed(false); // a new question is out: the last failure is not this answer
     getJSON("/api/dashboard/answer", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ view: v, page: p, admin: adminRef.current }),
+      body: JSON.stringify({ view: v, page: p, admin: asAdmin }),
       signal: ctl.signal,
     })
       .then((a) => {
         if (mine !== seq.current) return; // a newer question is out: drop this
         setAnswer(a);
         setAnswered(JSON.stringify(v));
+        setAnsweredAdmin(asAdmin);
         setFailed(false);
         setUpdating(false);
       })
@@ -489,7 +516,7 @@ function App() {
 
   // What is actually asked. Editing a condition that is still waiting for
   // its value changes the view but not the question, and asks nothing.
-  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view)) : null), [setup, view]);
+  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view, admin)) : null), [setup, view, admin]);
   // Is the answer on screen the answer to the pick on screen?
   const current = !!answer && !failed && answered === question;
 
@@ -526,15 +553,26 @@ function App() {
     [setup, view],
   );
 
+  // A flip asks for the other view's setup first (once), then switches the
+  // view and the setup together. Only the newest flip lands.
+  const flips = useRef(0);
   const flipViewAs = (toAdmin) => {
     if (toAdmin === admin) return;
+    const mine = ++flips.current;
+    loadSetup(toAdmin)
+      .then((next) => { if (mine === flips.current) applyFlip(toAdmin, next); })
+      .catch(() => { if (mine === flips.current) setSetupFailed(true); });
+  };
+  const applyFlip = (toAdmin, nextSetup) => {
     setAdmin(toAdmin);
     saveViewAs(toAdmin);
     const patch = {};
     // A data set still on the other view's starting columns moves to this
-    // view's (Edge cases' Label is on for Admin, off for Everyone).
-    const from = (toAdmin ? setup.default_views : setup.admin_default_views)[view.dataset];
-    const to = (toAdmin ? setup.admin_default_views : setup.default_views)[view.dataset];
+    // view's (Edge cases' Label is on for Admin, off for Everyone). Admin's
+    // starting views are in Admin's setup only.
+    const adminSetup = toAdmin ? nextSetup : setup;
+    const from = (toAdmin ? setup.default_views : adminSetup.admin_default_views)[view.dataset];
+    const to = (toAdmin ? adminSetup.admin_default_views : nextSetup.default_views)[view.dataset];
     if (same(view.columns, from.columns) && !same(from.columns, to.columns)) patch.columns = [...to.columns];
     if (!toAdmin) {
       // Everyone keeps nothing that names a field hidden from it (T-77):
@@ -549,6 +587,14 @@ function App() {
         if (conds.length < 2) patch.logic = "all";
       }
       if (view.sort && hidden.has(view.sort.field)) patch.sort = null;
+      // Columns from another data set: a match on a field Everyone doesn't
+      // see is dropped; a hidden field among those shown is unticked (T-78).
+      const mt = view.matched;
+      if (mt && mt.dataset) {
+        const theirs = hiddenIn((setup.datasets.find((d) => d.id === mt.dataset) || { fields: [] }).fields);
+        if (hidden.has(mt.matches) || theirs.has(mt.field)) patch.matched = null;
+        else if (mt.columns.some((p) => theirs.has(p))) patch.matched = { ...mt, columns: mt.columns.filter((p) => !theirs.has(p)) };
+      }
       const sb = view.scoreboard;
       if (sb) {
         let next = sb;
@@ -574,6 +620,7 @@ function App() {
         if (next !== sb) patch.scoreboard = next;
       }
     }
+    setSetup(nextSetup);
     if (Object.keys(patch).length) change(patch);
   };
 
@@ -632,7 +679,13 @@ function App() {
             value={view.columns}
             onChange={(columns) => change({ columns })}
             why={view.scoreboard ? COLUMNS_OFF_SCOREBOARD : view.summary ? COLUMNS_OFF : null}
-          />
+          >
+            <MatchedColumns setup={setup} ds={ds} admin={admin} value={view.matched || null}
+              off={!!(view.summary || view.scoreboard)}
+              onChange={(matched) => change({ matched })}
+              match={current && answer.kind !== "invalid" && JSON.parse(question).matched
+                && (admin || !answeredAdmin) ? answer.match : null} />
+          </ColumnsStep>
           <ConditionsStep
             fields={picks}
             shown={view.columns}
@@ -673,14 +726,14 @@ function App() {
             shown={view.columns}
             admin={admin}
             setup={setup}
-            match={current && answer.kind !== "invalid" ? answer.match : null}
+            match={current && answer.kind !== "invalid" && (admin || !answeredAdmin) ? answer.match : null}
             onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
           />
         </aside>
 
         <main className="dx-result" aria-label="Answer">
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
-          <Answer answer={answer} updating={updating} failed={failed} current={current} onPage={setPage}
+          <Answer answer={answeredAdmin && !admin ? null : answer} updating={updating} failed={failed} current={current} onPage={setPage}
             sort={view.scoreboard ? view.scoreboard.sort : null}
             onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>

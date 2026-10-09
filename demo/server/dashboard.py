@@ -52,6 +52,7 @@ if _DEMO_DIR not in sys.path:
 
 import group  # noqa: E402
 import legality  # noqa: E402
+import lookup  # noqa: E402
 
 from . import db, settings  # noqa: E402
 
@@ -432,6 +433,9 @@ def setup(conn) -> dict:
                 # The fields that name one row each — a board by one of them
                 # is "Senders", never "Senders per Sender" (the page's bar too).
                 "own_keys": sorted({r["parent_key"] for r in RELATIONS.get(d["id"], [])}),
+                # T-78: the matches a table opens on (a declared relation read
+                # the other way): each heartbeat's sender, each sender's site.
+                "lookups": [dict(x, name=_BY_ID[x["id"]]["name"]) for x in lookups(d["id"])],
             })
         _SETUP = {
             "datasets": out,
@@ -461,9 +465,28 @@ def setup(conn) -> dict:
             # the gate reads the same table.
             "match_kinds": list(MATCH_TYPE_OF_KIND),
             "label_max": LABEL_MAX,
+            "max_matched_columns": lookup.MAX_COLUMNS,
             "unavailable": _reasons_table(out),
         }
         return _SETUP
+
+
+def setup_for(payload: dict, admin: bool) -> dict:
+    """The setup as one view may see it (T-79).  Admin gets all of it.  The
+    Everyone view's copy names no field hidden from it — not its name, its
+    values or its range (Edge cases' Label, whose text was written for
+    engineers) — and no Admin starting view, which ticks that field.  The
+    answers already go to each view this way (T-75); the server keeps the
+    whole setup to check every request against."""
+    if admin:
+        return payload
+    out = dict(payload)
+    out.pop("admin_default_views", None)
+    out["datasets"] = [
+        dict(d, fields=[f for f in d["fields"] if not f.get("hidden_by_default")])
+        for d in payload["datasets"]
+    ]
+    return out
 
 
 def default_view_from(datasets: list, dataset_id: str = "heartbeats") -> dict:
@@ -501,7 +524,7 @@ def _name(value):
 #: choice the page shows but the answer drops would be a pick silently
 #: ignored, which is the one thing this page must never do.
 VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "sort", "show", "summary",
-             "scoreboard"}
+             "scoreboard", "matched"}
 CONDITION_KEYS = {"field", "op", "value", "value2", "values"}
 SORT_KEYS = {"field", "dir"}
 
@@ -569,6 +592,9 @@ def to_pick(setup_payload: dict, view: dict) -> dict:
     ds, fields = _dataset(setup_payload, view)
     if view.get("scoreboard") is not None:
         raise ViewError("A scoreboard is answered as a scoreboard, not as rows.")
+    if view.get("matched") is not None:
+        # answered by matched_answer, which asks for the table without it
+        raise ViewError(MATCHED_NEEDS_TABLE)
     pick = legality.default_pick()
     pick["source"] = next(d["source"] for d in DATASETS if d["id"] == ds["id"])
     pick["computed"] = [
@@ -1272,6 +1298,10 @@ def agreed_rows(conn, pick: dict) -> int | None:
 #: answers HTTP 500 for the same pick; that screen is not changed here).
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
 
+#: The headline of every refusal where the statement answered and the second
+#: engine could not finish (scoreboard.py writes the same words).
+SECOND_ENGINE_HEADLINE = "The second engine could not finish"
+
 _CACHE_LOCK = threading.Lock()
 _CACHE: "OrderedDict[str, dict]" = OrderedDict()
 _CACHE_SIZE = 8
@@ -1286,7 +1316,7 @@ def _second_engine_overflow(conn, exc, sql: dict) -> dict:
     return {
         "accepted": False, "verdict": "no-compare", "comparison": {},
         "sql": sql,
-        "refusal": {"headline": "The second engine could not finish",
+        "refusal": {"headline": SECOND_ENGINE_HEADLINE,
                     "why": f"out-of-range magnitude in the second engine: {exc}"},
     }
 
@@ -1345,6 +1375,16 @@ def _run(conn, pick: dict) -> dict:
         answer = server_app.run_pick(conn, pick, whole=True)
     except OverflowError as exc:
         return _second_engine_overflow(conn, exc, _statement_for_admin(conn, pick, server_app))
+    except server_app.SecondEngineFailed as exc:
+        # The statement answered and the second engine couldn't: nothing is
+        # shown from an answer that couldn't be double-checked, never a 500
+        # (T-79, as for a board).  Not cached: the next ask runs it again.
+        return {
+            "accepted": False, "verdict": "no-compare", "comparison": {},
+            "sql": _statement_for_admin(conn, pick, server_app),
+            "refusal": {"kind": "answer-unchecked",
+                        "headline": SECOND_ENGINE_HEADLINE, "why": str(exc)},
+        }
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
             raise
@@ -1395,6 +1435,38 @@ def plain_refusal(refusal: dict | None) -> str:
     return _PLAIN_REFUSAL_DEFAULT
 
 
+#: Why an answer was not double-checked, for Admin (T-79).  "Refused before
+#: an answer existed" is true only when nothing answered.
+UNCHECKED_REFUSED = "Not double-checked: this one was refused before an answer existed."
+CHECKED_REFUSAL = {
+    # the engines compare the refusal's NUMBERS (how many rows, how many times), not which rows (S19 re-check, LOW)
+    "repeat": "Double-checked — both engines found the same numbers: a row would be shown twice, so no table is drawn.",
+    "double-count": "Double-checked — both engines found the same numbers: a row would be counted twice, so no board is drawn.",
+}
+UNCHECKED_SECOND_ENGINE = ("Not double-checked: the statement answered, but the second engine "
+                           "could not finish, so nothing is shown.")
+UNCHECKED_PROFILE = ("Not double-checked: the second engine could not work out what the match "
+                     "does, so nothing is shown.")
+UNCHECKED_MATCH = ("Not double-checked: the two engines disagree on what the match does, "
+                   "so nothing is shown.")
+
+
+def unchecked_line(answer: dict) -> str | None:
+    """Admin's line when an answer was not compared: None when it was."""
+    if answer.get("verdict") in ("agree", "disagree"):
+        return None
+    refusal = answer.get("refusal") or {}
+    if refusal.get("kind") in ("repeat", "double-count") and (answer.get("match") or {}).get("verdict") == "agree":
+        # the refusal's own numbers were worked out by both engines, and agreed
+        # (S19 check, L1): it is not an unchecked answer
+        return CHECKED_REFUSAL[refusal["kind"]]
+    if refusal.get("kind") == "match-disagree":
+        return UNCHECKED_PROFILE if (answer.get("match") or {}).get("python_error") else UNCHECKED_MATCH
+    if refusal.get("headline") == SECOND_ENGINE_HEADLINE:
+        return UNCHECKED_SECOND_ENGINE
+    return UNCHECKED_REFUSED
+
+
 def _admin_block(answer: dict) -> dict:
     sql = answer.get("sql") or {}
     comparison = answer.get("comparison") or {}
@@ -1414,6 +1486,9 @@ def _admin_block(answer: dict) -> dict:
             "headline": refusal.get("headline"),
             "why": refusal.get("why") or refusal.get("body"),
         },
+        # Admin's "not double-checked" line, true to what happened (T-79):
+        # the statement may have answered and the second engine not.
+        "unchecked": unchecked_line(answer),
     }
 
 
@@ -1442,15 +1517,24 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
         _refuse_hidden(view, fields)
     if view.get("scoreboard") is not None:
         return scoreboard_answer(conn, setup_payload, view, page, admin)
+    if view.get("matched") is not None:
+        return matched_answer(conn, setup_payload, view, page, admin)
     pick = to_pick(setup_payload, view)
     result = _run(conn, pick)
     admin = _admin_block(result)
 
     if not result.get("accepted"):
+        refusal = result.get("refusal") or {}
+        if refusal.get("kind") == "answer-unchecked":
+            _note(f"The second engine could not compute this answer ({refusal.get('why')}), "
+                  "so it couldn't be double-checked and nothing is shown.")
+            message = ANSWER_UNCHECKED
+        else:
+            message = plain_refusal(refusal)
         return {
             "kind": "refused",
             "sentence": question_words(ds, view, fields),
-            "message": plain_refusal(result.get("refusal")),
+            "message": message,
             "admin": admin,
         }
 
@@ -1730,11 +1814,20 @@ def _same_name(label: str) -> str:
     return re.sub(r"\s+", " ", label).strip().casefold()
 
 
-def _plural_noun(label: str, n: int) -> str:
-    word = label.lower()
-    if len(word) <= 2:
-        # "2 A values" reads oddly; "2 values of A" reads for any name (T-75)
+#: The field names that read as a thing you can count ("3 statuses", "4
+#: sites").  Declared, never guessed from the word: a name like Present,
+#: Where code or Load is not a noun, and "2 presents" or "101 loads" reads
+#: wrongly (T-79).  Every other field is counted as "2 values of Present".
+COUNT_NOUNS = frozenset({"Sender", "Status", "Note", "Priority", "Name", "Site", "Kind"})
+
+
+def _plural_noun(label: str, n: int, noun: bool = False) -> str:
+    """``n`` groups of a board, in words: a data set's own word ("5 sites")
+    or a declared noun ("3 statuses") is made plural; any other field name
+    is said as "2 values of Present", which reads for every name."""
+    if not (noun or label in COUNT_NOUNS):
         return f"1 value of {label}" if n == 1 else f"{fmt_number(str(n))} values of {label}"
+    word = label.lower()
     if n == 1:
         return f"1 {word}"
     if word.endswith(("s", "x", "ch", "sh")):
@@ -1759,7 +1852,8 @@ def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
     return compose([e for e, _ in parsed], logic), joined_words([w for _, w in parsed], logic)
 
 
-def _count_from(setup_payload: dict, ds: dict, fields: dict, count_from, admin: bool):
+def _count_from(setup_payload: dict, ds: dict, fields: dict, count_from, admin: bool,
+                verb: str = "count from"):
     """The match a scoreboard counts across (T-76), checked — or (None, None)
     for its own rows.  Returns ``({"to", "key", "parent_key", "match",
     "declared"}, the counted data set)``.  Every pick the screen can't make
@@ -1773,13 +1867,13 @@ def _count_from(setup_payload: dict, ds: dict, fields: dict, count_from, admin: 
             raise ViewError(f"{ds['name']} has no related data set to count from by that name.")
         count_from = {"dataset": relation["to"], "field": relation["key"], "matches": relation["parent_key"]}
     if not isinstance(count_from, dict):
-        raise ViewError("Count from must name a data set and the two fields that match.")
-    _refuse_extra(count_from, COUNT_FROM_KEYS, "count from")
+        raise ViewError(f"{verb[:1].upper() + verb[1:]} must name a data set and the two fields that match.")
+    _refuse_extra(count_from, COUNT_FROM_KEYS, verb)
     other = _name(count_from.get("dataset"))
     rel_ds = next((d for d in setup_payload["datasets"] if d["id"] == other), None)
     if rel_ds is None:
-        raise ViewError(f"There's no data set called “{other}” to count from." if other
-                        else "There's no data set by that name to count from.")
+        raise ViewError(f"There's no data set called “{other}” to {verb}." if other
+                        else f"There's no data set by that name to {verb}.")
     if rel_ds["id"] == ds["id"]:
         raise ViewError("A data set can't be matched with itself.")
     theirs = {f["path"]: f for f in rel_ds["fields"]}
@@ -1821,6 +1915,8 @@ def to_spec(setup_payload: dict, view: dict, admin: bool = True) -> tuple[dict, 
     _refuse_extra(sb, SCOREBOARD_KEYS, "a scoreboard")
     if view.get("summary") is not None:
         raise ViewError("A scoreboard and a summary can't be asked at once.")
+    if view.get("matched") is not None:
+        raise ViewError(MATCHED_NEEDS_TABLE)
     if _columns(view, fields):
         raise ViewError("Columns don't apply to a scoreboard; untick them first.")
     if view.get("sort") is not None:
@@ -2043,6 +2139,8 @@ def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
 
 
 MATCH_UNCHECKED = "This match couldn't be double-checked, so it isn't counted."
+BOARD_UNCHECKED = "This board couldn't be double-checked, so it isn't shown."
+ANSWER_UNCHECKED = "This answer couldn't be double-checked, so it isn't shown."
 
 
 def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
@@ -2098,6 +2196,11 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
                 _note("The two engines disagree on what the match does — the statement's profile "
                       f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
                       f"{json.dumps(match.get('python'), default=str)} — so nothing is counted.")
+        elif kind == "board-unchecked":
+            message = BOARD_UNCHECKED
+            _note("The second engine could not compute this board "
+                  f"({(result.get('refusal') or {}).get('why')}), so it couldn't be double-checked "
+                  "and nothing is shown.")
         else:
             message = plain_refusal(result.get("refusal"))
         out = {"kind": "refused", "sentence": head, "message": message, "admin": admin_block}
@@ -2176,13 +2279,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
             _note(_disagreed_total("groups", cmp_.get("sql_row_count"),
                                    cmp_.get("python_row_count")))
         if of is not None and of <= show:
-            tail = _plural_noun(noun, of)
+            tail = _plural_noun(noun, of, own_key)
         elif of is not None:
-            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of)}"
+            tail = f"the first {fmt_number(str(show))} of {_plural_noun(noun, of, own_key)}"
         else:
-            tail = f"the first {_plural_noun(noun, show)}"
+            tail = f"the first {_plural_noun(noun, show, own_key)}"
     else:
-        tail = _plural_noun(noun, total)
+        tail = _plural_noun(noun, total, own_key)
 
     return {
         "kind": "scoreboard",
@@ -2196,6 +2299,247 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
         "unavailable": {"sort": "A scoreboard sorts by its own columns."},
         "match": None if relation is None else {"preview": preview, "refused": False},
         "admin": admin,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5c · Matched fields in tables (T-78): another data set's fields beside
+#      each row, by a field pair the person picks, never repeating a row
+# ═════════════════════════════════════════════════════════════════════════
+
+MATCHED_KEYS = {"dataset", "field", "matches", "columns"}
+MATCHED_NEEDS_TABLE = ("Fields from another data set go beside a table's rows; "
+                       "turn the summary or the scoreboard off first.")
+MATCH_FIELDS_UNCHECKED = "This match couldn't be double-checked, so its fields aren't shown."
+
+
+def lookups(ds_id: str) -> list:
+    """The matches a table opens on: each declared relation read the other
+    way (T-74's Senders → Heartbeats is each heartbeat's sender; T-76's
+    Sites → Senders is each sender's site).  Never guessed from names."""
+    return [{"id": parent, "field": r["parent_key"], "matches": r["key"]}
+            for parent, rels in RELATIONS.items() for r in rels if r["to"] == ds_id]
+
+
+def matched_label(rel_ds: dict, field: dict) -> str:
+    """A matched column's name: the other data set's word and the field's
+    — "Sender's Name", "Site's Capacity"."""
+    one = rel_ds["one"]
+    return f"{one[:1].upper()}{one[1:]}'s {field['label']}"
+
+
+def to_lookup(setup_payload: dict, view: dict, admin: bool = True) -> tuple[dict, dict]:
+    """A view's ``matched`` → (the engine's match spec, what the screen needs
+    to label it).  Every pick the screen can't make is refused by name
+    (AC8): T-76's checks on the pair, then the columns."""
+    ds, fields = _dataset(setup_payload, view)
+    m = view.get("matched")
+    if view.get("summary") is not None or view.get("scoreboard") is not None:
+        raise ViewError(MATCHED_NEEDS_TABLE)
+    if not isinstance(m, dict):
+        raise ViewError("Fields from another data set must name a data set, the two fields that "
+                        "match, and the fields to show.")
+    _refuse_extra(m, MATCHED_KEYS, "fields from another data set")
+    pair = {k: m.get(k) for k in ("dataset", "field", "matches")}
+    relation, rel_ds = _count_from(setup_payload, ds, fields, pair, admin, verb="take fields from")
+    theirs = {f["path"]: f for f in rel_ds["fields"]}
+    cols = m.get("columns")
+    if not isinstance(cols, list) or not cols:
+        raise ViewError(f"Pick at least one of {rel_ds['name']}' fields to show.")
+    if not all(isinstance(c, str) for c in cols):
+        raise ViewError("The fields to show must be a list of field names.")
+    if len(cols) > lookup.MAX_COLUMNS:
+        raise ViewError(f"Show at most {lookup.MAX_COLUMNS} fields from {rel_ds['name']}.")
+    picked: list = []
+    for c in cols:
+        f = theirs.get(c)
+        if f is None:
+            raise ViewError(f"{rel_ds['name']} has no field “{c}” to show." if c
+                            else f"{rel_ds['name']} has no field by that name to show.")
+        if f.get("hidden_by_default") and not admin:     # T-77's rule, for a shown field
+            raise ViewError(f"{f['label']} isn't offered in this view.")
+        if f not in picked:
+            picked.append(f)
+    # The statement's names: the table's own column names come first, and a
+    # matched column takes the next free one ("Sender_s_Name").
+    taken = {fields[c]["alias"] for c in _columns(view, fields)}
+    shown = [{"field": f, "label": matched_label(rel_ds, f),
+              "alias": _alias(matched_label(rel_ds, f), taken)} for f in picked]
+    declared = any(x["id"] == rel_ds["id"] and x["field"] == relation["key"]
+                   and x["matches"] == relation["parent_key"] for x in lookups(ds["id"]))
+    spec = {
+        "source": next(d["source"] for d in DATASETS if d["id"] == rel_ds["id"]),
+        "key": relation["key"],
+        "parent_key": relation["parent_key"],
+        "match": relation["match"],
+        "columns": [{"name": x["alias"], "path": x["field"]["path"]} for x in shown],
+    }
+    return spec, {"ds": ds, "rel_ds": rel_ds, "relation": relation, "shown": shown,
+                  "declared": declared}
+
+
+def _run_matched(conn, pick: dict, spec: dict) -> dict:
+    """``run_lookup`` with the whole answer, remembered per pick — and the
+    runtime's named refusals answered, as ``_run`` and ``_run_group`` do."""
+    from . import app as server_app
+    from . import matched
+
+    key = "matched:" + json.dumps([pick, spec], sort_keys=True)
+    with _CACHE_LOCK:
+        hit = _CACHE.get(key)
+        if hit is not None:
+            _CACHE.move_to_end(key)
+            return hit
+    try:
+        result = matched.run_lookup(conn, pick, spec)
+    except OverflowError as exc:
+        return _second_engine_overflow(conn, exc, _matched_statement(conn, pick, spec, server_app))
+    except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
+        if getattr(exc, "sqlstate", None) not in (ENGINE_REFUSAL_SQLSTATE, "22003"):
+            raise
+        return {
+            "accepted": False, "verdict": "no-compare", "comparison": {},
+            "sql": _matched_statement(conn, pick, spec, server_app),
+            "refusal": {"headline": "Refused while running",
+                        "why": f"{exc.sqlstate}: {str(exc).splitlines()[0]}"},
+        }
+    if result.get("accepted") or (result.get("refusal") or {}).get("kind") == "repeat":
+        with _CACHE_LOCK:
+            _CACHE[key] = result
+            _CACHE.move_to_end(key)
+            while len(_CACHE) > _CACHE_SIZE:
+                _CACHE.popitem(last=False)
+    return result
+
+
+def _matched_statement(conn, pick: dict, spec: dict, server_app) -> dict:
+    """The statement that was sent and refused mid-run, rebuilt for Admin
+    after the rollback (as ``_statement_for_admin`` does for a table)."""
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    server_app.refuse_writes(conn)
+    try:
+        norm = server_app.normalised_pick(pick)
+        built = lookup.build(norm, server_app.collection_keys(conn, norm["source"]), spec)
+        return {"display": server_app.render_display_sql(built), "parameterised": built.sql,
+                "params": server_app._param_rows(built.params), "statement_sent": True}
+    except Exception:  # noqa: BLE001 — building the display only; the refusal stands
+        return {"display": None, "statement_sent": True}
+
+
+def matched_words(about: dict, fields: dict) -> str:
+    """What the sentence adds: ", with each one's Sender: Name and Site", and
+    the pair when it isn't the declared one: "(matched by Load = Capacity)"."""
+    labels = [x["field"]["label"] for x in about["shown"]]
+    listed = labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+    rel_one = about["rel_ds"]["one"]
+    out = f", with each one's {rel_one[:1].upper()}{rel_one[1:]}: {listed}"
+    if not about["declared"]:
+        out += (f" (matched by {about['relation']['matches']['label']} = "
+                f"{about['relation']['field']['label']})")
+    return out
+
+
+def matched_preview(ds: dict, rel_ds: dict, prof: dict) -> str | None:
+    """What the match does, in one plain line, from the agreed profile
+    (every kept row matches at most one row here)."""
+    rows, none = prof["rows"], prof["rows_none"]
+    if rows == 0:
+        return None
+    some = rows - none
+    blank = f"their {rel_ds['one']} fields are blank"
+    if none == 0:
+        return (f"Every {ds['one']} matches one {rel_ds['one']}." if rows > 1
+                else f"The {ds['one']} matches one {rel_ds['one']}.")
+    if some == 0:
+        return f"No {ds['one']} here matches a {rel_ds['one']}, so {blank}."
+    return (f"{_n(some, ds)} {'matches' if some == 1 else 'match'} one {rel_ds['one']}; "
+            f"{fmt_number(str(none))} {'matches' if none == 1 else 'match'} none, so {blank}.")
+
+
+def repeat_line(ds: dict, rel_ds: dict, prof: dict) -> str:
+    """The refusal, in one line with its numbers: a row matching more than
+    one row would be shown once per match."""
+    if prof["rows"] == 1:
+        # one kept row: never "for 1 of the 1 site" (S19 check, L2)
+        return (f"The {ds['one']} would be shown once for every {rel_ds['one']} that matches it "
+                f"— {fmt_number(str(prof['most']))} times — and a row is shown only once.")
+    return (f"Each {ds['one']} would be shown once for every {rel_ds['one']} that matches it "
+            f"— up to {fmt_number(str(prof['most']))} times, for "
+            f"{fmt_number(str(prof['repeated']))} of the {_n(prof['rows'], ds)} "
+            "— and a row is shown only once.")
+
+
+def matched_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
+    spec, about = to_lookup(setup_payload, view, admin)
+    ds, fields = _dataset(setup_payload, view)
+    rel_ds, relation = about["rel_ds"], about["relation"]
+    pick = to_pick(setup_payload, dict(view, matched=None))
+    result = _run_matched(conn, pick, spec)
+    admin_block = _admin_block(result)
+    head = question_words(ds, view, fields) + matched_words(about, fields)
+    _note(f"The match: {rel_ds['name']}' {relation['field']['label']} = "
+          f"{ds['name']}' {relation['matches']['label']}"
+          + (f", over the {ds['name'].lower()} kept." if pick.get("filter") else "."))
+    match = result.get("match") or {}
+    prof = match.get("profile") if match.get("verdict") == "agree" else None
+
+    if not result.get("accepted"):
+        refusal = result.get("refusal") or {}
+        kind = refusal.get("kind")
+        if kind == "repeat":
+            message = repeat_line(ds, rel_ds, prof)
+        elif kind == "match-disagree":
+            message = MATCH_FIELDS_UNCHECKED
+            if match.get("python_error"):
+                _note("The second engine could not profile the match "
+                      f"({match['python_error']}), so it couldn't be double-checked and nothing is shown.")
+            else:
+                _note("The two engines disagree on what the match does — the statement's profile "
+                      f"{json.dumps(match.get('profile'), default=str)} against the second engine's "
+                      f"{json.dumps(match.get('python'), default=str)} — so nothing is shown.")
+        elif kind == "answer-unchecked":
+            message = ANSWER_UNCHECKED
+            _note(f"The second engine could not compute this answer ({refusal.get('why')}), "
+                  "so it couldn't be double-checked and nothing is shown.")
+        else:
+            message = plain_refusal(refusal)
+        return {"kind": "refused", "sentence": head, "message": message, "admin": admin_block,
+                "match": {"preview": None if kind in ("repeat", "match-disagree") or prof is None
+                          else matched_preview(ds, rel_ds, prof),
+                          "refused": kind in ("repeat", "match-disagree")}}
+
+    pane = result["panes"]["sql"]
+    columns = pane["columns"]
+    by_alias = {f["alias"]: {"path": f["path"], "label": f["label"], "kind": f["kind"]}
+                for f in fields.values()}
+    for x in about["shown"]:
+        by_alias[x["alias"]] = {"path": "matched:" + x["field"]["path"], "label": x["label"],
+                                "kind": x["field"]["kind"]}
+    shown = [i for i, c in enumerate(columns) if c in by_alias]
+    total = pane["row_count"]
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = [[fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"]) for i in shown]
+            for row in pane["rows"][start:start + PAGE_SIZE]]
+    show = view.get("show")
+    of_total = agreed_count(conn, pick) if show is not None and total >= show else None
+    tail = sentence(ds, view, fields, total, of_total=of_total).rpartition(" — ")[2]
+    return {
+        "kind": "table",
+        "sentence": f"{head} — {tail}",
+        "total": total,
+        "columns": [{"path": by_alias[columns[i]]["path"], "label": by_alias[columns[i]]["label"],
+                     "kind": by_alias[columns[i]]["kind"]} for i in shown],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start, "count": len(rows), "last": last},
+        "unavailable": unavailable(pick),
+        "match": {"preview": matched_preview(ds, rel_ds, prof) if prof else None, "refused": False},
+        "admin": admin_block,
     }
 
 
@@ -2217,10 +2561,12 @@ def dashboard_page() -> HTMLResponse:
 
 
 @router.get("/api/dashboard/setup")
-def api_setup() -> JSONResponse:
+def api_setup(view: str = "everyone") -> JSONResponse:
+    # ``?view=admin`` asks for the Admin view's setup; anything else is the
+    # Everyone view's, which names no field hidden from it (T-79).
     conn = _connect()
     try:
-        return JSONResponse(setup(conn))
+        return JSONResponse(setup_for(setup(conn), view == "admin"))
     finally:
         conn.close()
 

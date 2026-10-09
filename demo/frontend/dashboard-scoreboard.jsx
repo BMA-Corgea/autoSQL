@@ -60,7 +60,7 @@ export function countedFields(setup, ds, sb) {
 // The pairs a person may match between this data set and another: one field
 // of each, of the same kind (text with text, number with number, date with
 // date), both offered to this viewer — Edge cases' Label never for Everyone.
-function matchPairs(setup, ds, other, admin) {
+export function matchPairs(setup, ds, other, admin) {
   const can = (fields) => offered(fields, admin).filter((f) => setup.match_kinds.includes(f.kind));
   const mine = can(ds.fields);
   return can(other.fields).flatMap((t) => mine.filter((m) => m.kind === t.kind).map((m) => ({ field: t, matches: m })));
@@ -110,10 +110,11 @@ function MatchPicker({ setup, ds, admin, value, onChange }) {
             onChange={(e) => {
               const f = e.target.value;
               if (!f) return;
-              // Keep this data set's field if it still pairs; else fill it in
-              // only when one field can pair, and leave it to pick otherwise.
+              // Keep this data set's field if it still pairs; else leave it
+              // to him to pick, even when only one field can pair: nothing is
+              // counted on a match he hasn't chosen (T-79).
               const can = pairs.filter((p) => p.field.path === f).map((p) => p.matches.path);
-              const matches = can.includes(v.matches) ? v.matches : can.length === 1 ? can[0] : null;
+              const matches = can.includes(v.matches) ? v.matches : null;
               onChange({ ...v, field: f, matches });
             }}>
             {v.field ? null : <option value="">Pick a field…</option>}

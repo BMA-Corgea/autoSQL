@@ -27,7 +27,7 @@ record in `demo/EVIDENCE.md` claimed to have *confirmed* it. Both are corrected 
 
 | file | sha256 |
 |---|---|
-| `tour.js` | `b341d9c9fcca7aa8def96fce53a51489ba16229dfd7a4fe836b63bf8c6c8c10d` |
+| `tour.js` | `9ae48f96b3f246dc9ffbf7326d129acdaa023033dd2e042584f1c2b51aed3c3f` |
 | `tour.css` | `345e049617e379b79eea95d867120845738f6b94e697dcd1326838a837b2ab29` |
 | `gnome-tour.png` | `7c192cb791e310fe239e17d949f6efbf760b218211e3add297e088a61c573727` |
 
@@ -36,6 +36,13 @@ turns the suite red and names the file. It also compares against the skill's own
 `reference/` copies **when that directory is present**, and says out loud when it is not —
 the digests above were taken with both sides in hand and the `tour.js` / `tour.css` pair
 matched byte for byte.
+
+**Re-vendored 2026-10-09 (T-78 land, the foreman's call).** The skill now resolves to
+`~/.claude/skills/guided-tour` → `app-template/skills/guided-tour/reference/` (the live skills folder since that day),
+whose `tour.js` differed from the copy vendored at T-22 in **one comment line only**: the usage example's
+`api.set("#email","you@lab.com")` became `api.set("#email","you@example.com")`. No code changed. `tour.js` was copied
+from that path unmodified (the source tree was read, never edited); `tour.css` was already identical. Previous
+`tour.js` digest: `b341d9c9fcca7aa8def96fce53a51489ba16229dfd7a4fe836b63bf8c6c8c10d`.
 
 
 ## Why these live under `demo/vendor/` rather than `demo/static/`

@@ -420,3 +420,9 @@ body.dx-body * { box-sizing: border-box; }
 @media (max-width: 359px) {
   .dx-fold-text { display: block; -webkit-line-clamp: unset; line-clamp: none; }
 }
+
+/* T-78 · columns from another data set, in step 2 */
+.dx-matched-add { margin-top: 10px; }
+.dx-matched { margin: 10px 0 0; }
+.dx-matched-title { font-weight: 600; font-size: 13px; }
+.dx-matched .dx-checks { margin-top: -2px; }
