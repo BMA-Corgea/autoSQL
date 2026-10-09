@@ -113,11 +113,11 @@ def _pinned(name: str, path: Path):
     return module
 
 
-#: The vendored parser (AC-34) and the pinned T-1 compiler (Q19, AC-33).
+#: The vendored parser (AC-34) and the SHIPPING compiler — the one that writes
+#: every statement, so the display renders what runs (T-87; until then the
+#: frozen T-1 spike, whose ``render_for_display`` is the same text).
 expr = _pinned("autosql_demo_expr", _DEMO_DIR / "vendor" / "expr.py")
-compiler = _pinned(
-    "autosql_t1_compile", _REPO_ROOT / "spikes" / "T-1" / "proto" / "compile.py"
-)
+compiler = _pinned("autosql_compile", _REPO_ROOT / "compiler" / "compile.py")
 
 
 # ═════════════════════════════════════════════════════════════════════════

@@ -10,8 +10,11 @@ calls :func:`use`:
 * ``parser`` — the expression module the statement side parses with (the
   gate reads its trees);
 * ``evaluator`` — the expression module the second engine evaluates with
-  (its own import, so the two engines never share an object);
-* ``probe_compiler`` — the compiler the probes compile with.
+  (its own import, so the two engines never share an object).
+
+The statement, its display and its probes are all written by that ONE
+compiler (T-87), so a probe asks about an operand exactly as the statement
+computes it.
 
 and, optionally, :func:`set_default_records` — the :class:`Records` a call
 uses when it is not handed one (a single-owner host such as the demo).
@@ -27,15 +30,14 @@ from .records import Records
 _ENV: dict = {}
 _DEFAULT: dict = {"records": None}
 
-_NEEDED = ("compiler", "parser", "evaluator", "probe_compiler")
+_NEEDED = ("compiler", "parser", "evaluator")
 
 
-def use(*, compiler: Any, parser: Any, evaluator: Any, probe_compiler: Any) -> None:
+def use(*, compiler: Any, parser: Any, evaluator: Any) -> None:
     """Register the host's modules.  Calling it again with the same objects
     is a no-op; with different ones it is refused (modules already imported
     have bound the first)."""
-    given = {"compiler": compiler, "parser": parser, "evaluator": evaluator,
-             "probe_compiler": probe_compiler}
+    given = {"compiler": compiler, "parser": parser, "evaluator": evaluator}
     if _ENV and any(_ENV[k] is not given[k] for k in _NEEDED):
         raise RuntimeError("picks.env.use() was already called with other modules")
     _ENV.update(given)

@@ -1029,13 +1029,19 @@ class TestABlankSummaryTellsTheTruth:
 # ═════════════════════════════════════════════════════════════════════════
 
 def _disagreeing_counts(monkeypatch):
-    """Make every COUNT pick come back with the engines disagreeing, leaving
-    every other pick alone."""
+    """Make the counts BEHIND a sentence — the uncapped count of rows
+    (``agreed_count``) and the uncapped count of hours or days
+    (``agreed_rows``) — come back with the engines disagreeing, leaving the
+    answer's own pick alone.  (T-87: an answer whose OWN pick disagrees shows
+    no number at all, so this fake no longer touches the asked-for pick: a
+    count asked for with Show set is not the count behind its sentence.)"""
     real = dashboard._run
 
     def run(conn, pick):
         out = real(conn, pick)
-        if (pick.get("aggregate") or {}).get("fn") == "count" or pick.get("cap") is None:
+        behind = pick.get("cap") is None and (
+            (pick.get("aggregate") or {}).get("fn") == "count" or pick.get("bucket") not in (None, "off"))
+        if behind:
             out = dict(out, verdict="disagree")
         return out
 

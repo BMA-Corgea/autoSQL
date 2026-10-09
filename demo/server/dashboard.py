@@ -836,8 +836,13 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
             "admin": admin,
         }
 
-    pane = result["panes"]["sql"]
     summary = _summary(view, fields, ds)
+    if result.get("verdict") == "disagree":
+        # T-87: an answer the two engines disagree on shows no number at all.
+        return _disagreement(result, summary_words(ds, view, fields, summary) if summary
+                             else question_words(ds, view, fields), admin)
+
+    pane = result["panes"]["sql"]
     if summary:
         return _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin)
     columns = pane["columns"]
@@ -1187,6 +1192,20 @@ def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
 MATCH_UNCHECKED = "This match couldn't be double-checked, so it isn't counted."
 BOARD_UNCHECKED = "This board couldn't be double-checked, so it isn't shown."
 ANSWER_UNCHECKED = "This answer couldn't be double-checked, so it isn't shown."
+#: T-87: what Everyone reads when the two engines worked an answer out and got
+#: different numbers.  No number from it is shown.
+DISAGREED = "These numbers didn't come out the same when they were double-checked, so they aren't shown."
+
+
+def _disagreement(result: dict, sentence: str, admin_block: dict) -> dict:
+    """An answer the two engines disagree on: refused in one plain line, no
+    number from either side; Admin keeps the verdict and how many rows differ
+    (T-87, the fix for the draw-on-disagree caveat — until then the statement's
+    answer was drawn and only Admin saw the disagreement)."""
+    cmp_ = result.get("comparison") or {}
+    _note(f"The two engines disagree on {cmp_.get('differing_rows', '?')} of "
+          f"{cmp_.get('compared_rows', '?')} rows, so no number is shown.")
+    return {"kind": "refused", "sentence": sentence, "message": DISAGREED, "admin": admin_block}
 
 
 def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
@@ -1255,6 +1274,11 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
                             "refused": kind in ("double-count", "match-disagree")}
         return out
     admin = admin_block
+    if result.get("verdict") == "disagree":
+        out = _disagreement(result, head, admin_block)
+        if relation is not None:
+            out["match"] = {"preview": preview, "refused": False}
+        return out
 
     pane = result["panes"]["sql"]
     names = pane["columns"]
@@ -1493,6 +1517,10 @@ def matched_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: 
                 "match": {"preview": None if kind in ("repeat", "match-disagree") or prof is None
                           else matched_preview(ds, rel_ds, prof),
                           "refused": kind in ("repeat", "match-disagree")}}
+    if result.get("verdict") == "disagree":
+        out = _disagreement(result, head, admin_block)
+        out["match"] = {"preview": matched_preview(ds, rel_ds, prof) if prof else None, "refused": False}
+        return out
 
     pane = result["panes"]["sql"]
     columns = pane["columns"]

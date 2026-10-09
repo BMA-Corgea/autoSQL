@@ -150,12 +150,13 @@ class ProbeOutcome:
 
 
 # ---------------------------------------------------------------------------------
-# The compiler the probes compile with: the HOST's (``picks.env.use``,
-# ``probe_compiler``; T-86).  The demo registers the pinned spike copy, read
-# only (Q19: never edited; AC-33 checksums it; the manifest records its digest).
+# The compiler the probes compile with: the statement's own (``picks.env.use``,
+# ``compiler``), so each operand a probe asks about is written exactly as the
+# statement will compute it (T-87).  Until T-87 the probes compiled with the
+# frozen T-1 spike, which writes numbers differently since T-52 / T-61.
 # ---------------------------------------------------------------------------------
 def _compile_module():
-    return env.get("probe_compiler")
+    return env.get("compiler")
 
 
 # ---------------------------------------------------------------------------------

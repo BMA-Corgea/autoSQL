@@ -35,17 +35,17 @@ def _load_from_path(name: str, path: Path):
     return module
 
 
-#: The modules, as the demo has always loaded them: the SHIPPING compiler,
-#: the vendored parser the gate reads (AC-34), the second engine's own import
-#: of the same vendored evaluator (spec §9.5), and the pinned T-1 compiler the
-#: probes compile with (Q19: read only; AC-33 checksums it).
+#: The modules: the SHIPPING compiler (the statement, its display and its
+#: probes — one compiler since T-87), the vendored parser the gate reads
+#: (AC-34), and the second engine's own import of the same vendored evaluator
+#: (spec §9.5).  The frozen T-1 spike compiler is no longer loaded (AC-33
+#: still checksums the file in place).
 from demo.vendor import expr as _evaluator  # noqa: E402
 
 env.use(
     compiler=_load_from_path("autosql_compile", _REPO_ROOT / "compiler" / "compile.py"),
     parser=_load_from_path("autosql_demo_expr", _REPO_ROOT / "demo" / "vendor" / "expr.py"),
     evaluator=_evaluator,
-    probe_compiler=_load_from_path("t1_proto_compile", _REPO_ROOT / "spikes" / "T-1" / "proto" / "compile.py"),
 )
 
 #: The five collections (Senders since T-74, Sites since T-76), and each one's
