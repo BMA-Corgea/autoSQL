@@ -60,7 +60,7 @@ export function countedFields(setup, ds, sb) {
 // The pairs a person may match between this data set and another: one field
 // of each, of the same kind (text with text, number with number, date with
 // date), both offered to this viewer — Edge cases' Label never for Everyone.
-function matchPairs(setup, ds, other, admin) {
+export function matchPairs(setup, ds, other, admin) {
   const can = (fields) => offered(fields, admin).filter((f) => setup.match_kinds.includes(f.kind));
   const mine = can(ds.fields);
   return can(other.fields).flatMap((t) => mine.filter((m) => m.kind === t.kind).map((m) => ({ field: t, matches: m })));

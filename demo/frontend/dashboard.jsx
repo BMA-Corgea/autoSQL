@@ -18,6 +18,7 @@ import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
+import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -58,7 +59,7 @@ function offFor(setup, view) {
 // greyed out right now. A greyed choice is kept on screen (it comes back
 // when the summary is turned off), shown as off with its reason, and not
 // asked about.
-function sendable(setup, view) {
+function sendable(setup, view, admin) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const conditions = view.conditions
     .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
@@ -76,6 +77,11 @@ function sendable(setup, view) {
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
   if (view.scoreboard) out.scoreboard = sendableScoreboard(setup, ds, view.scoreboard);
+  // Columns from another data set (T-78): beside a table's rows only, and
+  // only once whole with a field ticked; kept on screen otherwise.
+  const matched = view.summary || view.scoreboard ? null : sendableMatched(setup, ds, view.matched, admin);
+  if (matched) out.matched = matched;
+  else delete out.matched;
   return out;
 }
 
@@ -425,6 +431,9 @@ function summaryLine(setup, view) {
     else if (own) parts.push("one row each");
     if (ready) parts.push(ready === 1 ? "1 count" : `${ready} counts`);
   }
+  const m = !view.summary && !view.scoreboard && view.matched;
+  const sent = m && m.dataset && m.field && m.matches && m.columns.length;
+  if (sent) parts.push(`with their ${setup.datasets.find((d) => d.id === m.dataset).one}`);
   if (view.show && !offFor(setup, view).show) parts.push(`first ${view.show}`);
   return parts;
 }
@@ -507,7 +516,7 @@ function App() {
 
   // What is actually asked. Editing a condition that is still waiting for
   // its value changes the view but not the question, and asks nothing.
-  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view)) : null), [setup, view]);
+  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view, admin)) : null), [setup, view, admin]);
   // Is the answer on screen the answer to the pick on screen?
   const current = !!answer && !failed && answered === question;
 
@@ -578,6 +587,14 @@ function App() {
         if (conds.length < 2) patch.logic = "all";
       }
       if (view.sort && hidden.has(view.sort.field)) patch.sort = null;
+      // Columns from another data set: a match on a field Everyone doesn't
+      // see is dropped; a hidden field among those shown is unticked (T-78).
+      const mt = view.matched;
+      if (mt && mt.dataset) {
+        const theirs = hiddenIn((setup.datasets.find((d) => d.id === mt.dataset) || { fields: [] }).fields);
+        if (hidden.has(mt.matches) || theirs.has(mt.field)) patch.matched = null;
+        else if (mt.columns.some((p) => theirs.has(p))) patch.matched = { ...mt, columns: mt.columns.filter((p) => !theirs.has(p)) };
+      }
       const sb = view.scoreboard;
       if (sb) {
         let next = sb;
@@ -662,7 +679,13 @@ function App() {
             value={view.columns}
             onChange={(columns) => change({ columns })}
             why={view.scoreboard ? COLUMNS_OFF_SCOREBOARD : view.summary ? COLUMNS_OFF : null}
-          />
+          >
+            <MatchedColumns setup={setup} ds={ds} admin={admin} value={view.matched || null}
+              off={!!(view.summary || view.scoreboard)}
+              onChange={(matched) => change({ matched })}
+              match={current && answer.kind !== "invalid" && JSON.parse(question).matched
+                && (admin || !answeredAdmin) ? answer.match : null} />
+          </ColumnsStep>
           <ConditionsStep
             fields={picks}
             shown={view.columns}
