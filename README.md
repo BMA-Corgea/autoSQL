@@ -113,7 +113,11 @@ repo:
 - a scoreboard that counts another data set's rows, matched by two fields the person picks, runs
   **two**, both from `demo/group.py`: first a profile of what the match does — it gives the line
   that says so before anything is counted, and refuses any match that would count one row twice —
-  and only then the board's own.
+  and only then the board's own;
+- a table with fields from another data set beside each row, matched by two fields the person
+  picks, runs **two** too, both from `demo/lookup.py`: first a profile of what the match does —
+  it gives the line that says so, and refuses any match that would show one row twice — and only
+  then the table's own, the same table with a `LEFT JOIN`, so a row with no match keeps its place.
 
 Nothing typed by a person is spliced into any statement's text: the picked values travel
 separately, as bind parameters. Every statement runs on a **read-only** connection
@@ -131,8 +135,8 @@ consumer of the dashboard never needs to know it is there.
 
 Where it lives: `demo/server/dashboard.py` is the contract (the picks → the statements, the
 sentence, the plain-word reasons), `demo/frontend/dashboard*.jsx` draws it, and
-`demo/tests/test_dashboard.py`, `test_scoreboard.py`, `test_joins.py` and `test_match.py` test
-it against the live demo database.
+`demo/tests/test_dashboard.py`, `test_scoreboard.py`, `test_joins.py`, `test_match.py` and
+`test_matched.py` test it against the live demo database.
 
 ## What is proven so far
 
