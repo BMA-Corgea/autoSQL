@@ -96,6 +96,11 @@ T78_MUTANTS = [
                  "        if False:")],
          selector=_M + "test_everyone_never_sees_a_hidden_field_from_another_data_set",
          expect="(422, \"Label isn't offered in this view.\")"),
+    dict(id="F13", defect="the runner refuses only when MORE THAN ONE kept row repeats (a-safe's A11, S19 check HIGH-1)",
+         edits=[("server/matched.py", '    if prof["profile"]["repeated"] > 0:', '    if prof["profile"]["repeated"] > 1:')],
+         selector=[_M + "test_exactly_one_kept_row_repeating_is_refused",
+                   _M + "test_exactly_one_repeating_row_through_the_runner_on_a_fixture"],
+         expect="one repeating"),
 ]
 
 

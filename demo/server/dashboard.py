@@ -1438,6 +1438,10 @@ def plain_refusal(refusal: dict | None) -> str:
 #: Why an answer was not double-checked, for Admin (T-79).  "Refused before
 #: an answer existed" is true only when nothing answered.
 UNCHECKED_REFUSED = "Not double-checked: this one was refused before an answer existed."
+CHECKED_REFUSAL = {
+    "repeat": "Double-checked — both engines found the same rows that would be shown twice, so no table is drawn.",
+    "double-count": "Double-checked — both engines found the same rows that would be counted twice, so no board is drawn.",
+}
 UNCHECKED_SECOND_ENGINE = ("Not double-checked: the statement answered, but the second engine "
                            "could not finish, so nothing is shown.")
 UNCHECKED_PROFILE = ("Not double-checked: the second engine could not work out what the match "
@@ -1451,6 +1455,10 @@ def unchecked_line(answer: dict) -> str | None:
     if answer.get("verdict") in ("agree", "disagree"):
         return None
     refusal = answer.get("refusal") or {}
+    if refusal.get("kind") in ("repeat", "double-count") and (answer.get("match") or {}).get("verdict") == "agree":
+        # the refusal's own numbers were worked out by both engines, and agreed
+        # (S19 check, L1): it is not an unchecked answer
+        return CHECKED_REFUSAL[refusal["kind"]]
     if refusal.get("kind") == "match-disagree":
         return UNCHECKED_PROFILE if (answer.get("match") or {}).get("python_error") else UNCHECKED_MATCH
     if refusal.get("headline") == SECOND_ENGINE_HEADLINE:
@@ -2452,6 +2460,10 @@ def matched_preview(ds: dict, rel_ds: dict, prof: dict) -> str | None:
 def repeat_line(ds: dict, rel_ds: dict, prof: dict) -> str:
     """The refusal, in one line with its numbers: a row matching more than
     one row would be shown once per match."""
+    if prof["rows"] == 1:
+        # one kept row: never "for 1 of the 1 site" (S19 check, L2)
+        return (f"The {ds['one']} would be shown once for every {rel_ds['one']} that matches it "
+                f"— {fmt_number(str(prof['most']))} times — and a row is shown only once.")
     return (f"Each {ds['one']} would be shown once for every {rel_ds['one']} that matches it "
             f"— up to {fmt_number(str(prof['most']))} times, for "
             f"{fmt_number(str(prof['repeated']))} of the {_n(prof['rows'], ds)} "

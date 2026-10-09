@@ -451,7 +451,8 @@ _SITES_KIND = board("sites", "name", {"dataset": "senders", "field": "kind", "ma
     (None, _plain("edge", columns=["a"], conditions=[{"field": "huge", "op": "eq", "value": 0}]),
      _REFUSED),
     (None, board("senders", "id", {"dataset": "sites", "field": "name", "matches": "site"}),
-     _REFUSED),
+     # both engines worked out the double count and agreed: checked (T-78 S19 check, L1)
+     "Double-checked — both engines found the same rows that would be counted twice, so no board is drawn."),
     (None, _plain(), None),
 ], ids=["table-unchecked", "board-unchecked", "overflow", "profile-throws", "profile-disagrees",
         "refused-mid-run", "double-count", "checked"])

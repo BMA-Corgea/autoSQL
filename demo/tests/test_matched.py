@@ -233,7 +233,7 @@ def test_a_row_matching_exactly_two_is_refused_with_hand_written_numbers(client,
                             f"{max(per)} times, for {per[2]} of the 8,400 heartbeats — and a row is shown only once.")
     assert a["match"] == {"preview": None, "refused": True}
     assert "rows" not in a and "columns" not in a
-    assert a["admin"]["verdict"] == "no-compare"
+    assert a["admin"]["verdict"] == "no-compare" and a["admin"]["unchecked"] == _REPEAT_AGREED
 
 
 def test_exactly_one_match_is_shown(client, conn):
@@ -553,3 +553,50 @@ def test_a_refused_table_is_refused_with_its_fields_too(client, c, why):
         assert "LEFT JOIN demo.records AS m" in (a["admin"]["statement"] or "")
     _, e = ask(client, v, admin=False)
     assert e["kind"] == "refused" and "admin" not in e
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# S19 check (a-safe, HIGH-1): EXACTLY ONE kept row repeating is refused too
+# ═════════════════════════════════════════════════════════════════════════
+
+_MIKE = cond("payload.note", "eq", value="mike")
+_REPEAT_AGREED = ("Double-checked — both engines found the same rows that would be shown twice, "
+                  "so no table is drawn.")
+
+
+@pytest.mark.parametrize("show, page, sort", [
+    (None, 0, None),
+    (25, 0, None),                                  # the repeating row is not among the first 25
+    (None, 3, {"field": "ts", "dir": "desc"}),
+    (None, 8, {"field": "ts", "dir": "desc"}),
+])
+def test_exactly_one_kept_row_repeating_is_refused(client, conn, show, page, sort):
+    per = _per_row(conn, "AND h.data #>> '{payload,note}' = 'mike'")
+    assert per == {0: 449, 2: 1}, per            # by hand: 450 kept, one (hb-23 at Aug 20 05:00) matches two
+    v = table(columns=["sender_id", "payload.load"], conditions=[_MIKE], sort=sort, show=show, matched=SITE_BY_LOAD)
+    status, a = ask(client, v, page)
+    assert status == 200 and a["kind"] == "refused", f"one repeating row was drawn: {a.get('total')} rows"
+    assert a["message"] == ("Each heartbeat would be shown once for every site that matches it — up to 2 times, "
+                            f"for {per[2]} of the {sum(per.values())} heartbeats — and a row is shown only once.")
+    assert "rows" not in a and a["admin"]["unchecked"] == _REPEAT_AGREED
+
+
+def test_exactly_one_repeating_row_through_the_runner_on_a_fixture(wconn, monkeypatch):
+    """Both engines' profile say one kept row repeats; the runner refuses it."""
+    with _fixture(wconn, monkeypatch, _REPEAT):
+        pick = _fx_pick('$.k != "three"')               # "two" matches two rows; nothing else repeats
+        for prof in _profiles(wconn, pick, _fx_spec("string")):
+            assert prof["repeated"] == 1 and prof["most"] == 2
+        r = matched.run_lookup(wconn, pick, _fx_spec("string"))
+        assert not r["accepted"] and r["refusal"]["kind"] == "repeat", "one repeating kept row was drawn"
+        assert r["panes"] == {} and r["match"]["verdict"] == "agree"
+
+
+def test_one_kept_row_reads_as_one(client):
+    """S19 check, L2: never "for 1 of the 1 site"."""
+    v = table("sites", ["name"], conditions=[cond("name", "eq", value="North")],
+              matched={"dataset": "senders", "field": "site", "matches": "name", "columns": ["name"]})
+    status, a = ask(client, v)
+    assert status == 200 and a["kind"] == "refused"
+    assert a["message"] == ("The site would be shown once for every sender that matches it — 8 times — "
+                            "and a row is shown only once.")
