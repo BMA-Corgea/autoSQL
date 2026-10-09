@@ -1011,6 +1011,12 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
     return body
 
 
+class SecondEngineFailed(RuntimeError):
+    """The second engine could not compute an answer the statement did
+    (T-79): raised by :func:`run_pick` in place of whatever it raised, so a
+    caller that answers in words (the dashboard) can name it."""
+
+
 def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     """One pick → the whole response body.  Separated from the route so the
     suite drives the same code the screen does, with no HTTP in the way.
@@ -1155,7 +1161,15 @@ def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
             outcomes=outcomes, source=source, shape=verdict["shape"],
         )
     kinds_by_column = dict(zip(sql["columns"], sql["kinds"]))
-    python = python_pane(conn, pick, kinds_by_column)
+    try:
+        python = python_pane(conn, pick, kinds_by_column)
+    except OverflowError:
+        raise        # named by the dashboard as it always was (T-75)
+    except Exception as exc:  # noqa: BLE001 — re-raised, under a name
+        # Still propagates, as everything here does: this screen's rule is
+        # unchanged.  The name lets the dashboard tell "the second engine
+        # failed" from a database failure and say so in words (T-79).
+        raise SecondEngineFailed(f"{type(exc).__name__}: {exc}") from exc
     comparison = compare_panes(sql, python)
     per_row = comparison.pop("_per_row")
     start = 0 if whole else _page_start(comparison["first_differing_index"])

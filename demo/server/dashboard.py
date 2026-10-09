@@ -1363,6 +1363,16 @@ def _run(conn, pick: dict) -> dict:
         answer = server_app.run_pick(conn, pick, whole=True)
     except OverflowError as exc:
         return _second_engine_overflow(conn, exc, _statement_for_admin(conn, pick, server_app))
+    except server_app.SecondEngineFailed as exc:
+        # The statement answered and the second engine couldn't: nothing is
+        # shown from an answer that couldn't be double-checked, never a 500
+        # (T-79, as for a board).  Not cached: the next ask runs it again.
+        return {
+            "accepted": False, "verdict": "no-compare", "comparison": {},
+            "sql": _statement_for_admin(conn, pick, server_app),
+            "refusal": {"kind": "answer-unchecked",
+                        "headline": "The second engine could not finish", "why": str(exc)},
+        }
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
             raise
@@ -1465,10 +1475,17 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
     admin = _admin_block(result)
 
     if not result.get("accepted"):
+        refusal = result.get("refusal") or {}
+        if refusal.get("kind") == "answer-unchecked":
+            _note(f"The second engine could not compute this answer ({refusal.get('why')}), "
+                  "so it couldn't be double-checked and nothing is shown.")
+            message = ANSWER_UNCHECKED
+        else:
+            message = plain_refusal(refusal)
         return {
             "kind": "refused",
             "sentence": question_words(ds, view, fields),
-            "message": plain_refusal(result.get("refusal")),
+            "message": message,
             "admin": admin,
         }
 
@@ -2071,6 +2088,7 @@ def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
 
 MATCH_UNCHECKED = "This match couldn't be double-checked, so it isn't counted."
 BOARD_UNCHECKED = "This board couldn't be double-checked, so it isn't shown."
+ANSWER_UNCHECKED = "This answer couldn't be double-checked, so it isn't shown."
 
 
 def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:

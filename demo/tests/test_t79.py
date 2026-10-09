@@ -308,3 +308,65 @@ def test_the_loader_refuses_a_changed_row_by_its_digest(txn):
     with pytest.raises(load.SeedError, match="AC-10 digest mismatch"):
         load.run(wrapped)
     assert wrapped.committed == 0
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 3b · The same for every answer that isn't a board: a plain table, a
+#      number, a chart (the foreman, on S18: item 9's class, everywhere)
+# ═════════════════════════════════════════════════════════════════════════
+
+def _plain(ds_id="heartbeats", **kw):
+    v = {"dataset": ds_id, "columns": ["sender_id", "status"], "conditions": [], "sort": None,
+         "show": None, "summary": None}
+    v.update(kw)
+    return v
+
+
+def _broken_table(monkeypatch):
+    def broken(conn, pick, kinds_by_column):
+        raise RuntimeError("table broke")
+
+    monkeypatch.setattr(server_app, "python_pane", broken)
+    dashboard._CACHE.clear()
+
+
+@pytest.mark.parametrize("view", [
+    _plain(),                                                                    # rows
+    _plain(show=25),                                                             # capped rows (a count beside)
+    _plain(columns=[], summary={"fn": "avg", "field": "payload.load", "per": "all"}),   # one number
+    _plain(columns=[], summary={"fn": "count", "field": None, "per": "day"}),          # a chart
+    _plain("sites", columns=["name", "capacity"]),                               # another data set
+], ids=["rows", "capped", "number", "chart", "sites"])
+def test_an_answer_the_second_engine_cannot_compute_is_refused_in_words(client, monkeypatch, view):
+    _broken_table(monkeypatch)
+    try:
+        status, a = ask(client, view)
+        status_e, e = ask(client, view, admin=False)
+    finally:
+        dashboard._CACHE.clear()
+    assert status == 200, f"answered {status}, not a refusal in words"
+    assert a["kind"] == "refused" and a["message"] == dashboard.ANSWER_UNCHECKED
+    assert not {"rows", "number", "bars", "columns"} & set(a), "a number was shown from an answer not double-checked"
+    assert any("second engine could not compute this answer (RuntimeError: table broke)" in n
+               for n in a["admin"]["notes"])
+    assert a["admin"]["statement"].startswith("SELECT"), "Admin can still read the statement that was sent"
+    assert status_e == 200 and e["kind"] == "refused" and "admin" not in e
+    assert not _MACHINERY.search(e["message"] + " " + e["sentence"]), e
+
+
+def test_after_the_table_failure_the_table_is_answered_again(client):
+    dashboard._CACHE.clear()
+    status, a = ask(client, _plain())
+    assert status == 200 and a["kind"] == "table" and a["total"] == 8400 and a["admin"]["verdict"] == "agree"
+
+
+def test_the_two_pane_screen_still_answers_its_own_way(client, monkeypatch):
+    """run_pick's own rule stands for the two-pane screen: anything but the
+    float8 refusal propagates there (now under a name the dashboard reads)."""
+    _broken_table(monkeypatch)
+    from demo import legality
+
+    pick = dict(legality.default_pick(), source="noun:Heartbeat", cap=5)
+    with pytest.raises(server_app.SecondEngineFailed, match="RuntimeError: table broke"):
+        client.post("/api/pick", json=pick)
+    dashboard._CACHE.clear()
