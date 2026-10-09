@@ -1439,8 +1439,9 @@ def plain_refusal(refusal: dict | None) -> str:
 #: an answer existed" is true only when nothing answered.
 UNCHECKED_REFUSED = "Not double-checked: this one was refused before an answer existed."
 CHECKED_REFUSAL = {
-    "repeat": "Double-checked — both engines found the same rows that would be shown twice, so no table is drawn.",
-    "double-count": "Double-checked — both engines found the same rows that would be counted twice, so no board is drawn.",
+    # the engines compare the refusal's NUMBERS (how many rows, how many times), not which rows (S19 re-check, LOW)
+    "repeat": "Double-checked — both engines found the same numbers: a row would be shown twice, so no table is drawn.",
+    "double-count": "Double-checked — both engines found the same numbers: a row would be counted twice, so no board is drawn.",
 }
 UNCHECKED_SECOND_ENGINE = ("Not double-checked: the statement answered, but the second engine "
                            "could not finish, so nothing is shown.")

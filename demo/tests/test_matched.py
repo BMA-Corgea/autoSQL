@@ -560,8 +560,7 @@ def test_a_refused_table_is_refused_with_its_fields_too(client, c, why):
 # ═════════════════════════════════════════════════════════════════════════
 
 _MIKE = cond("payload.note", "eq", value="mike")
-_REPEAT_AGREED = ("Double-checked — both engines found the same rows that would be shown twice, "
-                  "so no table is drawn.")
+_REPEAT_AGREED = "Double-checked — both engines found the same numbers: a row would be shown twice, so no table is drawn."
 
 
 @pytest.mark.parametrize("show, page, sort", [
