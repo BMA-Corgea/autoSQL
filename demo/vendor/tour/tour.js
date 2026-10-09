@@ -22,7 +22,7 @@
          { target: null, title: "Welcome", text: "Hi!", placement: "center" },
          { target: "#loginBtn", title: "Sign in", text: "Click here.",
            advanceOn: "target-click",
-           beforeShow: (api) => { api.set("#email","you@lab.com"); } },
+           beforeShow: (api) => { api.set("#email","you@example.com"); } },
          { target: "#row", placement: "right", spotlight: true },
          { target: "#confirm", spotlight: false, raise: "#myModal",
            beforeShow: (api) => api.set("#pw","x") },   // modal lifted above the dim
