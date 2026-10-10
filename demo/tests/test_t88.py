@@ -236,3 +236,192 @@ def test_a_field_named_with_spaces_and_brackets_is_offered_and_read():
     finally:
         c.rollback()
         c.close()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5 · T-88 check: a name reads its own key; buckets in UTC; the owner kept
+# ═════════════════════════════════════════════════════════════════════════
+
+import json as _json  # noqa: E402
+
+from picks import builder as _builder  # noqa: E402
+from picks import paths as _paths  # noqa: E402
+from picks import view as _pview  # noqa: E402
+from picks.pyrunner import shape as _pyshape  # noqa: E402
+from picks.pyrunner.rows import read_rows as _read_rows  # noqa: E402
+from picks.records import Records as _Records  # noqa: E402
+
+#: every control character Postgres can store (0x00 it cannot), DEL, and
+#: the characters a name is spelled with
+_ODD = [chr(i) for i in range(0x01, 0x20)] + ["\x7f", '"', "\\", "[", "]", ".", "'", " ", "$", "\\b", '\\"']
+_KEYS = {f"a{c}c": 100 + i for i, c in enumerate(_ODD)}
+#: what a name read the wrong way would land on instead (JSON's \b, \f, \u0001 …
+#: read as bare letters; a dot inside brackets read as a path)
+_DECOYS = {"abc": 1, "afc": 2, "anc": 3, "arc": 4, "atc": 5, "au0001c": 6, "au007fc": 7,
+           "a": {"c": 9}}
+
+
+def _one_record_table(c, table, coll, data):
+    c.execute(f"CREATE TEMPORARY TABLE {table} (collection text, key text, data jsonb, PRIMARY KEY (collection, key))")
+    c.execute(f"INSERT INTO {table} VALUES (%s, 'k1', %s::jsonb)", (coll, _json.dumps(data)))
+    return _Records(table=table, sources={coll: "odd keys"})
+
+
+def _both(c, records, coll, pick):
+    pick = dict({"source": coll, "computed": [], "filter": None, "sort": None, "cap": None, "window": None,
+                 "changed": False, "bucket": "off"}, **pick)
+    built = _builder.build(pick, _pview.collection_keys(c, coll, records=records), records=records)
+    sql = [list(r) for r in c.execute(built.sql, built.params).fetchall()]
+    py = _pyshape.answer(_read_rows(c, coll, records), pick, records)
+    python = [[py["agg"]]] if py["shape"] == "SCALAR" else [[r["bucket"], r["agg"]] for r in py["rows"]]
+    return sql, python
+
+
+def test_every_offered_name_reads_its_own_key_in_both_engines():
+    """The check's HIGH: a key holding a control character was named the JSON way (``["a\\bc"]``) and the
+    expression language read ``abc``.  Every name the page offers must read back exactly its own key — in
+    the statement and in the second engine, as a summary's field and as a condition."""
+    c = db.connect(application_name="autosql-demo-t88-keys")
+    try:
+        records = _one_record_table(c, "t88_keys", "noun:K", {**_KEYS, **_DECOYS})
+        fields = [f for f in _pview._read_fields(c, "noun:K", records=records) if f["kind"] == "number"]
+        read, wrong = {}, {}
+        for f in fields:
+            try:
+                sql, python = _both(c, records, "noun:K", {"aggregate": {"fn": "max", "field": _pview.field_ref(f["path"])}})
+                if sql != python:
+                    wrong[f["path"]] = ("the engines differ", sql, python)
+                    continue
+                read[f["path"]] = n = int(sql[0][0]) if sql[0][0] is not None else None
+                sql, python = _both(c, records, "noun:K", {"aggregate": {"fn": "count", "field": None},
+                                                           "filter": f"{_pview.field_ref(f['path'])} == {n or 0}"})
+                if not sql == python == [[1]]:
+                    wrong[f["path"]] = ("its condition reads another key", sql, python)
+            except Exception as e:  # noqa: BLE001 — a name an engine can't read is a wrong name
+                wrong[f["path"]] = ("an engine could not read it", repr(e)[:80])
+        want = sorted(list(_KEYS.values()) + [v for v in _DECOYS.values() if isinstance(v, int)] + [9])
+        twice = {p: v for p, v in read.items() if v is None or list(read.values()).count(v) > 1}
+        assert not wrong and not twice and sorted(read.values()) == want, (
+            f"names that read another key or nothing: {twice}; names an engine got wrong: {wrong}; "
+            f"keys never offered: {sorted(set(want) - set(read.values()))}")
+    finally:
+        c.rollback()
+        c.close()
+
+
+@pytest.mark.parametrize("hand_sent", ['["a\\bc"]', '["a\\u0008c"]', '["abc"]', '["a"].c', 'a["c"]x', '[""]'])
+def test_a_name_spelled_any_other_way_is_refused(hand_sent):
+    """Only the one spelling the page offers is a name: a hand-sent JSON escape, a needless bracket or
+    anything that would read another key is refused, never read."""
+    with pytest.raises(ValueError):
+        _paths.steps(hand_sent)
+    from picks.gate import Refused
+    with pytest.raises((ValueError, _builder.IllegalPick, _pview.ViewError, Refused)):
+        _builder.build({"source": "noun:K", "computed": [], "filter": None, "sort": None, "cap": None,
+                        "window": None, "changed": False, "bucket": "off",
+                        "aggregate": {"fn": "max", "field": hand_sent}}, ["a", "abc"],
+                       records=_Records(table="t88_keys", sources={"noun:K": "odd keys"}))
+
+
+def test_a_record_with_an_empty_key_does_not_break_its_data_sets_fields():
+    c = db.connect(application_name="autosql-demo-t88-empty-key")
+    try:
+        records = _one_record_table(c, "t88_empty", "noun:E", {"": 1, "a": 2})
+        assert [f["path"] for f in _pview._read_fields(c, "noun:E", records=records)] == ["a"]
+    finally:
+        c.rollback()
+        c.close()
+
+
+_ZONES = ["America/Denver", "Asia/Kolkata", "Pacific/Kiritimati"]
+
+
+@pytest.mark.parametrize("zone", _ZONES)
+def test_the_pick_vectors_hold_whatever_the_sessions_time_zone(zone):
+    """GIMS's connection may not be UTC: buckets are cut in UTC by the statement itself."""
+    c = db.connect(application_name="autosql-demo-t88-zone")
+    try:
+        c.execute(f"SET LOCAL TimeZone = '{zone}'")
+        bad = [(r.name, r.sql, r.python, r.expect) for r in check_picks.run_vectors(c) if not r.ok]
+        assert not bad, bad
+    finally:
+        c.rollback()
+        c.close()
+
+
+@pytest.mark.parametrize("zone", _ZONES)
+def test_a_series_buckets_in_utc_whatever_the_sessions_time_zone(zone):
+    """Another host's time series (not the demo's own, whose sessions are pinned to UTC)."""
+    c = db.connect(application_name="autosql-demo-t88-zone-series")
+    try:
+        c.execute("CREATE TEMPORARY TABLE t88_series (collection text, key text, data jsonb, PRIMARY KEY (collection, key))")
+        for k, at in (("r1", "2026-01-05T00:30:00Z"), ("r2", "2026-01-05T23:30:00Z"), ("r3", "2026-01-31T23:30:00Z")):
+            c.execute("INSERT INTO t88_series VALUES ('noun:P', %s, %s::jsonb)", (k, _json.dumps({"at": at, "m": "x"})))
+        records = _Records(table="t88_series", sources={"noun:P": "at, m"},
+                           series={"source": "noun:P", "time": "at", "member": "m"})
+        c.execute(f"SET LOCAL TimeZone = '{zone}'")
+        for bucket, want in (("day", [["2026-01-05T00:00:00Z", 2], ["2026-01-31T00:00:00Z", 1]]),
+                             ("month", [["2026-01-01T00:00:00Z", 3]])):
+            sql, python = _both(c, records, "noun:P", {"bucket": bucket, "aggregate": {"fn": "count", "field": None}})
+            assert sql == python == want, (bucket, sql, python)
+    finally:
+        c.rollback()
+        c.close()
+
+
+def test_a_summary_over_a_named_time_field_reads_one_owner():
+    """Tenancy (the check's O1): a per-week summary over a named date field counts its owner's records only."""
+    c = db.connect(application_name="autosql-demo-t88-owner")
+    try:
+        c.execute("CREATE TEMPORARY TABLE t88_owners (owner text, collection text, key text, data jsonb, "
+                  "PRIMARY KEY (owner, collection, key))")
+        for o, k, at in (("acme", "r1", "2026-01-05"), ("acme", "r2", "2026-01-07"), ("other", "r1", "2026-01-06")):
+            c.execute("INSERT INTO t88_owners VALUES (%s, 'noun:R', %s, %s::jsonb)", (o, k, _json.dumps({"at": at})))
+        acme = _Records(table="t88_owners", sources={"noun:R": "at"}, partition=("owner", "acme"))
+        sql, python = _both(c, acme, "noun:R", {"bucket": "week", "bucket_field": "at",
+                                                "aggregate": {"fn": "count", "field": None}})
+        assert sql == python == [["2026-01-05T00:00:00Z", 2]], "another owner's record was counted"
+    finally:
+        c.rollback()
+        c.close()
+
+
+_PRIORITY = {"field": "priority", "op": "gt", "value": 2, "value2": None, "values": []}
+
+
+def test_one_number_per_value_keeps_the_pages_conditions(client, conn):
+    """The check's VW1: the conditions narrow a per-value summary, as hand-written SQL does."""
+    want = conn.execute("""
+        SELECT CASE WHEN jsonb_typeof(data->'status') IN ('string', 'number', 'boolean') THEN data->>'status' END, count(*)
+          FROM demo.records WHERE collection = 'noun:Sample'
+           AND jsonb_typeof(data->'priority') = 'number' AND (data->>'priority')::numeric > 2
+         GROUP BY 1 ORDER BY 1 NULLS LAST""").fetchall()
+    v = summary("samples", fn="count", field=None, per="category", by="status")
+    v["conditions"] = [_PRIORITY]
+    st, a = ask(client, v)
+    assert st == 200 and a["admin"]["verdict"] == "agree", a
+    assert [(c["label"], int(c["exact"])) for c in a["categories"]] == [(k, int(n)) for k, n in want]
+
+
+def test_a_total_per_value_is_a_total(client, conn):
+    """The check's VW2: a total per value equals hand-written SQL's sum (not its average)."""
+    want = conn.execute("""
+        SELECT CASE WHEN jsonb_typeof(data->'status') IN ('string', 'number', 'boolean') THEN data->>'status' END,
+               sum((data->>'priority')::numeric) FILTER (WHERE jsonb_typeof(data->'priority') = 'number')
+          FROM demo.records WHERE collection = 'noun:Sample' GROUP BY 1 ORDER BY 1 NULLS LAST""").fetchall()
+    st, a = ask(client, summary("samples", fn="sum", field="priority", per="category", by="status"))
+    assert st == 200 and a["admin"]["verdict"] == "agree", a
+    got = [(c["label"], Decimal(c["exact"]) if c["exact"] is not None else None) for c in a["categories"]]
+    assert got == [(k, Decimal(v) if v is not None else None) for k, v in want]
+
+
+def test_a_board_measures_a_field_named_in_brackets(conn):
+    """The demo's board probes its measure by the field's own name, not ``"$." + name``
+    (``$.["Sample Weight (g)"]`` is no name)."""
+    from demo.server import scoreboard
+
+    spec = {"source": "noun:Sample", "group": "status", "filter": None, "counts": [], "time": None,
+            "measure": {"fn": "avg", "field": '["Sample Weight (g)"]'}, "sort": None, "cap": None}
+    out = scoreboard.run_group(conn, spec)
+    conn.rollback()
+    assert out.get("verdict") == "agree", out

@@ -121,6 +121,14 @@ _BUCKET_LABEL_TEMPLATE = (
 #: bug upstream, and it fails closed).
 _GRANULARITY_SQL = {"hour": "'hour'", "day": "'day'", "week": "'week'", "month": "'month'"}
 
+#: T-88 check: another host's time series is cut in UTC whatever its session's
+#: time zone (``date_trunc``'s third argument).  The demo's own series keeps
+#: :data:`_BUCKET_LABEL_TEMPLATE` (frozen; ``db.connect`` pins its sessions to UTC).
+_BUCKET_LABEL_UTC = (
+    "to_char( date_trunc({g}, (data ->> 'ts')::timestamptz, 'UTC') AT TIME ZONE 'UTC',\n"
+    "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )"
+)
+
 #: T-88: a time or date value as both engines read it — a calendar date
 #: ``YYYY-MM-DD`` or the fixed-width UTC time ``YYYY-MM-DDTHH:MM:SSZ``, and a
 #: real one (``pg_input_is_valid``; the pattern itself keeps out 24:00:00,
@@ -147,7 +155,7 @@ def _series_texts(records) -> dict:
                     f'             IS DISTINCT FROM ( {compared} ) )     AS "changed"'),
         "window": (f"WINDOW w AS (PARTITION BY (r.data ->> '{member}')\n"
                    f"               ORDER BY     (r.data ->> '{time}'), r.key)"),
-        "bucket_label": _BUCKET_LABEL_TEMPLATE.replace("(data ->> 'ts')", f"(data ->> '{time}')"),
+        "bucket_label": _BUCKET_LABEL_UTC.replace("(data ->> 'ts')", f"(data ->> '{time}')"),
     }
 
 
@@ -555,12 +563,15 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         p.params["bkt_path"] = _field_path(field, what="the time to group by")
         p.params["bkt_re"] = TIME_VALUE_RE
         value = "(data #>> %(bkt_path)s)"
-        label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamptz) "
-                 "AT TIME ZONE 'UTC',\n"
+        # Read as a timestamp WITHOUT time zone: every value the guard lets in
+        # is UTC (a date is its UTC midnight, the time form ends in Z, which a
+        # timestamp ignores), so the cut is in UTC whatever the session's time
+        # zone (the T-88 check) — a timestamptz would read a date in it.
+        label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
                  "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
         guard = (f"\n   AND jsonb_typeof(data #> %(bkt_path)s) = 'string'"
                  f"\n   AND {value} ~ %(bkt_re)s"
-                 f"\n   AND pg_input_is_valid({value}, 'timestamptz')")
+                 f"\n   AND pg_input_is_valid({value}, 'timestamp')")
     else:
         label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
         guard = ""

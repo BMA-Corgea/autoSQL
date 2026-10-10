@@ -222,8 +222,10 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
 
     found: dict = {}
     for key, ts in types.items():
-        # T-88: every key is reachable — a key that is not an identifier
-        # ("Sample Weight (g)") is named in brackets (picks/paths.py)
+        # T-88: a key that is not an identifier ("Sample Weight (g)") is named
+        # in brackets (picks/paths.py).  A key is offered only by a name both
+        # engines read back as exactly that key (the T-88 check's HIGH); one
+        # with no such name — empty, NUL — is skipped, as before T-88.
         if ts == {"object"}:
             # A key that always holds an object (Heartbeats' payload) is
             # opened one level: its fields are what a person reads.
@@ -231,9 +233,13 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
                 conn, records, _INNER_TYPES_SQL, {"collection": collection, "key": key}
             ).fetchall()
             for k2, t2, _n in inner:
-                found.setdefault(paths.of([key, k2]), set()).add(t2)
+                name = paths.name([key, k2])
+                if name is not None:
+                    found.setdefault(name, set()).add(t2)
         else:
-            found[paths.of([key])] = set(ts)
+            name = paths.name([key])
+            if name is not None:
+                found[name] = set(ts)
 
     fields = []
     for path, ts in found.items():

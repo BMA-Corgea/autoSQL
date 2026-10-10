@@ -32,6 +32,7 @@ from . import errors
 
 import gate  # noqa: E402  (app.py bootstraps demo/ onto sys.path)
 import group  # noqa: E402
+from picks import paths  # noqa: E402
 import probes  # noqa: E402
 from pyrunner import group as pygroup  # noqa: E402
 
@@ -92,7 +93,7 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
     counted = [server_app.expr.parse(c["expr"]) for c in spec.get("counts") or []]
     roots = []
     if spec.get("measure"):
-        roots.append(server_app.expr.parse("$." + spec["measure"]["field"]))
+        roots.append(server_app.expr.parse(paths.dollar(spec["measure"]["field"])))
     page = [server_app.expr.parse(spec["filter"])] if spec.get("filter") else []
     rel = spec.get("related")
     try:
