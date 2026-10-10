@@ -120,8 +120,10 @@ def read_rows(conn, collection: str, records=None) -> List[SourceRow]:
 
     records = env.records(records)
     if records.rows is not None:
-        # the host's own row provider: [(key, raw JSON text)] for the collection
-        return [source_row(collection, k, raw) for (k, raw) in records.rows(conn, collection)]
+        # the host's own row provider: [(key, raw JSON text)] for the collection,
+        # for THIS description's owner, which it is handed (T-87)
+        owner = records.partition[1] if records.partition is not None else None
+        return [source_row(collection, k, raw) for (k, raw) in records.rows(conn, collection, owner)]
     params = {"collection": collection}
     cur = conn.execute(
         f"SELECT collection, key, data::text FROM {records.table}"

@@ -19,8 +19,10 @@ that touches SQL or rows:
   ``{"source", "time", "member"}``.  Operations 7-9 (per hour / per day,
   the rolling window, keep-only-changed) are offered on it alone;
 * ``sources_note`` — a few words appended to the unknown-source refusal;
-* ``rows`` — an optional row provider ``rows(conn, collection) -> [(key,
-  raw_json_text)]`` for the second engine; without one it reads the table.
+* ``rows`` — an optional row provider ``rows(conn, collection, owner) ->
+  [(key, raw_json_text)]`` for the second engine, handed the description's
+  owner (the partition value, or ``None``) and bound to read that owner's
+  records only; without one the engine reads the table (T-87).
 
 Identifiers are spliced into statement text, so each is checked against a
 plain identifier pattern when the description is made; values never are

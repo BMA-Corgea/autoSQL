@@ -62,7 +62,7 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
     # one-bucket bucket) must never produce a number, so: loud.
     records = env.records(records)
     verdict = legality.evaluate(pick, records)
-    series = records.series or {"time": "ts", "member": "sender_id"}
+    series = records.series         # None: legality refuses ops 7-9 without one
     if verdict["violations"]:
         why = "; ".join(v["why"] for v in verdict["violations"])
         raise ValueError(f"illegal pick reached the Python pane: {why}")
@@ -79,7 +79,7 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
     if shape == "SCALAR":
         return _scalar(rows, pick, parsed)
     if shape == "BUCKET":
-        return _bucket(rows, pick, parsed, series["time"])
+        return _bucket(rows, pick, parsed, series["time"] if series else None)
     return _rows(rows, pick, parsed, series)
 
 
@@ -99,7 +99,8 @@ def _rows(
     rows: Sequence[SourceRow], pick: dict, parsed: Sequence[tuple],
     series: Optional[dict] = None,
 ) -> Dict[str, Any]:
-    series = series or {"time": "ts", "member": "sender_id"}
+    if (pick.get("window") or pick.get("changed")) and not series:
+        raise ValueError("a rolling window or keep-only-changed needs a time series; these records have none")
     windowed = bool(pick.get("window") and pick["window"].get("field"))
     changed_on = bool(pick.get("changed"))
 

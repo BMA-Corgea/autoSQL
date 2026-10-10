@@ -51,8 +51,15 @@ def get(name: str) -> Any:
 
 
 def set_default_records(records: Records) -> None:
+    """The description a call reads when it is handed none — for a
+    single-owner host.  A description with an owner (a partition) is
+    refused: the default is process-wide, so a multi-owner host setting it
+    per request would race one owner's request onto another's records; such
+    a host passes ``records=`` on every call (T-87)."""
     if not isinstance(records, Records):
         raise TypeError("set_default_records takes a picks.records.Records")
+    if records.partition is not None:
+        raise ValueError("a default description cannot carry an owner: pass records= on every call instead")
     _DEFAULT["records"] = records
 
 

@@ -157,3 +157,165 @@ def test_agreeing_answers_are_drawn_as_before(client, module, view):
     dashboard._CACHE.clear()
     _, a = ask(client, view)
     assert a["kind"] != "refused" and a["admin"]["verdict"] == "agree"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 3 · Owner isolation, before any host with many owners uses picks/ (T-87,
+#     widened after T-86's check): the reads, the keys, the row provider,
+#     the default, two owners at once
+# ═════════════════════════════════════════════════════════════════════════
+
+import json as _json  # noqa: E402
+import threading  # noqa: E402
+
+from demo.server import db as _db  # noqa: E402
+from picks import view as pview  # noqa: E402
+from picks.pyrunner.rows import read_rows  # noqa: E402
+from picks.records import Records  # noqa: E402
+
+_T = "t87_owners"
+_ROWS = [
+    ("acme", "noun:Reading", "r1", {"who": "m1", "v": 2, "kind": "a", "at": "2026-01-05"}),
+    ("acme", "noun:Reading", "r2", {"who": "m2", "v": 4, "kind": "b", "at": "2026-01-07"}),
+    ("other", "noun:Reading", "r1", {"who": "m9", "v": 7000, "kind": "Elsewhere", "at": "2030-12-31",
+                                     "secret": "x"}),
+]
+
+
+def _owner(owner, **kw):
+    return Records(table=_T, sources={"noun:Reading": "who, v, kind, at"}, partition=("owner", owner), **kw)
+
+
+@pytest.fixture
+def owners():
+    c = _db.connect(application_name="autosql-demo-t87-owners")
+    try:
+        c.execute(f"CREATE TEMPORARY TABLE {_T} (owner text, collection text, key text, data jsonb, "
+                  "PRIMARY KEY (owner, collection, key))")
+        for o, coll, k, d in _ROWS:
+            c.execute(f"INSERT INTO {_T} VALUES (%s, %s, %s, %s::jsonb)", (o, coll, k, _json.dumps(d)))
+        yield c
+    finally:
+        c.rollback()
+        c.close()
+
+
+def test_the_field_reads_offer_one_owners_values_ranges_and_groups(owners):
+    fields = {f["path"]: f for f in pview._read_fields(owners, "noun:Reading", records=_owner("acme"))}
+    assert set(fields) == {"who", "v", "kind", "at"}, "another owner's field names were offered"
+    assert fields["kind"]["values"] == ["a", "b"], "another owner's values were offered as chips"
+    assert fields["v"]["range"] == {"min": "2", "max": "4"}
+    assert fields["at"]["range"] == {"min": "2026-01-05", "max": "2026-01-07"}
+    assert fields["kind"]["group"]["groups"] == 2
+
+
+def test_the_keys_a_pick_is_judged_against_are_one_owners(owners):
+    assert pview.collection_keys(owners, "noun:Reading", records=_owner("acme")) == ["at", "kind", "v", "who"]
+    assert "secret" in pview.collection_keys(owners, "noun:Reading", records=_owner("other"))
+
+
+def test_the_row_provider_is_handed_the_owner():
+    asked = []
+
+    def rows(conn, collection, owner):
+        asked.append((collection, owner))
+        return [(k, _json.dumps(d)) for o, c, k, d in _ROWS if o == owner and c == collection]
+
+    got = read_rows(None, "noun:Reading", _owner("acme", rows=rows))
+    assert asked == [("noun:Reading", "acme")] and sorted(r.key for r in got) == ["r1", "r2"]
+
+
+def test_a_default_with_an_owner_is_refused():
+    with pytest.raises(ValueError, match="cannot carry an owner"):
+        env.set_default_records(_owner("acme"))
+
+
+def test_two_owners_at_once_each_read_only_their_own(owners):
+    """Two threads, two owners, one process, records= per call: each sees its own."""
+    errors, seen = [], {}
+    dsn_conns = {o: _db.connect(application_name=f"autosql-demo-t87-{o}") for o in ("acme", "other")}
+    try:
+        for c in dsn_conns.values():
+            c.execute(f"CREATE TEMPORARY TABLE {_T} (owner text, collection text, key text, data jsonb, "
+                      "PRIMARY KEY (owner, collection, key))")
+            for o, coll, k, d in _ROWS:
+                c.execute(f"INSERT INTO {_T} VALUES (%s, %s, %s, %s::jsonb)", (o, coll, k, _json.dumps(d)))
+
+        def work(owner):
+            try:
+                r = _owner(owner)
+                for _ in range(25):
+                    p = dict(legality_default(), source="noun:Reading", aggregate={"fn": "sum", "field": "$.v"})
+                    built = builder.build(p, ["who", "v", "kind", "at"], records=r)
+                    total = dsn_conns[owner].execute(built.sql, built.params).fetchone()[0]
+                    py = pyshape.answer(read_rows(dsn_conns[owner], "noun:Reading", r), p, r)["agg"]
+                    seen.setdefault(owner, set()).add((str(Decimal(str(total)).normalize()), str(py.normalize())))
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"{owner}: {exc!r}")
+
+        threads = [threading.Thread(target=work, args=(o,)) for o in ("acme", "other")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    finally:
+        for c in dsn_conns.values():
+            c.rollback()
+            c.close()
+    assert not errors, errors
+    assert seen == {"acme": {("6", "6")}, "other": {("7E+3", "7E+3")}}
+
+
+def legality_default():
+    from picks import legality as _lg
+    return _lg.default_pick(_owner("acme"))
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 4 · The overflow probe never answers 500; number conditions, held directly
+# ═════════════════════════════════════════════════════════════════════════
+
+def _edge(**kw):
+    from picks import legality as _lg
+    return dict(_lg.default_pick(), source="noun:EdgeCase", **kw)
+
+
+@pytest.mark.parametrize("pick", [
+    _edge(filter="abs($.huge) > 1"),
+    *[_edge(computed=[{"name": "x", "expr": "$.g * 3"}], aggregate={"fn": fn, "field": "x"})
+      for fn in ("sum", "avg", "min", "max")],
+], ids=["abs-huge", "sum-g3", "avg-g3", "min-g3", "max-g3"])
+def test_a_probe_that_meets_an_out_of_range_number_refuses_by_name(client, pick):
+    """The probe's own operand computes with a number past the largest double
+    and the runtime refuses it: that IS the probe's answer (it fired).  Until
+    T-87 these answered 500."""
+    r = client.post("/api/pick", json=pick)
+    assert r.status_code == 422, f"answered {r.status_code}"
+    refusal = r.json()["refusal"]
+    assert refusal["kind"] == "probe" and refusal["member"] == "a"
+    assert refusal["why"].startswith("out-of-range magnitude")
+
+
+@pytest.mark.parametrize("op, value, sql", [
+    ("gt", 42, "(data #>> '{payload,load}')::numeric > 42"),
+    ("ne", 42, "(data #>> '{payload,load}') IS NULL OR (data #>> '{payload,load}')::numeric <> 42"),
+    ("ge", 42, "(data #>> '{payload,load}')::numeric >= 42"),
+])
+def test_a_number_condition_counts_what_hand_sql_counts(client, op, value, sql):
+    """"is more than" excludes the value, "is not" counts the rows without
+    one, "is at least" includes it — each against hand-written SQL (42 has
+    rows, so a wrong edge shows)."""
+    c = _db.connect(application_name="autosql-demo-t87-numbers")
+    try:
+        want = c.execute(f"SELECT count(*) FROM demo.records WHERE collection = 'noun:Heartbeat' AND ({sql})").fetchone()[0]
+        has_42 = c.execute("SELECT count(*) FROM demo.records WHERE collection = 'noun:Heartbeat' "
+                           "AND (data #>> '{payload,load}')::numeric = 42").fetchone()[0]
+    finally:
+        c.rollback()
+        c.close()
+    assert has_42 > 0
+    v = {"dataset": "heartbeats", "columns": [], "conditions": [{"field": "payload.load", "op": op, "value": value}],
+         "sort": None, "show": None, "summary": {"fn": "count", "field": None, "per": "all"}}
+    dashboard._CACHE.clear()
+    _, a = ask(client, v)
+    assert a["kind"] == "number" and int(a["number"]["exact"]) == want

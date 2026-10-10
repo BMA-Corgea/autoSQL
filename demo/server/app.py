@@ -608,10 +608,10 @@ SELECT k FROM (
 
 
 def collection_keys(conn, collection: str) -> list:
-    rows = conn.execute(
-        settings.COLLECTION_KEYS_SQL, {"collection": collection}
-    ).fetchall()
-    return [r[0] for r in rows]
+    # picks' own read, for the owner of the default description (the demo
+    # has one owner); the same statement as settings.COLLECTION_KEYS_SQL
+    from picks import view as _pv
+    return _pv.collection_keys(conn, collection)
 
 
 def numeric_fields(conn, collection: str) -> list:

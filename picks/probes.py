@@ -419,15 +419,43 @@ def run_probes(conn, collection: str, probes: Sequence[Probe], *,
         params["collection"] = collection
         for name in p.ctx_params:
             params[name] = ctx
-        cur = conn.execute(p.sql, params)
-        fired = bool(cur.fetchone()[0])
-        row_key: Optional[str] = None
-        if fired:
-            cur = conn.execute(p.row_sql, params)
-            row = cur.fetchone()
-            row_key = row[0] if row is not None else None
+        fired, row_key = _ask(conn, p, params)
         outcomes.append(ProbeOutcome(probe=p, fired=fired, row_key=row_key))
     return outcomes
+
+
+#: The runtime's own out-of-range refusals: ``XPR01`` (a number past the
+#: largest double, read by the runtime) and ``22003`` (float8 overflow).
+_OUT_OF_RANGE = ("XPR01", "22003")
+
+
+def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    """One probe's answer — fired, and the first offending key.
+
+    The magnitude probe reads its operands; an operand that itself computes
+    with an out-of-range number (``abs($.huge)``, ``$.g * 3``) makes the PROBE
+    raise the runtime's out-of-range refusal before it can answer — which is
+    the answer: the data holds a number the statement could not use.  So
+    that refusal counts as FIRED, the first offending key unknown (T-87;
+    until then the pick answered 500).  Each query runs under a savepoint, so
+    the caller's transaction stays usable; any other error still raises."""
+    try:
+        with conn.transaction():
+            fired = bool(conn.execute(p.sql, params).fetchone()[0])
+    except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
+        if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
+            raise
+        return True, None
+    if not fired:
+        return False, None
+    try:
+        with conn.transaction():
+            row = conn.execute(p.row_sql, params).fetchone()
+    except Exception as exc:  # noqa: BLE001
+        if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
+            raise
+        return True, None
+    return True, (row[0] if row is not None else None)
 
 
 def _cause(member: str, row_key: Optional[str]) -> str:

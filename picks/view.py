@@ -188,6 +188,21 @@ def _ops_for(kind: str, types: set) -> list:
     return blanks
 
 
+#: The keys a collection's records hold, for this owner only (T-87): which
+#: column names a pick may not take (the alias gate) is decided by them, so
+#: another owner's field names must never reach it.
+_KEYS_SQL = """
+SELECT DISTINCT k FROM {table} r, LATERAL jsonb_object_keys(r.data) AS k
+ WHERE {scope}
+ ORDER BY k
+"""
+
+
+def collection_keys(conn, collection: str, records=None) -> list:
+    """The top-level keys of one collection's records — this owner's."""
+    return [r[0] for r in _read(conn, env.records(records), _KEYS_SQL, {"collection": collection}).fetchall()]
+
+
 def _read(conn, records, template: str, params: dict):
     """One of the setup reads above, for this description's table and owner."""
     params = dict(params)
