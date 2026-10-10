@@ -354,3 +354,31 @@ def test_the_schema_gained_exactly_the_two_new_functions(conn):
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
         assert cur.fetchone()[0] == 24
+
+
+# ── T-37 M1 (GIMS adapter review, b-check P0) · a number's truthiness goes through xpr.f8 ──
+# GIMS reads a stored record with json.loads before its evaluator sees it: 1e-400 is already 0.0 there
+# (falsy), and 1e400 is inf. xpr.truthy decided a number by `numeric <> 0`, so 1e-400 was TRUE in SQL and
+# a pushed-down `$.x` kept rows Python drops. A number is now read as comparisons read it (xpr.f8): where
+# a double holds it, both agree; where none does, SQL raises a named refusal (22003 / XPR01) and the
+# caller falls back to Python. Never a quiet wrong answer.
+
+@needs_db
+@pytest.mark.parametrize("num", ["0", "0.0", "-0.0", "0E-400", "1", "-2.5", "1e-320", "-1e-320",
+                                 "4.9406564584124654e-324", "1.7976931348623157e308"])
+def test_truthy_on_a_number_a_double_holds_is_pythons_reading(conn, num):
+    import json
+    want = bool(json.loads(num))                    # what GIMS's store read hands its evaluator
+    with conn.cursor() as cur:
+        cur.execute("select xpr.truthy(%s::jsonb)", (num,))
+        assert cur.fetchone()[0] is want, num
+
+
+@needs_db
+@pytest.mark.parametrize("num", ["1e-400", "-1e-400", "2e-324", "1e400", "-1e400"])
+def test_truthy_refuses_a_number_no_double_holds(conn, num):
+    import psycopg
+    with conn.cursor() as cur:
+        with pytest.raises(psycopg.Error) as e:
+            cur.execute("select xpr.truthy(%s::jsonb)", (num,))
+        assert e.value.sqlstate in ("22003", "XPR01"), (num, e.value.sqlstate)
