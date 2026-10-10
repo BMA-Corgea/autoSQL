@@ -60,3 +60,8 @@ Thumbs.db
 # factory ledger and generated day pages stay local (public repo, owner's request 2026-09-05)
 .autodev/
 kb/days/
+
+# a local link to node_modules or a venv (a worktree borrowing another checkout's) is a file, not a
+# directory, so the pattern above does not match it
+demo/frontend/node_modules
+demo/.venv
