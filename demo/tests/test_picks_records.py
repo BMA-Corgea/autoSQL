@@ -223,13 +223,13 @@ def test_probes_ask_one_owner(wconn):
 def test_the_second_engine_reads_through_the_hosts_row_provider():
     asked = []
 
-    def rows(conn, collection):
-        asked.append(collection)
-        return [(k, json.dumps(d)) for o, c, k, d in _ROWS if o == "acme" and c == collection]
+    def rows(conn, collection, owner):            # handed the owner since T-87
+        asked.append((collection, owner))
+        return [(k, json.dumps(d)) for o, c, k, d in _ROWS if o == owner and c == collection]
 
     r = acme(rows=rows)
     out = pyshape.answer(read_rows(None, "noun:Reading", r), pick(aggregate={"fn": "count", "field": None}), r)
-    assert asked == ["noun:Reading"] and out["agg"] == 5      # no database at all
+    assert asked == [("noun:Reading", "acme")] and out["agg"] == 5      # no database at all
 
 
 def test_an_engine_with_no_host_says_so_by_name(tmp_path):
