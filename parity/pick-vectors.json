@@ -1,0 +1,334 @@
+{
+ "format": "pick-vectors/1",
+ "version": 2,
+ "note": "T-88 (M3): picks over invented lab records, each answer worked out BY HAND from the rules below, never by either engine. A consumer loads the records into a table of (collection, key, data jsonb), runs each case through BOTH engines (the statement from picks.builder / picks.group, and picks.pyrunner), and requires each to equal `expect` exactly (numbers compared as exact decimals). RULES: (1) a time is a calendar date YYYY-MM-DD or the fixed-width UTC time YYYY-MM-DDTHH:MM:SSZ (hours 00-23, minutes and seconds 00-59), a real day; read as UTC, a date is its midnight; any other value (missing, null, empty text, a number, another text form, an impossible day) puts the record in NO time bucket. (2) Weeks start on Monday (UTC) and are named by that Monday; months by their first day; every label is YYYY-MM-DDTHH:MM:SSZ. A bucket with no records is not returned. (3) Blank is a missing field or JSON null: it is its own group; an empty text \"\" is a value, its own group. (4) A total or average is exact over the values stored as JSON numbers (text, booleans, lists are left out), rounded half-up to 6 decimal places; a count counts records. (5) Buckets come in time order; groups in the order of their value (blank last). (6) A field whose name is not a plain identifier is named in brackets, the expression language's own spelling: [\"Sample Weight (g)\"]; a.b for plain keys.",
+ "collection": "noun:Lab",
+ "records": [
+  {
+   "key": "L01",
+   "data": {
+    "received": "2026-01-04T23:59:59Z",
+    "kind": "a",
+    "w": 1,
+    "Sample Type": "flower",
+    "Sample Weight (g)": 1.5
+   }
+  },
+  {
+   "key": "L02",
+   "data": {
+    "received": "2026-01-05",
+    "kind": "b",
+    "w": 2,
+    "Sample Type": "flower",
+    "Sample Weight (g)": 2.5
+   }
+  },
+  {
+   "key": "L03",
+   "data": {
+    "received": "2026-01-05T00:00:00Z",
+    "kind": "",
+    "w": 2,
+    "Sample Type": "oil",
+    "Sample Weight (g)": "n/a"
+   }
+  },
+  {
+   "key": "L04",
+   "data": {
+    "received": "2026-01-11T12:00:00Z",
+    "kind": null,
+    "w": 4,
+    "Sample Weight (g)": 4
+   }
+  },
+  {
+   "key": "L05",
+   "data": {
+    "received": "2026-01-12T14:30",
+    "w": "5"
+   }
+  },
+  {
+   "key": "L06",
+   "data": {
+    "received": "2026-02-30",
+    "kind": "a",
+    "w": 3.5
+   }
+  },
+  {
+   "key": "L07",
+   "data": {
+    "received": "",
+    "kind": "a"
+   }
+  },
+  {
+   "key": "L08",
+   "data": {
+    "kind": "b",
+    "w": 0
+   }
+  },
+  {
+   "key": "L09",
+   "data": {
+    "received": "2025-12-31T23:00:00Z",
+    "kind": "b",
+    "w": 10
+   }
+  },
+  {
+   "key": "L10",
+   "data": {
+    "received": 20260105,
+    "kind": "a"
+   }
+  },
+  {
+   "key": "L11",
+   "data": {
+    "received": "2026-01-05T24:00:00Z",
+    "kind": "c",
+    "w": true
+   }
+  }
+ ],
+ "cases": [
+  {
+   "name": "count per week (Monday start; Sunday 23:59:59 is the week before; a date is its midnight)",
+   "pick": {
+    "aggregate": {
+     "fn": "count",
+     "field": null
+    },
+    "bucket": "week",
+    "bucket_field": "received"
+   },
+   "expect": [
+    [
+     "2025-12-29T00:00:00Z",
+     "2"
+    ],
+    [
+     "2026-01-05T00:00:00Z",
+     "3"
+    ]
+   ]
+  },
+  {
+   "name": "count per month (December into January)",
+   "pick": {
+    "aggregate": {
+     "fn": "count",
+     "field": null
+    },
+    "bucket": "month",
+    "bucket_field": "received"
+   },
+   "expect": [
+    [
+     "2025-12-01T00:00:00Z",
+     "1"
+    ],
+    [
+     "2026-01-01T00:00:00Z",
+     "4"
+    ]
+   ]
+  },
+  {
+   "name": "count per day (UTC: 23:00 on Dec 31 stays Dec 31)",
+   "pick": {
+    "aggregate": {
+     "fn": "count",
+     "field": null
+    },
+    "bucket": "day",
+    "bucket_field": "received"
+   },
+   "expect": [
+    [
+     "2025-12-31T00:00:00Z",
+     "1"
+    ],
+    [
+     "2026-01-04T00:00:00Z",
+     "1"
+    ],
+    [
+     "2026-01-05T00:00:00Z",
+     "2"
+    ],
+    [
+     "2026-01-11T00:00:00Z",
+     "1"
+    ]
+   ]
+  },
+  {
+   "name": "count per hour (a date-only value is its midnight hour)",
+   "pick": {
+    "aggregate": {
+     "fn": "count",
+     "field": null
+    },
+    "bucket": "hour",
+    "bucket_field": "received"
+   },
+   "expect": [
+    [
+     "2025-12-31T23:00:00Z",
+     "1"
+    ],
+    [
+     "2026-01-04T23:00:00Z",
+     "1"
+    ],
+    [
+     "2026-01-05T00:00:00Z",
+     "2"
+    ],
+    [
+     "2026-01-11T12:00:00Z",
+     "1"
+    ]
+   ]
+  },
+  {
+   "name": "total per week, exact",
+   "pick": {
+    "aggregate": {
+     "fn": "sum",
+     "field": "$.w"
+    },
+    "bucket": "week",
+    "bucket_field": "received"
+   },
+   "expect": [
+    [
+     "2025-12-29T00:00:00Z",
+     "11"
+    ],
+    [
+     "2026-01-05T00:00:00Z",
+     "8"
+    ]
+   ]
+  },
+  {
+   "name": "average over everything: 22.5 / 7, half-up to 6 places (text and booleans left out)",
+   "pick": {
+    "aggregate": {
+     "fn": "avg",
+     "field": "$.w"
+    },
+    "bucket": "off"
+   },
+   "expect": [
+    [
+     "3.214286"
+    ]
+   ]
+  },
+  {
+   "name": "count per category: blank (missing or null) its own group, empty text its own value",
+   "board": {
+    "group": "kind",
+    "measure": null
+   },
+   "expect": [
+    [
+     "",
+     "1"
+    ],
+    [
+     "a",
+     "4"
+    ],
+    [
+     "b",
+     "3"
+    ],
+    [
+     "c",
+     "1"
+    ],
+    [
+     null,
+     "2"
+    ]
+   ]
+  },
+  {
+   "name": "average per category, exact (blank's text \"5\" left out)",
+   "board": {
+    "group": "kind",
+    "measure": {
+     "fn": "avg",
+     "field": "w"
+    }
+   },
+   "expect": [
+    [
+     "",
+     "2"
+    ],
+    [
+     "a",
+     "2.25"
+    ],
+    [
+     "b",
+     "4"
+    ],
+    [
+     "c",
+     null
+    ],
+    [
+     null,
+     "4"
+    ]
+   ]
+  },
+  {
+   "name": "a field named with spaces and brackets: average Sample Weight (g) = 8 / 3 (\"n/a\" left out)",
+   "pick": {
+    "aggregate": {
+     "fn": "avg",
+     "field": "$[\"Sample Weight (g)\"]"
+    },
+    "bucket": "off"
+   },
+   "expect": [
+    [
+     "2.666667"
+    ]
+   ]
+  },
+  {
+   "name": "count per a field named with a space: Sample Type (blank: the eight without one)",
+   "board": {
+    "group": "[\"Sample Type\"]",
+    "measure": null
+   },
+   "expect": [
+    [
+     "flower",
+     "2"
+    ],
+    [
+     "oil",
+     "1"
+    ],
+    [
+     null,
+     "8"
+    ]
+   ]
+  }
+ ]
+}

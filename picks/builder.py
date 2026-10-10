@@ -60,7 +60,7 @@ import json
 import re
 from typing import Any, NamedTuple
 
-from . import env, gate, legality
+from . import env, gate, legality, paths
 
 
 #: The SHIPPING compiler (``compiler/compile.py`` in this repo) and the
@@ -119,7 +119,16 @@ _BUCKET_LABEL_TEMPLATE = (
 #: for them.  legality.evaluate has already refused anything else; these
 #: dicts are the emission-side half of the same fence (a KeyError here is a
 #: bug upstream, and it fails closed).
-_GRANULARITY_SQL = {"hour": "'hour'", "day": "'day'"}
+_GRANULARITY_SQL = {"hour": "'hour'", "day": "'day'", "week": "'week'", "month": "'month'"}
+
+#: T-88: a time or date value as both engines read it — a calendar date
+#: ``YYYY-MM-DD`` or the fixed-width UTC time ``YYYY-MM-DDTHH:MM:SSZ``, and a
+#: real one (``pg_input_is_valid``; the pattern itself keeps out 24:00:00,
+#: which Postgres would read as the next day and Python refuses).  Read as
+#: UTC (a date is its midnight).  A
+#: record whose field holds anything else — missing, blank, another form —
+#: is in no bucket, in both engines.
+TIME_VALUE_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}(T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z)?$"
 _DIRECTION_SQL = {"asc": "ASC", "desc": "DESC"}
 
 
@@ -267,13 +276,12 @@ def _field_path(field: str, *, what: str) -> list[str]:
         raise gate.Refused(
             repr(field), f"{what} needs a field, and none was given"
         )
-    text = field[2:] if field.startswith("$.") else field
-    parts = text.split(".")
-    if any(p == "" for p in parts):
+    try:
+        return paths.steps(field)          # T-88: any key, bracketed when not an identifier
+    except ValueError:
         raise gate.Refused(
             field, f"`{field}` is not a usable field path for {what}"
-        )
-    return parts
+        ) from None
 
 
 def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict | None = None) -> Compiled:
@@ -541,9 +549,23 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     text order on the fixed-width UTC label IS time order (R15, C collation).
     B1 writes this shape without a table alias; the shared pieces compiled
     every fragment unqualified for it (``_Pieces.col``)."""
-    label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
+    field = pick.get("bucket_field")
+    if field:
+        # T-88: any time or date field, named by the pick — bound, never text
+        p.params["bkt_path"] = _field_path(field, what="the time to group by")
+        p.params["bkt_re"] = TIME_VALUE_RE
+        value = "(data #>> %(bkt_path)s)"
+        label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamptz) "
+                 "AT TIME ZONE 'UTC',\n"
+                 "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
+        guard = (f"\n   AND jsonb_typeof(data #> %(bkt_path)s) = 'string'"
+                 f"\n   AND {value} ~ %(bkt_re)s"
+                 f"\n   AND pg_input_is_valid({value}, 'timestamptz')")
+    else:
+        label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
+        guard = ""
     agg = p.aggregate_call(pick)
-    where = p.where_clause()
+    where = p.where_clause() + guard
     sql = (
         f'SELECT {label}                      AS "bucket",\n'
         f'       {agg}             AS "agg"\n'

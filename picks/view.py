@@ -27,7 +27,7 @@ from dataclasses import dataclass, field as _dc_field
 from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from typing import Any, Mapping, Optional
 
-from . import env, group, legality, lookup
+from . import env, group, legality, lookup, paths
 from .records import Records
 
 
@@ -72,7 +72,7 @@ _PLAIN_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def _humanize(path: str) -> str:
-    words = path.replace(".", " ").replace("_", " ").split()
+    words = " ".join(paths.steps(path)).replace("_", " ").split()
     text = " ".join(words) or path
     return text[:1].upper() + text[1:]
 
@@ -220,10 +220,10 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
     for k, t, _n in rows:
         types.setdefault(k, set()).add(t)
 
-    paths: dict = {}
+    found: dict = {}
     for key, ts in types.items():
-        if not _PLAIN_KEY.match(key):
-            continue   # a name the path grammar cannot reach (app._as_dollar_path)
+        # T-88: every key is reachable — a key that is not an identifier
+        # ("Sample Weight (g)") is named in brackets (picks/paths.py)
         if ts == {"object"}:
             # A key that always holds an object (Heartbeats' payload) is
             # opened one level: its fields are what a person reads.
@@ -231,18 +231,17 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
                 conn, records, _INNER_TYPES_SQL, {"collection": collection, "key": key}
             ).fetchall()
             for k2, t2, _n in inner:
-                if _PLAIN_KEY.match(k2):
-                    paths.setdefault(f"{key}.{k2}", set()).add(t2)
+                found.setdefault(paths.of([key, k2]), set()).add(t2)
         else:
-            paths[key] = set(ts)
+            found[paths.of([key])] = set(ts)
 
     fields = []
-    for path, ts in paths.items():
+    for path, ts in found.items():
         strings: list = []
         if "string" in ts:
             strings = [
                 r[0] for r in _read(conn, records, _VALUES_SQL, {
-                    "collection": collection, "path": path.split("."),
+                    "collection": collection, "path": paths.steps(path),
                     "limit": VALUE_LIMIT + 1,
                 }).fetchall()
             ]
@@ -267,7 +266,7 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
             field["picker"] = "chips" if len(strings) <= CHIP_LIMIT else "list"
         if kind == "number":
             lo, hi = _read(
-                conn, records, _RANGE_SQL, {"collection": collection, "path": path.split(".")}
+                conn, records, _RANGE_SQL, {"collection": collection, "path": paths.steps(path)}
             ).fetchone()
             if lo is not None:
                 field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
@@ -297,12 +296,12 @@ def _groupable(conn, collection, path, kind, types, label, strings, records=None
     """Can the page give one row per value of this field, and if not, why
     — in plain words.  The blank group counts as a value."""
     if kind not in ("text", "number", "yesno") or types & {"object", "array"}:
-        why = ("Times and dates are grouped per hour or per day under Summarize."
+        why = ("Times and dates are grouped per hour, day, week or month under Summarize."
                if kind in ("time", "date") else
                "Its rows hold different kinds of value, so there is no one value to group by.")
         return {"ok": False, "why": why, "groups": None}
     n = int(_read(conn, env.records(records), _DISTINCT_SQL, {"collection": collection,
-                                         "path": path.split(".")}).fetchone()[0])
+                                         "path": paths.steps(path)}).fetchone()[0])
     if n > GROUP_LIMIT:
         return {"ok": False, "groups": n, "why": (
             f"{label} has {n:,} different values — one row per value would be about as "
@@ -433,7 +432,17 @@ def to_pick(catalog: "Catalog", setup_payload: dict, view: dict) -> dict:
             "fn": summary["fn"],
             "field": summary["field"],
         }
+        if summary["per"] == "category":
+            # one number per value of a field is a board's shape (to_category_spec)
+            raise ViewError("One number per value of a field is answered as a board, not as one pick.")
         pick["bucket"] = "off" if summary["per"] == "all" else summary["per"]
+        if summary["time"]:
+            pick["bucket_field"] = summary["time"]
+        elif summary["per"] in TIME_PERS and not _is_series(catalog, pick["source"]):
+            # T-88: any data set can be read per time once its time is named
+            if not any(f["kind"] in ("time", "date") for f in fields.values()):
+                raise ViewError(f"{ds['name']} have no time or date field to group by.")
+            raise ViewError("Pick the time or date field to group by.")
 
     # The engine's own rules decide what may be combined (legality.py, the
     # same function /api/operations greys its controls from).  A choice it
@@ -450,10 +459,12 @@ SUMMARY_FNS = {
 }
 
 
-SUMMARY_KEYS = {"fn", "field", "per"}
+SUMMARY_KEYS = {"fn", "field", "per", "time", "by"}
 
 
-PERS = ("all", "hour", "day")
+PERS = ("all", "hour", "day", "week", "month", "category")
+#: The time units a summary may read over a time or date field (T-88).
+TIME_PERS = ("hour", "day", "week", "month")
 
 
 def _summary(view: dict, fields: dict, ds: dict):
@@ -468,16 +479,47 @@ def _summary(view: dict, fields: dict, ds: dict):
     if _name(fn) not in SUMMARY_FNS:
         raise ViewError("Summarize by count, total, average, smallest or largest.")
     per = summary.get("per", "all")
-    if per not in PERS:
-        raise ViewError("Summarize over everything, per hour or per day.")
+    if _name(per) not in PERS:
+        raise ViewError("Summarize over everything, per hour, day, week or month, or per value of a field.")
+    # T-88: the time a per-time summary reads (any time or date field; none =
+    # the time series' own), and the field a per-value summary groups by.
+    time = summary.get("time")
+    if not _empty(time):
+        if per not in TIME_PERS:
+            raise ViewError("A time to group by goes with per hour, day, week or month.")
+        f = fields.get(_name(time))
+        if f is None or f["kind"] not in ("time", "date"):
+            raise ViewError("Group by a time or a date field.")
+        if per == "hour" and f["kind"] != "time":
+            raise ViewError(f"{f['label']} holds dates, so there is no hour to group by.")
+        time = f["path"]
+    else:
+        time = None
+    by = summary.get("by")
+    if per == "category":
+        f = fields.get(_name(by))
+        if f is None:
+            raise ViewError("Pick the field to give one number per value of.")
+        if not f["group"]["ok"]:
+            raise ViewError(f"{f['label']} can't be grouped by: {f['group']['why']}")
+        by = f["path"]
+    elif not _empty(by):
+        raise ViewError("A field to group by goes with per value of a field.")
+    else:
+        by = None
     path = summary.get("field")
     if fn == "count":
         if not _empty(path):
             raise ViewError("A count counts rows; it takes no field.")
-        return {"fn": fn, "field": None, "per": per}
+        return {"fn": fn, "field": None, "per": per, "time": time, "by": by}
     if _name(path) not in fields or fields[path]["kind"] != "number":
         raise ViewError(f"{SUMMARY_FNS[fn]} of what? Pick a field that holds numbers.")
-    return {"fn": fn, "field": path, "per": per}
+    return {"fn": fn, "field": path, "per": per, "time": time, "by": by}
+
+
+def _is_series(catalog: "Catalog", source: str) -> bool:
+    series = env.records(catalog.records).series
+    return bool(series) and series["source"] == source
 
 
 def _why_only_series(series_name) -> str:
@@ -495,10 +537,10 @@ _PLAIN_REASONS = {
     legality._WHY_SCALAR_CAP: "A summary over everything is one number, so there is only one row.",
     legality._WHY_SCALAR_WINDOW: "A summary over everything is one number.",
     legality._WHY_SCALAR_CHANGED: "A summary over everything is one number.",
-    legality._WHY_BUCKET_SORT: "Per-hour and per-day summaries are always in time order.",
-    legality._WHY_BUCKET_WINDOW: "Per-hour and per-day summaries are grouped already.",
-    legality._WHY_BUCKET_CHANGED: "Per-hour and per-day summaries are grouped already.",
-    legality.WHY_BUCKET_NEEDS_AGG: "Per hour and per day need something to count or total.",
+    legality._WHY_BUCKET_SORT: "Summaries per hour, day, week or month are always in time order.",
+    legality._WHY_BUCKET_WINDOW: "Summaries per hour, day, week or month are grouped already.",
+    legality._WHY_BUCKET_CHANGED: "Summaries per hour, day, week or month are grouped already.",
+    legality.WHY_BUCKET_NEEDS_AGG: "A summary per hour, day, week or month needs something to count or total.",
     legality.WHY_COUNT_TAKES_NO_FIELD: "A count counts rows; it takes no field.",
     legality.WHY_NO_FN_NO_FIELD: "Pick what to summarize first.",
 }
@@ -517,13 +559,12 @@ def plain_reason(why: str, series_name: str | None = None) -> str:
 
 
 def field_ref(path: str) -> str:
-    """A field path as the expression language spells it: ``$.payload.load``.
-    Only paths read out of the data reach here, and every step of one is a
-    plain identifier (:data:`_PLAIN_KEY`), so the dotted form is exact."""
-    steps = path.split(".")
-    if not all(_PLAIN_KEY.match(s) for s in steps):
-        raise ViewError(f"{path!r} is not a field this page can reach.")
-    return "$." + path
+    """A field path as the expression language spells it: ``$.payload.load``,
+    ``$["Sample Weight (g)"]`` (``picks/paths.py``, T-88)."""
+    try:
+        return paths.dollar(path)
+    except ValueError:
+        raise ViewError(f"{path!r} is not a field this page can reach.") from None
 
 
 def string_literal(value: str) -> str:
@@ -1342,3 +1383,31 @@ def to_lookup(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool =
     }
     return spec, {"ds": ds, "rel_ds": rel_ds, "relation": relation, "shown": shown,
                   "declared": declared}
+
+
+def to_category_spec(catalog: "Catalog", setup_payload: dict, view: dict) -> tuple[dict, dict]:
+    """A summary ``per: "category"`` → (the engine's board spec, what the
+    screen needs).  One number per value of a field (T-88): a count is the
+    board's own Rows; a total, average, smallest or largest is its measure.
+    Both engines compute it as they compute any board (``group``,
+    ``pyrunner.group``).  The blank group (missing or JSON null) is its own;
+    an empty text ``""`` is a value like any other."""
+    ds, fields = _dataset(setup_payload, view)
+    summary = _summary(view, fields, ds)
+    if not summary or summary["per"] != "category":
+        raise ViewError("This is not one number per value of a field.")
+    if _columns(view, fields):
+        raise ViewError("Columns don't apply to a summary; untick them first.")
+    if view.get("sort") is not None:
+        raise ViewError("One number per value of a field is in the order of its values.")
+    spec = {
+        "source": catalog.sources[ds["id"]],
+        "group": summary["by"],
+        "filter": filter_expression(view, fields),
+        "counts": [],
+        "time": None,
+        "measure": None if summary["fn"] == "count" else {"fn": summary["fn"], "field": summary["field"]},
+        "sort": None,
+        "cap": _show(view),
+    }
+    return spec, {"ds": ds, "fields": fields, "summary": summary, "by": fields[summary["by"]]}

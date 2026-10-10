@@ -368,7 +368,7 @@ def test_at_most_six_count_columns(client, setup):
 
 @pytest.mark.parametrize("patch, says", [
     ({"by": "id"}, "ID can't be grouped by: ID has 2,000 different values"),
-    ({"by": "due_date"}, "Due date can't be grouped by: Times and dates are grouped per hour or per day"),
+    ({"by": "due_date"}, "Due date can't be grouped by: Times and dates are grouped per hour, day, week or month"),
     ({"by": "field_3"}, "Field 3 can't be grouped by: Its rows hold different kinds of value"),
     ({"by": "status", "extra": 1}, "This page can't use 'extra' in a scoreboard yet."),
     ({"by": "status", "time": {"fn": "latest", "field": "priority"}},

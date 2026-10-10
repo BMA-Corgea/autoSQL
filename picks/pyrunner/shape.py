@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Sequence
 
-from .. import env, legality
+from .. import env, legality, paths
 from . import evaluate as ev
 from .rows import SourceRow, read_rows
 
@@ -216,7 +216,16 @@ def _bucket(
     field = agg.get("field") or None
 
     groups: Dict[str, List[SourceRow]] = {}
-    for r in rows:
+    named = pick.get("bucket_field")
+    if named:
+        # T-88: any time or date field the pick names; a record whose value
+        # is not a time or a date in the one form is in no bucket
+        steps = ev.dollar_path(paths.dollar(named))
+        for r in rows:
+            at = ev.time_value(ev.resolve(r.record_d, steps))
+            if at is not None:
+                groups.setdefault(ev.truncate_label(at, granularity), []).append(r)
+    for r in rows if not named else ():
         ts = ev.text_of(ev.resolve(r.record_d, _TS_STEPS if time == "ts" else [("key", time)]))
         if ts is None:
             # date_trunc(NULL) would be a silent NULL bucket; B4 restricts

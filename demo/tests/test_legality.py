@@ -133,7 +133,7 @@ def walk():
         (False, True),            # op 4 — a sort, or none
         (False, True),            # op 5 — a cap, or none
         legality.AGG_FNS,         # op 6 — none/count/sum/avg/min/max
-        legality.BUCKETS,         # op 7 — off/hour/day
+        legality.BUCKETS,         # op 7 — off/hour/day/week/month
         (False, True),            # op 8 — a rolling window, or none
         (False, True),            # op 9 — changed-only, on or off
     )
@@ -201,7 +201,7 @@ def test_every_combination():
         assert c["violations"] == lg["violations"], at
 
     # the real combination count, asserted so the walk cannot quietly shrink
-    assert count == 3 * 2 * 2 * 2 * 2 * 6 * 3 * 2 * 2 == 3456
+    assert count == 3 * 2 * 2 * 2 * 2 * 6 * 5 * 2 * 2 == 5760   # op 7: five units since T-88
     print(f"\nwalked {count} combinations "
           f"(3 sources x 2^5 on/off x 6 aggregates x 3 granularities)")
 
@@ -371,9 +371,9 @@ def test_closed_sets_fail_closed():
     assert 6 in [v["operation"] for v in legality.evaluate(p)["violations"]]
 
     p = legality.default_pick()
-    p["bucket"] = "week"
+    p["bucket"] = "fortnight"
     ops6 = [v["operation"] for v in legality.evaluate(p)["violations"]]
-    assert 7 in ops6  # week is not a granularity
+    assert 7 in ops6  # a fortnight is not a granularity (week and month are, since T-88)
 
     p = legality.default_pick()
     p["sort"] = {"field": "$.status", "dir": "sideways"}

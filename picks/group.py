@@ -59,7 +59,7 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
-from . import builder, env, legality
+from . import builder, env, legality, paths
 
 GROUP = "GROUP"
 PROFILE = "PROFILE"
@@ -84,7 +84,6 @@ TIME_FNS = {"max": "max", "min": "min"}
 MEASURE_FNS = ("sum", "avg", "min", "max")
 SORT_DIRS = {"asc": "ASC", "desc": "DESC"}
 
-_PLAIN_PATH = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\Z")
 
 
 class Built(NamedTuple):
@@ -110,9 +109,10 @@ def columns_of(spec: dict) -> list:
 
 
 def _path(field: str, what: str) -> list:
-    if not isinstance(field, str) or not _PLAIN_PATH.match(field):
-        raise ValueError(f"{what} must be a plain field path, not {field!r}")
-    return field.split(".")
+    try:
+        return paths.steps(field)          # T-88: any key, bracketed when not an identifier
+    except ValueError:
+        raise ValueError(f"{what} must be a field path, not {field!r}") from None
 
 
 def check(spec: dict, records=None) -> None:

@@ -55,7 +55,8 @@ number that runs clean:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from decimal import Context, Decimal, ROUND_HALF_UP, localcontext
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -404,6 +405,46 @@ def aggregate(fn: str, values: Optional[Sequence[Any]], row_count: int) -> Any:
 _TS_WIDTH = len("2026-08-14T00:00:00Z")
 
 
+#: T-88: a time or date value, this engine's own statement of the rule (the
+#: statement side writes its own): a calendar date ``YYYY-MM-DD`` or the
+#: fixed-width UTC time ``YYYY-MM-DDTHH:MM:SSZ`` — hours 00-23, minutes and
+#: seconds 00-59 — and a real day of the calendar.  Anything else is no time.
+_TIME_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dZ)?\Z", re.ASCII)
+
+
+def time_value(value: Any) -> Optional[datetime]:
+    """A stored value as an AWARE UTC datetime when it is a time or a date in
+    one of the two forms (a date is its UTC midnight); ``None`` for anything
+    else — missing, null, a number, another text form, a day the calendar
+    lacks.  Such a record is in no bucket."""
+    if not isinstance(value, str) or not _TIME_VALUE.match(value):
+        return None
+    try:
+        if len(value) == 10:
+            return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def truncate_label(at: datetime, granularity: str) -> str:
+    """One aware UTC datetime → its bucket's label, in the one fixed-width
+    form: the hour, the day, the week (from its MONDAY, as Postgres's
+    ``date_trunc('week')``), or the calendar month — all in UTC."""
+    if granularity == "hour":
+        trunc = at.replace(minute=0, second=0, microsecond=0)
+    elif granularity == "day":
+        trunc = at.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif granularity == "week":
+        day = at.replace(hour=0, minute=0, second=0, microsecond=0)
+        trunc = day - timedelta(days=day.weekday())          # Monday is 0
+    elif granularity == "month":
+        trunc = at.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        raise ValueError(f"granularity must be hour, day, week or month, got {granularity!r}")
+    return f"{trunc.year:04d}-{trunc.month:02d}-{trunc.day:02d}T{trunc.hour:02d}:{trunc.minute:02d}:{trunc.second:02d}Z"
+
+
 def bucket_label(ts_text: str, granularity: str) -> str:
     """Operation 7's bucket for one row, as the label BOTH panes key by.
 
@@ -417,12 +458,14 @@ def bucket_label(ts_text: str, granularity: str) -> str:
     The seed writes ``ts`` in exactly this fixed-width form (R17); anything
     else raises rather than landing in a quietly wrong bucket.
     """
-    if granularity not in ("hour", "day"):
-        raise ValueError(f"granularity must be 'hour' or 'day', got {granularity!r}")
+    if granularity not in ("hour", "day", "week", "month"):
+        raise ValueError(f"granularity must be hour, day, week or month, got {granularity!r}")
     if len(ts_text) != _TS_WIDTH:
         raise ValueError(f"not fixed-width UTC ISO-8601: {ts_text!r}")
     parsed = datetime.strptime(ts_text, "%Y-%m-%dT%H:%M:%SZ")
     aware = parsed.replace(tzinfo=timezone.utc)  # aware, UTC, immediately
+    if granularity in ("week", "month"):
+        return truncate_label(aware, granularity)       # T-88
     if granularity == "hour":
         trunc = aware.replace(minute=0, second=0, microsecond=0)
     else:

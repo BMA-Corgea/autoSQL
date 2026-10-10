@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-from . import builder, env, gate, group, legality
+from . import builder, env, gate, group, legality, paths
 
 MATCHED = "MATCHED"
 PROFILE = "MATCH_PROFILE"
@@ -101,7 +101,7 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
         # One alias vocabulary for the whole SELECT list: the table's own
         # column names come first, and a matched column may repeat none.
         quoted = gate.emit_alias(c["name"], p.collection_keys, columns[3:])
-        frag = builder._compile_expression("$." + c["path"], ctx_param=f"mc{i}_ctx", column="m.data",
+        frag = builder._compile_expression(paths.dollar(c["path"]), ctx_param=f"mc{i}_ctx", column="m.data",
                                            compile_kw=records.compile_kwargs(lk["source"]))
         sql, prm = builder.namespace(frag, f"mc{i}")
         builder.merge_params(p.params, prm)

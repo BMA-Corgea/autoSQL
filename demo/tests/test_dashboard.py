@@ -593,7 +593,7 @@ class TestNothingIsSilentlyIgnored:
 
     @pytest.mark.parametrize("patch, says", [
         ({"summary": {"fn": "count", "per": "all", "by": "status"}},
-         "This page can't use 'by' in a summary yet."),
+         "A field to group by goes with per value of a field."),
         ({"group_by": "status"}, "This page can't use 'group_by' in a question yet."),
         ({"conditions": [{"field": "status", "op": "eq", "value": "ok", "_k": 1}]},
          "This page can't use '_k' in a condition yet."),
@@ -722,13 +722,15 @@ class TestSummaries:
 
     @pytest.mark.parametrize("ds_id, patch, says", [
         ("samples", {"summary": {"fn": "count", "field": None, "per": "day"}},
-         "Only Heartbeats have a time to group by."),
+         "Pick the time or date field to group by."),
+        ("edge", {"summary": {"fn": "count", "field": None, "per": "day"}},
+         "Edge cases have no time or date field to group by."),
         ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "all"},
                         "sort": {"field": "ts", "dir": "desc"}},
          "A summary over everything is one number, so there is nothing to sort."),
         ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "day"},
                         "sort": {"field": "ts", "dir": "desc"}},
-         "Per-hour and per-day summaries are always in time order."),
+         "Summaries per hour, day, week or month are always in time order."),
         ("heartbeats", {"summary": {"fn": "avg", "field": "payload.load", "per": "all"}, "show": 25},
          "A summary over everything is one number, so there is only one row."),
         ("heartbeats", {"summary": {"fn": "count", "field": "payload.load", "per": "all"}},
@@ -737,8 +739,8 @@ class TestSummaries:
          "Average of what? Pick a field that holds numbers."),
         ("heartbeats", {"summary": {"fn": "median", "field": "payload.load", "per": "all"}},
          "Summarize by count, total, average, smallest or largest."),
-        ("heartbeats", {"summary": {"fn": "count", "field": None, "per": "week"}},
-         "Summarize over everything, per hour or per day."),
+        ("heartbeats", {"summary": {"fn": "count", "field": None, "per": "fortnight"}},
+         "Summarize over everything, per hour, day, week or month, or per value of a field."),
     ])
     def test_what_cannot_be_combined_is_refused_in_plain_words(self, client, setup, ds_id, patch, says):
         status, a = ask(client, summed(setup, ds_id, **patch))
@@ -778,7 +780,7 @@ class TestTheEnginesReasonsInPlainWords:
     def test_the_setup_carries_the_contracts_verdicts(self, setup):
         u = setup["unavailable"]
         assert u["heartbeats"]["rows"] == {}
-        assert u["heartbeats"]["per"] == {"sort": "Per-hour and per-day summaries are always in time order."}
+        assert u["heartbeats"]["per"] == {"sort": "Summaries per hour, day, week or month are always in time order."}
         assert u["samples"]["rows"] == {"per": "Only Heartbeats have a time to group by."}
         assert set(u["edge"]["number"]) == {"sort", "show", "per"}
 

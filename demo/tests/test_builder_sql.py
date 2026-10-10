@@ -511,11 +511,13 @@ class TestAC43a:
             # this seed by discarding the Z — it fails the criterion.
             assert not re.search(r"::timestamp(?!tz)", built.sql)
 
-    def test_granularities_are_a_closed_set_of_two(self, hb_keys):
-        assert set(builder._GRANULARITY_SQL) == {"hour", "day"}
+    def test_granularities_are_a_closed_set(self, hb_keys):
+        # T-88 widened Q20's two to four (the week from Monday, the calendar
+        # month); the two-pane screen still offers hour and day (test_ui).
+        assert set(builder._GRANULARITY_SQL) == {"hour", "day", "week", "month"}
         with pytest.raises(builder.IllegalPick):
             builder.build(
-                pick(bucket="week",
+                pick(bucket="fortnight",
                      aggregate={"fn": "count", "field": None}),
                 hb_keys,
             )

@@ -12,7 +12,7 @@ The matrix is ruling B5a of ``.autodev/specs/T-2-plan.md``:
 
       ROWS    op 6 = none, op 7 = off      -> a list of rows
       SCALAR  op 6 = a function, op 7 = off -> one number
-      BUCKET  op 7 = hour or day            -> label + number per bucket
+      BUCKET  op 7 = hour, day, week or month -> label + number per bucket
 
 Rules folded in, each named where it is applied below:
 
@@ -76,8 +76,10 @@ AGG_FNS = ("none", "count", "sum", "avg", "min", "max")
 #: takes no field; ``none`` is no aggregate at all.
 AGG_FNS_WITH_FIELD = ("sum", "avg", "min", "max")
 
-#: Operation 7's granularities — Q20's own two, and nothing else.
-BUCKETS = ("off", "hour", "day")
+#: Operation 7's granularities — Q20's own two, and since T-88 the week
+#: (Monday to Sunday, UTC) and the calendar month (UTC).  The two-pane screen
+#: still offers Q20's two (server/operations.py); a host offers what it needs.
+BUCKETS = ("off", "hour", "day", "week", "month")
 
 #: Operation 4's directions.
 SORT_DIRS = ("asc", "desc")
@@ -165,7 +167,9 @@ WHY_BUCKET_NEEDS_AGG = "a bucket has to count or total something; set to count"
 #   sort      {"field": str, "dir": "asc"|"desc"} | None  (op 4)
 #   cap       int | None                                  (op 5)
 #   aggregate {"fn": str, "field": str | None} | None     (op 6)
-#   bucket    "off" | "hour" | "day"                      (op 7)
+#   bucket    "off" | "hour" | "day" | "week" | "month"   (op 7)
+#   bucket_field  str | None  the time or date field op 7 groups by — on any
+#             source (T-88); None reads the time series' own time field
 #   window    {"field": str} | None                       (op 8)
 #   changed   bool                                        (op 9)
 
@@ -368,8 +372,12 @@ def shape_violations(pick: dict) -> list[dict]:
 
     bucket = pick.get("bucket")
     if bucket is not None and not isinstance(bucket, str):
-        bad(7, f"the granularity must be one of the words off, hour or day, "
+        bad(7, f"the granularity must be one of the words off, hour, day, week or month, "
                f"and this pick carries {_slot_kind(bucket)}")
+    bucket_field = pick.get("bucket_field")
+    if bucket_field is not None and not isinstance(bucket_field, str):
+        bad(7, f"the field to group by time must be a field path — text — and this pick "
+               f"carries {_slot_kind(bucket_field)}")
 
     window = pick.get("window")
     if window is not None and not isinstance(window, dict):
@@ -432,7 +440,10 @@ def evaluate(pick: dict, records=None) -> dict:
     # X1 — before everything, exactly as the mock's locksFor() orders it.
     if not on_heartbeat:
         why = _why_x1(source, records)
-        disable(7, why)
+        if not isinstance(pick.get("bucket_field"), str) or not pick.get("bucket_field"):
+            # T-88: op 7 needs a time to group by — the series' own, or a
+            # time or date field the pick names (any source)
+            disable(7, why)
         disable(8, why)
         disable(9, why)
 
@@ -476,8 +487,8 @@ def evaluate(pick: dict, records=None) -> dict:
     if _bucket(pick) not in BUCKETS:
         violate(
             7,
-            f"unknown granularity {_bucket(pick)!r}: hour and day are the "
-            "closed set, and there is no other unit",
+            f"unknown granularity {_bucket(pick)!r}: hour, day, week and month are "
+            "the closed set, and there is no other unit",
         )
     s = _sort(pick)
     if s and s.get("field") and s.get("dir") not in SORT_DIRS:

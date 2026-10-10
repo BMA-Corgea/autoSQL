@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Sequence
 
+from .. import paths
 from . import evaluate as ev
 from . import shape
 from .group import _match_key
@@ -36,8 +37,8 @@ __all__ = ["answer", "profile", "python_pane", "python_profile"]
 def _matcher(related_rows: Sequence[SourceRow], lk: dict):
     """The other data set's rows by match value; and, for a row of the
     table, the rows it matches, in key order."""
-    child = ev.dollar_path("$." + lk["key"])
-    parent = ev.dollar_path("$." + lk["parent_key"])
+    child = ev.dollar_path(paths.dollar(lk["key"]))
+    parent = ev.dollar_path(paths.dollar(lk["parent_key"]))
     by_value: Dict[Any, List[SourceRow]] = {}
     for c in sorted(related_rows, key=lambda r: r.key.encode("utf-8")):
         k = _match_key(ev.resolve(c.record_d, child), lk["match"])
@@ -79,7 +80,7 @@ def answer(rows: Sequence[SourceRow], pick: dict, related_rows: Sequence[SourceR
     base = shape.answer(rows, dict(pick, cap=None), records)
     by_key = {r.key: r for r in rows}
     matched = _matcher(related_rows, lk)
-    parsed = ev.parse_computed([{"name": c["name"], "expr": "$." + c["path"]}
+    parsed = ev.parse_computed([{"name": c["name"], "expr": paths.dollar(c["path"])}
                                 for c in lk["columns"]])
     blank = {name: None for name, _ in parsed}
     out: List[Dict[str, Any]] = []

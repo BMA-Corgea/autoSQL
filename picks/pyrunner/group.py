@@ -30,6 +30,7 @@ from decimal import Context, Decimal, ROUND_HALF_UP
 from functools import cmp_to_key
 from typing import Any, Dict, List, Sequence
 
+from .. import paths
 from . import evaluate as ev
 from .order import MISSING, compare_jsonb
 from .rows import SourceRow, read_rows
@@ -143,8 +144,8 @@ def _match_key(value: Any, match: str):
 def _matches(rows: Sequence[SourceRow], related_rows: Sequence[SourceRow], rel: dict):
     """For each parent row, the related rows it matches — a join done by
     hand, through a dict, with no database lookup."""
-    child_steps = ev.dollar_path("$." + rel["key"])
-    parent_steps = ev.dollar_path("$." + rel["parent_key"])
+    child_steps = ev.dollar_path(paths.dollar(rel["key"]))
+    parent_steps = ev.dollar_path(paths.dollar(rel["parent_key"]))
     by_key: Dict[Any, List[SourceRow]] = {}
     for c in related_rows:
         k = _match_key(ev.resolve(c.record_d, child_steps), rel["match"])
@@ -211,12 +212,12 @@ def answer(rows: Sequence[SourceRow], spec: dict,
         def counted(parent: SourceRow) -> List[SourceRow]:
             return [parent]
 
-    steps = ev.dollar_path("$." + spec["group"])
+    steps = ev.dollar_path(paths.dollar(spec["group"]))
     counts = [ev.expr.parse(c["expr"]) for c in spec.get("counts") or []]
     time = spec.get("time")
-    time_steps = ev.dollar_path("$." + time["field"]) if time else None
+    time_steps = ev.dollar_path(paths.dollar(time["field"])) if time else None
     measure = spec.get("measure")
-    msr_steps = ev.dollar_path("$." + measure["field"]) if measure else None
+    msr_steps = ev.dollar_path(paths.dollar(measure["field"])) if measure else None
 
     groups: Dict[Any, Dict[str, Any]] = {}
     for r in rows:

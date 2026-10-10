@@ -197,6 +197,12 @@ def to_lookup(setup_payload: dict, view: dict, admin: bool = True) -> tuple[dict
     return _pv.to_lookup(CATALOG, setup_payload, view, admin)
 
 
+def to_category_spec(setup_payload: dict, view: dict) -> tuple[dict, dict]:
+    """A summary per value of a field → (the engine's board spec, what the
+    screen needs) (``picks.view.to_category_spec``, T-88)."""
+    return _pv.to_category_spec(CATALOG, setup_payload, view)
+
+
 def lookups(ds_id: str) -> list:
     """The matches a table opens on (a declared relation read the other way)."""
     return _pv.lookups(CATALOG, ds_id)
@@ -817,6 +823,8 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
         return scoreboard_answer(conn, setup_payload, view, page, admin)
     if view.get("matched") is not None:
         return matched_answer(conn, setup_payload, view, page, admin)
+    if isinstance(view.get("summary"), dict) and view["summary"].get("per") == "category":
+        return category_answer(conn, setup_payload, view, page, admin)
     pick = to_pick(setup_payload, view)
     result = _run(conn, pick)
     admin = _admin_block(result)
@@ -900,26 +908,57 @@ def _summary_value(text: str, tag: str, fn: str):
     return shown, exact, drawn if math.isfinite(drawn) else None
 
 
-def _span(fields: dict) -> tuple[str, str]:
-    """The data set's whole time span, read from the data at setup."""
-    r = fields["ts"]["range"]
-    return r["min"], r["max"]
+def _span(fields: dict, time: str = "ts") -> tuple[str, str]:
+    """The data set's whole span over one time or date field, read from the
+    data at setup — a date as its UTC midnight (T-88)."""
+    r = fields[time]["range"]
+    as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
+    return as_time(r["min"]), as_time(r["max"])
 
 
 def _slots(unit: str, lo: str, hi: str) -> list:
-    """Every hour or day from ``lo`` to ``hi``, in the engine's own label
-    form (``2026-08-14T00:00:00Z``)."""
+    """Every hour, day, week (from its Monday) or calendar month from ``lo``
+    to ``hi``, in the engine's own label form (``2026-08-14T00:00:00Z``)."""
     fmt = "%Y-%m-%dT%H:%M:%SZ"
     t = _dt.datetime.strptime(lo, fmt)
     end = _dt.datetime.strptime(hi, fmt)
-    if unit == "day":
-        t, end = t.replace(hour=0, minute=0, second=0), end.replace(hour=0, minute=0, second=0)
-    step = _dt.timedelta(days=1) if unit == "day" else _dt.timedelta(hours=1)
+
+    def start(d):
+        if unit == "hour":
+            return d.replace(minute=0, second=0)
+        d = d.replace(hour=0, minute=0, second=0)
+        if unit == "week":
+            return d - _dt.timedelta(days=d.weekday())
+        if unit == "month":
+            return d.replace(day=1)
+        return d
+
+    def step(d):
+        if unit == "month":
+            return d.replace(year=d.year + (d.month == 12), month=d.month % 12 + 1)
+        return d + {"hour": _dt.timedelta(hours=1), "day": _dt.timedelta(days=1),
+                    "week": _dt.timedelta(days=7)}[unit]
+
+    t, end = start(t), start(end)
     out = []
     while t <= end:
         out.append(t.strftime(fmt))
-        t += step
+        t = step(t)
     return out
+
+
+#: How a per-time slot reads, and its column's name (T-88: weeks, months).
+_UNIT_COLUMN = {"hour": "Hour (UTC)", "day": "Day", "week": "Week (from Monday)", "month": "Month"}
+
+
+def _slot_label(unit: str, when: str) -> str:
+    if unit == "day":
+        return fmt_day(when)
+    if unit == "week":
+        return f"Week of {fmt_day(when)}"
+    if unit == "month":
+        return f"{_MONTHS[int(when[5:7]) - 1]} {when[:4]}"
+    return fmt_time(when).removesuffix(" UTC")
 
 
 def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
@@ -928,8 +967,12 @@ def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
     if summary["field"]:
         what += " " + fields[summary["field"]]["label"]
     head = f"{what} of {question_words(ds, view, fields, sort=False)}"
-    if summary["per"] != "all":
+    if summary["per"] == "category":
+        head += f", per {fields[summary['by']]['label']}"
+    elif summary["per"] != "all":
         head += f", per {summary['per']}"
+        if summary.get("time"):
+            head += f" of {fields[summary['time']]['label']}"
     return head
 
 
@@ -982,7 +1025,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         }
 
     unit = summary["per"]
-    label_of = (lambda w: fmt_day(w)) if unit == "day" else (lambda w: fmt_time(w).removesuffix(" UTC"))
+    label_of = (lambda w: _slot_label(unit, w))
     got = []
     for row in pane["rows"]:
         when = row["c"][0]
@@ -1009,7 +1052,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     if not got:
         bars = []
     else:
-        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields)
+        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields, summary.get("time") or "ts")
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
                 for t in _slots(unit, lo, hi)]
@@ -1045,7 +1088,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         "unit": unit,
         "measure": label,
         "bars": bars,
-        "columns": [{"path": "bucket", "label": "Day" if unit == "day" else "Hour (UTC)", "kind": "text"},
+        "columns": [{"path": "bucket", "label": _UNIT_COLUMN[unit], "kind": "text"},
                     {"path": "value", "label": label, "kind": "number"}],
         "rows": rows,
         "page": {"index": page, "size": PAGE_SIZE, "start": start,
@@ -1610,3 +1653,78 @@ def api_answer(body: dict) -> JSONResponse:
     finally:
         _NOTES.reset(token)
         conn.close()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 5d · One number per value of a field (T-88)
+# ═════════════════════════════════════════════════════════════════════════
+
+def category_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = True) -> dict:
+    """A summary per value of a field: one row per value — its count, or the
+    total, average, smallest or largest of a number field over its rows —
+    worked out by both engines as a board.  The blank group (missing or
+    null) reads "(blank)"; an empty text value reads “”."""
+    spec, about = to_category_spec(setup_payload, view)
+    ds, fields, summary, by = about["ds"], about["fields"], about["summary"], about["by"]
+    head = summary_words(ds, view, fields, summary)
+    result = _run_group(conn, spec)
+    admin_block = _admin_block(result)
+    if not result.get("accepted"):
+        refusal = result.get("refusal") or {}
+        if refusal.get("kind") == "board-unchecked":
+            _note(f"The second engine could not compute this answer ({refusal.get('why')}), "
+                  "so it couldn't be double-checked and nothing is shown.")
+            message = ANSWER_UNCHECKED
+        else:
+            message = plain_refusal(refusal)
+        return {"kind": "refused", "sentence": head, "message": message, "admin": admin_block}
+    if result.get("verdict") == "disagree":
+        return _disagreement(result, head, admin_block)
+
+    pane = result["panes"]["sql"]
+    names = pane["columns"]
+    fn = summary["fn"]
+    label = SUMMARY_FNS[fn] + (" " + fields[summary["field"]]["label"] if summary["field"] else "")
+    col = names.index("rows" if fn == "count" else "measure")
+    items = []
+    for r in pane["rows"]:
+        g_text, g_tag = r["c"][0], r["t"][0]
+        name = "(blank)" if g_tag == "null" else ("“”" if g_tag == "string" and g_text == "" else fmt_cell(g_text, g_tag, by["kind"]))
+        text, tag = r["c"][col], r["t"][col]
+        if fn == "count":
+            shown, exact = fmt_number(text), text
+        else:
+            shown, exact, _ = _summary_value(text, tag, fn)
+        items.append({"label": name, "value": shown, "exact": exact})
+    total = pane["row_count"]
+    show = view.get("show")
+    if total == 0:
+        tail = "no rows match"
+    elif show is not None and total >= show:
+        full = _run_group(conn, dict(spec, cap=None))
+        of = (full["panes"]["sql"]["row_count"]
+              if full.get("accepted") and full.get("verdict") == "agree" else None)
+        tail = (_plural_noun(by["label"], of) if of is not None and of <= show
+                else f"the first {fmt_number(str(show))} of {_plural_noun(by['label'], of)}" if of is not None
+                else f"the first {_plural_noun(by['label'], show)}")
+    else:
+        tail = _plural_noun(by["label"], total)
+    if not isinstance(page, int) or isinstance(page, bool) or page < 0:
+        page = 0
+    last = max(0, (total - 1) // PAGE_SIZE)
+    page = min(page, last)
+    start = page * PAGE_SIZE
+    rows = [[i["label"], i["value"]] for i in items[start:start + PAGE_SIZE]]
+    return {
+        "kind": "categories",
+        "sentence": f"{head} — {tail}",
+        "total": total,
+        "measure": label,
+        "categories": items,
+        "columns": [{"path": "category", "label": by["label"], "kind": "text"},
+                    {"path": "value", "label": label, "kind": "number"}],
+        "rows": rows,
+        "page": {"index": page, "size": PAGE_SIZE, "start": start, "count": len(rows), "last": last},
+        "unavailable": {"sort": "One number per value of a field is in the order of its values."},
+        "admin": admin_block,
+    }
