@@ -48,6 +48,20 @@ T87_MUTANTS = [
          edits=[("../picks/view.py", '    sym = {"eq": "==", "on": "==", "ne": "!=", "gt": ">",',
                  '    sym = {"eq": "==", "on": "==", "ne": "!=", "gt": ">=",')],
          selector=_M + "test_a_number_condition_counts_what_hand_sql_counts", expect="int(a[\"number\"][\"exact\"]) == want"),
+    dict(id="D1", defect="a table, a number or a chart is drawn when the engines disagree",
+         edits=[("server/dashboard.py", '    if result.get("verdict") == "disagree":\n        # T-87: an answer the two engines disagree on shows no number at all.',
+                 '    if False:\n        # T-87: an answer the two engines disagree on shows no number at all.')],
+         selector=[_M + "test_a_disagreement_shows_no_numbers[rows]", _M + "test_a_disagreement_shows_no_numbers[number]",
+                   _M + "test_a_disagreement_shows_no_numbers[chart]"],
+         expect="a disagreeing answer was drawn"),
+    dict(id="D2", defect="a board is drawn when the engines disagree",
+         edits=[("server/dashboard.py", '    admin = admin_block\n    if result.get("verdict") == "disagree":',
+                 '    admin = admin_block\n    if False:')],
+         selector=_M + "test_a_disagreement_shows_no_numbers[board]", expect="a disagreeing answer was drawn: scoreboard"),
+    dict(id="D3", defect="a matched table is drawn when the engines disagree",
+         edits=[("server/dashboard.py", '                          "refused": kind in ("repeat", "match-disagree")}}\n    if result.get("verdict") == "disagree":',
+                 '                          "refused": kind in ("repeat", "match-disagree")}}\n    if False:')],
+         selector=_M + "test_a_disagreement_shows_no_numbers[matched]", expect="a disagreeing answer was drawn: table"),
 ]
 
 
