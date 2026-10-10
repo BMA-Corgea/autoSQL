@@ -36,9 +36,31 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ROOT / "runtime"
 sys.path.insert(0, str(ROOT / "runtime"))
-sys.path.insert(0, "/home/corgea/Desktop/Coding Projects/GIMS-Project")
 
 import generate  # noqa: E402  the generator under test
+
+#: GIMS's REAL evaluator, which the runtime must agree with.  Never read from
+#: anyone's working checkout: a GIMS source tree named by AUTOSQL_GIMS_TREE when
+#: one is wanted, else the byte-identical copy this repository pins
+#: (demo/vendor/expr.py, AC-34: GIMS's core/dashboard/expr.py, checksummed in
+#: demo/manifest.json).
+GIMS_TREE = os.environ.get("AUTOSQL_GIMS_TREE")
+
+
+def _gims_evaluator():
+    if GIMS_TREE:
+        if not (Path(GIMS_TREE) / "core" / "dashboard" / "expr.py").is_file():
+            pytest.skip(f"AUTOSQL_GIMS_TREE={GIMS_TREE!r} holds no core/dashboard/expr.py")
+        if GIMS_TREE not in sys.path:
+            sys.path.insert(0, GIMS_TREE)
+        from core.dashboard import expr as gims_expr
+        return gims_expr
+    import importlib.util
+    pinned = ROOT / "demo" / "vendor" / "expr.py"
+    spec = importlib.util.spec_from_file_location("autosql_runtime_test_gims_expr", pinned)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 DSN = os.environ.get("AUTOSQL_RUNTIME_DSN")
 if DSN and "port=55433" in DSN:
@@ -169,7 +191,7 @@ def test_xpr_num_agrees_with_the_python_evaluator(conn, s):
     of the coercion class here is a failure, not an allowed outcome.
     """
     import json
-    from core.dashboard.expr import _to_num          # the REAL evaluator
+    _to_num = _gims_evaluator()._to_num              # the REAL evaluator
 
     want = _to_num(s)
     with conn.cursor() as cur:
