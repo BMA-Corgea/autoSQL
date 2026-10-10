@@ -63,7 +63,9 @@ T78_MUTANTS = [
          selector=[LEGAL, PROFILE], expect="'refused' == 'table'"),
     dict(id="F5", defect="the statement joins INNER: a row with no match disappears",
          edits=[("../picks/lookup.py", '        f"  LEFT JOIN {records.table} AS m\\n"', '        f"  JOIN {records.table} AS m\\n"')],
-         selector=[LEGAL, NUMBERS], expect="388 == 8280"),
+         # T-87: the statement and the second engine now disagree, and a disagreeing
+         # answer is refused, not drawn — the legal pick reads 'refused' instead of 8,280 rows
+         selector=[LEGAL, NUMBERS], expect="'refused' == 'table'"),
     dict(id="F6", defect="the second engine joins INNER (source level): a row with no match disappears",
          edits=[("../picks/pyrunner/lookup.py", "        for m in hits or [None]:", "        for m in hits:")],
          selector=NUMBERS, expect="At index 0 diff: ('big', None) != ('huge', 'H')"),
