@@ -106,6 +106,9 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
                 outcomes = outcomes + probes.check(conn, spec["source"], page)
         else:
             outcomes = probes.check(conn, spec["source"], counted + page, numeric_roots=roots)
+    except gate.Refused as exc:
+        # T-102: a probe's operand too big to check refuses the board, as the build stage does
+        return _refused(errors.layer_1(exc, kind="expression"), spec)
     except probes.RuntimeRefusal as exc:
         return _refused(errors.layer_2(exc), spec, built=built, display=display)
 

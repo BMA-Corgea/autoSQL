@@ -140,6 +140,16 @@ class Uncompilable(Exception):
         self.reason = reason
 
 
+class TooBig(Uncompilable):
+    """T-102: the SQL being built would pass the MAX_SQL_CHARS budget.  Raised while building,
+    by the part that would pass it -- never after the whole statement exists."""
+
+    def __init__(self, size: int):
+        super().__init__(f"generated SQL is over the {MAX_SQL_CHARS}-character budget "
+                         f"(one part alone reached {size} characters)")
+        self.size = size
+
+
 class Compiled(NamedTuple):
     sql: str
     params: Dict[str, Any]
@@ -314,12 +324,7 @@ class _Compiler:
 
     # -- entry --------------------------------------------------------------------
     def compile(self, node: Tuple) -> str:
-        sql = self._j(node)
-        if len(sql) > MAX_SQL_CHARS:
-            raise Uncompilable(
-                f"generated SQL is {len(sql)} chars, over the {MAX_SQL_CHARS} cap"
-            )
-        return sql
+        return self._j(node)                 # every part of it is measured as it is built (T-102)
 
     # -- helpers ------------------------------------------------------------------
     def _num(self, node: Tuple) -> str:
@@ -691,6 +696,32 @@ class _Compiler:
         return "jsonb_build_array(" + ", ".join(self._j(a) for a in args) + ")"
 
 
+# ---------------------------------------------------------------------------------
+# T-102: the running budget.  _eq_sql writes each operand of == five times, the inline
+# coercion nine times, and a sum of if()s nests them: a nested "exactly one of" grew the
+# SQL about seven times per level (a 298-character filter became 1.5 billion characters)
+# when MAX_SQL_CHARS was checked only once the whole statement existed.  Now every method
+# that returns SQL is measured as it returns, so the build stops at the first part that
+# passes the budget; built only from parts already within it, no string ever grows past a
+# few times MAX_SQL_CHARS.  (Writing each operand once instead would need a scalar subquery
+# per row, undoing T-52's measured speed; the budget changes no answer.)
+# ---------------------------------------------------------------------------------
+def _budgeted(method):
+    @functools.wraps(method)
+    def measured(self, *args, **kwargs):
+        sql = method(self, *args, **kwargs)
+        if len(sql) > MAX_SQL_CHARS:
+            raise TooBig(len(sql))
+        return sql
+    return measured
+
+
+for _name in ("_j", "_f8", "_num", "_truthy", "_str", "predicate", "_eq_sql", "_inline_coerce",
+              "_build_array", "_zone"):
+    setattr(_Compiler, _name, _budgeted(getattr(_Compiler, _name)))
+del _name
+
+
 def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
                 fold: Any = None, noun: Any = None, time_zones: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
@@ -731,9 +762,7 @@ def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
     c = _Compiler(column, ctx_param, fold, noun, time_zones)
-    sql = c.predicate(ast)
-    if len(sql) > MAX_SQL_CHARS:
-        raise Uncompilable(f"generated SQL is {len(sql)} chars, over the {MAX_SQL_CHARS} cap")
+    sql = c.predicate(ast)                   # measured as it is built (T-102)
     return Compiled(sql=sql, params=c.params)
 
 

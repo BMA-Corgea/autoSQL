@@ -315,6 +315,10 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
     try:
         return compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
                            **(compile_kw or {}))
+    except _compile.TooBig as exc:
+        # T-102: not a gap between gate and compiler -- a filter whose SQL would pass the
+        # budget (nested comparisons multiply it), refused as it was being built.
+        raise gate.Refused(src, too_big_words()) from exc
     except _compile.Uncompilable as exc:
         # The gate's allowlist is supposed to make this branch unreachable:
         # every tree it approves is one the pinned compiler compiles.  If
@@ -328,6 +332,12 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
             f"compile it: {exc} — this is a gap between the gate's allowlist "
             f"and the compiler, worth reporting",
         ) from exc
+
+
+def too_big_words() -> str:
+    """T-102's refusal, as the engine says it (the page's plain words read it by "too big to check")."""
+    return (f"this filter is too big to check: the SQL it needs would pass the compiler's "
+            f"{_compile.MAX_SQL_CHARS:,}-character budget")
 
 
 def _ctx_json(ctx: dict | None) -> str:

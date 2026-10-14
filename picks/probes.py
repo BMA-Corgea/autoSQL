@@ -76,7 +76,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from . import env
+from . import env, gate
 
 #: The real float8 limit, rendered at 17 significant digits (B15).  Since
 #: the 2026-08-23 adoption (q4/GA-7) the vendored runtime's own guard sits
@@ -325,7 +325,13 @@ def _build_probe(member: str, operand_asts: Sequence, records, compile_kw: dict)
     for i, op_ast in enumerate(operand_asts):
         prefix = f"{prefix_stem}{i}"
         ctx_name = f"{prefix}_ctx"
-        frag = compile_ast(op_ast, ctx_param=ctx_name, **compile_kw)
+        try:
+            frag = compile_ast(op_ast, ctx_param=ctx_name, **compile_kw)
+        except _compile_module().TooBig as exc:
+            # T-102: an operand compiled on its own (as a probe reads it) can pass the budget
+            # even when the whole statement did not; the pick is refused, never half-checked.
+            from .builder import too_big_words
+            raise gate.Refused(repr(op_ast)[:80], too_big_words()) from exc
         sql, params = _namespace(frag, prefix)
         for k, v in params.items():
             if k in merged and merged[k] != v:  # cannot happen: prefixes disjoint
