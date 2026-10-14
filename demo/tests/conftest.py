@@ -136,8 +136,46 @@ def _manifest_digest() -> str | None:
         return None
 
 
+#: T-98: does the database run THIS tree's runtime (demo/vendor/runtime.sql)?  The shared demo
+#: database runs whatever its last `./run-demo up` installed, and every SQL answer this suite
+#: checks comes from that install.  Said loudly at the start and the end when they differ;
+#: never a failure (a seat whose runtime is the database's sees one quiet line).
+_RUNTIME: dict = {"state": "unchecked", "words": ""}
+_RUNTIME_SQL = _REPO_ROOT / "demo" / "vendor" / "runtime.sql"
+
+
+def _runtime_check() -> None:
+    import importlib.util
+
+    from demo.seed.load import demo_connection
+
+    spec = importlib.util.spec_from_file_location("autosql_this_runtime", _REPO_ROOT / "runtime" / "this_runtime.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    conn = demo_connection()
+    try:
+        conn.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+        result = mod.compare(conn, _RUNTIME_SQL.read_text())
+    finally:
+        conn.close()
+    _RUNTIME["state"] = result["state"]
+    _RUNTIME["words"] = mod.words(result, "demo/vendor/runtime.sql")
+
+
+def _say_runtime(reporter) -> None:
+    if reporter is None or _RUNTIME["state"] == "unchecked":
+        return
+    if _RUNTIME["state"] == "same":
+        reporter.write_line(f"runtime check: {_RUNTIME['words']}")
+        return
+    reporter.write_sep("=", "RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME", yellow=True, bold=True)
+    reporter.write_line(_RUNTIME["words"] + ".")
+    reporter.write_line("Every SQL answer below comes from whatever the last './run-demo up' installed; "
+                        "'./run-demo up' (demo/seed/load.py) installs this tree's.")
+
+
 def pytest_sessionstart(session) -> None:
-    """B10, first reading."""
+    """B10, first reading — and the runtime check (T-98)."""
     _GUARD["manifest"] = _manifest_digest()
     try:
         _GUARD["start"] = _records_digest_now()
@@ -159,6 +197,13 @@ def pytest_sessionstart(session) -> None:
         )
     else:
         _GUARD["state"] = "armed"
+
+    try:
+        _runtime_check()
+    except Exception as exc:  # noqa: BLE001 — a check that can't run says so; it never fails the run
+        _RUNTIME["state"] = "unreadable"
+        _RUNTIME["words"] = f"could not read the database's runtime ({type(exc).__name__}: {exc})"
+    _say_runtime(session.config.pluginmanager.get_plugin("terminalreporter"))
 
 
 def pytest_runtest_logreport(report) -> None:
@@ -251,6 +296,7 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             reporter.write_line(_GUARD["detail"])
         elif _GUARD["state"] == "verified":
             reporter.write_line(f"B10 checksum guard: verified — {_GUARD['detail']}")
+        _say_runtime(reporter)
 
     if failing and session.exitstatus == 0:
         # A suite that corrupted the seed must not exit 0.
@@ -262,6 +308,7 @@ def pytest_sessionfinish(session, exitstatus) -> None:
             "counts": dict(_COUNTS),
             "skip_reasons": list(_SKIP_REASONS),
             "guard": dict(_GUARD),
+            "runtime": dict(_RUNTIME),
             "exitstatus": int(session.exitstatus),
         }
         try:

@@ -34,7 +34,13 @@ _SQL_CLOCK = "  clock := to_timestamp(sec) AT TIME ZONE zone;"
 _SQL_BARE = "  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;"
 _SQL_SEC = "  sec := floor(ms / 1000.0::float8);"
 _RT = "../runtime/runtime.sql"
+_LOUD = ("    reporter.write_sep(\"=\", \"RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME\", "
+         "yellow=True, bold=True)\n")
 _EV = "vendor/expr.py"
+
+OUTCOME = "../parity/tests/test_t98_outcome.py::test_the_page_keeps_what_hand_written_sql_keeps_in_both_engines"
+_V = "../picks/view.py"
+_D = "server/dashboard.py"
 
 T98_MUTANTS = [
     dict(id="B1", defect="BOTH engines read every zone's clock as UTC (they agree)",
@@ -119,6 +125,64 @@ T98_MUTANTS = [
     dict(id="B17", defect="the second engine alone reads every zone as UTC",
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("ZoneInfo(zone)", 'ZoneInfo("UTC")'))],
          selector=BATTERY, expect="disagreements"),
+    dict(id="B18", defect="BOTH engines cut a fraction toward zero (a-chk's MT1): before 1970 that rounds UP",
+         edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("math.floor(parsed[0] / 1000.0)", "int(parsed[0] / 1000.0)")),
+                (_RT, _SQL_SEC, "  sec := trunc(ms / 1000.0::float8);")],
+         selector=VECTORS, expect="UTC, exactly 11:59:59 PM"),
+    dict(id="B19", defect="BOTH engines drop the seconds (a-chk's MT2)",
+         edits=[(_EV, _PY_RETURN, "    return float(clock.hour * 3600 + clock.minute * 60)"),
+                (_RT, "          + floor(extract(second from clock)))::float8;", ")::float8;")],
+         selector=VECTORS, expect="Denver, exactly 5:00:45 PM"),
+    dict(id="D1", defect="the probes compile without the zone list (a-chk's MEDIUM on b1: a 500)",
+         edits=[("../picks/probes.py", "    compile_kw = dict(compile_kw, time_zones=env.time_zones())\n", "")],
+         selector=_T + "test_a_probe_compiles_time_of_day_behind_the_zone_guard", expect="Uncompilable"),
+    dict(id="D2", defect="the suite's runtime check says nothing when the runtimes differ",
+         edits=[("tests/conftest.py", _LOUD, "")],
+         selector=_T + "test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it",
+         expect="RUNTIME CHECK: THE DATABASE IS NOT RUNNING"),
+    # ── b2: the question's clock, in the view both engines share ─────────
+    dict(id="C1", defect="BOTH engines: 'is on' takes the UTC day whatever the question's clock",
+         edits=[(_V, "            first, nxt = zones.day_span(d, zone)", '            first, nxt = zones.day_span(d, "UTC")')],
+         selector=_T + "test_aug_20_in_denver_is_denvers_day_and_the_rows_read_on_its_clock", expect="1200 == 900"),
+    dict(id="C2", defect="BOTH engines: 'between' never wraps midnight",
+         edits=[(_V, '    joined = "and" if a < b else "or"', '    joined = "and"')],
+         selector=OUTCOME, expect="statement 0, second engine 0"),
+    dict(id="C3", defect="BOTH engines: 'until' takes the time itself",
+         edits=[(_V, '        return f"{t} < {a}", f"{label} until {zones.clock_words(a)}"',
+                 '        return f"{t} <= {a}", f"{label} until {zones.clock_words(a)}"')],
+         selector=OUTCOME, expect="hand-written SQL 5950"),
+    dict(id="C4", defect="BOTH engines: 'from' leaves the time itself out",
+         edits=[(_V, '        return f"{t} >= {a}", f"{label} from {zones.clock_words(a)}"',
+                 '        return f"{t} > {a}", f"{label} from {zones.clock_words(a)}"')],
+         selector=OUTCOME, expect="hand-written SQL 50"),
+    dict(id="C5", defect="BOTH engines: a picked time is read as UTC, whatever the question's clock",
+         edits=[(_V, '    if zone is not None and not value.endswith("Z"):', "    if False:")],
+         selector=_T + "test_a_card_means_this_on_the_questions_clock", expect="2026-08-20T17:00:00Z"),
+    dict(id="C6", defect="the sentence doesn't say which clock its times are on",
+         edits=[(_D, '        said += f" ({_zones.label(zone)})"', '        said += ""')],
+         selector=_T + "test_aug_20_in_denver_is_denvers_day_and_the_rows_read_on_its_clock",
+         expect="where Time is on Aug 20 (Denver time)"),
+    dict(id="C7", defect="any text is taken as a question's zone",
+         edits=[(_V, "    if not isinstance(zone, str) or zone not in known:", "    if not isinstance(zone, str):")],
+         selector=_T + "test_any_other_zone_is_refused_in_words", expect="DID NOT RAISE"),
+    dict(id="C8", defect="a zone the two clocks disagree on is answered",
+         edits=[(_D, "    if mark:\n        raise ViewError(_zones.use_words(zone, mark))",
+                 "    if False:\n        raise ViewError(_zones.use_words(zone, mark))")],
+         selector=_T + "test_a_zone_the_two_clocks_disagree_on_is_refused_by_name", expect="assert 200 == 422"),
+    dict(id="C9", defect="BOTH engines: a count column reads UTC, not its question's clock",
+         edits=[(_V, '        expr, said = _count_conditions(c, counted_fields, f"“{label}”", view_zone(view))',
+                 '        expr, said = _count_conditions(c, counted_fields, f"“{label}”")')],
+         selector=_T + "test_a_count_column_reads_its_questions_clock", expect="24"),
+    dict(id="C10", defect="a per-day summary on Denver's clock doesn't say its days are UTC",
+         edits=[(_D, '            head += " (UTC)"        # T-98', '            head += ""        # T-98')],
+         selector=_T + "test_a_summary_per_day_on_another_clock_says_its_days_are_utc", expect="per day (UTC)"),
+    dict(id="C11", defect="a table's times read in UTC on Denver's clock",
+         edits=[(_V, "            return fmt_time(text, zone)\n", "            return fmt_time(text)\n")],
+         selector=_T + "test_aug_20_in_denver_is_denvers_day_and_the_rows_read_on_its_clock", expect="Aug 20, 5:00 PM"),
+    dict(id="C12", defect="a date field takes a time of day",
+         edits=[(_V, '    if field["kind"] != "time":\n        raise ViewError(f"{field[\'label\']} has no time of day.")',
+                 '    if False:\n        raise ViewError(f"{field[\'label\']} has no time of day.")')],
+         selector=_T + "test_a_card_its_clock_cant_read_is_refused_in_words", expect="DID NOT RAISE"),
 ]
 
 

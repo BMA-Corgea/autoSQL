@@ -1,7 +1,7 @@
 {
   "format": "pick-vectors/1",
   "version": 1,
-  "note": "T-98: time of day on a named clock, over invented records, each answer worked out BY HAND from the rules below, never by either engine; run exactly as parity/pick-vectors.json is (check_picks.run_vectors(conn, path)). RULES: (1) time_of_day(t, zone) is the time a wall clock in `zone` shows at the instant t, as whole seconds since that clock's midnight (a fraction of a second dropped): 5:00 PM is 61200, 2:00 AM is 7200, 10:00 PM is 79200. (2) A bare date, text that is no time, and a missing value have no time of day: every comparison with them is false (and `not` of one is true). (3) 'from X' is >= X, so X itself is in; 'until X' is < X, so it stops just before; 'between X and Y' with X later than Y wraps midnight: >= X or < Y. (4) On a day the clocks go back, both readings of 1:30 AM are 1:30 AM. (5) America/Denver is UTC-6 in summer (MDT) and UTC-7 in winter (MST); it changes at 2026-03-08T09:00:00Z and 2026-11-01T08:00:00Z. A day in Denver is the span from its first instant to the next day's, in UTC text: Aug 20 is [2026-08-20T06:00:00Z, 2026-08-21T06:00:00Z). (6) Each record's `why` says where it falls.",
+  "note": "T-98: time of day on a named clock, over invented records, each answer worked out BY HAND from the rules below, never by either engine; run exactly as parity/pick-vectors.json is (check_picks.run_vectors(conn, path)). RULES: (1) time_of_day(t, zone) is the time a wall clock in `zone` shows at the instant t, as whole seconds since that clock's midnight (a fraction of a second dropped: rounded DOWN, so half a second before 1970 is 11:59:59 PM): 5:00 PM is 61200, 2:00 AM is 7200, 10:00 PM is 79200. (2) A bare date, text that is no time, and a missing value have no time of day: every comparison with them is false (and `not` of one is true). (3) 'from X' is >= X, so X itself is in; 'until X' is < X, so it stops just before; 'between X and Y' with X later than Y wraps midnight: >= X or < Y. (4) On a day the clocks go back, both readings of 1:30 AM are 1:30 AM. (5) America/Denver is UTC-6 in summer (MDT) and UTC-7 in winter (MST); it changes at 2026-03-08T09:00:00Z and 2026-11-01T08:00:00Z. A day in Denver is the span from its first instant to the next day's, in UTC text: Aug 20 is [2026-08-20T06:00:00Z, 2026-08-21T06:00:00Z). (6) Each record's `why` says where it falls.",
   "collection": "noun:Clock",
   "records": [
     {
@@ -121,11 +121,25 @@
         "at": "2026-08-20T22:59:59.9Z",
         "why": "a fraction of a second is dropped: Denver 4:59:59 PM (61199), UTC 10:59:59 PM"
       }
+    },
+    {
+      "key": "C18",
+      "data": {
+        "at": "1969-12-31T23:59:59.5Z",
+        "why": "half a second before 1970: whole seconds round DOWN, to 11:59:59 PM UTC (86399); Denver (MST, UTC-7) 4:59:59 PM"
+      }
+    },
+    {
+      "key": "C19",
+      "data": {
+        "at": "2026-08-20T23:00:45Z",
+        "why": "seconds are kept: Denver 5:00:45 PM (61245); UTC 11:00:45 PM"
+      }
     }
   ],
   "cases": [
     {
-      "name": "Denver, from 5:00 PM (5:00:00 itself is in): C01, C03, C05",
+      "name": "Denver, from 5:00 PM (5:00:00 itself is in): C01, C03, C05, C19",
       "pick": {
         "aggregate": {
           "fn": "count",
@@ -136,12 +150,12 @@
       },
       "expect": [
         [
-          "3"
+          "4"
         ]
       ]
     },
     {
-      "name": "Denver, until 5:00 PM (stops just before it): the 14 with a time, less those 3",
+      "name": "Denver, until 5:00 PM (stops just before it): the 16 with a time, less those 4",
       "pick": {
         "aggregate": {
           "fn": "count",
@@ -152,7 +166,7 @@
       },
       "expect": [
         [
-          "11"
+          "12"
         ]
       ]
     },
@@ -173,7 +187,7 @@
       ]
     },
     {
-      "name": "The owner's question: Denver, on Aug 20 (06:00Z to the next 06:00Z) and from 5:00 PM: C01, C03",
+      "name": "The owner's question: Denver, on Aug 20 (06:00Z to the next 06:00Z) and from 5:00 PM: C01, C03, C19",
       "pick": {
         "aggregate": {
           "fn": "count",
@@ -184,12 +198,12 @@
       },
       "expect": [
         [
-          "2"
+          "3"
         ]
       ]
     },
     {
-      "name": "UTC, from 5:00 PM: C01, C02, C15, C17",
+      "name": "UTC, from 5:00 PM: C01, C02, C15, C17, C18, C19",
       "pick": {
         "aggregate": {
           "fn": "count",
@@ -200,7 +214,7 @@
       },
       "expect": [
         [
-          "4"
+          "6"
         ]
       ]
     },
@@ -301,7 +315,7 @@
       ]
     },
     {
-      "name": "every value with a time is in some window: the 14",
+      "name": "every value with a time is in some window: the 16",
       "pick": {
         "aggregate": {
           "fn": "count",
@@ -312,7 +326,7 @@
       },
       "expect": [
         [
-          "14"
+          "16"
         ]
       ]
     },
@@ -329,6 +343,38 @@
       "expect": [
         [
           "3"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, exactly 5:00:45 PM: C19 (seconds are kept)",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"America/Denver\") == 61245"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "UTC, exactly 11:59:59 PM: C18, half a second before 1970, rounds down to the second before",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"UTC\") == 86399"
+      },
+      "expect": [
+        [
+          "1"
         ]
       ]
     }

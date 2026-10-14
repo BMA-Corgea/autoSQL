@@ -393,6 +393,8 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), records=None,
     """
     records = env.records(records)
     compile_kw = records.compile_kwargs(collection) if records.fold else {}
+    # T-98: a probed operand may hold a time_of_day; it compiles exactly as the statement does
+    compile_kw = dict(compile_kw, time_zones=env.time_zones())
     ops_a: List = []
     seen_a: set = set()
     ops_b: List = []

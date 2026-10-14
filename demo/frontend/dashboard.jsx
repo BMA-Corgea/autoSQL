@@ -19,6 +19,7 @@ import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
+import { ClockNote, ClockSetting, useClock } from "./dashboard-clock.jsx";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -458,6 +459,7 @@ function App() {
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
   const [admin, setAdmin] = useState(loadViewAs);
+  const clock = useClock(); // T-98: the clock times are read on
 
   const seq = useRef(0);
   const inflight = useRef(null);
@@ -639,6 +641,7 @@ function App() {
           <h1 className="dx-title">Data explorer</h1>
           <span className="dx-tag">Invented demo data</span>
         </div>
+        <ClockSetting clock={clock} />
         <div className="dx-viewas">
           <span className="dx-viewas-label" id="dx-viewas-label">View as</span>
           <div className="dx-seg" role="radiogroup" aria-labelledby="dx-viewas-label">
@@ -649,6 +652,7 @@ function App() {
           </div>
         </div>
       </header>
+      <ClockNote clock={clock} />
 
       <div className={"dx-main" + (editing ? " is-editing" : "")}>
         <button
