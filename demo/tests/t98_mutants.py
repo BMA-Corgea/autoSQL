@@ -98,7 +98,7 @@ T98_MUTANTS = [
          edits=[("../picks/zones.py", "        return _dt.datetime(d.year, d.month, d.day, tzinfo=z)",
                  "        return _dt.datetime(d.year, d.month, d.day, tzinfo=_UTC)")],
          selector=_T + "test_a_day_is_its_first_instant_to_the_next_days",
-         expect="== ('2026-08-20T06:00:00Z', '2026-08-21T06:00:00Z')"),
+         expect="At index 0 diff: '2026-08-20T00:00:00Z' != '2026-08-20T06:00:00Z'"),
     dict(id="B13", defect="on a day the clocks go back, a picked 1:30 AM is the SECOND one",
          edits=[("../picks/zones.py", "    first = wall.replace(tzinfo=z, fold=0)", "    first = wall.replace(tzinfo=z, fold=1)")],
          selector=_T + "test_a_picked_wall_time_is_one_instant", expect="'2026-11-01T08:30:00Z' == '2026-11-01T07:30:00Z'"),
