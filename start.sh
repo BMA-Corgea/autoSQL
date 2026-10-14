@@ -20,6 +20,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 APP_PORT=8787
 DB_PORT=55440
+DB_CONTAINER="autosql-demo-db"
+APP_PIDFILE="demo/.venv/autosql-app.pid"
 LAUNCHER="demo/launcher.html"
 
 # ── colours, only when a human is looking ─────────────────────────────────
@@ -107,11 +109,23 @@ if is_up; then
   exit 0
 fi
 
+# What an earlier run left behind is this demo's own, not "something else":
+# its database still up with no app in front of it (a start that failed
+# partway), or a stopped container from before a reboot, holding data from
+# whichever checkout last seeded it. Refusing here used to leave the front door
+# stuck until someone thought to run './start.sh stop'. Clear it and start
+# fresh instead: every row is invented and reseeded on the way up, and
+# `run-demo down` waits for any test run holding the stack before it acts.
+if docker ps -aq --filter "name=^/${DB_CONTAINER}$" | grep -q . || [ -f "$APP_PIDFILE" ]; then
+  step "Clearing what an earlier run left behind…"
+  ./run-demo down 2>&1 | tail -3 | sed 's/^/    /'
+fi
+
 for port in "$APP_PORT" "$DB_PORT"; do
   if (command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ":${port} ") ||
      (command -v lsof >/dev/null 2>&1 && lsof -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1); then
     die "Port ${port} is already taken by something else, and the demo refuses to share it.
-    Free it, or run './start.sh stop' if a previous run is still up."
+    It is not this demo (anything of the demo's own was cleared above). Free it, then run this again."
   fi
 done
 
