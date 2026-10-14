@@ -1245,7 +1245,13 @@ start_app() {
   #   * `exec` replaces that shell with uvicorn, so `$!` is the server's
   #     own pid and `down` kills the server rather than a wrapper that
   #     leaves it orphaned on 8787.
-  ( cd "$REPO_ROOT" && exec "$VENV_DIR/bin/python" -m uvicorn demo.server.app:app \
+  # And a third, found 2026-10-13: a script's background job stays in the
+  # script's own process group, so when `./start.sh` is a terminal's whole command
+  # (double-clicked, "Run in Terminal", an editor's run button) the window
+  # closing on exit sends SIGHUP to that group and the app died right after
+  # "Ready.". The subshell ignores HUP before the exec, as nohup does; an
+  # ignored signal stays ignored across exec, and the pid is unchanged.
+  ( cd "$REPO_ROOT" && trap '' HUP && exec "$VENV_DIR/bin/python" -m uvicorn demo.server.app:app \
       --host "$DB_HOST" --port "$APP_PORT" --log-level warning \
   ) >"$APP_LOG" 2>&1 </dev/null {TEST_LOCK_FD}>&- &   # T-62: the app must not hold the lock
   local app_pid=$!
@@ -1365,6 +1371,12 @@ note:
                              decorative. Brings the stack up like any other test verb.
 EOF
 }
+
+# Sourced rather than run (T-99's test calls start_app on its own, with a stub
+# app): every function is defined above and nothing is dispatched.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  return 0
+fi
 
 case "${1:-}" in
   "")
