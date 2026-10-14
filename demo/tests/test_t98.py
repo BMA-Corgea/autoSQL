@@ -214,3 +214,81 @@ def test_a_time_written_in_other_digits_is_not_a_time():
     as the statement's own check reads it."""
     f = _fields_of(_times(5) + ["２０２６-01-01T00:00:00Z"])["at"]
     assert f["kind"] == "text", f["kind"]
+
+
+# ── the clock setting's list (slice c) ───────────────────────────────────────
+
+def test_the_list_offers_one_entry_per_place():
+    names = {"UTC", "Etc/UTC", "Etc/GMT+12", "America/Denver", "America/Indiana/Indianapolis",
+             "America/Indianapolis", "Asia/Kolkata", "America/Argentina/Buenos_Aires"}
+    links = {"America/Indianapolis": "America/Indiana/Indianapolis", "Etc/UTC": "UTC"}
+    got = {e["zone"]: e for e in zones.offered(names, links)}
+    assert set(got) == {"UTC", "America/Denver", "America/Indiana/Indianapolis", "Asia/Kolkata",
+                        "America/Argentina/Buenos_Aires"}
+    assert got["America/Argentina/Buenos_Aires"] == {
+        "zone": "America/Argentina/Buenos_Aires", "label": "Buenos Aires time", "place": "Buenos Aires",
+        "area": "America"}
+    assert [e["zone"] for e in zones.offered(names, links)][0] == "UTC"
+
+
+@pytest.mark.parametrize("first, last, words", [
+    (_dt.date(1800, 1, 1), _dt.date(1937, 6, 1), "Not available: this computer and its database disagree on its clocks before 1970."),
+    (_dt.date(1916, 5, 1), _dt.date(2027, 1, 1), "Not available: this computer and its database disagree on its clocks from 1916."),
+    (_dt.date(2026, 11, 26), _dt.date(2100, 1, 1), "Not available: this computer and its database disagree on its clocks from November 2026."),
+    (None, None, "Not available: this computer's database doesn't know it."),
+])
+def test_a_refused_zone_reads_in_one_short_line(first, last, words):
+    assert zones.mark_words(first, last) == words
+    assert "tzdata" not in words and "backzone" not in words and len(words) <= 90
+
+
+def test_the_marks_come_from_both_clocks(monkeypatch):
+    """Read against the demo's own database with built-in SQL only (no runtime function): UTC
+    and Denver agree; a zone whose Python clock is moved an hour from Nov 2026 is marked."""
+    from demo.server import db
+    conn = db.connect(application_name="autosql-t98-marks")
+    try:
+        marks = zones.marks(conn, ["UTC", "America/Denver"])
+        assert marks == {"UTC": None, "America/Denver": None}
+        real = zones._python_offsets
+        monkeypatch.setattr(zones, "_python_offsets", lambda z, ts: [
+            o + 3600 if t >= 1793520000 else o for t, o in zip(ts, real(z, ts))])
+        moved = zones.marks(conn, ["America/Denver"], cache=False)
+        assert moved["America/Denver"] == "Not available: this computer and its database disagree on its clocks from November 2026."
+    finally:
+        conn.rollback()
+        conn.close()
+
+
+def _client():
+    from fastapi.testclient import TestClient
+    from demo.server import app as server_app
+    return TestClient(server_app.app)
+
+
+def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
+    monkeypatch.setattr(zones, "marks", lambda conn, names, cache=True: {
+        z: ("Not available: this computer's database doesn't know it." if z == "Europe/Amsterdam" else None)
+        for z in names})
+    r = _client().get("/api/dashboard/zones")
+    assert r.status_code == 200
+    body = r.json()
+    by = {e["zone"]: e for e in body["zones"]}
+    assert body["zones"][0]["zone"] == "UTC"
+    assert by["America/Denver"] == {"zone": "America/Denver", "label": "Denver time", "place": "Denver",
+                                     "area": "America", "why": None}
+    assert by["Europe/Amsterdam"]["why"] == "Not available: this computer's database doesn't know it."
+    # every name both engines accept reaches a listed place: listed itself, or by its old name
+    others = {e["zone"]: e for e in body["others"]}
+    accepted = set(by) | set(body["aliases"]) | set(others)
+    assert accepted == set(ZONES)
+    assert all(t in by for t in body["aliases"].values())
+    # an alias is the same clock under another name, never a guess: UTC-12 is not UTC
+    assert body["aliases"].get("Etc/UTC") == "UTC"
+    assert "Etc/GMT+12" not in body["aliases"] and others["Etc/GMT+12"]["label"] == "UTC−12"
+
+
+def test_the_list_is_the_same_for_either_view():
+    c = _client()
+    a, b = c.get("/api/dashboard/zones"), c.get("/api/dashboard/zones?view=admin")
+    assert a.status_code == b.status_code == 200 and a.json() == b.json()

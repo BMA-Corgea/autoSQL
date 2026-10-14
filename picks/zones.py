@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import datetime as _dt
 import re
+import threading
+import zoneinfo
 from zoneinfo import ZoneInfo
 
 __all__ = ["ZoneError", "label", "place", "day_span", "wall_instant", "clock_words",
-           "refusal_words", "UTC_TEXT"]
+           "refusal_words", "UTC_TEXT", "offered", "links", "marks", "mark_words"]
 
 _UTC = _dt.timezone.utc
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -118,3 +120,99 @@ def refusal_words(message: str) -> str:
     if m:
         return f"{label(m.group(1))} can't be used yet: this computer's database doesn't know it."
     return "That time zone can't be used yet: this computer and its database disagree about it."
+
+
+# ── the clock setting's list ─────────────────────────────────────────────────
+
+_MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", "August",
+                "September", "October", "November", "December")
+
+
+def links() -> dict:
+    """Old names for a place (``Asia/Calcutta`` → ``Asia/Kolkata``), from the zone data
+    Python reads; empty when that data carries no list of them."""
+    out = {}
+    for base in zoneinfo.TZPATH:
+        try:
+            text = open(f"{base}/tzdata.zi", encoding="utf-8").read()
+        except OSError:
+            continue
+        for line in text.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[0] == "L":
+                out[parts[2]] = parts[1]
+        break
+    return out
+
+
+def offered(names, link_map=None) -> list:
+    """The list the screen offers: one entry per place, UTC first then by area and place. An old
+    name whose place is listed under its current name is left out (both engines still accept
+    it, so a browser that reports one is still read), and so is every fixed offset but UTC."""
+    link_map = links() if link_map is None else link_map
+    names = set(names)
+    out = []
+    for z in names:
+        if z != "UTC" and (z.startswith("Etc/") or link_map.get(z) in names):
+            continue
+        out.append({"zone": z, "label": label(z), "place": "UTC" if z == "UTC" else place(z),
+                    "area": "" if z == "UTC" else z.split("/", 1)[0]})
+    return sorted(out, key=lambda e: (e["zone"] != "UTC", e["area"], e["place"], e["zone"]))
+
+
+def mark_words(first, last=None) -> str:
+    """Why a zone can't be used, in one short line: "before 1970" when every difference is
+    history, else the first date the two clocks differ (a year before 1970, a month after);
+    or that the database doesn't know it."""
+    if first is None:
+        return "Not available: this computer's database doesn't know it."
+    if last is not None and last.year < 1970:
+        return "Not available: this computer and its database disagree on its clocks before 1970."
+    when = str(first.year) if first.year < 1970 else f"{_MONTH_NAMES[first.month - 1]} {first.year}"
+    return f"Not available: this computer and its database disagree on its clocks from {when}."
+
+
+#: The list's marks read both clocks every 30 days at noon from 1800 through 2100 (about 3 s for
+#: every zone, once per process). They are advice for the list: the zone guard in each statement
+#: (xpr.zone_checked) decides, at the second.
+_MARK_SAMPLES = tuple(range(-5364662400 + 43200, 4133980800, 30 * 86400))
+_MARK_CACHE: dict = {}
+_MARK_LOCK = threading.Lock()
+
+
+def _python_offsets(zone: str, samples) -> list:
+    z = ZoneInfo(zone)
+    return [int(_dt.datetime.fromtimestamp(t, z).utcoffset().total_seconds()) for t in samples]
+
+
+_MARK_SQL = """
+SELECT z, array_agg(extract(epoch FROM ((to_timestamp(t) AT TIME ZONE z)
+                                        - (to_timestamp(t) AT TIME ZONE 'UTC')))::int ORDER BY t)
+  FROM unnest(%(zones)s::text[]) AS z, unnest(%(samples)s::bigint[]) AS t
+ GROUP BY z
+"""
+
+
+def marks(conn, names, cache: bool = True) -> dict:
+    """``{zone: None}`` for a zone both clocks agree on, else ``{zone: mark_words(...)}``.
+    Built-in SQL only, so it needs no runtime function; cached per process and database."""
+    key = (conn.info.host, conn.info.port, conn.info.dbname)
+    names = sorted(set(names))
+    with _MARK_LOCK:
+        known = _MARK_CACHE.setdefault(key, {}) if cache else {}
+        todo = [z for z in names if z not in known]
+        if todo:
+            in_db = {r[0] for r in conn.execute(
+                "SELECT name FROM pg_timezone_names WHERE name = ANY(%(z)s)", {"z": todo}).fetchall()}
+            for z in todo:
+                if z not in in_db:
+                    known[z] = mark_words(None)
+            asked = [z for z in todo if z in in_db]
+            if asked:
+                rows = conn.execute(_MARK_SQL, {"zones": asked, "samples": list(_MARK_SAMPLES)}).fetchall()
+                for z, theirs in rows:
+                    ours = _python_offsets(z, _MARK_SAMPLES)
+                    differ = [t for t, a, b in zip(_MARK_SAMPLES, ours, theirs) if a != b]
+                    day = lambda t: _dt.datetime.fromtimestamp(t, _UTC).date()  # noqa: E731
+                    known[z] = mark_words(day(differ[0]), day(differ[-1])) if differ else None
+        return {z: known[z] for z in names}

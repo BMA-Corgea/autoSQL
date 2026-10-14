@@ -57,6 +57,7 @@ import lookup  # noqa: E402
 from . import db, settings  # noqa: E402
 
 from picks import view as _pv  # noqa: E402
+from picks import zones as _zones  # noqa: E402
 from picks.view import (  # noqa: E402  (T-86: the view layer moved to picks/view.py)
     _TIME_RE, _DATE_RE, _PLAIN_KEY, _humanize, _natural, _alias, _TYPES_SQL, _INNER_TYPES_SQL,
     _VALUES_SQL, _RANGE_SQL, _kind, WHY_GROUPED, WHY_ONLY_BLANK, _ops_for, GROUP_LIMIT,
@@ -1626,6 +1627,40 @@ def api_setup(view: str = "everyone") -> JSONResponse:
         return JSONResponse(setup_for(setup(conn), view == "admin"))
     finally:
         conn.close()
+
+
+@router.get("/api/dashboard/zones")
+def api_zones() -> JSONResponse:
+    """The clock setting's list (T-98): one entry per place, UTC first, each with why it can't
+    be used (``None`` when it can). ``aliases`` maps an old name both engines still accept
+    (``Asia/Calcutta``) to its listed place, so a browser that reports one lands on it."""
+    names = _pv_zones_accepted()
+    shown = _zones.offered(names)
+    listed = {e["zone"] for e in shown}
+    old = _zones.links()
+    aliases, others = {}, []
+    for z in sorted(set(names) - listed):
+        if old.get(z) in listed:
+            aliases[z] = old[z]                  # the same clock under its current name
+        elif _zones.label(z) == "UTC":
+            aliases[z] = "UTC"                   # a spelling of UTC itself
+        else:
+            others.append(z)                     # a fixed offset with no place (Etc/GMT+12): itself
+    conn = _connect()
+    try:
+        why = _zones.marks(conn, listed | set(others))
+    finally:
+        conn.close()
+    return JSONResponse({
+        "zones": [{**e, "why": why[e["zone"]]} for e in shown],
+        "aliases": aliases,
+        "others": [{"zone": z, "label": _zones.label(z), "why": why[z]} for z in others],
+    })
+
+
+def _pv_zones_accepted() -> frozenset:
+    from picks import env
+    return frozenset(getattr(env.get("evaluator"), "TIME_ZONES", frozenset()))
 
 
 @router.post("/api/dashboard/answer")
