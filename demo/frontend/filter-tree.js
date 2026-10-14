@@ -94,6 +94,40 @@ export function sendable(root, complete) {
   return { version: FILTER_VERSION, join: top ? top.join : "all", items: top ? top.items : [] };
 }
 
+// ── the words of a group shut to one line ────────────────────────────────
+
+//: The sentence's words for a group shut to one line (the server's own words come with the answer).
+const JOIN_WORDS = { all: " and ", any: " or " };
+
+function cardWords(c, fields, opWords) {
+  const f = fields.find((x) => x.path === c.field);
+  if (!f) return "";
+  const word = opWords[c.op] || c.op;
+  if (c.op === "in") return `${f.label} ${word} ${(c.values || []).join(", ")}`;
+  if (c.op === "between") return `${f.label} ${word} ${c.value} and ${c.value2}`;
+  if (["present", "blank", "yes", "no"].includes(c.op)) return `${f.label} ${word}`;
+  return `${f.label} ${word} ${c.value}`;
+}
+
+// A shut group's words say only what is applied: a group inside it that is held is left out (the shut
+// group says "not applied yet" for it). The group itself is read whole; its own marker says if it is held.
+export function treeWords(node, fields, opWords, complete) {
+  return phrase(node, fields, opWords, complete)[0];
+}
+
+function phrase(node, fields, opWords, complete) { // → [words, how many parts they join]
+  if (!isBox(node)) return [complete(node) ? cardWords(node, fields, opWords) : "", 1];
+  const parts = node.items.map((it) => {
+    if (isBox(it) && !boxReady(it, complete)) return "";
+    const [w, n] = phrase(it, fields, opWords, complete);
+    return n > 1 && w ? `(${w})` : w;
+  }).filter(Boolean);
+  if (parts.length < 2) return [parts[0] || "", 1];
+  if (JOIN_WORDS[node.join]) return [parts.join(JOIN_WORDS[node.join]), parts.length];
+  const listed = parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+  return [(node.join === "one" ? "exactly one of: " : "all or none of: ") + listed, parts.length];
+}
+
 // ── finding and moving (paths are lists of item indexes from the root) ──────
 
 export function at(root, path) {

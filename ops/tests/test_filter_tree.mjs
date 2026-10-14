@@ -157,3 +157,23 @@ test("a group shut to one line knows when it, or a group inside it, is held", ()
   assert.ok(T.holdsAny(outer, held), "the group around it says part of it is held");
   assert.ok(!T.holdsAny(T.newBox("any", [card("a")]), held), "a group with nothing held says nothing");
 });
+
+test("a group shut to one line says only what is applied: a held group inside it is left out", () => {
+  const fields = [{ path: "status", label: "Status" }, { path: "ts", label: "Time" }];
+  const opWords = { eq: "is", on: "is on" };
+  const said = (c) => ({ _k: T.key(), field: "status", op: "eq", value: c, value2: "", values: [] });
+  const words = (n) => T.treeWords(n, fields, opWords, complete);
+  // an OR group: warn, and an "exactly one of" with one live card (held) — only warn is sent
+  const held = T.newBox("one", [said("error"), said("")]);
+  const outer = T.newBox("any", [said("warn"), held]);
+  assert.equal(words(outer), "Status is warn", "the held group's card is named as if applied");
+  assert.deepEqual(T.sendable(T.newBox("all", [outer]), complete).items, [{ join: "any", items: [strip(said("warn"))] }]);
+  // once it has two live cards it is applied, and named, in brackets
+  const ready = T.newBox("one", [said("error"), said("ok")]);
+  assert.equal(words(T.newBox("any", [said("warn"), ready])), "Status is warn or (exactly one of: Status is error and Status is ok)");
+  // the shut group itself is read whole (its own marker says it is held)
+  assert.equal(words(held), "Status is error");
+  // held at any depth: three groups down
+  const deep = T.newBox("all", [said("warn"), T.newBox("any", [said("ok"), T.newBox("allnone", [said("error")])])]);
+  assert.equal(words(deep), "Status is warn and Status is ok");
+});
