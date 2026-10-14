@@ -55,6 +55,24 @@ export function boxReady(box, complete) {
   return !NEEDS_TWO.has(box.join) || liveItems(box, complete).length >= 2;
 }
 
+// What the screen draws as held ("Not applied yet"): every box not ready for its join, and everything
+// inside one, at any depth. It is exactly what `sendable` leaves out for a held box, never more or less.
+export function heldKeys(root, complete) {
+  const out = new Set();
+  const walk = (node, above) => {
+    const held = above || (isBox(node) && !boxReady(node, complete));
+    if (held) out.add(node._k);
+    if (isBox(node)) node.items.forEach((it) => walk(it, held));
+  };
+  walk(root, false);
+  return out;
+}
+
+// Is this node, or anything inside it, held? (A group shut to one line says so.)
+export function holdsAny(node, held) {
+  return held.has(node._k) || (isBox(node) && node.items.some((it) => holdsAny(it, held)));
+}
+
 // What is sent: complete cards only, no handles, empty and held boxes left out.
 export function sendable(root, complete) {
   const walk = (box) => {

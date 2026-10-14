@@ -32,16 +32,23 @@ function cardWords(c, fields, opWords) {
   return `${f.label} ${word} ${c.value}`;
 }
 
+// A shut group's words say only what is applied: a group inside it that is held is left out (the shut
+// group says "not applied yet" for it). The group itself is read whole; its own marker says if it is held.
 export function treeWords(node, fields, opWords, complete) {
-  if (!T.isBox(node)) return complete(node) ? cardWords(node, fields, opWords) : "";
+  return phrase(node, fields, opWords, complete)[0];
+}
+
+function phrase(node, fields, opWords, complete) { // → [words, how many parts they join]
+  if (!T.isBox(node)) return [complete(node) ? cardWords(node, fields, opWords) : "", 1];
   const parts = node.items.map((it) => {
-    const w = treeWords(it, fields, opWords, complete);
-    return T.isBox(it) && T.countCards(it) > 1 && w ? `(${w})` : w;
+    if (T.isBox(it) && !T.boxReady(it, complete)) return "";
+    const [w, n] = phrase(it, fields, opWords, complete);
+    return n > 1 && w ? `(${w})` : w;
   }).filter(Boolean);
-  if (parts.length < 2) return parts[0] || "";
-  if (JOIN_WORDS[node.join]) return parts.join(JOIN_WORDS[node.join]);
+  if (parts.length < 2) return [parts[0] || "", 1];
+  if (JOIN_WORDS[node.join]) return [parts.join(JOIN_WORDS[node.join]), parts.length];
   const listed = parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
-  return (node.join === "one" ? "exactly one of: " : "all or none of: ") + listed;
+  return [(node.join === "one" ? "exactly one of: " : "all or none of: ") + listed, parts.length];
 }
 
 // ── the chip between two items ───────────────────────────────────────────
@@ -115,12 +122,12 @@ function ItemMenu({ k, ctx, isGroup }) {
           <p className="dx-menu-title">Move to…</p>
           {dests.map((d) => (
             <button key={d.key} type="button" role="menuitem" className="dx-menu-item" data-move-to={d.name}
-              disabled={d.key === here} onClick={() => { ctx.set(T.move(ctx.root, k, d.key)); ctx.openMenu(null); }}>
+              disabled={d.key === here} onClick={() => { ctx.set(T.move(ctx.root, k, d.key)); ctx.focusHandle(k); ctx.openMenu(null); }}>
               {d.name}{d.key === here ? " (here)" : ""}
             </button>
           ))}
           <button type="button" role="menuitem" className="dx-menu-item" data-move-to="new group"
-            onClick={() => { ctx.set(T.wrap(ctx.root, k)); ctx.openMenu(null); }}>A new group, here</button>
+            onClick={() => { ctx.set(T.wrap(ctx.root, k)); ctx.focusHandle(k); ctx.openMenu(null); }}>A new group, here</button>
           {isGroup ? (
             <button type="button" role="menuitem" className="dx-menu-item is-danger" data-remove-group={k}
               onClick={() => { ctx.set(T.remove(ctx.root, k)); ctx.openMenu(null); }}>Remove this group and what is in it</button>
@@ -140,11 +147,11 @@ function Drop({ box, index, ctx }) {
 
 // ── a card ───────────────────────────────────────────────────────────────
 
-function Card({ c, ctx, held }) {
+function Card({ c, ctx }) {
   const dragging = ctx.drag && ctx.drag.key === c._k;
   return (
     <div className={"dx-item" + (dragging ? " is-dragging" : "")} data-item={c._k}>
-      <ConditionRow fields={ctx.fields} c={c} opWords={ctx.opWords} held={held}
+      <ConditionRow fields={ctx.fields} c={c} opWords={ctx.opWords} held={ctx.held.has(c._k)}
         lead={<Handle k={c._k} ctx={ctx} label="this condition" />}
         tools={<ItemMenu k={c._k} ctx={ctx} />}
         onChange={(next) => ctx.set(T.update(ctx.root, c._k, () => ({ ...next, _k: c._k })))}
@@ -155,10 +162,15 @@ function Card({ c, ctx, held }) {
 
 // ── a box: the root, or a group ──────────────────────────────────────────
 
-function Box({ node, depth, ctx, held: heldAbove }) {
+//: What a group shut to one line says when it, or a group inside it, is not applied yet.
+const SHUT_HELD = {
+  above: "Not applied yet — see below.",
+  inside: "Part of this group is not applied yet. Open it to see which.",
+};
+
+function Box({ node, depth, ctx }) {
   const root = depth === 0;
   const ready = T.boxReady(node, ctx.complete);
-  const held = heldAbove || !ready;
   const n = T.countCards(node);
   const dragging = ctx.drag && ctx.drag.key === node._k;
   const cls = "dx-box" + (root ? " is-root" : depth % 2 ? " is-odd" : " is-even")
@@ -179,10 +191,13 @@ function Box({ node, depth, ctx, held: heldAbove }) {
   );
   if (!root && node.collapsed) {
     const w = treeWords(node, ctx.fields, ctx.opWords, ctx.complete);
+    const why = !ready ? <>Not applied yet — “{ctx.logics[node.join]}” {ctx.needsTwo}.</>
+      : ctx.held.has(node._k) ? SHUT_HELD.above : T.holdsAny(node, ctx.held) ? SHUT_HELD.inside : null;
     return (
       <div className={cls + " is-collapsed"} data-box={node._k} data-depth={depth}>
         {head}
         <p className="dx-box-summary">{w ? `(${w})` : "Nothing in it yet."}</p>
+        {why ? <p className="dx-waiting dx-held" data-testid="held">{why}</p> : null}
       </div>
     );
   }
@@ -194,8 +209,8 @@ function Box({ node, depth, ctx, held: heldAbove }) {
           <Drop box={node._k} index={i} ctx={ctx} />
           {i > 0 ? <JoinChip join={node.join} chips={ctx.chips} boxKey={node._k} onJoin={(join) => set({ join })} /> : null}
           {T.isBox(it)
-            ? <Box node={it} depth={depth + 1} ctx={ctx} held={held} />
-            : <Card c={it} ctx={ctx} held={held} />}
+            ? <Box node={it} depth={depth + 1} ctx={ctx} />
+            : <Card c={it} ctx={ctx} />}
         </React.Fragment>
       ))}
       <Drop box={node._k} index={node.items.length} ctx={ctx} />
@@ -230,6 +245,16 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
   const matchable = fields.filter((f) => f.ops.length);
   const latest = React.useRef(value);
   latest.current = value;
+
+  // After a move from the menu, the keyboard stays on the moved item: its handle, wherever it is drawn now.
+  const focusTo = React.useRef(null);
+  const focusHandle = (k) => { focusTo.current = k; };
+  React.useEffect(() => {
+    if (focusTo.current === null || !host.current) return;
+    const el = host.current.querySelector(`[data-handle="${focusTo.current}"]`);
+    focusTo.current = null;
+    if (el) el.focus();
+  });
 
   // The slot a pointer is nearest: among the slots whose box spans the pointer across, the one
   // closest up or down. A slot inside the item being dragged is never one.
@@ -274,11 +299,11 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
 
   const ctx = {
     root: value, set: onChange, fields, shown, admin, opWords, chips, logics, needsTwo, addLabel, action,
-    complete, matchable, drag, startDrag, menu, openMenu: setMenu,
+    complete, matchable, drag, startDrag, menu, openMenu: setMenu, held: T.heldKeys(value, complete), focusHandle,
   };
   return (
     <div className={"dx-filter" + (drag ? " is-dragging-any" : "")} ref={host} data-testid="filter">
-      <Box node={value} depth={0} ctx={ctx} held={false} />
+      <Box node={value} depth={0} ctx={ctx} />
     </div>
   );
 }
@@ -288,22 +313,37 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
 // Clear takes out every card and group of step 3 (nothing else on the page). For UNDO_MS an Undo puts
 // back exactly what was there — the same tree, so every card, group, join and shut group returns. The
 // Undo goes as soon as the filter changes again (a new card, another data set): it never overwrites
-// what was done after the clear.
+// what was done after the clear. It goes too when the fields on offer change (View as Everyone): the
+// tree it would put back may name a field that view doesn't have, and it never comes back.
+// The keyboard follows: Clear puts it on the Undo, and Undo puts it back on Clear filters.
 
 export const UNDO_MS = 8000;
 
-export function ClearFilters({ value, onChange }) {
-  const [undo, setUndo] = React.useState(null); // { before, cleared }
+export function ClearFilters({ value, onChange, fields }) {
+  const [undo, setUndo] = React.useState(null); // { before, cleared, offered }
+  const offered = fields.map((f) => `${f.path}:${f.ops.join(",")}`).join("|");
   React.useEffect(() => {
     if (!undo) return undefined;
     const t = setTimeout(() => setUndo(null), UNDO_MS);
     return () => clearTimeout(t);
   }, [undo]);
-  const live = !!undo && value === undo.cleared;
+  React.useEffect(() => { if (undo && undo.offered !== offered) setUndo(null); }, [offered]); // eslint-disable-line react-hooks/exhaustive-deps
+  const live = !!undo && value === undo.cleared && undo.offered === offered;
+
+  const undoBtn = React.useRef(null);
+  const clearBtn = React.useRef(null);
+  const focusTo = React.useRef(null);
+  React.useEffect(() => {
+    const el = focusTo.current && focusTo.current.current;
+    focusTo.current = null;
+    if (el) el.focus();
+  });
+
   const clear = () => {
     const cleared = T.newBox();
-    setUndo({ before: value, cleared });
+    setUndo({ before: value, cleared, offered });
     onChange(cleared);
+    focusTo.current = undoBtn;
   };
   return (
     <div className="dx-clear">
@@ -311,13 +351,13 @@ export function ClearFilters({ value, onChange }) {
         {live ? (
           <>
             Filters cleared.{" "}
-            <button type="button" className="dx-link" data-action="undo-clear"
-              onClick={() => { onChange(undo.before); setUndo(null); }}>Undo</button>
+            <button type="button" className="dx-link" data-action="undo-clear" ref={undoBtn}
+              onClick={() => { onChange(undo.before); setUndo(null); focusTo.current = clearBtn; }}>Undo</button>
           </>
         ) : null}
       </p>
       {value.items.length && !live ? (
-        <button type="button" className="dx-link dx-clear-btn" data-action="clear-filters" onClick={clear}>
+        <button type="button" className="dx-link dx-clear-btn" data-action="clear-filters" ref={clearBtn} onClick={clear}>
           Clear filters
         </button>
       ) : null}

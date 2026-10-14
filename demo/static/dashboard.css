@@ -443,6 +443,8 @@ body.dx-body * { box-sizing: border-box; }
 .dx-box-count { color: var(--text-soft); font-size: 12px; white-space: nowrap; }
 .dx-box-caret { color: var(--text-soft); width: 10px; }
 .dx-box-summary { margin: 0 0 2px 28px; font-size: 13px; color: var(--text-mid); overflow-wrap: anywhere; }
+/* a shut group's "not applied yet" sits under its words, not under the handle */
+.dx-box.is-collapsed > .dx-held { margin-left: 28px; }
 .dx-box-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: 4px; }
 .dx-box-foot .dx-add-group { width: auto; }
 

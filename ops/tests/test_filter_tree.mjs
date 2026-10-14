@@ -107,3 +107,53 @@ test("the old flat form and a sent tree are read back with handles on every node
   assert.ok(back._k && back.items[0]._k && back.items[0].items[1]._k);
   assert.equal(back.items[0].join, "one");
 });
+
+test("what the screen marks held is exactly what is left out of what is sent, at every depth", () => {
+  // Random trees, to six deep, every join, cards with and without a value. From the screen's own
+  // `heldKeys` (what it draws "Not applied yet"), the tree it ought to send is built here by hand:
+  // every item not held, cards with a value, empty boxes dropped, each box's own join kept. And card
+  // by card, at any depth: a card with a value is drawn held exactly when it is not sent.
+  let seed = 96; // mulberry32: the same trees on every run
+  const rnd = (n) => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) % n;
+  };
+  const joins = ["all", "any", "one", "allnone"];
+  let n = 0;
+  const grow = (depth) => T.newBox(joins[rnd(4)], Array.from({ length: rnd(4) }, () =>
+    depth < 5 && rnd(3) === 0 ? grow(depth + 1) : rnd(4) ? card(`f${rnd(9)}`, `v${n++}`) : blank("f")));
+  const cards = (node) => (T.isBox(node) ? node.items.flatMap(cards) : [node]);
+  let heldSome = 0;
+  for (let i = 0; i < 3000; i++) {
+    const t = grow(0);
+    const held = T.heldKeys(t, complete);
+    if (held.size) heldSome += 1;
+    const ought = (box) => {
+      const items = box.items.filter((it) => !held.has(it._k))
+        .map((it) => (T.isBox(it) ? ought(it) : complete(it) ? strip(it) : null)).filter(Boolean);
+      return items.length ? { join: box.join, items } : null;
+    };
+    const top = held.has(t._k) ? null : ought(t);
+    const sent = T.sendable(t, complete);
+    assert.deepEqual(sent, { version: 1, join: top ? top.join : "all", items: top ? top.items : [] },
+      `the screen's held and what is sent disagree for ${JSON.stringify(strip(t))}`);
+    const out = new Set(cards(sent).map((c) => c.value));
+    for (const c of cards(t).filter(complete)) {
+      assert.equal(held.has(c._k), !out.has(c.value),
+        `the card ${c.value} is drawn ${held.has(c._k) ? "held" : "applied"} but is ${out.has(c.value) ? "sent" : "left out"}: ${JSON.stringify(strip(t))}`);
+    }
+  }
+  assert.ok(heldSome > 300, `too few trees had a held box to show anything (${heldSome})`);
+});
+
+test("a group shut to one line knows when it, or a group inside it, is held", () => {
+  const inner = T.newBox("one", [card("error"), blank("b")]);
+  const outer = T.newBox("any", [card("warn"), inner]);
+  const t = T.newBox("all", [card("ts"), outer]);
+  const held = T.heldKeys(t, complete);
+  assert.ok(held.has(inner._k) && !held.has(outer._k), "only the 'exactly one of' group is held");
+  assert.ok(T.holdsAny(outer, held), "the group around it says part of it is held");
+  assert.ok(!T.holdsAny(T.newBox("any", [card("a")]), held), "a group with nothing held says nothing");
+});
