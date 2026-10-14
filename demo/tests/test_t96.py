@@ -386,7 +386,7 @@ def test_the_parsers_depth_64_is_answered_and_65_refused_in_words(client, setup)
     st, a = ask(client, view(setup, filter=t64))
     assert st == 200 and a["admin"]["verdict"] == "agree", a
     st, a = ask(client, view(setup, filter=t65))
-    assert (st, a.get("message")) == (422, pview.TOO_DEEP), a
+    assert (st, a.get("message")) == (422, pview.TOO_DEEP), f"65 deep was not refused in words: {st} {a.get('message')}"
 
 
 def _chain(levels: int):
