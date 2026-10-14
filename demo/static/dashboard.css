@@ -428,7 +428,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-matched .dx-checks { margin-top: -2px; }
 
 /* T-96: the filter builder — groups inside groups, a word between every two items */
-.dx-filter { display: grid; }
+.dx-filter { display: grid; container-type: inline-size; }
 .dx-box { margin: 2px 0 6px; padding: 8px 8px 8px 12px; border-left: 2px solid var(--border2);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .dx-box.is-root { margin: 0; padding: 0; border: 0; border-radius: 0; }
@@ -482,7 +482,9 @@ body.dx-body * { box-sizing: border-box; }
 .dx-menu-word { font-weight: 600; }
 .dx-menu-note { font-size: 12px; color: var(--text-soft); }
 
-@media (max-width: 520px) {
+/* narrow by the builder's own width (a phone, or a count column beside the answer): the condition's
+   picker takes its own row, and each level indents less */
+@container (max-width: 380px) {
   .dx-box { padding-left: 8px; }
   .dx-box .dx-box .dx-box .dx-box { padding-left: 5px; padding-right: 4px; }
   .dx-cond-top.has-tools { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-auto-flow: row dense; }

@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, offered } from "./dashboard-steps.jsx";
-import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
+import { ScoreboardStep, asMatch, countComplete, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
 import { FilterBuilder } from "./dashboard-filter.jsx";
 import * as T from "./filter-tree.js";
@@ -103,11 +103,8 @@ function sendableScoreboard(setup, ds, sb) {
     counts.push({
       id: c._k,
       label: c.label.trim(),
-      logic: c.logic,
       pct: c.pct,
-      conditions: c.conditions
-        .filter((x) => isComplete(x, fields.find((f) => f.path === x.field)))
-        .map(({ _k, ...x }) => x), // eslint-disable-line no-unused-vars
+      filter: T.sendable(c.filter, countComplete(fields)),   // T-96: a count column's tree
     });
   });
   let sort = sb.sort;
@@ -611,12 +608,12 @@ function App() {
           next = { ...next, count_from: null, picking: false, counts: [], time: null, measure: null, sort: null };
         }
         const hiddenCounted = hiddenIn(countedFields(setup, ds, next || sb));
-        if (next && next.counts.some((c) => c.conditions.some((x) => hiddenCounted.has(x.field)))) {
-          next = { ...next, counts: next.counts.map((c) => {
-            const kept = c.conditions.filter((x) => !hiddenCounted.has(x.field));
-            return kept.length === c.conditions.length ? c : { ...c, conditions: kept, logic: kept.length < 2 ? "all" : c.logic };
-          }) };
-        }
+        // ... and a count column keeps no card naming one, in any of its groups (T-96)
+        const pruned = next && next.counts.map((c) => {
+          const kept = T.withoutFields(c.filter, hiddenCounted);
+          return T.countCards(kept) === T.countCards(c.filter) ? c : { ...c, filter: kept };
+        });
+        if (pruned && pruned.some((c, i) => c !== next.counts[i])) next = { ...next, counts: pruned };
         if (next !== sb) patch.scoreboard = next;
       }
     }

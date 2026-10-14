@@ -8,7 +8,9 @@
 // both engines compute the answer; this file draws the choices.
 
 import React from "react";
-import { ConditionList, Segmented, Step, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
+import { Segmented, Step, isComplete, offered } from "./dashboard-steps.jsx";
+import { FilterBuilder } from "./dashboard-filter.jsx";
+import * as T from "./filter-tree.js";
 
 let nextKey = 1;
 
@@ -21,7 +23,8 @@ export function freshCount(existing) {
     const m = /^count (\d+)$/i.exec(c.label.trim());
     if (m) n = Math.max(n, Number(m[1]));
   }
-  return { _k: nextKey++, label: `Count ${n + 1}`, logic: "all", conditions: [], pct: false };
+  // T-96: a count column's conditions are a filter tree, built with step 3's own builder
+  return { _k: nextKey++, label: `Count ${n + 1}`, filter: T.newBox(), pct: false };
 }
 
 // Is a count column ready to send? A name, at least one condition with a
@@ -136,15 +139,21 @@ function MatchPicker({ setup, ds, admin, value, onChange }) {
   );
 }
 
+export function countComplete(fields) {
+  return (x) => isComplete(x, fields.find((f) => f.path === x.field));
+}
+
 export function countWaiting(c, fields) {
-  const done = c.conditions.filter((x) => isComplete(x, fields.find((f) => f.path === x.field))).length;
+  const complete = countComplete(fields);
   if (!c.label.trim()) return "Not counted until it has a name.";
-  if (done === 0) return "Not counted until a condition has a value.";
-  if (!logicReady(c.logic, done)) return "Not counted until two conditions have values.";
+  if (!T.sendable(c.filter, complete).items.length) {
+    return T.countCards(c.filter, complete) ? "Not counted until two conditions have values."
+      : "Not counted until a condition has a value.";
+  }
   return null;
 }
 
-function CountCard({ c, n, fields, shown, admin, opWords, logics, needsTwo, labelMax, onChange, onRemove, what, whose }) {
+function CountCard({ c, n, fields, shown, admin, opWords, chips, logics, needsTwo, labelMax, onChange, onRemove, what, whose }) {
   const waiting = countWaiting(c, fields);
   return (
     <div className={"dx-count" + (waiting ? " is-waiting" : "")} data-count={n - 1}>
@@ -155,9 +164,8 @@ function CountCard({ c, n, fields, shown, admin, opWords, logics, needsTwo, labe
         <button type="button" className="dx-remove" aria-label="Remove this count column" onClick={onRemove}>×</button>
       </div>
       <p className="dx-count-says">Counts the {what} in each group where:</p>
-      <ConditionList fields={fields} shown={shown} admin={admin} value={c.conditions} opWords={opWords}
-        onChange={(conditions) => onChange(conditions.length < 2 ? { ...c, conditions, logic: "all" } : { ...c, conditions })}
-        logic={c.logic} onLogic={(logic) => onChange({ ...c, logic })}
+      <FilterBuilder fields={fields} shown={shown} admin={admin} value={c.filter} opWords={opWords} chips={chips}
+        onChange={(filter) => onChange({ ...c, filter })}
         logics={logics} needsTwo={needsTwo} addLabel="Add a condition" action="add-count-condition" />
       <label className="dx-check-line">
         <input type="checkbox" checked={c.pct} onChange={() => onChange({ ...c, pct: !c.pct })} data-pct={n - 1} />
@@ -278,7 +286,7 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
           {counts.map((c, i) => (
             <CountCard key={c._k} c={c} n={i + 1} fields={counted} shown={rel ? [] : shown} admin={admin}
               what={rel ? rel.name : "rows"} whose={rel ? `the ${ds.one}'s ${rel.name}` : "the group's rows"}
-              opWords={setup.op_labels} logics={setup.logics} needsTwo={setup.logic_needs_two}
+              opWords={setup.op_labels} chips={setup.join_chips} logics={setup.logics} needsTwo={setup.logic_needs_two}
               labelMax={setup.label_max}
               onChange={(next) => set({ counts: counts.map((x, j) => (j === i ? next : x)) })}
               onRemove={() => set({ counts: counts.filter((_, j) => j !== i), sort: null })} />

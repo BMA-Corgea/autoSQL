@@ -80,6 +80,10 @@ T96_MUTANTS = [
     dict(id="R14", defect="'all or none of' measured as if its sum were written once",
          edits=[(V, "    return 2 * total + 17 + len(str(n))", "    return total + 17 + len(str(n))")],
          selector=_M + "test_a_filter_is_measured_exactly_as_it_would_be_built", expect="('allnone', 2)"),
+    dict(id="VD", defect="an empty group counts as false (a-chk's mutant: it survived the suite)",
+         edits=[(V, "            if expr is None:\n                continue\n",
+                 '            if expr is None:\n                expr, words, n = "false", "nothing", 1\n')],
+         selector=TRUTH, expect="a AND an empty group: kept"),
 ]
 
 

@@ -159,6 +159,16 @@ _TABLES = {
         tree("any", Y("a"), box("all")),
         _ys("a"),
         lambda r: y(r, "a")),
+    # an empty group adds nothing: counted as false it would empty an AND (a-chk's VD) …
+    "a AND an empty group": (
+        tree("all", Y("a"), box("any")),
+        _ys("a"),
+        lambda r: y(r, "a")),
+    # … and make "all or none" mean "none"
+    "all or none of (a, b, an empty group)": (
+        tree("allnone", Y("a"), Y("b"), box("all")),
+        f"{_sum(_ys('a'), _ys('b'))} IN (0, 2)",
+        lambda r: sum([y(r, "a"), y(r, "b")]) in (0, 2)),
     "exactly one of (a, b) OR (c AND d)": (
         tree("any", box("one", Y("a"), Y("b")), box("all", Y("c"), Y("d"))),
         f"{_sum(_ys('a'), _ys('b'))} = 1 OR ({_ys('c')} AND {_ys('d')})",
