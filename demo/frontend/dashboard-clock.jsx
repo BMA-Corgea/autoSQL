@@ -10,7 +10,28 @@
 // The choice is remembered in this browser for convenience only; the zone a question uses
 // travels inside the question itself, so a shared question reads the same everywhere.
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useEffect, useMemo, useRef, useState } from "react";
+
+// The question's clock for the cards (step 3, count columns): { zone, label, todOps, todLabels }.
+export const ClockContext = createContext(null);
+
+// A UTC time from the data ("2026-08-20T23:00:00Z") as a wall time on the zone's clock, the way a
+// datetime-local input reads it ("2026-08-20T17:00"); the day alone for a date input.
+export function localMinute(text, zone) {
+  if (!text || !/T/.test(text)) return undefined;
+  try {
+    const f = new Intl.DateTimeFormat("en-CA", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const p = {};
+    for (const x of f.formatToParts(new Date(text))) p[x.type] = x.value;
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  } catch (_) { return text.slice(0, 16); }
+}
+
+export function localDay(text, zone) {
+  if (!text) return undefined;
+  return /T/.test(text) ? (localMinute(text, zone) || text).slice(0, 10) : text.slice(0, 10);
+}
 
 const KEY = "dx-clock";
 
@@ -47,9 +68,28 @@ export function findZone(list, zone) {
 
 const UTC = { zone: "UTC", label: "UTC", place: "UTC", area: "", why: null };
 
+//: The list of zones could not be had (the request failed): the page still answers (a-chk, T-98 c).
+export const LIST_FAILED = Object.freeze({ failed: true });
+
+// A zone's name as the screen says it, when the server's list isn't there to say it: the same rule
+// as picks/zones.label ("America/Denver" → "Denver time", "Etc/GMT+12" → "UTC−12").
+export function placeLabel(zone) {
+  if (!zone || zone === "UTC" || /^Etc\/(UTC|UCT|Universal|Zulu|GMT|GMT0|GMT[+-]0|Greenwich)$/.test(zone)) return "UTC";
+  const m = /^Etc\/GMT([+-])(\d{1,2})$/.exec(zone);
+  if (m) return `UTC${m[1] === "+" ? "−" : "+"}${Number(m[2])}`;
+  return `${zone.split("/").pop().replace(/_/g, " ")} time`;
+}
+
 // What the page reads times on, and a line to say why when it isn't what was asked for.
 export function resolveClock(list, chosen, computer) {
   const want = chosen || computer;
+  if (list === LIST_FAILED) {
+    if (!want) return { entry: UTC, ready: true, note: "The list of time zones didn't load, so times are in UTC." };
+    const label = placeLabel(want);
+    return { entry: { ...UTC, zone: want, label, place: label }, ready: true,
+      note: label === "UTC" ? "The list of time zones didn't load, so times are in UTC."
+        : `The list of time zones didn't load, so times are on ${chosen ? "the clock you picked" : "this computer's clock"} (${label}).` };
+  }
   if (!list) return { entry: { ...UTC, zone: want, label: "…" }, note: null, ready: false };
   const found = findZone(list, want);
   const whose = chosen ? "That clock" : "Your computer's clock";
@@ -71,8 +111,8 @@ export function useClock() {
   useEffect(() => {
     let live = true;
     fetch("/api/dashboard/zones").then((r) => (r.ok ? r.json() : null)).then((body) => {
-      if (live && body && Array.isArray(body.zones)) setList(body);
-    }).catch(() => {});
+      if (live) setList(body && Array.isArray(body.zones) ? body : LIST_FAILED);
+    }).catch(() => { if (live) setList(LIST_FAILED); });
     return () => { live = false; };
   }, []);
   const { entry, note, ready } = resolveClock(list, chosen, computer);
@@ -113,7 +153,8 @@ function ClockPanel({ clock, onClose }) {
     return () => { document.removeEventListener("keydown", key); document.removeEventListener("mousedown", away); };
   }, [onClose]);
 
-  const list = clock.list;
+  const list = clock.list === LIST_FAILED ? null : clock.list;
+  const failed = clock.list === LIST_FAILED;
   const pick = (zone) => { clock.choose(zone); onClose(); };
   const mine = list ? findZone(list, clock.computer) : null;
   const shown = list ? list.zones.filter((e) => e.zone !== "UTC" && matches(e, q)) : [];
@@ -134,7 +175,8 @@ function ClockPanel({ clock, onClose }) {
       <p className="dx-clock-hint">Days, times and times of day are read on this clock. Summaries per hour or day stay in UTC.</p>
       <input ref={input} className="dx-input dx-clock-find" type="search" placeholder="Find a place"
         aria-label="Find a place" value={q} onChange={(ev) => setQ(ev.target.value)} />
-      {!list ? <p className="dx-status">Loading the list…</p> : (
+      {failed ? <p className="dx-status">The list of time zones didn't load. Times are on {clock.label}.</p>
+        : !list ? <p className="dx-status">Loading the list…</p> : (
         <ul className="dx-clock-list">
           {!q && mine ? <Entry e={mine} on={!clock.chosen && clock.zone === mine.zone} extra="This computer's clock"
             onPick={() => pick(null)} /> : null}

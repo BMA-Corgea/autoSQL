@@ -99,9 +99,22 @@ export function sendable(root, complete) {
 //: The sentence's words for a group shut to one line (the server's own words come with the answer).
 const JOIN_WORDS = { all: " and ", any: " or " };
 
+// "17:00" → "5:00 PM" (seconds shown when not zero): picks/zones.clock_words, as the sentence says it.
+function clockWords(text) {
+  const m = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(text || "");
+  if (!m) return text || "";
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]}${m[3] && m[3] !== "00" ? `:${m[3]}` : ""} ${h < 12 ? "AM" : "PM"}`;
+}
+
 function cardWords(c, fields, opWords) {
   const f = fields.find((x) => x.path === c.field);
   if (!f) return "";
+  if (c.part === "time_of_day") { // T-98: as the sentence words it
+    const name = `${f.label} (time of day)`;
+    if (c.op === "between") return `${name} between ${clockWords(c.value)} and ${clockWords(c.value2)}`;
+    return `${name} ${c.op} ${clockWords(c.value)}`;
+  }
   const word = opWords[c.op] || c.op;
   if (c.op === "in") return `${f.label} ${word} ${(c.values || []).join(", ")}`;
   if (c.op === "between") return `${f.label} ${word} ${c.value} and ${c.value2}`;

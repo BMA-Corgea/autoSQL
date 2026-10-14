@@ -6,6 +6,7 @@
 // offers and reports which one was clicked. It decides nothing.
 
 import React from "react";
+import { ClockContext, localDay, localMinute } from "./dashboard-clock.jsx";
 import { key } from "./filter-tree.js";
 
 export function Step({ n, title, hint, children }) {
@@ -93,7 +94,16 @@ const NO_VALUE = new Set(["present", "blank", "yes", "no"]);
 
 // Is this condition ready to ask about? One still waiting for its value is
 // kept on screen, marked, and not sent: it is not a question yet.
+//: A time field's time of day (T-98): the conditions it takes, as the server names them.
+export const TIME_OF_DAY_OPS = ["from", "until", "between"];
+const TOD = "::time_of_day";        // the field picker's value for a field's time of day
+
 export function isComplete(c, field) {
+  if (c.part === "time_of_day") {
+    if (!field || field.kind !== "time" || !TIME_OF_DAY_OPS.includes(c.op)) return false;
+    const set = (v) => typeof v === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(v);
+    return set(c.value) && (c.op !== "between" || set(c.value2));
+  }
   if (!field || !field.ops.includes(c.op)) return false;
   if (NO_VALUE.has(c.op)) return true;
   const has = (v) => v !== undefined && v !== null && v !== "" && !(typeof v === "number" && !Number.isFinite(v));
@@ -209,27 +219,58 @@ function NumberInput({ value, onChange, field, label }) {
 }
 
 function WhenInput({ field, op, value, onChange, label }) {
+  // T-98: a time field's days and times are picked on the question's clock, and say which.
+  const clock = React.useContext(ClockContext);
+  const zone = clock && clock.zone;
   const dayOnly = field.kind === "date" || op === "on";
   const range = field.range || {};
   if (dayOnly) {
+    const day = (t) => (field.kind === "time" && zone ? localDay(t, zone) : t ? t.slice(0, 10) : undefined);
     return (
       <input className="dx-input" type="date" aria-label={label} value={value || ""}
-        min={range.min ? range.min.slice(0, 10) : undefined} max={range.max ? range.max.slice(0, 10) : undefined}
+        min={day(range.min)} max={day(range.max)}
         onChange={(e) => onChange(e.target.value)} />
     );
   }
+  const minute = (t) => (zone ? localMinute(t, zone) : toMinute(t));
   return (
     <span className="dx-when">
       <input className="dx-input" type="datetime-local" aria-label={label} value={value || ""}
-        min={toMinute(range.min)} max={toMinute(range.max)} step={60}
+        min={minute(range.min)} max={minute(range.max)} step={60}
         onChange={(e) => onChange(e.target.value)} />
-      <span className="dx-unit">UTC</span>
+      <span className="dx-unit" data-testid="when-unit">{clock ? clock.label : "UTC"}</span>
     </span>
+  );
+}
+
+function TimeOfDayInput({ value, onChange, label }) {
+  return (
+    <input className="dx-input dx-clock-time" type="time" step={60} aria-label={label} value={value || ""}
+      onChange={(e) => onChange(e.target.value)} />
   );
 }
 
 function ValueControl({ field, c, set }) {
   const label = `${field.label} value`;
+  const clock = React.useContext(ClockContext);
+  const hints = clock && clock.todHints;
+  if (c.part === "time_of_day") {
+    const name = `${field.label} (time of day)`;
+    const hint = hints && hints[c.op] ? <p className="dx-step-hint dx-tod-hint">{hints[c.op]}</p> : null;
+    if (c.op === "between") {
+      return (
+        <>
+          <div className="dx-between">
+            <TimeOfDayInput value={c.value} label={`${name} from`} onChange={(v) => set({ value: v })} />
+            <span className="dx-and">and</span>
+            <TimeOfDayInput value={c.value2} label={`${name} to`} onChange={(v) => set({ value2: v })} />
+          </div>
+          {hint}
+        </>
+      );
+    }
+    return <><TimeOfDayInput value={c.value} label={name} onChange={(v) => set({ value: v })} />{hint}</>;
+  }
   if (NO_VALUE.has(c.op)) return null;
   if (field.kind === "text") {
     const multi = c.op === "in";
@@ -257,29 +298,45 @@ function ValueControl({ field, c, set }) {
 export function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held, lead, tools }) {
   const field = fields.find((f) => f.path === c.field);
   const set = (patch) => onChange({ ...c, ...patch });
+  const clock = React.useContext(ClockContext);
+  const tod = c.part === "time_of_day";
+  const pick = (v) => {
+    if (v.endsWith(TOD)) {
+      const path = v.slice(0, -TOD.length);
+      onChange({ _k: c._k, field: path, part: "time_of_day", op: "from", value: "", value2: "", values: [] });
+    } else {
+      onChange({ ...freshCondition(fields.find((f) => f.path === v)), _k: c._k });
+    }
+  };
+  const ops = tod ? TIME_OF_DAY_OPS : field.ops;
+  const words = tod ? ((clock && clock.todLabels) || {}) : opWords;
   // "held": complete, but not applied, because the set's logic is not ready
   // yet — drawn waiting like an empty row, so nothing looks live that isn't.
   const ready = isComplete(c, field) && !held;
   return (
-    <div className={"dx-cond" + (ready ? "" : " is-waiting")} data-condition={index}>
+    <div className={"dx-cond" + (ready ? "" : " is-waiting") + (tod ? " is-time-of-day" : "")} data-condition={index}>
       <div className={"dx-cond-top" + (lead || tools ? " has-tools" : "")}>
         {lead || null}
-        <select className="dx-select" aria-label="Field" value={c.field}
-          onChange={(e) => onChange({ ...freshCondition(fields.find((f) => f.path === e.target.value)), _k: c._k })}>
+        <select className="dx-select" aria-label="Field" value={tod ? c.field + TOD : c.field}
+          onChange={(e) => pick(e.target.value)}>
           {fields.map((f) => (
-            <option key={f.path} value={f.path} disabled={!f.ops.length}>
-              {f.ops.length ? f.label : `${f.label} (can't be matched)`}
-            </option>
+            <React.Fragment key={f.path}>
+              <option value={f.path} disabled={!f.ops.length}>
+                {f.ops.length ? f.label : `${f.label} (can't be matched)`}
+              </option>
+              {/* T-98: every time field also reads as its time of day */}
+              {f.kind === "time" && f.ops.length ? <option value={f.path + TOD}>{f.label} (time of day)</option> : null}
+            </React.Fragment>
           ))}
         </select>
         <select className="dx-select" aria-label="Condition" value={c.op}
           onChange={(e) => set({ op: e.target.value, value: "", value2: "", values: c.op === "eq" && e.target.value === "in" && c.value ? [c.value] : [] })}>
-          {field.ops.map((op) => <option key={op} value={op}>{opWords[op]}</option>)}
+          {ops.map((op) => <option key={op} value={op}>{words[op] || op}</option>)}
         </select>
         {tools || null}
         <button type="button" className="dx-remove" aria-label="Remove this condition" onClick={onRemove}>×</button>
       </div>
-      <ValueControl key={c.field + ":" + c.op} field={field} c={c} set={set} />
+      <ValueControl key={c.field + ":" + (tod ? "tod:" : "") + c.op} field={field} c={c} set={set} />
       {ready ? null : <p className="dx-waiting">{held ? "Not applied yet — see below." : "Not used until a value is picked."}</p>}
     </div>
   );

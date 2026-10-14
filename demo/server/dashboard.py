@@ -326,9 +326,10 @@ def setup(conn) -> dict:
             "op_labels": dict(OP_WORDS, ne="is not (rows without a value count too)"),
             # T-98: a time field's time of day, its conditions and how the picker names them
             "time_of_day_ops": list(_pv.TIME_OF_DAY_OPS),
-            "time_of_day_labels": {"from": "from (this time and later)",
-                                   "until": "until (stops just before it)",
-                                   "between": "between (can cross midnight)"},
+            "time_of_day_labels": {"from": "from", "until": "until", "between": "between"},
+            "time_of_day_hints": {"from": "This time and later.",
+                                  "until": "Up to just before this time.",
+                                  "between": "From the first time until just before the second. It can cross midnight."},
             "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
             "max_counts": group.MAX_COUNTS,
             # T-76: the field kinds a match may pair (two of the same kind);
@@ -1680,6 +1681,11 @@ def api_zones() -> JSONResponse:
             aliases[z] = "UTC"                   # a spelling of UTC itself
         else:
             others.append(z)                     # a fixed offset with no place (Etc/GMT+12): itself
+    # a-chk (T-98 c): a browser may name its zone the old way (Asia/Calcutta); tzdata's links say
+    # which place it is, and the question then stores and sends the current name
+    for z, target in old.items():
+        if z not in listed and z not in aliases and target in listed:
+            aliases[z] = target
     conn = _connect()
     try:
         why = _zones.marks(conn, listed | set(others))
