@@ -546,3 +546,10 @@ body.dx-body * { box-sizing: border-box; }
 .dx-clear { display: flex; align-items: baseline; gap: 8px; margin: -6px 0 6px; min-height: 18px; }
 .dx-undo-line { margin: 0; font-size: 13px; color: var(--text-mid); }
 .dx-clear-btn { margin-left: auto; }
+
+/* T-98 · a time of day card: its two pickers one above the other at every width (its names are long) */
+.dx-cond.is-time-of-day .dx-cond-top.has-tools { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-auto-flow: row dense; }
+.dx-cond.is-time-of-day .dx-cond-top.has-tools > select:nth-of-type(2) { grid-column: 2 / -1; }
+.dx-cond.is-time-of-day .dx-cond-top:not(.has-tools) { grid-template-columns: minmax(0, 1fr) auto; }
+.dx-cond.is-time-of-day .dx-cond-top:not(.has-tools) > select:nth-of-type(2) { grid-column: 1; grid-row: 2; }
+.dx-tod-hint { margin: 4px 0 0; }

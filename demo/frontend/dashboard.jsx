@@ -19,7 +19,7 @@ import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countComplete, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
-import { ClockNote, ClockSetting, useClock } from "./dashboard-clock.jsx";
+import { ClockContext, ClockNote, ClockSetting, useClock } from "./dashboard-clock.jsx";
 import { ClearFilters, FilterBuilder } from "./dashboard-filter.jsx";
 import * as T from "./filter-tree.js";
 
@@ -69,7 +69,7 @@ function offFor(setup, view) {
 // greyed out right now. A greyed choice is kept on screen (it comes back
 // when the summary is turned off), shown as off with its reason, and not
 // asked about.
-function sendable(setup, view, admin) {
+function sendable(setup, view, admin, zone) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const off = offFor(setup, view);
   // The filter as a tree (T-96): only the cards with their values, no group
@@ -86,6 +86,7 @@ function sendable(setup, view, admin) {
   const matched = view.summary || view.scoreboard ? null : sendableMatched(setup, ds, view.matched, admin);
   if (matched) out.matched = matched;
   else delete out.matched;
+  if (zone) out.zone = zone; // T-98: the question's clock travels inside the question
   return out;
 }
 
@@ -518,7 +519,9 @@ function App() {
 
   // What is actually asked. Editing a condition that is still waiting for
   // its value changes the view but not the question, and asks nothing.
-  const question = useMemo(() => (setup && view ? JSON.stringify(sendable(setup, view, admin)) : null), [setup, view, admin]);
+  // T-98: asked once the clock is known, so no answer is drawn on a clock the page then changes
+  const question = useMemo(() => (setup && view && clock.ready ? JSON.stringify(sendable(setup, view, admin, clock.zone)) : null),
+    [setup, view, admin, clock.ready, clock.zone]);
   // Is the answer on screen the answer to the pick on screen?
   const current = !!answer && !failed && answered === question;
 
@@ -631,7 +634,11 @@ function App() {
   }
   const picks = offered(ds.fields, admin);
 
+  const clockForCards = { zone: clock.zone, label: clock.label,
+    todOps: setup.time_of_day_ops, todLabels: setup.time_of_day_labels, todHints: setup.time_of_day_hints };
+
   return (
+    <ClockContext.Provider value={clockForCards}>
     <div className="dx-shell">
       <header className="dx-header">
         <div className="dx-brand">
@@ -745,6 +752,7 @@ function App() {
         </main>
       </div>
     </div>
+    </ClockContext.Provider>
   );
 }
 

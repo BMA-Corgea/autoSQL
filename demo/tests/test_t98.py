@@ -622,3 +622,14 @@ def test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it():
     assert "RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME" in r.lines[0]
     assert r.lines[1] == "the database does NOT run demo/vendor/runtime.sql — differs: xpr.truthy."
     assert "./run-demo up" in r.lines[2]
+
+
+def test_every_frontend_source_is_in_the_bundles_digest():
+    """The stale-bundle check (test_ui's _UI_SOURCES, build.mjs's SOURCES) only sees the files it
+    lists: a source missing from it can change without the suite noticing (T-96 found one; T-98's
+    clock was the next). Every .jsx / .js under demo/frontend is listed."""
+    import test_ui
+    on_disk = sorted(str(p.relative_to(test_ui._REPO_ROOT)) for p in (test_ui._REPO_ROOT / "demo" / "frontend").iterdir()
+                     if p.suffix in (".jsx", ".js") and p.is_file())
+    missing = [p for p in on_disk if p not in test_ui._UI_SOURCES]
+    assert not missing, f"not in the bundles' digest: {missing}"

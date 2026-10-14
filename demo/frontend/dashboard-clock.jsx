@@ -10,7 +10,28 @@
 // The choice is remembered in this browser for convenience only; the zone a question uses
 // travels inside the question itself, so a shared question reads the same everywhere.
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useEffect, useMemo, useRef, useState } from "react";
+
+// The question's clock for the cards (step 3, count columns): { zone, label, todOps, todLabels }.
+export const ClockContext = createContext(null);
+
+// A UTC time from the data ("2026-08-20T23:00:00Z") as a wall time on the zone's clock, the way a
+// datetime-local input reads it ("2026-08-20T17:00"); the day alone for a date input.
+export function localMinute(text, zone) {
+  if (!text || !/T/.test(text)) return undefined;
+  try {
+    const f = new Intl.DateTimeFormat("en-CA", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit",
+      day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const p = {};
+    for (const x of f.formatToParts(new Date(text))) p[x.type] = x.value;
+    return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+  } catch (_) { return text.slice(0, 16); }
+}
+
+export function localDay(text, zone) {
+  if (!text) return undefined;
+  return /T/.test(text) ? (localMinute(text, zone) || text).slice(0, 10) : text.slice(0, 10);
+}
 
 const KEY = "dx-clock";
 

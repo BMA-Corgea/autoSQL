@@ -753,6 +753,7 @@ _UI_SOURCES = [
     "demo/frontend/dashboard-matched.jsx",
     "demo/frontend/filter-tree.js",
     "demo/frontend/dashboard-filter.jsx",
+    "demo/frontend/dashboard-clock.jsx",
     "demo/frontend/dashboard.jsx",
 ]
 
