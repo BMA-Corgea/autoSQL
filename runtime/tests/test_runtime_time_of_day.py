@@ -148,3 +148,31 @@ def test_across_the_clock_changes(conn):
 
 # Every listed zone: compiler/tests/test_compile_time_of_day.py, where each runs behind the zone guard
 # (a zone whose two clock databases disagree is refused there, by name, before any row is read).
+
+
+# ── T-98: does a database run THIS tree's runtime? (the suite says so at its start) ──
+
+@needs_db
+def test_a_database_running_this_runtime_is_said_to(conn):
+    """this_runtime.install ran in the fixture: every function the file declares is there, as written."""
+    import this_runtime
+    got = this_runtime.compare(conn, this_runtime.RUNTIME_SQL.read_text())
+    assert got["state"] == "same" and got["functions"] == 27, got
+
+
+@needs_db
+def test_a_database_running_another_runtime_is_named_function_by_function(conn):
+    import this_runtime
+    sql = this_runtime.RUNTIME_SQL.read_text()
+    try:
+        conn.execute("CREATE OR REPLACE FUNCTION xpr.div(a float8, b float8) RETURNS float8 "
+                     "LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT a / nullif(b, 0) $$")
+        conn.execute("DROP FUNCTION xpr.time_of_day(jsonb, text)")
+        conn.execute("CREATE FUNCTION xpr.stray() RETURNS int LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 1 $$")
+        got = this_runtime.compare(conn, sql)
+        assert got["state"] == "differs"
+        assert (got["differ"], got["missing"], got["extra"]) == (["xpr.div"], ["xpr.time_of_day"], ["xpr.stray"]), got
+        words = this_runtime.words(got, "demo/vendor/runtime.sql")
+        assert "differs: xpr.div" in words and "missing: xpr.time_of_day" in words and "extra: xpr.stray" in words
+    finally:
+        this_runtime.install(conn)

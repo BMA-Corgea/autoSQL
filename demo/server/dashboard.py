@@ -1692,7 +1692,7 @@ def api_zones() -> JSONResponse:
 
 def _pv_zones_accepted() -> frozenset:
     from picks import env
-    return frozenset(getattr(env.get("evaluator"), "TIME_ZONES", frozenset()))
+    return env.time_zones()
 
 
 @router.post("/api/dashboard/answer")

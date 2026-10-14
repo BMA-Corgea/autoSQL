@@ -395,7 +395,7 @@ def view_zone(view: dict):
     if "zone" not in view:
         return None
     zone = view["zone"]
-    known = getattr(env.get("evaluator"), "TIME_ZONES", frozenset())
+    known = env.time_zones()
     if not isinstance(zone, str) or zone not in known:
         shown = zone if isinstance(zone, str) else "that"
         raise ViewError(f"This page doesn't know the time zone “{shown}”. Pick one from the list.")

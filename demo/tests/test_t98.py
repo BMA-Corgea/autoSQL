@@ -551,3 +551,74 @@ def test_a_count_column_reads_its_questions_clock(page, zone, start, end):
     ids = [col["id"] for col in a["columns"]]
     got = {r[ids.index("group")]: int(r[ids.index("count:1")]) for r in a["rows"]}
     assert got == want and set(want.values()) == {18 if zone == DEN else 24}, (got, want)
+
+
+# ── every compile path gets the zone list (a-chk's MEDIUM on b1) ─────────────
+
+#: time_of_day inside every kind of operand a probe compiles: arithmetic, the
+#: functions whose argument is a number, coalesce, if, a negation, an equality.
+PROBED = [
+    'time_of_day($.ts, "UTC") * 2 > 100',
+    'coalesce(time_of_day($.ts, "UTC"), 0) > 5',
+    'abs(time_of_day($.ts, "America/Denver") - 43200) < 3600',
+    '-time_of_day($.ts, "UTC") < 0',
+    'if(time_of_day($.ts, "UTC") > 0, time_of_day($.ts, "UTC"), 1) / 60 > 1',
+    'time_of_day($.ts, "UTC") + $.payload.load > 61200',
+    'min(time_of_day($.ts, "UTC"), 7200) == 7200',
+    'time_of_day($.ts, "UTC") / 3600 == 17',
+]
+
+
+@pytest.mark.parametrize("src", PROBED)
+def test_a_probe_compiles_time_of_day_behind_the_zone_guard(src):
+    from picks import probes
+    built = probes.build_probes([EXPR.parse(src)])
+    assert built, "this expression has an operand a probe asks about"
+    for p in built:
+        if "xpr.time_of_day(" in p.sql:
+            assert "xpr.zone_checked(" in p.sql, p.sql
+
+
+@pytest.mark.parametrize("src", PROBED)
+def test_the_statement_compiles_it_too(src):
+    built = builder.build(_pick(src), ["ts", "payload"])
+    assert "xpr.zone_checked(" in built.sql
+
+
+# ── the suite says whether the database runs this tree's runtime ─────────────
+
+class _Reporter:
+    def __init__(self):
+        self.lines = []
+
+    def write_line(self, text, **kw):
+        self.lines.append(text)
+
+    def write_sep(self, sep, text, **kw):
+        self.lines.append(f"{sep * 8} {text}")
+
+
+def _conftest():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("t98_conftest", Path(__file__).with_name("conftest.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_a_seat_whose_runtime_is_the_databases_sees_one_quiet_line():
+    ct = _conftest()
+    ct._RUNTIME.update(state="same", words="the database runs demo/vendor/runtime.sql (27 functions, as written)")
+    r = _Reporter()
+    ct._say_runtime(r)
+    assert r.lines == ["runtime check: the database runs demo/vendor/runtime.sql (27 functions, as written)"]
+
+
+def test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it():
+    ct = _conftest()
+    ct._RUNTIME.update(state="differs", words="the database does NOT run demo/vendor/runtime.sql — differs: xpr.truthy")
+    r = _Reporter()
+    ct._say_runtime(r)
+    assert "RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME" in r.lines[0]
+    assert r.lines[1] == "the database does NOT run demo/vendor/runtime.sql — differs: xpr.truthy."
+    assert "./run-demo up" in r.lines[2]

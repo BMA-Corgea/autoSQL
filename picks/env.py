@@ -50,6 +50,14 @@ def get(name: str) -> Any:
     return _ENV[name]
 
 
+def time_zones() -> frozenset:
+    """The zone names ``time_of_day`` may read (T-98): the second engine's own ``TIME_ZONES``,
+    so every statement, probe and view reads exactly the zones the evaluator does.  An
+    evaluator without the function lists none, and ``time_of_day`` is then refused.  The ONE
+    source: every compile path hands this to the gate and the compiler."""
+    return frozenset(getattr(get("evaluator"), "TIME_ZONES", frozenset()))
+
+
 def set_default_records(records: Records) -> None:
     """The description a call reads when it is handed none — for a
     single-owner host.  A description with an owner (a partition) is

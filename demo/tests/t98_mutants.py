@@ -34,6 +34,8 @@ _SQL_CLOCK = "  clock := to_timestamp(sec) AT TIME ZONE zone;"
 _SQL_BARE = "  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;"
 _SQL_SEC = "  sec := floor(ms / 1000.0::float8);"
 _RT = "../runtime/runtime.sql"
+_LOUD = ("    reporter.write_sep(\"=\", \"RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME\", "
+         "yellow=True, bold=True)\n")
 _EV = "vendor/expr.py"
 
 OUTCOME = "../parity/tests/test_t98_outcome.py::test_the_page_keeps_what_hand_written_sql_keeps_in_both_engines"
@@ -123,6 +125,21 @@ T98_MUTANTS = [
     dict(id="B17", defect="the second engine alone reads every zone as UTC",
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("ZoneInfo(zone)", 'ZoneInfo("UTC")'))],
          selector=BATTERY, expect="disagreements"),
+    dict(id="B18", defect="BOTH engines cut a fraction toward zero (a-chk's MT1): before 1970 that rounds UP",
+         edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("math.floor(parsed[0] / 1000.0)", "int(parsed[0] / 1000.0)")),
+                (_RT, _SQL_SEC, "  sec := trunc(ms / 1000.0::float8);")],
+         selector=VECTORS, expect="UTC, exactly 11:59:59 PM"),
+    dict(id="B19", defect="BOTH engines drop the seconds (a-chk's MT2)",
+         edits=[(_EV, _PY_RETURN, "    return float(clock.hour * 3600 + clock.minute * 60)"),
+                (_RT, "          + floor(extract(second from clock)))::float8;", ")::float8;")],
+         selector=VECTORS, expect="Denver, exactly 5:00:45 PM"),
+    dict(id="D1", defect="the probes compile without the zone list (a-chk's MEDIUM on b1: a 500)",
+         edits=[("../picks/probes.py", "    compile_kw = dict(compile_kw, time_zones=env.time_zones())\n", "")],
+         selector=_T + "test_a_probe_compiles_time_of_day_behind_the_zone_guard", expect="Uncompilable"),
+    dict(id="D2", defect="the suite's runtime check says nothing when the runtimes differ",
+         edits=[("tests/conftest.py", _LOUD, "")],
+         selector=_T + "test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it",
+         expect="RUNTIME CHECK: THE DATABASE IS NOT RUNNING"),
     # ── b2: the question's clock, in the view both engines share ─────────
     dict(id="C1", defect="BOTH engines: 'is on' takes the UTC day whatever the question's clock",
          edits=[(_V, "            first, nxt = zones.day_span(d, zone)", '            first, nxt = zones.day_span(d, "UTC")')],

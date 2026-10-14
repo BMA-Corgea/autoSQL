@@ -136,3 +136,21 @@ def test_the_counts_the_owner_will_see(world):
     conn = world[0]
     n = lambda w: conn.execute(f"SELECT count(*) FROM {TABLE} WHERE {w}").fetchone()[0]  # noqa: E731
     assert [n(CASES[k][2]) for k in list(CASES)[:3]] == [50, 350, 350]
+
+
+@needs_db
+def test_a_probe_over_a_time_of_day_runs_and_never_fires(world):
+    """a-chk's MEDIUM on b1: time_of_day inside a probed operand. The probes compile it behind the
+    zone guard, run it on the real Heartbeats, and find nothing out of range (0..86399 never is)."""
+
+    from picks import env, probes
+
+    conn, records, _f, _k = world
+    srcs = ['time_of_day($.ts, "UTC") * 2 > 100', 'coalesce(time_of_day($.ts, "UTC"), 0) > 5',
+            'abs(time_of_day($.ts, "America/Denver") - 43200) < 3600',
+            'time_of_day($.ts, "UTC") + $.payload.load > 61200',
+            'if(time_of_day($.ts, "UTC") > 0, time_of_day($.ts, "UTC"), 1) / 60 > 1']
+    parse = env.get("parser").parse
+    outcomes = probes.check(conn, "noun:Heartbeat", [parse(s) for s in srcs], records=records)
+    assert outcomes and not any(o.fired for o in outcomes)
+    assert any("xpr.zone_checked(" in o.probe.sql for o in outcomes)

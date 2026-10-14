@@ -36,4 +36,4 @@ def test_every_case_equals_its_hand_answer_in_both_engines():
         results = check_picks.run_vectors(conn, VECTORS)
         conn.rollback()
     bad = [(r.name, r.sql, r.python, r.expect) for r in results if not r.ok]
-    assert len(results) == 13 and not bad, bad
+    assert len(results) == 15 and not bad, bad
