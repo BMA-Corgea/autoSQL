@@ -106,79 +106,79 @@ Read it as §0 defines it: a **contract-surface** count — how much of *this te
 | 52 | `boolean/zero_falsy` | `not 0` | accepted | — | — |
 | 53 | `boolean/empty_list_falsy` | `not $.list` | accepted | — | — |
 | 54 | `boolean/nonempty_list_truthy` | `not $.list` | accepted | — | — |
-| 55 | `dates/today_from_now` | `today()` | refused | `today` | `today` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 56 | `dates/now_from_now` | `now()` | refused | `now` | `now` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 57 | `dates/days_between_today_future` | `days_between(today(), $.due)` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 58 | `dates/days_between_reverse_negative` | `days_between("2026-07-02", "2026-07-01")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 59 | `dates/days_between_two_days` | `days_between("2026-07-01", "2026-07-03")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 60 | `dates/days_between_fractional` | `days_between("2026-07-01T12:00:00Z", "2026-07-02T00:00:00Z")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 61 | `dates/days_between_offset_aware` | `days_between("2026-07-01T00:00:00+02:00", "2026-07-01T00:00:00Z")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 62 | `dates/days_between_bad_input_null` | `days_between("bad", "2026-07-01")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 63 | `dates/date_add_days` | `date_add("2026-07-02", 7)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 64 | `dates/date_add_negative` | `date_add("2026-07-02", -2)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 65 | `dates/date_add_datetime_preserves_time` | `date_add("2026-07-02T10:00:00Z", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 66 | `dates/date_add_year_rollover` | `date_add("2026-12-31", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 67 | `dates/date_add_bad_input_null` | `date_add("nope", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 55 | `dates/today_from_now` | `today()` | refused | `today` | `today` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 56 | `dates/now_from_now` | `now()` | refused | `now` | `now` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 57 | `dates/days_between_today_future` | `days_between(today(), $.due)` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 58 | `dates/days_between_reverse_negative` | `days_between("2026-07-02", "2026-07-01")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 59 | `dates/days_between_two_days` | `days_between("2026-07-01", "2026-07-03")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 60 | `dates/days_between_fractional` | `days_between("2026-07-01T12:00:00Z", "2026-07-02T00:00:00Z")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 61 | `dates/days_between_offset_aware` | `days_between("2026-07-01T00:00:00+02:00", "2026-07-01T00:00:00Z")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 62 | `dates/days_between_bad_input_null` | `days_between("bad", "2026-07-01")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 63 | `dates/date_add_days` | `date_add("2026-07-02", 7)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 64 | `dates/date_add_negative` | `date_add("2026-07-02", -2)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 65 | `dates/date_add_datetime_preserves_time` | `date_add("2026-07-02T10:00:00Z", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 66 | `dates/date_add_year_rollover` | `date_add("2026-12-31", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 67 | `dates/date_add_bad_input_null` | `date_add("nope", 1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 68 | `coalesce/second_non_null` | `coalesce($.a, $.b, 0)` | accepted | — | — |
 | 69 | `coalesce/all_missing_default` | `coalesce($.a, $.b, 0)` | accepted | — | — |
 | 70 | `coalesce/all_null_returns_null` | `coalesce($.a, $.b)` | accepted | — | — |
 | 71 | `coalesce/skip_literal_null` | `coalesce(null, 3)` | accepted | — | — |
-| 72 | `strings/lower` | `lower($.s)` | refused | `lower` | `lower` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 73 | `strings/upper` | `upper($.s)` | refused | `upper` | `upper` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 74 | `strings/lower_missing_null` | `lower($.s)` | refused | `lower` | `lower` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 75 | `strings/contains_substring_true` | `contains($.s, "ell")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 76 | `strings/contains_substring_false` | `contains($.s, "xyz")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 77 | `strings/contains_list_member_true` | `contains($.tags, "a")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 78 | `strings/contains_list_member_false` | `contains($.tags, "z")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 79 | `strings/contains_missing_haystack_false` | `contains($.s, "a")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 80 | `strings/concat_literals` | `concat("a", "b", "c")` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 81 | `strings/concat_fields` | `concat($.first, " ", $.last)` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 82 | `strings/concat_with_string_of_number` | `concat("n=", string($.n))` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 83 | `coercion/number_of_string` | `number("3.5")` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 84 | `coercion/number_of_nonnumeric_null` | `number("abc")` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 85 | `coercion/number_of_bool` | `number(true)` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 86 | `coercion/string_of_int` | `string(5)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 87 | `coercion/string_of_float` | `string(3.5)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 88 | `coercion/string_of_bool` | `string(true)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 89 | `coercion/string_of_null` | `string(null)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 72 | `strings/lower` | `lower($.s)` | refused | `lower` | `lower` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 73 | `strings/upper` | `upper($.s)` | refused | `upper` | `upper` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 74 | `strings/lower_missing_null` | `lower($.s)` | refused | `lower` | `lower` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 75 | `strings/contains_substring_true` | `contains($.s, "ell")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 76 | `strings/contains_substring_false` | `contains($.s, "xyz")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 77 | `strings/contains_list_member_true` | `contains($.tags, "a")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 78 | `strings/contains_list_member_false` | `contains($.tags, "z")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 79 | `strings/contains_missing_haystack_false` | `contains($.s, "a")` | refused | `contains` | `contains` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 80 | `strings/concat_literals` | `concat("a", "b", "c")` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 81 | `strings/concat_fields` | `concat($.first, " ", $.last)` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 82 | `strings/concat_with_string_of_number` | `concat("n=", string($.n))` | refused | `concat` | `concat` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 83 | `coercion/number_of_string` | `number("3.5")` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 84 | `coercion/number_of_nonnumeric_null` | `number("abc")` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 85 | `coercion/number_of_bool` | `number(true)` | refused | `number` | `number` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 86 | `coercion/string_of_int` | `string(5)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 87 | `coercion/string_of_float` | `string(3.5)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 88 | `coercion/string_of_bool` | `string(true)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 89 | `coercion/string_of_null` | `string(null)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 90 | `coercion/length_string` | `length($.s)` | accepted | — | — |
 | 91 | `coercion/length_list` | `length($.list)` | accepted | — | — |
 | 92 | `coercion/length_number_null` | `length($.n)` | accepted | — | — |
 | 93 | `numeric_funcs/abs_literal` | `abs(-4)` | accepted | — | — |
 | 94 | `numeric_funcs/abs_field` | `abs($.n)` | accepted | — | — |
-| 95 | `numeric_funcs/floor_pos` | `floor(3.7)` | refused | `floor` | `floor` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 96 | `numeric_funcs/ceil_pos` | `ceil(3.2)` | refused | `ceil` | `ceil` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 97 | `numeric_funcs/floor_neg` | `floor(-3.2)` | refused | `floor` | `floor` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 98 | `numeric_funcs/ceil_neg` | `ceil(-3.2)` | refused | `ceil` | `ceil` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 99 | `numeric_funcs/round_half_up` | `round(2.5)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 100 | `numeric_funcs/round_half_away_from_zero_neg` | `round(-2.5)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 101 | `numeric_funcs/round_down` | `round(2.4)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 102 | `numeric_funcs/round_ndigits` | `round(3.14159, 2)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 103 | `numeric_funcs/round_ndigits_one` | `round(12.345, 1)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 95 | `numeric_funcs/floor_pos` | `floor(3.7)` | refused | `floor` | `floor` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 96 | `numeric_funcs/ceil_pos` | `ceil(3.2)` | refused | `ceil` | `ceil` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 97 | `numeric_funcs/floor_neg` | `floor(-3.2)` | refused | `floor` | `floor` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 98 | `numeric_funcs/ceil_neg` | `ceil(-3.2)` | refused | `ceil` | `ceil` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 99 | `numeric_funcs/round_half_up` | `round(2.5)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 100 | `numeric_funcs/round_half_away_from_zero_neg` | `round(-2.5)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 101 | `numeric_funcs/round_down` | `round(2.4)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 102 | `numeric_funcs/round_ndigits` | `round(3.14159, 2)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 103 | `numeric_funcs/round_ndigits_one` | `round(12.345, 1)` | refused | `round` | `round` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 104 | `aggregates/count_list` | `count($.list)` | accepted | — | — |
 | 105 | `aggregates/count_skips_null` | `count($.list)` | accepted | — | — |
-| 106 | `aggregates/sum_list` | `sum($.list)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 107 | `aggregates/sum_skips_nonnumeric` | `sum($.list)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 108 | `aggregates/avg_list` | `avg($.list)` | refused | `avg` | `avg` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 106 | `aggregates/sum_list` | `sum($.list)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 107 | `aggregates/sum_skips_nonnumeric` | `sum($.list)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 108 | `aggregates/avg_list` | `avg($.list)` | refused | `avg` | `avg` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 109 | `aggregates/min_list` | `min($.list)` | accepted | — | — |
 | 110 | `aggregates/max_list` | `max($.list)` | accepted | — | — |
 | 111 | `aggregates/max_varargs` | `max(1, 5, 3)` | accepted | — | — |
-| 112 | `aggregates/sum_varargs` | `sum(1, 2, 3)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 113 | `aggregates/avg_empty_null` | `avg($.list)` | refused | `avg` | `avg` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 114 | `aggregates/sum_missing_null` | `sum($.empty)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 112 | `aggregates/sum_varargs` | `sum(1, 2, 3)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 113 | `aggregates/avg_empty_null` | `avg($.list)` | refused | `avg` | `avg` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 114 | `aggregates/sum_missing_null` | `sum($.empty)` | refused | `sum` | `sum` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 115 | `conditional/if_true_branch` | `if($.n > 0, "pos", "neg")` | accepted | — | — |
 | 116 | `conditional/if_false_branch` | `if($.n > 0, "pos", "neg")` | accepted | — | — |
 | 117 | `conditional/if_missing_is_false` | `if($.x, 1, 2)` | accepted | — | — |
-| 118 | `composite/near_due_predicate` | `days_between(today(), $.due_date) < 7` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 118 | `composite/near_due_predicate` | `days_between(today(), $.due_date) < 7` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 119 | `composite/result_in_set` | `$.result == "FAIL" or $.result == "ERROR"` | accepted | — | — |
-| 120 | `composite/overdue_label` | `if(days_between(today(), $.due) < 0, "overdue", "ok")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 121 | `composite/days_left_derived` | `days_between(today(), $.due)` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 120 | `composite/overdue_label` | `if(days_between(today(), $.due) < 0, "overdue", "ok")` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 121 | `composite/days_left_derived` | `days_between(today(), $.due)` | refused | `days_between` | `days_between` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
 | 122 | `modulo_fmod/mod_float_fmod` | `10.5 % 3` | refused | `%` | `%` is outside the safe subset -- the only arithmetic this demo compiles is + - * / |
 | 123 | `modulo_fmod/mod_float_ieee` | `0.5 % 0.1` | refused | `%` | `%` is outside the safe subset -- the only arithmetic this demo compiles is + - * / |
 | 124 | `modulo_fmod/mod_large_over_small_positive` | `$.a % $.b` | refused | `%` | `%` is outside the safe subset -- the only arithmetic this demo compiles is + - * / |
-| 125 | `string_ecma/string_small_decimal_not_exp` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 126 | `string_ecma/string_tiny_exp` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 127 | `string_ecma/string_large_int_float` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 128 | `string_ecma/string_neg_small` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 129 | `date_total/date_add_out_of_range_null` | `date_add("9999-12-31", 100000)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
-| 130 | `date_total/date_add_year_padded` | `date_add("0002-01-01", -1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min |
+| 125 | `string_ecma/string_small_decimal_not_exp` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 126 | `string_ecma/string_tiny_exp` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 127 | `string_ecma/string_large_int_float` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 128 | `string_ecma/string_neg_small` | `string($.n)` | refused | `string` | `string` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 129 | `date_total/date_add_out_of_range_null` | `date_add("9999-12-31", 100000)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |
+| 130 | `date_total/date_add_year_padded` | `date_add("0002-01-01", -1)` | refused | `date_add` | `date_add` is outside the safe subset -- the only functions this demo compiles are abs, coalesce, count, if, length, max, min, time_of_day |

@@ -19,7 +19,7 @@ checkout is present at test time).
 
 | vendored file | source (either checkout; both match) | ruling |
 |---|---|---|
-| `expr.py` | `core/dashboard/expr.py` | R4, §9.5 — the second calculator's parser and evaluator |
+| `expr.py` | `core/dashboard/expr.py` **at GIMS commit `344d7b5dd6c7c6fdfe633d2aa4758b0d7e80cdbe`** (see below) | R4, §9.5 — the second calculator's parser and evaluator |
 | `styles/watery.css` | `static/styles/watery.css` | D1, D2 — the `:root` tokens, `.panel`, `.icon-chip`, `.count-pill`, `.btn-primary`, fields, chips, motion |
 | `styles/dashboard.css` | `static/styles/dashboard.css` | D1, D2 — `.w-card` / `.w-head` / `.w-body`, `.w-value-num`, the 6-hue chart palette |
 | `styles/shell.css` | `static/styles/shell.css` | D1, D2 — `.gims-state`, `.gims-spinner` |
@@ -53,6 +53,21 @@ carry dated amendment notes (plus AC-22, a recorded consequence), and `test_vend
 two copies are now *identical*, so nobody can quietly edit either side. T-6 will change the shared
 runtime again (the q5 ruling: pin the float-digit setting, convert the Unicode-digit gap to a named
 refusal), at which point this copy needs a second update.
+
+## `expr.py` is vendored from a GIMS commit (T-98, 2026-10-13)
+
+Until 2026-10-13 `expr.py` was GIMS's copy of 2026-07-02 (GIMS `81e1943`, sha256 `90cbb56d…`), taken
+by autoSQL `34011fc` and never refreshed. GIMS's T-36 (2026-10-01: numbers never non-finite, an AST
+depth limit of 256) never reached it. The drift went unseen because the tree half compared the copy
+with `../GIMS-Project`, a working checkout on another branch that still holds the July file.
+
+T-98 re-vendored it from GIMS branch `t-98/time-of-day`, commit
+**`344d7b5dd6c7c6fdfe633d2aa4758b0d7e80cdbe`** (GIMS `autosql/integration` at `7000bc2`, plus T-98's
+`time_of_day`), sha256 `1f17550d…`. That was ruled under GA-68 (the foreman's Q2: re-vendor GIMS's current
+evaluator; walkthrough step 13's Python pane now answers with a blank instead of raising). The
+tree half of `test_vendor.py` now reads the file AT THAT COMMIT from the GIMS repository
+(`VENDORED_AT_COMMIT`). **Re-pin the commit there and here whenever `expr.py` is re-vendored**, and
+again if the GIMS branch is rebased when it lands.
 
 ## Why whole files, never fragments (D2)
 

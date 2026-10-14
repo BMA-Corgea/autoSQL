@@ -2,10 +2,10 @@
  "format": "gims-pipeline-vectors/1",
  "version": 11,
  "source": {
-  "autosql": "0385e17",
-  "compiler_sha256": "4ec9e6132618f39567000ed66520d1acf2b68ae3099563738cf579381e55013c",
-  "runtime_sha256": "c2151e7acd67ebd367835dc8cbf1d03602da480027dee1493de799f70d34671f",
-  "gims": "2636713 (gims-project-upstream/autosql/integration)"
+  "autosql": "ed77e13 + T-98 b1 (picks/T-98-time-of-day)",
+  "compiler_sha256": "2115fecb83baeb44fb51e23c139acd68e5d7b8ba8216b1b811d1f6b185fce14f",
+  "runtime_sha256": "d4017fbbdbe58684b404c2d1c441fd127bb9c679a36a7a49e3ce8da9c88a3607",
+  "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },
  "noun": "parity_case",
  "key_order": "jsonb",

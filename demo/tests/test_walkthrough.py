@@ -1277,8 +1277,15 @@ def test_ac31_all_three_producers_agree(answers, observed):
 def test_step_13_neither_side_can_read_edge_03s_huge_number():
     """§10 step 13's Python-side claim, checked where it is made.
 
-    ``expected-answers.json`` says ``steps[12].expect.python_pane ==
-    "raised"`` and derives it — without running anything — from two facts
+    T-98 (2026-10-13) re-vendored GIMS's current evaluator, which carries
+    GIMS's T-36: a number past the double range does not coerce, so
+    ``$.huge * 1`` on edge-03 is null — the Python pane ANSWERS, with that
+    cell blank, instead of raising.  Neither side still produces a number
+    for this value; the Python side now says so with a blank rather than an
+    error.  Facts 1 and 2 below are unchanged; fact 3 is the new outcome.
+
+    Before T-98, ``expected-answers.json`` said ``steps[12].expect.python_pane ==
+    "raised"`` and derived it — without running anything — from two facts
     about representations rather than from IEEE-754 arithmetic:
 
       1. jsonb renders its numerics in FULL POSITIONAL DIGITS, so
@@ -1368,35 +1375,40 @@ def test_step_13_neither_side_can_read_edge_03s_huge_number():
         float(huge)
     assert "too large" in str(raised.value)
 
+    # T-98: GIMS's evaluator (T-36) catches that overflow itself: the number
+    # does not coerce, so the product is null and the cell is blank.
     pick = _pick(source=EDGECASE,
                  computed=[{"name": "scaled", "expr": "$.huge * 1"}])
-    with pytest.raises(OverflowError) as from_evaluator:
-        answer(rows, pick)
-    assert "int too large to convert to float" in str(from_evaluator.value), (
-        "STEP 13: GIMS's vendored expr.py no longer raises OverflowError on "
-        f"this pick — it raised {from_evaluator.value!r} instead. The "
-        "Python pane's `raised` state, the note it prints, and "
-        "expected-answers.json's steps[12].expect.python_pane all describe "
-        "that specific raise."
+    try:
+        answered = answer(rows, pick)
+    except OverflowError as exc:
+        pytest.fail(
+            "STEP 13: the vendored expr.py still RAISES on edge-03's `huge` "
+            f"({exc}) — it is the evaluator from before GIMS's T-36, not the "
+            "one demo/manifest.json pins. The Python pane would say `raised`."
+        )
+    scaled = {r["key"]: r["scaled"] for r in answered["rows"]}
+    assert "edge-03" in scaled and scaled["edge-03"] is None, (
+        "STEP 13: GIMS's vendored expr.py no longer leaves edge-03's "
+        f"`scaled` blank — it gave {scaled.get('edge-03', 'no row')!r}. The "
+        "Python pane's `answered` state and expected-answers.json's "
+        "steps[12].expect.python_pane describe a blank for this row."
     )
 
     # ── and the documents say exactly that, in the same words ─────────────
     documented = json.loads(_ANSWERS_JSON.read_text())[
         "steps"][12]["expect"]["python_pane"]["value"]
-    assert documented == "raised", (
+    assert documented == "answered", (
         "STEP 13's DOCUMENTED PYTHON ANSWER IS NOT WHAT PYTHON PRODUCES.\n"
         f"  expected-answers.json says steps[12].expect.python_pane == "
         f"{documented!r}.\n"
         "  Measured above: edge-03's `huge` arrives as a bare 401-digit\n"
         "  INTEGER literal, json.loads returns an exact int for it, and\n"
-        "  GIMS's own expr.py raises OverflowError converting that int to a\n"
-        "  double. No inf is ever created, so the pane's state is `raised`.\n"
-        "  W13-2 (demo/server/app.py, above _fallback_python_pane) rules\n"
-        "  that raise CORRECT: 'neither side can read it' is a stronger and\n"
-        "  truer statement than an inf would be. If this value is being\n"
-        "  changed back, the code would have to start manufacturing an inf\n"
-        "  for an integer literal — which would make the demo lie about\n"
-        "  what Python really does."
+        "  GIMS's own expr.py (T-36, vendored by T-98) declines to make a\n"
+        "  double of it: the product is null, the cell is blank, and the\n"
+        "  pane's state is `answered`. No inf is ever created. Neither side\n"
+        "  produces a number for this value; the Python side says so with a\n"
+        "  blank."
     )
 
 

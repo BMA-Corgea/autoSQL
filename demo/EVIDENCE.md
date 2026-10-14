@@ -2060,3 +2060,14 @@ date. Both are right: the machine's local zone is UTC−6, so the work spans loc
 UTC midnight. **The dates in this file follow the tracker**, whose own passport line for T-22's
 unblock reads `2026-09-09`, so the evidence and the ledger agree. Git author dates are local
 and will read a day earlier for anything done after 18:00 local.
+
+## `expr.py` re-vendored from GIMS's current evaluator — 2026-10-13, T-98
+
+The sha256 values `90cbb56d…` recorded for `demo/vendor/expr.py` above are history. They were GIMS's
+copy of 2026-07-02. T-98 re-vendored GIMS commit `344d7b5dd6c7c6fdfe633d2aa4758b0d7e80cdbe` (T-36
+plus `time_of_day`), sha256 `1f17550d33fdf4f1cb3cd8982e560b3dee3a40beadd4de9390b252586bc32708`,
+ruled under GA-68. One measured behaviour of the walkthrough changed with it: **step 13's Python pane
+now answers, with edge-03's `scaled` blank**, where it used to report `raised` (OverflowError).
+The test, `expected-answers.json` (through `demo/seed/expectations.py`) and `WALKTHROUGH.md` all
+changed together, and the test was seen failing first on the old copy with its own message.
+`demo/vendor/NOTICE.md` records the source commit.

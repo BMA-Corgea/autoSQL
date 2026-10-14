@@ -292,6 +292,13 @@ def _field_path(field: str, *, what: str) -> list[str]:
         ) from None
 
 
+def _zones() -> frozenset:
+    """The zone names time_of_day may read (T-98): the second engine's own TIME_ZONES, so the
+    statement reads exactly the zones the evaluator does.  An evaluator without the function
+    lists none, and time_of_day is then refused."""
+    return frozenset(getattr(env.get("evaluator"), "TIME_ZONES", frozenset()))
+
+
 def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict | None = None) -> Compiled:
     """parse → gate → compile, in that order, always (§4.5: the gate runs
     before compile_ast, on the parsed tree, every time).  ``compile_kw`` is
@@ -303,9 +310,11 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
         ast = _expr.parse(src)
     except _expr.ExprError as exc:
         raise gate.Refused(src, f"the expression does not parse: {exc}") from exc
-    gate.gate(ast)  # Refused propagates with the construct named
+    zones = _zones()
+    gate.gate(ast, zones=zones)  # Refused propagates with the construct named
     try:
-        return compile_ast(ast, column=column, ctx_param=ctx_param, **(compile_kw or {}))
+        return compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
+                           **(compile_kw or {}))
     except _compile.Uncompilable as exc:
         # The gate's allowlist is supposed to make this branch unreachable:
         # every tree it approves is one the pinned compiler compiles.  If

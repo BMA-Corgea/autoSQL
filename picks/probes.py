@@ -208,6 +208,14 @@ def _numeric_call_args(name: str, args: Sequence) -> List:
     return []
 
 
+def _never_probed(node) -> bool:
+    """T-98: a time_of_day(...) value is a whole number from 0 to 86399, or null, by
+    construction in both engines -- never past DBL_MAX (member a) and never an object or an
+    array (member b) -- so it is no operand either probe needs, and compiling one would only
+    carry its zone guard into a query that cannot fire."""
+    return isinstance(node, tuple) and len(node) == 3 and node[0] == "call" and node[1] == "time_of_day"
+
+
 def numeric_context_operands(ast, *, root_is_numeric: bool = False) -> List:
     """The sub-ASTs of *ast* that reach a guarded numeric read, in document
     order, deduplicated.  With root_is_numeric=True the whole AST is itself
@@ -218,7 +226,7 @@ def numeric_context_operands(ast, *, root_is_numeric: bool = False) -> List:
 
     def add(node) -> None:
         key = repr(node)
-        if key not in seen:
+        if key not in seen and not _never_probed(node):
             seen.add(key)
             out.append(node)
 
@@ -267,7 +275,7 @@ def container_check_operands(ast) -> List:
 
     def add(node) -> None:
         key = repr(node)
-        if key not in seen:
+        if key not in seen and not _never_probed(node):
             seen.add(key)
             out.append(node)
 

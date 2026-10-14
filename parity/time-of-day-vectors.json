@@ -1,0 +1,336 @@
+{
+  "format": "pick-vectors/1",
+  "version": 1,
+  "note": "T-98: time of day on a named clock, over invented records, each answer worked out BY HAND from the rules below, never by either engine; run exactly as parity/pick-vectors.json is (check_picks.run_vectors(conn, path)). RULES: (1) time_of_day(t, zone) is the time a wall clock in `zone` shows at the instant t, as whole seconds since that clock's midnight (a fraction of a second dropped): 5:00 PM is 61200, 2:00 AM is 7200, 10:00 PM is 79200. (2) A bare date, text that is no time, and a missing value have no time of day: every comparison with them is false (and `not` of one is true). (3) 'from X' is >= X, so X itself is in; 'until X' is < X, so it stops just before; 'between X and Y' with X later than Y wraps midnight: >= X or < Y. (4) On a day the clocks go back, both readings of 1:30 AM are 1:30 AM. (5) America/Denver is UTC-6 in summer (MDT) and UTC-7 in winter (MST); it changes at 2026-03-08T09:00:00Z and 2026-11-01T08:00:00Z. A day in Denver is the span from its first instant to the next day's, in UTC text: Aug 20 is [2026-08-20T06:00:00Z, 2026-08-21T06:00:00Z). (6) Each record's `why` says where it falls.",
+  "collection": "noun:Clock",
+  "records": [
+    {
+      "key": "C01",
+      "data": {
+        "at": "2026-08-20T23:00:00Z",
+        "why": "Denver Aug 20 5:00:00 PM (MDT, UTC-6); UTC 11:00 PM"
+      }
+    },
+    {
+      "key": "C02",
+      "data": {
+        "at": "2026-08-20T22:59:59Z",
+        "why": "Denver Aug 20 4:59:59 PM"
+      }
+    },
+    {
+      "key": "C03",
+      "data": {
+        "at": "2026-08-21T05:59:59Z",
+        "why": "Denver Aug 20 11:59:59 PM, its last second"
+      }
+    },
+    {
+      "key": "C04",
+      "data": {
+        "at": "2026-08-21T06:00:00Z",
+        "why": "Denver Aug 21 midnight"
+      }
+    },
+    {
+      "key": "C05",
+      "data": {
+        "at": "2026-08-20T04:00:00Z",
+        "why": "Denver Aug 19 10:00 PM"
+      }
+    },
+    {
+      "key": "C06",
+      "data": {
+        "at": "2026-08-20T07:59:59Z",
+        "why": "Denver Aug 20 1:59:59 AM"
+      }
+    },
+    {
+      "key": "C07",
+      "data": {
+        "at": "2026-08-20T08:00:00Z",
+        "why": "Denver Aug 20 2:00 AM"
+      }
+    },
+    {
+      "key": "C08",
+      "data": {
+        "at": "2026-03-08T08:59:59Z",
+        "why": "Denver Mar 8 1:59:59 AM MST, the last second before the clocks go forward"
+      }
+    },
+    {
+      "key": "C09",
+      "data": {
+        "at": "2026-03-08T09:00:00Z",
+        "why": "Denver Mar 8 3:00 AM MDT, the first second after"
+      }
+    },
+    {
+      "key": "C10",
+      "data": {
+        "at": "2026-11-01T07:30:00Z",
+        "why": "Denver Nov 1 1:30 AM MDT, the first 1:30"
+      }
+    },
+    {
+      "key": "C11",
+      "data": {
+        "at": "2026-11-01T08:30:00Z",
+        "why": "Denver Nov 1 1:30 AM MST, the second 1:30"
+      }
+    },
+    {
+      "key": "C12",
+      "data": {
+        "at": "2026-08-20",
+        "why": "a bare date: no time of day"
+      }
+    },
+    {
+      "key": "C13",
+      "data": {
+        "at": "teatime",
+        "why": "text that is no time"
+      }
+    },
+    {
+      "key": "C14",
+      "data": {
+        "why": "no time at all (the key is missing)"
+      }
+    },
+    {
+      "key": "C15",
+      "data": {
+        "at": "2026-08-20T17:00:00Z",
+        "why": "UTC 5:00 PM; Denver 11:00 AM; Kolkata 10:30 PM; Kathmandu 10:45 PM"
+      }
+    },
+    {
+      "key": "C16",
+      "data": {
+        "at": "2026-08-20T10:00:00Z",
+        "why": "Kiritimati (UTC+14) Aug 21 midnight; Etc/GMT+12 (UTC-12) Aug 19 10:00 PM; Denver 4:00 AM"
+      }
+    },
+    {
+      "key": "C17",
+      "data": {
+        "at": "2026-08-20T22:59:59.9Z",
+        "why": "a fraction of a second is dropped: Denver 4:59:59 PM (61199), UTC 10:59:59 PM"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "Denver, from 5:00 PM (5:00:00 itself is in): C01, C03, C05",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"America/Denver\") >= 61200"
+      },
+      "expect": [
+        [
+          "3"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, until 5:00 PM (stops just before it): the 14 with a time, less those 3",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"America/Denver\") < 61200"
+      },
+      "expect": [
+        [
+          "11"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, between 10:00 PM and 2:00 AM, across midnight (2:00 AM itself is out): C03 C04 C05 C06 C08 C10 C11",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "(time_of_day($.at, \"America/Denver\") >= 79200) or (time_of_day($.at, \"America/Denver\") < 7200)"
+      },
+      "expect": [
+        [
+          "7"
+        ]
+      ]
+    },
+    {
+      "name": "The owner's question: Denver, on Aug 20 (06:00Z to the next 06:00Z) and from 5:00 PM: C01, C03",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "($.at >= \"2026-08-20T06:00:00Z\") and ($.at < \"2026-08-21T06:00:00Z\") and (time_of_day($.at, \"America/Denver\") >= 61200)"
+      },
+      "expect": [
+        [
+          "2"
+        ]
+      ]
+    },
+    {
+      "name": "UTC, from 5:00 PM: C01, C02, C15, C17",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"UTC\") >= 61200"
+      },
+      "expect": [
+        [
+          "4"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, the day the clocks go back: both 1:30 AMs read 1:30 AM",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"America/Denver\") == 5400"
+      },
+      "expect": [
+        [
+          "2"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, from 2:00 until 3:00 AM: C07 only (C09 is 3:00 itself, C08 is 1:59:59)",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "(time_of_day($.at, \"America/Denver\") >= 7200) and (time_of_day($.at, \"America/Denver\") < 10800)"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kolkata (UTC+5:30), from 10:00 PM: C15 at 10:30 PM",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"Asia/Kolkata\") >= 79200"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kathmandu (UTC+5:45), exactly 10:45 PM: C15",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"Asia/Kathmandu\") == 81900"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kiritimati (UTC+14), exactly midnight: C16",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"Pacific/Kiritimati\") == 0"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Etc/GMT+12 (UTC-12: the sign runs backwards), from 10:00 PM: C16",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"Etc/GMT+12\") >= 79200"
+      },
+      "expect": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "every value with a time is in some window: the 14",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "time_of_day($.at, \"UTC\") >= 0"
+      },
+      "expect": [
+        [
+          "14"
+        ]
+      ]
+    },
+    {
+      "name": "a bare date, text that is no time and a missing key are in no window: C12, C13, C14",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "off",
+        "filter": "not (time_of_day($.at, \"UTC\") >= 0)"
+      },
+      "expect": [
+        [
+          "3"
+        ]
+      ]
+    }
+  ]
+}

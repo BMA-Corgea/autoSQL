@@ -50,7 +50,9 @@ number that runs clean:
     ``OverflowError`` rather than producing an inf.  Step 13 therefore ends
     in a reported raise, not a printed inf; see W13-2 above
     ``_fallback_python_pane`` in ``demo/server/app.py`` and the correction
-    note beside AC-17 in ``.autodev/specs/T-2.md``.
+    note beside AC-17 in ``.autodev/specs/T-2.md``.  (T-98, 2026-10-13: with
+    GIMS's current evaluator vendored, its T-36 leaves that product null,
+    so step 13's Python pane answers with a blank instead of raising.)
 """
 
 from __future__ import annotations

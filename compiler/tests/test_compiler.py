@@ -154,9 +154,16 @@ def test_the_spike_compiler_is_frozen():
 
 
 def test_the_demo_loads_the_shipping_compiler_not_the_spike():
-    src = (ROOT / "demo/builder.py").read_text(encoding="utf-8")
-    assert '"compiler" / "compile.py"' in src or "compiler/compile.py" in src
-    assert '"spikes" / "T-1" / "proto" / "compile.py"' not in src
+    """The compiler the demo's host registers (T-86: demo/picks_host.py, through picks.env),
+    read from the running modules rather than grepped from a file that has since moved."""
+    for p in (str(ROOT), str(ROOT / "demo")):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    import demo.picks_host  # noqa: F401
+    from picks import env
+    loaded = Path(env.get("compiler").__file__).resolve()
+    assert loaded == (ROOT / "compiler" / "compile.py").resolve(), loaded
+    assert loaded != (ROOT / "spikes" / "T-1" / "proto" / "compile.py").resolve()
 
 
 # ── immunity, with the frozen compiler as the control ─────────────────────
