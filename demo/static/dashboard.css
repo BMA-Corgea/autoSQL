@@ -475,3 +475,74 @@ body.dx-body * { box-sizing: border-box; }
   }
   .dx-clock-item { padding: 10px 8px; }   /* a finger, not a pointer */
 }
+
+/* T-96: the filter builder — groups inside groups, a word between every two items */
+.dx-filter { display: grid; container-type: inline-size; }
+.dx-box { margin: 2px 0 6px; padding: 8px 8px 8px 12px; border-left: 2px solid var(--border2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.dx-box.is-root { margin: 0; padding: 0; border: 0; border-radius: 0; }
+.dx-box.is-odd { background: var(--surface); }
+.dx-box.is-even { background: var(--bg); }
+.dx-box.is-deep { border-left-style: dashed; }
+.dx-box.is-dragging, .dx-item.is-dragging { opacity: .45; }
+.dx-box-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; align-items: center; margin-bottom: 4px; }
+.dx-box-toggle { display: flex; gap: 6px; align-items: baseline; min-width: 0; padding: 4px 2px; font: inherit;
+  font-size: 13px; color: var(--text-mid); background: none; border: 0; cursor: pointer; text-align: left; }
+.dx-box-name { font-weight: 600; color: var(--text); }
+.dx-box-count { color: var(--text-soft); font-size: 12px; white-space: nowrap; }
+.dx-box-caret { color: var(--text-soft); width: 10px; }
+.dx-box-summary { margin: 0 0 2px 28px; font-size: 13px; color: var(--text-mid); overflow-wrap: anywhere; }
+/* a shut group's "not applied yet" sits under its words, not under the handle */
+.dx-box.is-collapsed > .dx-held { margin-left: 28px; }
+.dx-box-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-top: 4px; }
+.dx-box-foot .dx-add-group { width: auto; }
+
+.dx-cond-top.has-tools { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto auto; }
+
+.dx-handle { width: 26px; height: 30px; border: 0; border-radius: var(--radius-sm); background: none; cursor: grab;
+  color: var(--text-soft); font-size: 16px; line-height: 1; touch-action: none; user-select: none; }
+.dx-handle:hover, .dx-handle:focus-visible { background: var(--surface2); color: var(--text); }
+.is-dragging-any .dx-handle { cursor: grabbing; }
+
+.dx-drop { height: 2px; margin: 1px 0; border-radius: 2px; }
+.is-dragging-any .dx-drop { height: 10px; background: var(--surface2); }
+.is-dragging-any .dx-drop.is-over { background: var(--blue); }
+
+.dx-join { position: relative; display: flex; justify-content: center; margin: 2px 0 4px; }
+.dx-join-pill { display: inline-flex; border: 1px solid var(--blue-border); border-radius: 999px; background: var(--blue-light); }
+.dx-join-chip { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--blue-deep);
+  background: none; border: 0; border-radius: 999px 0 0 999px; padding: 3px 10px; cursor: pointer; }
+.dx-join-chip.is-one, .dx-join-chip.is-allnone { letter-spacing: 0; font-weight: 600; }
+.dx-join-more { font: inherit; font-size: 11px; color: var(--blue-deep); background: none; border: 0;
+  border-left: 1px solid var(--blue-border); border-radius: 0 999px 999px 0; padding: 3px 8px; cursor: pointer; }
+
+.dx-item-menu { position: relative; }
+.dx-more { width: 30px; height: 30px; border-radius: 50%; border: 0; background: none; cursor: pointer;
+  font-size: 18px; line-height: 1; color: var(--text-soft); }
+.dx-more:hover { background: var(--surface2); color: var(--text); }
+.dx-menu { position: absolute; z-index: 5; right: 0; top: 100%; min-width: 210px; max-width: min(300px, 80vw);
+  display: grid; padding: 6px; background: var(--card); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0, 0, 0, .12); }
+.dx-join-menu { left: 50%; right: auto; transform: translateX(-50%); }
+.dx-menu-title { margin: 2px 6px 4px; font-size: 12px; color: var(--text-soft); }
+.dx-menu-item { display: grid; gap: 1px; padding: 6px 8px; font: inherit; font-size: 13px; text-align: left;
+  color: var(--text); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.dx-menu-item:hover:not(:disabled), .dx-menu-item:focus-visible { background: var(--blue-light); }
+.dx-menu-item:disabled { color: var(--text-soft); cursor: default; }
+.dx-menu-item.is-danger { color: var(--red-text); }
+.dx-menu-word { font-weight: 600; }
+.dx-menu-note { font-size: 12px; color: var(--text-soft); }
+
+/* narrow by the builder's own width (a phone, or a count column beside the answer): the condition's
+   picker takes its own row, and each level indents less */
+@container (max-width: 380px) {
+  .dx-box { padding-left: 8px; }
+  .dx-box .dx-box .dx-box .dx-box { padding-left: 5px; padding-right: 4px; }
+  .dx-cond-top.has-tools { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-auto-flow: row dense; }
+  .dx-cond-top.has-tools > select:nth-of-type(2) { grid-column: 2 / -1; }
+}
+
+/* T-97: Clear filters, and its Undo */
+.dx-clear { display: flex; align-items: baseline; gap: 8px; margin: -6px 0 6px; min-height: 18px; }
+.dx-undo-line { margin: 0; font-size: 13px; color: var(--text-mid); }
+.dx-clear-btn { margin-left: auto; }

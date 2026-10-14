@@ -750,6 +750,9 @@ _UI_SOURCES = [
     "demo/frontend/dashboard-steps.jsx",
     "demo/frontend/dashboard-admin.jsx",
     "demo/frontend/dashboard-scoreboard.jsx",
+    "demo/frontend/dashboard-matched.jsx",
+    "demo/frontend/filter-tree.js",
+    "demo/frontend/dashboard-filter.jsx",
     "demo/frontend/dashboard.jsx",
 ]
 
