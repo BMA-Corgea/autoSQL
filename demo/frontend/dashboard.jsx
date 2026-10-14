@@ -19,7 +19,7 @@ import { AdminPanel } from "./dashboard-admin.jsx";
 import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countComplete, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
-import { FilterBuilder } from "./dashboard-filter.jsx";
+import { ClearFilters, FilterBuilder } from "./dashboard-filter.jsx";
 import * as T from "./filter-tree.js";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
@@ -691,6 +691,7 @@ function App() {
               one: ds.one, many: ds.name.toLowerCase(),
             } : null}
           >
+            <ClearFilters value={view.filter} onChange={(filter) => change({ filter })} />
             <FilterBuilder
               fields={picks}
               shown={view.columns}

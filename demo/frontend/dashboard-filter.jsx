@@ -282,3 +282,45 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
     </div>
   );
 }
+
+// ── T-97: Clear filters, with an Undo for a few seconds ──────────────────
+//
+// Clear takes out every card and group of step 3 (nothing else on the page). For UNDO_MS an Undo puts
+// back exactly what was there — the same tree, so every card, group, join and shut group returns. The
+// Undo goes as soon as the filter changes again (a new card, another data set): it never overwrites
+// what was done after the clear.
+
+export const UNDO_MS = 8000;
+
+export function ClearFilters({ value, onChange }) {
+  const [undo, setUndo] = React.useState(null); // { before, cleared }
+  React.useEffect(() => {
+    if (!undo) return undefined;
+    const t = setTimeout(() => setUndo(null), UNDO_MS);
+    return () => clearTimeout(t);
+  }, [undo]);
+  const live = !!undo && value === undo.cleared;
+  const clear = () => {
+    const cleared = T.newBox();
+    setUndo({ before: value, cleared });
+    onChange(cleared);
+  };
+  return (
+    <div className="dx-clear">
+      <p className="dx-undo-line" role="status" aria-live="polite">
+        {live ? (
+          <>
+            Filters cleared.{" "}
+            <button type="button" className="dx-link" data-action="undo-clear"
+              onClick={() => { onChange(undo.before); setUndo(null); }}>Undo</button>
+          </>
+        ) : null}
+      </p>
+      {value.items.length && !live ? (
+        <button type="button" className="dx-link dx-clear-btn" data-action="clear-filters" onClick={clear}>
+          Clear filters
+        </button>
+      ) : null}
+    </div>
+  );
+}
