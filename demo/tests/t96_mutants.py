@@ -49,8 +49,7 @@ T96_MUTANTS = [
          selector=_M + "test_the_parsers_depth_64_is_answered_and_65_refused_in_words",
          expect="65 deep was not refused in words"),
     dict(id="R7", defect="the length limit off by one (2,000 characters refused)",
-         edits=[(V, '    if len(expr) > getattr(parser, "MAX_SOURCE_LEN", 2000):',
-                 '    if len(expr) >= getattr(parser, "MAX_SOURCE_LEN", 2000):')],
+         edits=[(V, '    if len(expr) > _source_limit():', '    if len(expr) >= _source_limit():')],
          selector=_M + "test_a_filter_of_2000_characters_is_answered_and_2001_refused_in_words",
          expect="This filter is too long to check"),
     dict(id="R8", defect="the old flat form is read without its logic (any / exactly one / all or none → all)",
@@ -74,6 +73,13 @@ T96_MUTANTS = [
     dict(id="R12", defect="the tree's own depth limit off by one (64 groups refused)",
          edits=[(V, "        if depth > limit:", "        if depth >= limit:")],
          selector=_M + "test_a_tree_64_groups_deep_is_answered_and_65_refused_in_words", expect="assert (422 == 200"),
+    dict(id="R13", defect="a box is built before it is measured (nested 'all or none' doubles at every level)",
+         edits=[(V, "    if composed_length([len(e) for e, _ in parts], logic) > _source_limit():\n        raise ViewError(TOO_LONG)\n", "")],
+         selector=_M + "test_forty_nested_all_or_none_groups_are_refused_in_words_without_building_them",
+         expect="the request did not finish (memory capped at 1.5 GB)"),
+    dict(id="R14", defect="'all or none of' measured as if its sum were written once",
+         edits=[(V, "    return 2 * total + 17 + len(str(n))", "    return total + 17 + len(str(n))")],
+         selector=_M + "test_a_filter_is_measured_exactly_as_it_would_be_built", expect="('allnone', 2)"),
 ]
 
 

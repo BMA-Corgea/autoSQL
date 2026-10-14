@@ -853,6 +853,25 @@ def compose(exprs: list, logic: str) -> str | None:
     return f"({total} == 0) or ({total} == {len(exprs)})"
 
 
+def composed_length(lengths: list, logic: str) -> int:
+    """How long :func:`compose` would make its text, from its parts' lengths
+    alone — so a filter is measured before it is built (T-96: "all or none"
+    writes its sum twice, and one inside another doubles at every level)."""
+    n = len(lengths)
+    if not n:
+        return 0
+    if n == 1 and logic in ("all", "any"):
+        return lengths[0]
+    if logic == "all":
+        return sum(lengths) + 2 * n + 5 * (n - 1)
+    if logic == "any":
+        return sum(lengths) + 2 * n + 4 * (n - 1)
+    total = sum(lengths) + 10 * n + 3 * (n - 1) + 2
+    if logic == "one":
+        return total + 5
+    return 2 * total + 17 + len(str(n))
+
+
 def joined_words(said: list, logic: str) -> str:
     """The conditions as the sentence says them, joined by their logic."""
     if len(said) == 1:
@@ -953,7 +972,16 @@ def _box(box: dict, fields: dict, where: str) -> tuple:
     logic = _logic(box.get("join"), len(parts), where)
     if not parts:
         return None, None, 0
+    # Measured before it is built: every part is already within the limit,
+    # so no box ever builds a text much longer than the limit allows.
+    if composed_length([len(e) for e, _ in parts], logic) > _source_limit():
+        raise ViewError(TOO_LONG)
     return (compose([e for e, _ in parts], logic), joined_words([w for _, w in parts], logic), len(parts))
+
+
+def _source_limit() -> int:
+    """The longest text the parser both engines use will read."""
+    return getattr(env.get("parser"), "MAX_SOURCE_LEN", 2000)
 
 
 def checked_filter(expr: str | None) -> str | None:
@@ -964,7 +992,7 @@ def checked_filter(expr: str | None) -> str | None:
     if expr is None:
         return None
     parser = env.get("parser")
-    if len(expr) > getattr(parser, "MAX_SOURCE_LEN", 2000):
+    if len(expr) > _source_limit():
         raise ViewError(TOO_LONG)
     try:
         parser.parse(expr)

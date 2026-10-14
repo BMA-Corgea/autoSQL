@@ -341,9 +341,12 @@ def _long(setup, length):
     base = len(_raw(tree("any", *cards), fields))
     pad = length - base
     assert pad > -40, "the base tree is already too long for this length"
-    cards[-1] = card("status", "eq", "w" * (40 + pad))
+    cards[-1] = card("status", "eq", "w" * (40 + min(pad, 2000 - base)))
     t = tree("any", *cards)
-    assert len(_raw(t, fields)) == length
+    assert len(_raw(t, fields)) == min(length, 2000)
+    if length > 2000:
+        # one more character in one value: the text is one longer (it can't be composed to measure it)
+        t["items"][-1] = card("status", "eq", t["items"][-1]["value"] + "w" * (length - 2000))
     return t
 
 
@@ -445,3 +448,88 @@ def test_a_count_columns_tree_equals_hand_sql(client, setup, conn):
     ids = [c["id"] for c in a["columns"]]
     got = {r[ids.index("group")]: int(r[ids.index("count:1")]) for r in a["rows"]}
     assert got == want, "a count column's tree counted other rows than hand SQL"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# 8 · A filter's size is checked before it is built (the foreman's HIGH, availability)
+# ═════════════════════════════════════════════════════════════════════════
+#
+# "All or none of" writes its sum twice, so one inside another doubles the text at every level: 40 of
+# them would be ~2^40 characters. It must be refused in words the moment a box would pass 2,000
+# characters — never built. Run in a subprocess with its memory and time capped, so a regression
+# fails this test instead of the machine.
+
+_DOUBLING = r"""
+import json, resource, sys
+resource.setrlimit(resource.RLIMIT_AS, (1_500_000_000, 1_500_000_000))
+sys.path[:0] = [sys.argv[1], sys.argv[1] + "/demo"]
+import demo.picks_host  # noqa
+from fastapi.testclient import TestClient
+from demo.server import app
+c = TestClient(app.app)
+warn = {"field": "status", "op": "eq", "value": "warn", "value2": "", "values": []}
+t = {"join": "allnone", "items": [warn, warn]}
+for _ in range(39):
+    t = {"join": "allnone", "items": [t, warn]}
+where = sys.argv[2]
+v = {"dataset": "heartbeats", "columns": [], "sort": None, "show": None, "summary": None}
+if where == "question":
+    v["filter"] = {"version": 1, "join": "all", "items": [t]}
+else:
+    v["scoreboard"] = {"by": "sender_id", "counts": [
+        {"label": "Odd", "pct": False, "filter": {"version": 1, "join": "all", "items": [t]}}]}
+r = c.post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": True})
+print(json.dumps([r.status_code, r.json().get("message")]))
+"""
+
+
+@pytest.mark.parametrize("where", ["question", "count column"])
+def test_forty_nested_all_or_none_groups_are_refused_in_words_without_building_them(where):
+    import subprocess
+    try:
+        out = subprocess.run([sys.executable, "-c", _DOUBLING, str(_REPO_ROOT), where], capture_output=True,
+                             text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        pytest.fail("the filter was still being built after 60 s: its size is not checked before it is built")
+    assert out.returncode == 0, f"the request did not finish (memory capped at 1.5 GB): {out.stderr[-400:]}"
+    assert json.loads(out.stdout.strip().splitlines()[-1]) == [422, pview.TOO_LONG], out.stdout[-300:]
+
+
+@pytest.mark.parametrize("logic", ["all", "any", "one", "allnone"])
+def test_a_filter_is_measured_exactly_as_it_would_be_built(logic):
+    """The length a box is refused on is the length compose would write, to the character."""
+    import random
+    rnd = random.Random(96)
+    for n in range(1, 8):
+        if logic in ("one", "allnone") and n < 2:
+            continue
+        for _ in range(20):
+            parts = ["x" * rnd.randint(1, 120) for _ in range(n)]
+            assert pview.composed_length([len(p) for p in parts], logic) == len(pview.compose(parts, logic)), (logic, n)
+
+
+def test_the_parsers_syntax_tree_depth_256_passes_and_257_is_refused_in_words():
+    """T-36's limit, which the re-vendored parser brings into both engines: a syntax tree deeper than 256 is
+    a syntax error. Measured by the parser's own count; past it, the page's words, never a parse error."""
+    parser = env.get("parser")
+
+    def text(n):
+        return "$.status == " + "-" * n + "1"
+
+    n = next(k for k in range(200, 300) if parser._ast_depth(parser.parse(text(k))) == 256)
+    assert pview.checked_filter(text(n)) == text(n)
+    with pytest.raises(pview.ViewError) as refused:
+        pview.checked_filter(text(n + 1))
+    assert str(refused.value) == pview.TOO_DEEP
+
+
+def test_no_tree_the_page_can_send_reaches_that_depth(setup):
+    """The deepest syntax tree a filter can compose inside 2,000 characters and 64 brackets (searched under a
+    memory cap: nested "exactly one of" groups, two items a level, 27 levels) is 109 deep — far from 256."""
+    fields = _heartbeat_fields(setup)
+    t = None
+    for _ in range(27):
+        t = box("one", *([t] if t else []), card("status", "eq", "a"), *([] if t else [card("status", "eq", "a")]))
+    text = _raw(tree("all", t), fields)
+    depth = env.get("parser")._ast_depth(env.get("parser").parse(text))
+    assert len(text) <= 2000 and depth < 256, (len(text), depth)
