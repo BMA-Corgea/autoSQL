@@ -171,11 +171,15 @@ def test_a_probe_operand_too_big_to_check_refuses_the_pick_by_name(monkeypatch):
     """Inside an `==` an operand is compiled compactly; a probe compiles it on its own, inline, and
     it comes out larger (measured: 3,905 characters against the whole filter's 2,176). With the
     budget between the two the statement is built and the probe is not: refused, never a 500."""
-    from picks import legality
+    from picks import builder, legality, probes
     C = _compiler()
-    monkeypatch.setattr(C, "MAX_SQL_CHARS", 3000)
     p = legality.default_pick()
     p.update({"source": "noun:Heartbeat", "filter": "($.payload.load + $.payload.load + $.payload.load) == 1"})
+    statement = len(builder.build(p, ["sender_id", "ts", "status", "payload"]).sql)
+    ops = probes.numeric_context_operands(env.get("parser").parse(p["filter"]))
+    operand = max(len(C.compile_ast(o, time_zones=frozenset()).sql) for o in ops)
+    assert operand > statement, (operand, statement)      # the probe's piece is the bigger one
+    monkeypatch.setattr(C, "MAX_SQL_CHARS", statement)    # the statement fits exactly; the probe can't
     r = _client().post("/api/pick", json=p)
     assert r.status_code == 422, r.text[:300]
     ref = r.json()["refusal"]
