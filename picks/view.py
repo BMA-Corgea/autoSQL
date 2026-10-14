@@ -360,7 +360,7 @@ def _name(value):
 #: condition and sort.  Anything else is REFUSED by name, never ignored: a
 #: choice the page shows but the answer drops would be a pick silently
 #: ignored, which is the one thing this page must never do.
-VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "sort", "show", "summary",
+VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "filter", "sort", "show", "summary",
              "scoreboard", "matched"}
 
 
@@ -867,16 +867,156 @@ def joined_words(said: list, logic: str) -> str:
     return f"all or none of: {listed}"
 
 
-def filter_expression(view: dict, fields: dict) -> str | None:
-    """Every condition on the page, joined by the page's logic (default
-    all): ``(a) and (b)``."""
-    conds = _conditions(view, fields)
-    parts = [expr for expr, _ in conds]
+# ── T-96: the filter is a tree of boxes, any depth ──────────────────────
+#
+# ``{"version": 1, "join": "all", "items": [card, {"join": "any", "items": [...]}, ...]}``:
+# a box joins its items by one of LOGICS; an item with ``items`` is a box,
+# any other item is a card (a condition).  Stored in the pick as it is sent,
+# so a host (GIMS T-91) keeps it with no migration.  The old flat
+# ``{conditions, logic}`` is read as a one-box tree.  The tree composes into
+# ONE expression of the language both engines share (compose, recursively):
+# neither engine has a rule of its own for it.
+
+FILTER_VERSION = 1
+FILTER_KEYS = {"version", "join", "items"}
+BOX_KEYS = {"join", "items"}
+
+#: How the screen's chip between two items names each join.
+JOIN_CHIPS = {"all": "AND", "any": "OR", "one": "exactly one of", "allnone": "all or none of"}
+
+#: A tree deeper than this is refused before it is walked (a box of one
+#: adds no bracket, so the text's own depth can't bound the tree's).
+MAX_GROUP_DEPTH = 64
+
+TOO_LONG = "This filter is too long to check. Take out a condition or a group."
+TOO_DEEP = "These groups go too deep to check. Take a group out of another."
+TOO_MANY_IN_A_ROW = "This filter joins too many conditions in one row to check. Put some of them in groups."
+CANT_CHECK = "This filter can't be checked as it is. Take out the last condition or group you added."
+
+
+def filter_tree(holder: dict, what: str = "A question") -> dict:
+    """The filter a question (or a count column) asks for, as its root box
+    ``{"join", "items"}`` — the tree as sent, or the old flat form read as one box."""
+    flt = holder.get("filter")
+    conds, logic = holder.get("conditions"), holder.get("logic")
+    if flt is not None:
+        if not _empty(conds) or logic is not None:
+            raise ViewError(f"{what} sends its filter once.")
+        if not isinstance(flt, dict):
+            raise ViewError("A filter must be a set of choices.")
+        _refuse_extra(flt, FILTER_KEYS, "a filter")
+        version = flt.get("version")
+        if type(version) is not int or version != FILTER_VERSION:
+            raise ViewError(f"This page reads filters of version {FILTER_VERSION}.")
+        if not isinstance(flt.get("items"), list):
+            raise ViewError("A filter's items must be a list.")
+        return {"join": flt.get("join"), "items": flt["items"]}
+    if conds is None:
+        conds = []
+    if not isinstance(conds, list):
+        raise ViewError("Conditions must be a list.")
+    return {"join": logic, "items": conds}
+
+
+def _deeper_than(items: list, limit: int) -> bool:
+    """Is any box more than ``limit`` levels below the root?  Walked without
+    recursion, so a hostile tree is refused in words, never by a stack."""
+    stack = [(items, 0)]
+    while stack:
+        its, depth = stack.pop()
+        if depth > limit:
+            return True
+        for it in its if isinstance(its, list) else []:
+            if isinstance(it, dict) and isinstance(it.get("items"), list):
+                stack.append((it["items"], depth + 1))
+    return False
+
+
+def _box(box: dict, fields: dict, where: str) -> tuple:
+    """One box → (its expression, its words, how many live items).  A box
+    that holds nothing adds nothing; a box of one is that one item."""
+    parts = []
+    for item in box["items"]:
+        if isinstance(item, dict) and "items" in item:
+            _refuse_extra(item, BOX_KEYS, "a group")
+            if not isinstance(item["items"], list):
+                raise ViewError("A group's items must be a list.")
+            expr, words, n = _box(item, fields, "A group")
+            if expr is None:
+                continue
+            # a group of two or more reads in brackets in the sentence
+            parts.append((expr, f"({words})" if n >= 2 else words))
+        else:
+            if not isinstance(item, dict) or _name(item.get("field")) not in fields:
+                raise ViewError("A condition names a field this data set doesn't have.")
+            parts.append(condition(fields[item["field"]], item))
+    logic = _logic(box.get("join"), len(parts), where)
     if not parts:
-        if view.get("logic") not in (None, "all"):
-            _logic(view.get("logic"), 0, "Only rows where")
+        return None, None, 0
+    return (compose([e for e, _ in parts], logic), joined_words([w for _, w in parts], logic), len(parts))
+
+
+def checked_filter(expr: str | None) -> str | None:
+    """A composed filter, measured as the engines will measure it — by the
+    parser both use — and refused in words past any of its limits: its
+    length, its brackets' depth, its syntax tree's depth.  Never a parse
+    error on screen."""
+    if expr is None:
         return None
-    return compose(parts, _logic(view.get("logic"), len(parts), "Only rows where"))
+    parser = env.get("parser")
+    if len(expr) > getattr(parser, "MAX_SOURCE_LEN", 2000):
+        raise ViewError(TOO_LONG)
+    try:
+        parser.parse(expr)
+    except Exception as exc:  # noqa: BLE001 — every parser refusal is said in words
+        said = str(exc).lower()
+        if "nesting" in said:
+            raise ViewError(TOO_DEEP) from None
+        if "deep" in said or "depth" in said:
+            raise ViewError(TOO_MANY_IN_A_ROW) from None
+        raise ViewError(CANT_CHECK) from None
+    return expr
+
+
+def filter_parts(holder: dict, fields: dict, what: str = "A question", where: str = "Only rows where") -> tuple:
+    """(expression, words) of the filter a question or a count column asks
+    for — (None, None) when it asks for none.  Every limit is checked."""
+    tree = filter_tree(holder, what)
+    if _deeper_than(tree["items"], MAX_GROUP_DEPTH):
+        raise ViewError(TOO_DEEP)
+    expr, words, _n = _box(tree, fields, where)
+    return checked_filter(expr), words
+
+
+def filter_expression(view: dict, fields: dict) -> str | None:
+    """The page's filter as one expression: ``(a) and ((b) or (c))``."""
+    return filter_parts(view, fields)[0]
+
+
+def filter_words(view: dict, fields: dict) -> str | None:
+    """The page's filter as the sentence says it: ``Time is on Aug 20 and
+    (Status is warn or Status is error)``."""
+    return filter_parts(view, fields)[1]
+
+
+def filter_fields(holder: dict) -> list:
+    """Every field a filter's cards name, at any depth, the tree as sent or
+    the old flat form — for the Everyone view's hidden-field rule.  Lenient:
+    what is malformed is refused where the filter is read."""
+    out, stack = [], []
+    flt = holder.get("filter")
+    for items in ((flt.get("items") if isinstance(flt, dict) else None), holder.get("conditions")):
+        if isinstance(items, list):
+            stack.append(items)
+    while stack:
+        for it in stack.pop():
+            if isinstance(it, dict):
+                if "items" in it:
+                    if isinstance(it["items"], list):
+                        stack.append(it["items"])
+                else:
+                    out.append(it.get("field"))
+    return out
 
 
 #: How each kind reads a sort direction.
@@ -1059,7 +1199,7 @@ def plural(n: int, one: str, many: str | None = None) -> str:
 SCOREBOARD_KEYS = {"by", "count_from", "counts", "time", "measure", "sort"}
 
 
-COUNT_KEYS = {"id", "label", "logic", "conditions", "pct"}
+COUNT_KEYS = {"id", "label", "logic", "conditions", "filter", "pct"}
 
 
 #: A count column's id: the handle the screen keeps for it, echoed back in
@@ -1130,16 +1270,14 @@ def _same_name(label: str) -> str:
 
 
 def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
-    conds = c.get("conditions")
-    if not isinstance(conds, list) or not conds:
+    # T-96: a count column's filter is a tree too (``filter``), or the old
+    # flat ``{conditions, logic}``; either way it needs a condition.
+    if c.get("filter") is None and not isinstance(c.get("conditions"), list):
         raise ViewError(f"{where} needs at least one condition.")
-    parsed = []
-    for cond in conds:
-        if not isinstance(cond, dict) or _name(cond.get("field")) not in fields:
-            raise ViewError("A condition names a field this data set doesn't have.")
-        parsed.append(condition(fields[cond["field"]], cond))
-    logic = _logic(c.get("logic"), len(parsed), where)
-    return compose([e for e, _ in parsed], logic), joined_words([w for _, w in parsed], logic)
+    expr, words = filter_parts(c, fields, where, where)
+    if expr is None:
+        raise ViewError(f"{where} needs at least one condition.")
+    return expr, words
 
 
 def _count_from(catalog: "Catalog", setup_payload: dict, ds: dict, fields: dict, count_from, admin: bool,
@@ -1229,8 +1367,8 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
     if not admin:
         # Everyone never picks a field hidden from it, here either (T-77).
         for c in sb.get("counts") or []:
-            for x in (c.get("conditions") if isinstance(c, dict) and isinstance(c.get("conditions"), list) else []):
-                f = counted_fields.get(_name(x.get("field")) if isinstance(x, dict) else None)
+            for name in (filter_fields(c) if isinstance(c, dict) else []):
+                f = counted_fields.get(_name(name))
                 if f and f.get("hidden_by_default"):
                     raise ViewError(f"{f['label']} isn't offered in this view.")
 

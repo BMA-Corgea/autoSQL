@@ -65,7 +65,7 @@ from picks.view import (  # noqa: E402  (T-86: the view layer moved to picks/vie
     SUMMARY_FNS, SUMMARY_KEYS, PERS, _summary, _PLAIN_REASONS, _PLAIN_REASON_DEFAULT, field_ref,
     string_literal, number_literal, _DAY_RE, _MINUTE_RE, _day, _instant, OP_WORDS, IN_LIMIT,
     _value_for, said_text, _order_key, condition, _conditions, LOGICS, WHY_LOGIC_NEEDS_TWO, _logic,
-    compose, joined_words, filter_expression, SORT_WORDS, _sort, sort_words, _MONTHS, fmt_time,
+    compose, joined_words, filter_expression, filter_words, filter_fields, FILTER_VERSION, JOIN_CHIPS, SORT_WORDS, _sort, sort_words, _MONTHS, fmt_time,
     fmt_date, fmt_day, _number_text, _PLAIN_MAX_ADJUSTED, _PLAIN_MIN_ADJUSTED, _normal, fmt_number,
     _plain_json, fmt_cell, plural, SCOREBOARD_KEYS, COUNT_KEYS, COUNT_ID_MAX, TIME_KEYS,
     MEASURE_KEYS, COUNT_FROM_KEYS, MATCH_TYPE_OF_KIND, _KIND_WORDS, SB_SORT_KEYS, TIME_WORDS,
@@ -316,6 +316,9 @@ def setup(conn) -> dict:
             "sort_words": SORT_WORDS,
             "summary_fns": SUMMARY_FNS,
             "logics": LOGICS,
+            # T-96: the filter's tree, and how the chip between two items reads
+            "filter_version": FILTER_VERSION,
+            "join_chips": JOIN_CHIPS,
             # How the condition picker names each condition, where that needs
             # more than the sentence's word: a row WITHOUT the field is "not"
             # the value picked, so it is counted.
@@ -504,9 +507,9 @@ def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> 
     """The question without its answer: ``Heartbeats where Status is warn,
     newest first``."""
     head = ds["name"]
-    said = [words for _, words in _conditions(view, fields)]
+    said = filter_words(view, fields)
     if said:
-        head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
+        head += " where " + said
     order = sort_words(view, fields) if sort else ""
     if order:
         head += ", " + order
@@ -802,8 +805,7 @@ def _refuse_hidden(view: dict, fields: dict) -> None:
     field or a scoreboard's group.  A count's conditions and a match are
     checked in to_spec, which knows the counted data set."""
     named = list(view.get("columns") or []) if isinstance(view.get("columns"), list) else []
-    conds = view.get("conditions")
-    named += [c.get("field") for c in conds if isinstance(c, dict)] if isinstance(conds, list) else []
+    named += filter_fields(view)     # T-96: every card, at any depth
     for part, key in (("sort", "field"), ("summary", "field"), ("scoreboard", "by")):
         if isinstance(view.get(part), dict):
             named.append(view[part].get(key))
@@ -1263,9 +1265,9 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
     # "Senders, one row each" — never "Senders per Sender" (S11 check, LOW 3).
     own_key = by["path"] in {r["parent_key"] for r in RELATIONS.get(ds["id"], [])}
     head = ds["name"] if own_key else f"{ds['name']} per {by['label']}"
-    said = [w for _, w in _conditions(view, fields)]
+    said = filter_words(view, fields)
     if said:
-        head += " where " + joined_words(said, _logic(view.get("logic"), len(said), "Only rows where"))
+        head += " where " + said
     relation = about["relation"]
     if rel_ds is not None:
         head += f", counting their {rel_ds['name']}"
