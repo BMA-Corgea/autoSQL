@@ -6,6 +6,7 @@
 // offers and reports which one was clicked. It decides nothing.
 
 import React from "react";
+import { key } from "./filter-tree.js";
 
 export function Step({ n, title, hint, children }) {
   return (
@@ -101,12 +102,12 @@ export function isComplete(c, field) {
   return has(c.value);
 }
 
-let nextKey = 1;
-
 export function freshCondition(field) {
   // _k is the screen's own handle on the row (so removing one row never
   // hands its neighbour's half-typed value to another); it is not sent.
-  return { _k: nextKey++, field: field.path, op: field.ops[0], value: "", value2: "", values: [] };
+  // One counter with the filter's groups (filter-tree.js), so a card and a
+  // group never share a handle.
+  return { _k: key(), field: field.path, op: field.ops[0], value: "", value2: "", values: [] };
 }
 
 function toMinute(text) {
@@ -253,7 +254,7 @@ function ValueControl({ field, c, set }) {
   return one("value", label);
 }
 
-function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held }) {
+export function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held, lead, tools }) {
   const field = fields.find((f) => f.path === c.field);
   const set = (patch) => onChange({ ...c, ...patch });
   // "held": complete, but not applied, because the set's logic is not ready
@@ -261,7 +262,8 @@ function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held }) {
   const ready = isComplete(c, field) && !held;
   return (
     <div className={"dx-cond" + (ready ? "" : " is-waiting")} data-condition={index}>
-      <div className="dx-cond-top">
+      <div className={"dx-cond-top" + (lead || tools ? " has-tools" : "")}>
+        {lead || null}
         <select className="dx-select" aria-label="Field" value={c.field}
           onChange={(e) => onChange({ ...freshCondition(fields.find((f) => f.path === e.target.value)), _k: c._k })}>
           {fields.map((f) => (
@@ -274,6 +276,7 @@ function ConditionRow({ fields, c, opWords, onChange, onRemove, index, held }) {
           onChange={(e) => set({ op: e.target.value, value: "", value2: "", values: c.op === "eq" && e.target.value === "in" && c.value ? [c.value] : [] })}>
           {field.ops.map((op) => <option key={op} value={op}>{opWords[op]}</option>)}
         </select>
+        {tools || null}
         <button type="button" className="dx-remove" aria-label="Remove this condition" onClick={onRemove}>×</button>
       </div>
       <ValueControl key={c.field + ":" + c.op} field={field} c={c} set={set} />
@@ -292,7 +295,7 @@ function groupedWhy(fields) {
 // The field a new condition opens on: the first column on screen that can
 // be matched, else the first matchable field the Everyone view doesn't hide
 // (Edge cases' Label, whose values are engineer text), else any.
-function firstField(matchable, shown, admin) {
+export function firstField(matchable, shown, admin) {
   const byPath = new Map(matchable.map((f) => [f.path, f]));
   for (const p of shown || []) if (byPath.has(p)) return byPath.get(p);
   return matchable.find((f) => admin || !f.hidden_by_default) || matchable[0];
@@ -369,14 +372,13 @@ export function ConditionList({ fields, shown, admin, value, opWords, onChange, 
   );
 }
 
-export function ConditionsStep({ fields, shown, admin, value, opWords, onChange, logic, onLogic, logics, needsTwo, scoreboardOn }) {
+// Step 3 draws the filter builder it is handed (dashboard-filter.jsx, T-96).
+export function ConditionsStep({ fields, empty, scoreboardOn, children }) {
   const unmatchable = fields.filter((f) => !f.ops.length);
   return (
     <Step n={3} title="Only rows where">
-      {value.length === 0 ? <p className="dx-quiet">Every row, for now.</p> : null}
-      <ConditionList fields={fields} shown={shown} admin={admin} value={value} opWords={opWords}
-        onChange={onChange} logic={logic} onLogic={onLogic} logics={logics} needsTwo={needsTwo}
-        addLabel="Add a condition" action="add-condition" />
+      {empty ? <p className="dx-quiet">Every row, for now.</p> : null}
+      {children}
       {scoreboardOn && scoreboardOn.rel ? (
         <p className="dx-step-hint dx-teach" data-testid="before-grouping">
           These keep or drop whole {scoreboardOn.many}. To count only some of a {scoreboardOn.one}'s{" "}

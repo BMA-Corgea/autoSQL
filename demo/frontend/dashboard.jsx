@@ -16,9 +16,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AdminPanel } from "./dashboard-admin.jsx";
-import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, logicReady, offered } from "./dashboard-steps.jsx";
+import { ColumnsStep, ConditionsStep, DatasetStep, SortShowStep, SummaryStep, answerShape, isComplete, offered } from "./dashboard-steps.jsx";
 import { ScoreboardStep, asMatch, countWaiting, countedFields, countedSet, nextSort } from "./dashboard-scoreboard.jsx";
 import { MatchedColumns, sendableMatched } from "./dashboard-matched.jsx";
+import { FilterBuilder } from "./dashboard-filter.jsx";
+import * as T from "./filter-tree.js";
 
 const WAIT_BEFORE_ASKING = 250; // let a burst of clicks settle into one question
 
@@ -30,8 +32,15 @@ async function getJSON(url, init) {
   return body;
 }
 
+// A view as the screen holds it: its filter a tree (T-96). A default view, or
+// anything else in the old flat form, is read as a one-box tree.
+function withTree(v) {
+  const { conditions, logic, ...rest } = v;
+  return { ...rest, filter: v.filter ? T.fromSent(v.filter) : T.fromFlat(conditions, logic) };
+}
+
 function viewFor(setup, datasetId, admin) {
-  return JSON.parse(JSON.stringify((admin ? setup.admin_default_views : setup.default_views)[datasetId]));
+  return withTree(JSON.parse(JSON.stringify((admin ? setup.admin_default_views : setup.default_views)[datasetId])));
 }
 
 // View as: remembered for the visit. Storage can be missing or refuse
@@ -61,18 +70,12 @@ function offFor(setup, view) {
 // asked about.
 function sendable(setup, view, admin) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
-  const conditions = view.conditions
-    .filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field)))
-    .map(({ _k, ...c }) => c); // eslint-disable-line no-unused-vars
   const off = offFor(setup, view);
-  // "Exactly one" / "All or none" over fewer than two conditions with values
-  // is not a question yet: the conditions are marked "not used yet" on
-  // screen and not sent.
-  const logic = view.logic || "all";
-  // Not ready: no conditions and the logic All, so the answer matches the
-  // "Not used yet" note on screen instead of being refused (T-75).
-  const ready = logicReady(logic, conditions.length);
-  const out = { ...view, conditions: ready ? conditions : [], logic: ready ? logic : "all" };
+  // The filter as a tree (T-96): only the cards with their values, no group
+  // left empty, and a group whose "exactly one of" / "all or none of" isn't
+  // ready yet held back — marked "not applied yet" on screen, not sent.
+  const complete = (c) => isComplete(c, ds.fields.find((f) => f.path === c.field));
+  const out = { ...view, filter: T.sendable(view.filter, complete) };
   if (view.summary || view.scoreboard) out.columns = []; // kept on screen, greyed, for when it is turned off
   if (off.sort) out.sort = null;
   if (off.show) out.show = null;
@@ -407,7 +410,7 @@ function summaryLine(setup, view) {
   const ds = setup.datasets.find((d) => d.id === view.dataset);
   const parts = [ds.name];
   // Only the conditions in use: one still waiting for its value is not asked.
-  const n = view.conditions.filter((c) => isComplete(c, ds.fields.find((f) => f.path === c.field))).length;
+  const n = T.countCards(view.filter, (c) => isComplete(c, ds.fields.find((f) => f.path === c.field)));
   if (n) parts.push(n === 1 ? "1 condition" : `${n} conditions`);
   if (view.sort && !offFor(setup, view).sort) {
     const f = ds.fields.find((x) => x.path === view.sort.field);
@@ -581,11 +584,8 @@ function App() {
       const hidden = hiddenIn(ds.fields);
       const cols = (patch.columns || view.columns).filter((p) => !hidden.has(p));
       if (cols.length !== (patch.columns || view.columns).length) patch.columns = cols;
-      const conds = view.conditions.filter((c) => !hidden.has(c.field));
-      if (conds.length !== view.conditions.length) {
-        patch.conditions = conds;
-        if (conds.length < 2) patch.logic = "all";
-      }
+      const kept = T.withoutFields(view.filter, hidden);
+      if (T.countCards(kept) !== T.countCards(view.filter)) patch.filter = kept;
       if (view.sort && hidden.has(view.sort.field)) patch.sort = null;
       // Columns from another data set: a match on a field Everyone doesn't
       // see is dropped; a hidden field among those shown is unticked (T-78).
@@ -688,20 +688,24 @@ function App() {
           </ColumnsStep>
           <ConditionsStep
             fields={picks}
-            shown={view.columns}
-            admin={admin}
-            value={view.conditions}
-            opWords={setup.op_labels}
-            onChange={(conditions) => change(conditions.length < 2 ? { conditions, logic: "all" } : { conditions })}
-            logic={view.logic}
-            onLogic={(logic) => change({ logic })}
-            logics={setup.logics}
-            needsTwo={setup.logic_needs_two}
+            empty={!view.filter.items.length}
             scoreboardOn={view.scoreboard ? {
               rel: (countedSet(setup, view.scoreboard) || {}).name,
               one: ds.one, many: ds.name.toLowerCase(),
             } : null}
-          />
+          >
+            <FilterBuilder
+              fields={picks}
+              shown={view.columns}
+              admin={admin}
+              value={view.filter}
+              onChange={(filter) => change({ filter })}
+              opWords={setup.op_labels}
+              chips={setup.join_chips}
+              logics={setup.logics}
+              needsTwo={setup.logic_needs_two}
+            />
+          </ConditionsStep>
           <SortShowStep
             fields={picks}
             sort={view.sort}

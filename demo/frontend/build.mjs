@@ -63,6 +63,9 @@ const SOURCES = [
   path.join(HERE, "dashboard-steps.jsx"),
   path.join(HERE, "dashboard-admin.jsx"),
   path.join(HERE, "dashboard-scoreboard.jsx"),
+  path.join(HERE, "dashboard-matched.jsx"),   // T-78's; missing from this list until T-96
+  path.join(HERE, "filter-tree.js"),          // T-96
+  path.join(HERE, "dashboard-filter.jsx"),    // T-96
   path.join(HERE, "dashboard.jsx"),
 ];
 
