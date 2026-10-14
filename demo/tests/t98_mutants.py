@@ -140,6 +140,10 @@ T98_MUTANTS = [
          edits=[("tests/conftest.py", _LOUD, "")],
          selector=_T + "test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it",
          expect="RUNTIME CHECK: THE DATABASE IS NOT RUNNING"),
+    dict(id="A1", defect="a browser that names its zone the old way (Asia/Calcutta) is not aliased to its place",
+         edits=[(_D, "        if z not in listed and z not in aliases and target in listed:\n            aliases[z] = target\n",
+                 "        pass\n")],
+         selector=_T + "test_a_browser_that_names_its_zone_the_old_way_reaches_its_place", expect="('Asia/Calcutta', None)"),
     # ── b2: the question's clock, in the view both engines share ─────────
     dict(id="C1", defect="BOTH engines: 'is on' takes the UTC day whatever the question's clock",
          edits=[(_V, "            first, nxt = zones.day_span(d, zone)", '            first, nxt = zones.day_span(d, "UTC")')],

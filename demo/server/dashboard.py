@@ -1681,6 +1681,11 @@ def api_zones() -> JSONResponse:
             aliases[z] = "UTC"                   # a spelling of UTC itself
         else:
             others.append(z)                     # a fixed offset with no place (Etc/GMT+12): itself
+    # a-chk (T-98 c): a browser may name its zone the old way (Asia/Calcutta); tzdata's links say
+    # which place it is, and the question then stores and sends the current name
+    for z, target in old.items():
+        if z not in listed and z not in aliases and target in listed:
+            aliases[z] = target
     conn = _connect()
     try:
         why = _zones.marks(conn, listed | set(others))

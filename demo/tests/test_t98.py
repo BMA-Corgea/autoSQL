@@ -281,7 +281,8 @@ def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
     # every name both engines accept reaches a listed place: listed itself, or by its old name
     others = {e["zone"]: e for e in body["others"]}
     accepted = set(by) | set(body["aliases"]) | set(others)
-    assert accepted == set(ZONES)
+    assert set(ZONES) <= accepted          # and old names beyond them, aliased to their place (a-chk, T-98 c)
+    assert not (set(body["aliases"]) & set(by)) and not (set(others) - set(ZONES))
     assert all(t in by for t in body["aliases"].values())
     # an alias is the same clock under another name, never a guess: UTC-12 is not UTC
     assert body["aliases"].get("Etc/UTC") == "UTC"
@@ -633,3 +634,16 @@ def test_every_frontend_source_is_in_the_bundles_digest():
                      if p.suffix in (".jsx", ".js") and p.is_file())
     missing = [p for p in on_disk if p not in test_ui._UI_SOURCES]
     assert not missing, f"not in the bundles' digest: {missing}"
+
+
+@pytest.mark.parametrize("old, now", [
+    ("Asia/Calcutta", "Asia/Kolkata"), ("Asia/Katmandu", "Asia/Kathmandu"), ("Asia/Saigon", "Asia/Ho_Chi_Minh"),
+    ("America/Buenos_Aires", "America/Argentina/Buenos_Aires"), ("Europe/Kiev", "Europe/Kyiv"),
+    ("Asia/Rangoon", "Asia/Yangon"), ("America/Godthab", "America/Nuuk"),
+])
+def test_a_browser_that_names_its_zone_the_old_way_reaches_its_place(old, now):
+    """a-chk: such a computer got UTC and "isn't one this page knows". tzdata's links (its `backward`
+    names) alias to the current name, which is what the question stores and both engines read."""
+    body = _client().get("/api/dashboard/zones").json()
+    assert body["aliases"].get(old) == now, (old, body["aliases"].get(old))
+    assert now in {e["zone"] for e in body["zones"]}

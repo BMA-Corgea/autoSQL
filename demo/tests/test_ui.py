@@ -754,6 +754,7 @@ _UI_SOURCES = [
     "demo/frontend/filter-tree.js",
     "demo/frontend/dashboard-filter.jsx",
     "demo/frontend/dashboard-clock.jsx",
+    "demo/frontend/question.js",
     "demo/frontend/dashboard.jsx",
 ]
 

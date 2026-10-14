@@ -67,6 +67,7 @@ const SOURCES = [
   path.join(HERE, "filter-tree.js"),          // T-96
   path.join(HERE, "dashboard-filter.jsx"),    // T-96
   path.join(HERE, "dashboard-clock.jsx"),     // T-98
+  path.join(HERE, "question.js"),             // T-98
   path.join(HERE, "dashboard.jsx"),
 ];
 
