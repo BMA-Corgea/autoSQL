@@ -638,7 +638,8 @@ function App() {
               one: ds.one, many: ds.name.toLowerCase(),
             } : null}
           >
-            <ClearFilters value={view.filter} fields={picks} onChange={(filter) => change({ filter })} />
+            <ClearFilters key={`${view.dataset}:${admin ? "admin" : "everyone"}`} value={view.filter} fields={picks}
+              onChange={(filter) => change({ filter })} />
             <FilterBuilder
               fields={picks}
               shown={view.columns}

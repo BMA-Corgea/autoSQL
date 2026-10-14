@@ -35,15 +35,19 @@ function useShutOutside(open, shut) {
   return ref;
 }
 
-function JoinChip({ join, chips, onJoin, boxKey }) {
+// `next`: the same chip at the start of the box's add row, read "…AND the next condition" (the operator's look, 2026-10-14:
+// "I think of the AND and then I think of what the other condition is").
+function JoinChip({ join, chips, onJoin, boxKey, next = false }) {
   const [open, setOpen] = React.useState(false);
   const ref = useShutOutside(open, () => setOpen(false));
   const flip = () => onJoin(join === "all" ? "any" : "all");
   return (
-    <div className="dx-join" data-join-of={boxKey} ref={ref}>
+    <div className={"dx-join" + (next ? " is-next" : "")} data-join-of={boxKey} data-join-next={next ? boxKey : undefined} ref={ref}>
       <span className="dx-join-pill">
         <button type="button" className={"dx-join-chip is-" + join} data-join={join} onClick={flip}
-          title={MEANING[join]} aria-label={`${chips[join]}: ${MEANING[join]} Tap to switch between AND and OR.`}>
+          title={MEANING[join]} aria-label={next
+            ? `Next condition joins with ${chips[join]}: ${MEANING[join]} Press to switch between AND and OR.`
+            : `${chips[join]}: ${MEANING[join]} Tap to switch between AND and OR.`}>
           {chips[join]}
         </button>
         <button type="button" className="dx-join-more" aria-haspopup="menu" aria-expanded={open}
@@ -189,6 +193,9 @@ function Box({ node, depth, ctx }) {
       ) : null}
       {!root && !node.items.length ? <p className="dx-quiet">Empty: add a condition, or drag one here.</p> : null}
       <div className="dx-box-foot">
+        {node.items.length ? (
+          <JoinChip join={node.join} chips={ctx.chips} boxKey={node._k} onJoin={(join) => set({ join })} next />
+        ) : null}
         {ctx.matchable.length ? (
           <button type="button" className="dx-add" data-action={ctx.action} data-in={node._k}
             onClick={() => add(freshCondition(firstField(ctx.matchable, ctx.shown, ctx.admin)))}>
@@ -276,26 +283,23 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
   );
 }
 
-// ── T-97: Clear filters, with an Undo for a few seconds ──────────────────
+// ── T-97: Clear filters, with an Undo ────────────────────────────────────
 //
-// Clear takes out every card and group of step 3 (nothing else on the page). For UNDO_MS an Undo puts
-// back exactly what was there — the same tree, so every card, group, join and shut group returns. The
-// Undo goes as soon as the filter changes again (a new card, another data set): it never overwrites
-// what was done after the clear. It goes too when the fields on offer change (View as Everyone): the
-// tree it would put back may name a field that view doesn't have, and it never comes back.
+// Clear takes out every card and group of step 3 (nothing else on the page). Undo puts back exactly
+// what was there — the same tree, so every card, group, join and shut group returns. It has no timer
+// (the operator's look, 2026-10-14: "It should only disappear once I make something as a new filter"): it stays while
+// the columns, the sort, the clock or the answer change, and goes the moment step 3 changes again (a
+// card or group added) — it never overwrites what was done after the clear. It goes too when the
+// fields on offer change, and on another data set or view (the page remounts it per data set and
+// view): the tree it would put back may name a field that view doesn't have.
 // The keyboard follows: Clear puts it on the Undo, and Undo puts it back on Clear filters.
-
-export const UNDO_MS = 8000;
 
 export function ClearFilters({ value, onChange, fields }) {
   const [undo, setUndo] = React.useState(null); // { before, cleared, offered }
   const offered = fields.map((f) => `${f.path}:${f.ops.join(",")}`).join("|");
-  React.useEffect(() => {
-    if (!undo) return undefined;
-    const t = setTimeout(() => setUndo(null), UNDO_MS);
-    return () => clearTimeout(t);
-  }, [undo]);
   React.useEffect(() => { if (undo && undo.offered !== offered) setUndo(null); }, [offered]); // eslint-disable-line react-hooks/exhaustive-deps
+  // once step 3 holds anything else, the Undo is gone for good (it never comes back by undoing that)
+  React.useEffect(() => { if (undo && value !== undo.cleared) setUndo(null); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   const live = !!undo && value === undo.cleared && undo.offered === offered;
 
   const undoBtn = React.useRef(null);
