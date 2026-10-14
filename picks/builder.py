@@ -56,6 +56,8 @@ them is the server's (W13, through demo/server/db.py — B13).
 
 from __future__ import annotations
 
+import contextvars
+import functools
 import json
 import re
 from typing import Any, NamedTuple
@@ -195,6 +197,46 @@ _PREFIX_RE = re.compile(r"[A-Za-z][A-Za-z0-9]*\Z")
 _COMPILER_BIND_RE = re.compile(r"p\d+\Z")
 
 
+# ── T-102: the statement's budget ─────────────────────────────────────────
+# MAX_SQL_CHARS is for the whole STATEMENT, as it is assembled (the foreman's ruling on a-chk's
+# finding: a board of 6 count columns, each piece just under the budget, was one statement of
+# 2,038,322 characters; 10 computed columns, 2,068,421). Every piece a statement is built from is
+# compiled by _compile_expression, which adds it to the running total for the statement being
+# built and refuses the moment the total passes the budget -- so 200 computed columns stop after
+# the second, not after all 200 exist. A piece written into the statement twice (a computed column
+# re-emitted inline) is caught by the finished statement's own measurement, which makes the edge
+# exact. Opened by each statement's builder (build_statement); nothing outside one is counted.
+_TALLY: contextvars.ContextVar = contextvars.ContextVar("autosql_statement_tally", default=None)
+
+
+def _too_big() -> gate.Refused:
+    return gate.Refused("statement", too_big_words())
+
+
+def build_statement(fn):
+    """A function that builds ONE statement (its result's ``.sql``): within the budget as it is
+    assembled, and as built."""
+    @functools.wraps(fn)
+    def built_within_budget(*args, **kwargs):
+        token = _TALLY.set([0])
+        try:
+            out = fn(*args, **kwargs)
+        finally:
+            _TALLY.reset(token)
+        if len(out.sql) > _compile.MAX_SQL_CHARS:
+            raise _too_big()
+        return out
+    return built_within_budget
+
+
+def _charge(n: int) -> None:
+    tally = _TALLY.get()
+    if tally is not None:
+        tally[0] += n
+        if tally[0] > _compile.MAX_SQL_CHARS:
+            raise _too_big()
+
+
 def namespace(frag: Compiled, prefix: str) -> tuple[str, dict]:
     """Rewrite compile.py's p0,p1,… into <prefix>_p0,… in both the SQL and the params.
 
@@ -313,8 +355,10 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
     zones = _zones()
     gate.gate(ast, zones=zones)  # Refused propagates with the construct named
     try:
-        return compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
+        frag = compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
                            **(compile_kw or {}))
+        _charge(len(frag.sql))     # T-102: into the statement being built
+        return frag
     except _compile.TooBig as exc:
         # T-102: not a gap between gate and compiler -- a filter whose SQL would pass the
         # budget (nested comparisons multiply it), refused as it was being built.
@@ -610,6 +654,7 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
 
 # ── THE entry point ──────────────────────────────────────────────────────
 
+@build_statement
 def build(pick: dict, collection_keys, *, ctx: dict | None = None, records=None) -> Built:
     """One pick → one parameterised statement (plan §4.2's four shapes).
 

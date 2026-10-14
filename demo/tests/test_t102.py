@@ -200,3 +200,111 @@ def test_a_board_or_a_match_whose_probe_is_too_big_says_so_in_words(monkeypatch,
         v.update(filter=tree, matched={"dataset": "senders", "field": "id", "matches": "sender_id", "columns": ["name"]})
     r = c.post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": False})
     assert r.status_code in (200, 422) and r.json().get("message") == TOO_BIG, r.text[:300]
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# The fix round (a-chk on d9ee86c): the budget is for the whole STATEMENT, as it is assembled
+# ═════════════════════════════════════════════════════════════════════════
+
+#: In the caged child: psycopg refuses to SEND a statement over the budget, so a regression fails
+#: the test there and never puts a 2-million-character statement on the shared database.
+_NEVER_SEND_BIG = '''
+import psycopg, time
+_real = psycopg.Cursor.execute
+def _guarded(self, query, *a, **k):
+    if isinstance(query, str) and len(query) > 200_000:
+        raise RuntimeError(f"a statement of {len(query):,} characters was about to be sent")
+    return _real(self, query, *a, **k)
+psycopg.Cursor.execute = _guarded
+'''
+
+
+def test_a_board_whose_pieces_each_fit_but_whose_statement_does_not_is_refused_before_it_is_sent():
+    """a-chk: a page filter and 6 count columns, each piece just under the budget, made ONE statement
+    of 2,038,322 characters (25 s and +504 MB in Postgres, as Everyone)."""
+    got = _caged(_PRELUDE + _NEVER_SEND_BIG + '''
+def one(d, k=0):
+    t = card("ok")
+    for i in range(d):
+        t = {"join": "one", "items": [t, card(["warn", "error", "ok"][(i + k) % 3])]}
+    return t
+def towers(n):
+    return {"version": 1, "join": "any", "items": [one(2, k) for k in range(n)]}
+counts = [{"label": f"C{i}", "pct": bool(i % 2), "filter": towers(2)} for i in range(6)]
+t0 = time.time()
+ask("the board", view(columns=[], filter=towers(2), scoreboard={"by": "status", "counts": counts}))
+ask("the board, Admin", view(columns=[], filter=towers(2), scoreboard={"by": "status", "counts": counts}), admin=True)
+print(json.dumps({"seconds": round(time.time() - t0, 2)}), flush=True)
+''', timeout=180)
+    answers, timing = got[:-1], got[-1]
+    for g in answers:
+        assert g["status"] in (200, 422) and g["message"] == TOO_BIG, g
+    assert timing["seconds"] < 30, timing
+
+
+def test_ten_computed_columns_on_the_two_pane_screen_are_refused_before_they_are_sent():
+    """a-chk: computed columns have no count limit; 10 made a 2,068,421-character statement (340 s and
+    +2.6 GB in Postgres before a timeout cut it); 200 made 42M characters from a 49 KB request."""
+    got = _caged(_PRELUDE + _NEVER_SEND_BIG + '''
+from picks import legality
+d1 = '(if($.status == "ok", 1, 0) + if($.status == "warn", 1, 0)) == 1'
+d2 = f'(if({d1}, 1, 0) + if($.status == "error", 1, 0)) == 1'
+for n in (10, 200):
+    p = legality.default_pick()
+    p.update({"source": "noun:Heartbeat", "computed": [{"name": f"k{i}", "expr": d2} for i in range(n)]})
+    t0 = time.time()
+    r = c.post("/api/pick", json=p)
+    ref = (r.json() if r.headers.get("content-type", "").startswith("application/json") else {}).get("refusal") or {}
+    print(json.dumps({"n": n, "status": r.status_code, "kind": ref.get("kind"), "why": ref.get("why"),
+                      "seconds": round(time.time() - t0, 2)}), flush=True)
+''', timeout=180)
+    assert [g["n"] for g in got] == [10, 200], got
+    for g in got:
+        assert g["status"] == 422 and g["kind"] == "size" and "too big to check" in (g["why"] or ""), g
+        assert g["seconds"] < 20, g
+
+
+def test_the_statements_budget_is_exact_at_its_edge(monkeypatch):
+    """A statement of exactly the budget is built; one character over is refused -- the TOTAL, not a piece."""
+    import gate
+    from picks import builder, legality
+    C = _compiler()
+    d1 = '(if($.status == "ok", 1, 0) + if($.status == "warn", 1, 0)) == 1'
+    p = legality.default_pick()
+    p.update({"source": "noun:Heartbeat", "computed": [{"name": f"k{i}", "expr": d1} for i in range(3)],
+              "filter": '$.status == "ok"'})
+    keys = ["sender_id", "ts", "status", "payload"]
+    size = len(builder.build(p, keys).sql)
+    assert size > 3 * 20_000 // 10, size        # three pieces and a filter: well over any one piece
+    monkeypatch.setattr(C, "MAX_SQL_CHARS", size)
+    assert len(builder.build(p, keys).sql) == size
+    monkeypatch.setattr(C, "MAX_SQL_CHARS", size - 1)
+    with pytest.raises(gate.Refused) as e:
+        builder.build(p, keys)
+    assert "too big to check" in e.value.why
+
+
+def test_every_compiler_method_that_returns_sql_is_measured():
+    """a-chk's C1 (`_j` unmeasured) and C2 (`_eq_sql`, `_inline_coerce` unmeasured) survived: each was
+    still bounded by another measured layer. Every one of them is measured itself."""
+    C = _compiler()
+    for name in ("_j", "_f8", "_num", "_truthy", "_str", "predicate", "_eq_sql", "_inline_coerce",
+                 "_build_array", "_zone"):
+        assert hasattr(getattr(C._Compiler, name), "__wrapped__"), f"_Compiler.{name} is not measured"
+
+
+def test_the_total_stops_the_build_at_the_piece_that_passes_it(monkeypatch):
+    """A running total, not only a final measurement: 200 computed columns, each a large piece,
+    stop compiling once the total passes the budget -- not after all 200 exist."""
+    import gate
+    from picks import builder, legality
+    calls = []
+    real = builder.compile_ast
+    monkeypatch.setattr(builder, "compile_ast", lambda *a, **k: calls.append(1) or real(*a, **k))
+    d1 = '(if($.status == "ok", 1, 0) + if($.status == "warn", 1, 0)) == 1'
+    d2 = f'(if({d1}, 1, 0) + if($.status == "error", 1, 0)) == 1'
+    p = legality.default_pick()
+    p.update({"source": "noun:Heartbeat", "computed": [{"name": f"k{i}", "expr": d2} for i in range(200)]})
+    with pytest.raises(gate.Refused):
+        builder.build(p, ["sender_id", "ts", "status", "payload"])
+    assert len(calls) <= 3, f"{len(calls)} pieces were compiled before the total stopped the build"

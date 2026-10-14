@@ -313,6 +313,11 @@ def _term_b(op_sql: str) -> str:
 
 
 def _build_probe(member: str, operand_asts: Sequence, records, compile_kw: dict) -> Probe:
+    from .builder import build_statement   # T-102: a probe is a statement too
+    return build_statement(_build_probe_unbudgeted)(member, operand_asts, records, compile_kw)
+
+
+def _build_probe_unbudgeted(member: str, operand_asts: Sequence, records, compile_kw: dict) -> Probe:
     compile_ast = _compile_module().compile_ast
     prefix_stem = "prbA" if member == "a" else "prbB"
     term_fn = _term_a if member == "a" else _term_b

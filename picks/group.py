@@ -165,6 +165,7 @@ def _match_on(rel: dict, params: dict, counted: str, parent: str) -> str:
             f"   AND ( {counted} #> %(rel_key)s ) = ( {parent} #> %(rel_parent_key)s )")
 
 
+@builder.build_statement
 def build(spec: dict, records=None) -> Built:
     """One scoreboard spec → one parameterised statement (shape E).
 
@@ -255,6 +256,7 @@ def build(spec: dict, records=None) -> Built:
     return Built(sql, params, GROUP, tuple(columns_of(spec)))
 
 
+@builder.build_statement
 def build_profile(spec: dict, records=None) -> Built:
     """The match profile (T-76): one row saying what the chosen match does
     over the KEPT parents (the page filter applies), before anything is
