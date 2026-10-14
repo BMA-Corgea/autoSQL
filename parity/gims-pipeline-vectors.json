@@ -2,8 +2,8 @@
  "format": "gims-pipeline-vectors/1",
  "version": 11,
  "source": {
-  "autosql": "ed77e13 + T-98 b1 (picks/T-98-time-of-day)",
-  "compiler_sha256": "2115fecb83baeb44fb51e23c139acd68e5d7b8ba8216b1b811d1f6b185fce14f",
+  "autosql": "run7/filters b219ec3 + T-102 (fix/T-102-compiler-budget)",
+  "compiler_sha256": "65ef99e0609cf03ee4898ec3302b25aa27bc186eb86e0e95db4e38fdfe830ea6",
   "runtime_sha256": "d4017fbbdbe58684b404c2d1c441fd127bb9c679a36a7a49e3ce8da9c88a3607",
   "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },

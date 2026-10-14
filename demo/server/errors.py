@@ -50,6 +50,13 @@ LAYER_1_HEADLINE = "Refused before any SQL existed"
 LAYER_2_HEADLINE = "Refused while running"
 
 _LAYER_1_BODY = {
+    # T-102: the gate passed it; the compiler's running budget stopped it.
+    "size": (
+        "The expression passed the gate, but the SQL it needs would pass the "
+        "compiler's 200,000-character budget: nested comparisons multiply it. "
+        "The compiler stopped while building it, so no statement was made, "
+        "prepared or sent."
+    ),
     "expression": (
         "The static gate walked the parsed expression and found a construct "
         "outside the safe subset. Nothing was compiled, nothing was "
@@ -95,6 +102,8 @@ def layer_1(exc, *, kind: str) -> dict:
     the rule lives in one file, and only the call site knows which check it
     was in.
     """
+    if kind == "expression" and "too big to check" in str(getattr(exc, "why", "")):
+        kind = "size"   # T-102: not a construct outside the subset, a statement too big to build
     if kind not in _LAYER_1_BODY:
         raise ValueError(f"unknown layer-1 refusal kind {kind!r}")
     return {

@@ -730,6 +730,8 @@ _PLAIN_REFUSAL = (
                              "with, so this can't be answered honestly."),
     ("overflow", "A result here grows too large to compute, so this can't be "
                  "answered honestly."),
+    # T-102: the compiler's budget (nested groups multiply the SQL a filter needs)
+    ("too big to check", "This filter is too big to check. Take out a group."),
 )
 _PLAIN_REFUSAL_DEFAULT = "These choices can't be answered together. Try changing one."
 

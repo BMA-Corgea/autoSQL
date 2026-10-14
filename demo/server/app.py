@@ -1122,6 +1122,17 @@ def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
 
     try:
         outcomes = probes.check(conn, source, exprs, numeric_roots=roots)
+    except gate.Refused as exc:
+        # T-102: a probe's operand too big to check refuses the pick, as the build stage does
+        return _refused(
+            errors.layer_1(exc, kind="expression"),
+            pick=pick,
+            panes={"sql": _empty_pane("not-asked", _EMPTY_PANE_NOT_ASKED),
+                   "python": _empty_pane("not-asked", _EMPTY_PANE_NOT_ASKED)},
+            sql_block=_sql_block(parameterised=None, display=None,
+                                 params={}, outcomes=[], sent=False,
+                                 collection=pick.get("source") or ""),
+        )
     except probes.RuntimeRefusal as exc:
         # §4.5: no number from the SQL side; the Python pane still answers,
         # labelled as the reported fallback (AC-17, AC-18, mock view #probe).

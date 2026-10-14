@@ -98,6 +98,9 @@ def run_lookup(conn, pick: dict, lk: dict) -> dict:
         exprs.append(server_app.expr.parse(pick["filter"]))
     try:
         outcomes = probes.check(conn, source, exprs)
+    except gate.Refused as exc:
+        # T-102: a probe's operand too big to check refuses the pick, as the build stage does
+        return _refused(errors.layer_1(exc, kind="expression"), pick, lk)
     except probes.RuntimeRefusal as exc:
         return _refused(errors.layer_2(exc), pick, lk, built=built, display=display)
 

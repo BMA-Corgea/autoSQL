@@ -85,6 +85,7 @@ def check(pick: dict, lk: dict, records=None) -> None:
         group._path(c.get("path"), "a matched column")
 
 
+@builder.build_statement
 def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
     """One plain-table pick + one match spec → one parameterised statement."""
     records = env.records(records)
@@ -124,6 +125,7 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
     return Built(sql, p.params, MATCHED, tuple(columns))
 
 
+@builder.build_statement
 def build_profile(pick: dict, lk: dict, records=None) -> Built:
     """What the match does over the KEPT rows, before anything is shown —
     read by the preview line and by the repeat check.
