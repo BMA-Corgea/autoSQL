@@ -40,7 +40,11 @@ die()  { printf '%s✗%s %s\n' "$RED" "$OFF" "$*" >&2; exit 1; }
 #: is still at / and is linked from the dashboard's Admin view.
 PAGE="http://127.0.0.1:${APP_PORT}/dashboard"
 
-is_up() { curl -fsS -m 3 -o /dev/null "http://127.0.0.1:${APP_PORT}/api/operations" 2>/dev/null; }
+is_up() { curl -fsS -m "${1:-3}" -o /dev/null "http://127.0.0.1:${APP_PORT}/api/operations" 2>/dev/null; }
+
+# Before anything is cleared, the app is given more than one chance and more
+# than three seconds: an app that is up but slow is running, not left behind.
+is_up_patiently() { is_up 10 || { sleep 2; is_up 10; }; }
 
 open_page() {
   # Prefer the live screen; fall back to the offline launcher, which is a real
@@ -101,24 +105,55 @@ docker info >/dev/null 2>&1 || die "Docker is installed but not running.
 
 command -v python3 >/dev/null 2>&1 || die "python3 is not on PATH. The demo needs it for its own virtualenv."
 
-if is_up; then
+already_running() {
   say ""
   say "${B}Already running.${OFF} ${PAGE}"
   open_page "${PAGE}" ||
     say "${DIM}(couldn't open a browser — open the URL above yourself, or ${LAUNCHER})${OFF}"
   exit 0
+}
+
+if is_up; then
+  already_running
+fi
+
+# ── one look and one act, under the demo's host-wide lock ─────────────────
+# The lock is run-demo's own (T-62): the same file and flock. Holding it, no
+# other run-demo (a test run in another worktree, another ./start.sh) can be
+# between its own look and its own act while this script reads what is there
+# and then clears or starts it. The run-demo verbs called below are told so
+# (RUN_DEMO_LOCK_HELD) and don't wait on their parent; the lock's fd is closed
+# in them, so the app they start never holds it.
+LOCKFILE="/tmp/run-demo.${DB_CONTAINER}.lock"
+command -v flock >/dev/null 2>&1 || die "flock (util-linux) is not installed, and the demo needs it to keep two runs apart."
+[ -e "$LOCKFILE" ] || ( umask 000; : >>"$LOCKFILE" ) 2>/dev/null || true
+exec {LOCK_FD}<"$LOCKFILE" || die "Could not open the demo's lock file, $LOCKFILE."
+if ! flock -n "$LOCK_FD"; then
+  step "Another run is using the demo; waiting for it to finish (up to 30 minutes)…"
+  flock -w 1800 "$LOCK_FD" ||
+    die "Another run is still using the demo after 30 minutes. Nothing was changed; try again later."
+fi
+export RUN_DEMO_LOCK_HELD="$DB_CONTAINER"
+unlock() { exec {LOCK_FD}<&-; }
+
+# Looked at again now that nothing else can change it.
+if is_up_patiently; then
+  unlock
+  already_running
 fi
 
 # What an earlier run left behind is this demo's own, not "something else":
-# its database still up with no app in front of it (a start that failed
-# partway), or a stopped container from before a reboot, holding data from
-# whichever checkout last seeded it. Refusing here used to leave the front door
-# stuck until someone thought to run './start.sh stop'. Clear it and start
-# fresh instead: every row is invented and reseeded on the way up, and
-# `run-demo down` waits for any test run holding the stack before it acts.
-if docker ps -aq --filter "name=^/${DB_CONTAINER}$" | grep -q . || [ -f "$APP_PIDFILE" ]; then
+# its database with no app answering in front of it (a start that failed
+# partway; stopped, after a reboot), or this checkout's app pidfile. Refusing
+# here used to leave the front door stuck until someone thought to run
+# './start.sh stop'. It is cleared and started fresh: every row is invented
+# and reseeded on the way up. A clear that fails stops here, in its own words.
+if [ -n "$(docker ps -aq --filter "name=^/${DB_CONTAINER}$")" ] || [ -f "$APP_PIDFILE" ]; then
   step "Clearing what an earlier run left behind…"
-  ./run-demo down 2>&1 | tail -3 | sed 's/^/    /'
+  ./run-demo down {LOCK_FD}<&- 2>&1 | sed 's/^/    /'
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    die "What an earlier run left behind could not be cleared; the lines above say why. Nothing was started."
+  fi
 fi
 
 for port in "$APP_PORT" "$DB_PORT"; do
@@ -136,7 +171,7 @@ say ""
 step "Starting. First run pulls a Postgres image and builds a virtualenv, so give it a minute."
 say ""
 
-if ! ./run-demo up 2>&1 | sed 's/^/    /'; then
+if ! ./run-demo up {LOCK_FD}<&- 2>&1 | sed 's/^/    /'; then
   say ""
   die "The demo did not come up. The output above is the whole story;
     './run-demo up' on its own prints it again with nothing trimmed."
@@ -148,6 +183,8 @@ for _ in $(seq 1 30); do
   if is_up; then ok=1; break; fi
   sleep 1
 done
+
+unlock
 
 if [ "${ok:-0}" != "1" ]; then
   warn "It started but is not answering on port ${APP_PORT} yet."
