@@ -131,13 +131,26 @@ _SHIMS = {
 }
 
 #: the sandbox's run-demo: `up` stubbed, every other verb the real one
+#: the sandbox's run-demo: every verb logs whether it holds the lock file open; `up` runs the REAL
+#: start_app (run-demo sourced) with a stub app that only sleeps, so what the app inherits is real;
+#: every other verb is the real one
 _RUN_DEMO = r"""#!/usr/bin/env bash
+held=no
+for f in /proc/$$/fd/*; do [ "$(readlink "$f")" = "$SANDBOX_LOCK" ] && held=yes; done
+echo "lockfd $1 $held" >>"$W/calls"
+echo "run-demo $1 (lock held: ${RUN_DEMO_LOCK_HELD:-no})" >>"$W/calls"
 if [ "$1" = up ]; then
-  echo "run-demo up (lock held: ${RUN_DEMO_LOCK_HELD:-no})" >>"$W/calls"
   { [ -f "$W/container" ] || [ -f "$W/stranger" ]; } && { echo "55440 taken" >&2; exit 1; }
+  source "$(dirname "$0")/run-demo.real"
+  set +e
+  exec {TEST_LOCK_FD}</dev/null          # as acquire_stack_lock leaves it when the parent holds the lock
+  VENV_DIR="$W/venv"; DEMO_DIR="$W/demo"; REPO_ROOT="$W"; APP_LOG="$W/app.log"; APP_PIDFILE="$W/app.pid"
+  APP_READY_TIMEOUT_SECONDS=10
+  pid_holds_port() { return 0; }
+  app_answers() { return 0; }
+  start_app >/dev/null || exit 1
   touch "$W/up"; exit 0
 fi
-echo "run-demo $1 (lock held: ${RUN_DEMO_LOCK_HELD:-no})" >>"$W/calls"
 exec "$(dirname "$0")/run-demo.real" "$@"
 """
 
@@ -165,18 +178,30 @@ class _Sandbox:
         for name, body in _SHIMS.items():
             (shims / name).write_text("#!/usr/bin/env bash\n" + body + "\n")
             (shims / name).chmod(0o755)
-        self.env = dict(os.environ, W=str(self.w), PATH=f"{shims}:{os.environ['PATH']}")
+        (self.w / "venv" / "bin").mkdir(parents=True)
+        (self.w / "venv" / "bin" / "python").write_text("#!/bin/sh\nexec sleep 300\n")
+        (self.w / "venv" / "bin" / "python").chmod(0o755)
+        (self.w / "demo" / "static" / "js").mkdir(parents=True)
+        for f in ("static/js/vendor.js", "static/js/app.js", "static/index.html"):
+            (self.w / "demo" / f).write_text("")
+        self.env = dict(os.environ, W=str(self.w), PATH=f"{shims}:{os.environ['PATH']}",
+                        SANDBOX_LOCK=str(self.lock))
         self.env.pop("RUN_DEMO_LOCK_HELD", None)
 
     def mark(self, what, text=""):
         (self.w / what).write_text(text)
 
-    def start(self, **kw):
-        return subprocess.Popen(["bash", str(self.tree / "start.sh")], stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, text=True, env=self.env, cwd=self.tree, **kw)
+    def start(self, *args):
+        return subprocess.Popen(["bash", str(self.tree / "start.sh"), *args], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, env=self.env, cwd=self.tree,
+                                preexec_fn=_default_hup)
 
-    def run(self):
-        p = self.start()
+    def app(self):
+        f = self.w / "app.pid"
+        return int(f.read_text()) if f.exists() else None
+
+    def run(self, *args):
+        p = self.start(*args)
         out, _ = p.communicate(timeout=180)
         return p.returncode, out, self.calls()
 
@@ -185,6 +210,8 @@ class _Sandbox:
         return [c for c in f.read_text().split("\n") if c] if f.exists() else []
 
     def close(self):
+        if self.app():
+            _stop(self.app())
         if self.lock.exists():
             self.lock.unlink()
 
@@ -237,7 +264,7 @@ def test_start_waits_for_another_run_then_looks_again_before_it_clears_anything(
     sandbox.mark("container", "running\n")
     if not sandbox.lock.exists():
         sandbox.lock.touch()
-    holder = subprocess.Popen(["bash", "-c", f'exec 9<"{sandbox.lock}"; flock 9; echo held; sleep 4; touch "$W/up"'],
+    holder = subprocess.Popen(["bash", "-c", f'exec 9<"{sandbox.lock}" && flock 9 && echo held; sleep 4; touch "$W/up"'],
                               stdout=subprocess.PIPE, text=True, env=sandbox.env)
     try:
         assert holder.stdout.readline().strip() == "held"
@@ -267,3 +294,43 @@ def test_a_clear_that_fails_stops_start_in_its_own_words(sandbox):
     assert code == 1 and "could not be cleared" in out, out
     assert "removal of container is already in progress" in out, f"down's own words were hidden:\n{out}"
     assert not any(c.startswith("run-demo up") for c in calls), calls
+
+
+def test_neither_verb_nor_the_app_holds_the_lock_once_start_hands_over(sandbox):
+    """The re-check's MEDIUM (mutants L4, L5): start.sh holds the host-wide lock; `down` and `up` must
+    not inherit its fd — with it, the app `up` starts holds the lock for life, and every later run-demo
+    waits 30 minutes and refuses."""
+    sandbox.mark("container", "exited\n")
+    code, out, calls = sandbox.run()
+    assert code == 0 and "Ready." in out, out
+    app = sandbox.app()
+    assert app, f"the stub app was not started: {calls}"
+    on_lock = [fd for fd in os.listdir(f"/proc/{app}/fd")
+               if os.path.realpath(f"/proc/{app}/fd/{fd}") == str(sandbox.lock)]
+    assert not on_lock, f"the app holds the lock file open (fd {on_lock}): every later run-demo would wait on it"
+    fds = [c for c in calls if c.startswith("lockfd")]
+    assert fds == ["lockfd down no", "lockfd up no"], f"a run-demo verb held the lock file open: {fds}"
+
+
+@pytest.mark.parametrize("how", ["down-fails", "refused"])
+def test_stop_says_when_the_demo_was_not_stopped(sandbox, how):
+    """The re-check's LOW: `./start.sh stop` after a failed or refused `down` said "removed" and exited 0."""
+    sandbox.mark("container", "running\n")
+    if how == "down-fails":
+        sandbox.mark("down-fails")
+    else:
+        sandbox.lock.touch()
+        holder = subprocess.Popen(["bash", "-c", f'exec 9<"{sandbox.lock}" && flock 9 && echo held; sleep 30'],
+                                  stdout=subprocess.PIPE, text=True, env=sandbox.env)
+        assert holder.stdout.readline().strip() == "held"
+        flock = sandbox.tree.parent / "shims" / "flock"
+        flock.write_text(f'#!/usr/bin/env bash\ncase "$1" in -w) exit 1 ;; esac\nexec "{shutil.which("flock")}" "$@"\n')
+        flock.chmod(0o755)
+    try:
+        code, out, calls = sandbox.run("stop")
+    finally:
+        if how == "refused":
+            holder.kill()
+            holder.wait(timeout=10)
+    assert "Its container and volume are removed" not in out, f"a stop that did not happen was reported as done:\n{out}"
+    assert code != 0, out

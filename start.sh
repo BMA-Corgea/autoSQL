@@ -78,7 +78,10 @@ open_page() {
 case "${1:-up}" in
   stop|down)
     step "Stopping the demo…"
-    ./run-demo down 2>&1 | tail -3
+    ./run-demo down 2>&1 | sed 's/^/    /'
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+      die "The demo was not stopped; the lines above say why. Nothing was removed that they don't name."
+    fi
     say "${DIM}Its container and volume are removed. Nothing of it is left running.${OFF}"
     exit 0
     ;;
