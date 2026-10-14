@@ -81,8 +81,12 @@ ALLOWED_BIN_OPS = frozenset({"+", "-", "*", "/"})
 #: deliberately NOT decided here -- it is layer 2's (spec §4.3, §4.6).
 ALLOWED_CMP_OPS = frozenset({"==", "!=", "<", "<=", ">", ">="})
 
-#: 7 of the 22 builtins.
-ALLOWED_FUNCTIONS = frozenset({"abs", "coalesce", "count", "if", "length", "max", "min"})
+#: 7 of the 22 builtins, and time_of_day.
+#: time_of_day: GA-68 Q6 -- the owner's ruling (2026-10-13), "real time of day on any date"
+#: (his answer to question 6 of the T-98 form, recorded as GA-68). Admitted ONLY as
+#: time_of_day(<time>, "<zone>") with the zone written in the expression and one of the
+#: evaluator's TIME_ZONES, which the caller hands in (`gate(ast, zones=...)`); see the call row.
+ALLOWED_FUNCTIONS = frozenset({"abs", "coalesce", "count", "if", "length", "max", "min", "time_of_day"})
 
 #: The other 15 builtins compile.py implements.  Listed ONLY so their refusal can
 #: say "outside the safe subset" rather than "unknown"; membership here grants
@@ -103,7 +107,7 @@ OUT_OF_SUBSET_FUNCTIONS = frozenset(
 #: -2147483647 passes, -2147483648 is refused.
 MAX_INDEX_EXCLUSIVE = 2 ** 31
 
-_ALLOWED_FN_WORDS = "abs, coalesce, count, if, length, max, min"
+_ALLOWED_FN_WORDS = "abs, coalesce, count, if, length, max, min, time_of_day"
 
 
 def _refuse_malformed(found: object) -> Refused:
@@ -115,8 +119,11 @@ def _refuse_malformed(found: object) -> Refused:
     )
 
 
-def gate(ast: object) -> None:
+def gate(ast: object, zones: frozenset = frozenset()) -> None:
     """Walk the parsed expression tree; return quietly or raise ``Refused``.
+
+    ``zones`` (T-98): the zone names ``time_of_day`` may read, the evaluator's own
+    ``TIME_ZONES``.  Not handed in, it is empty and every ``time_of_day`` is refused.
 
     The walk is iterative (an explicit stack, left-to-right depth-first), so a
     hostile or absurdly deep tree exhausts nothing and the first offending
@@ -280,10 +287,38 @@ def gate(ast: object) -> None:
                     f"`{name}` is not a function this demo compiles: "
                     f"the only functions it compiles are {_ALLOWED_FN_WORDS}",
                 )
+            if name == "time_of_day":
+                _time_of_day_args(node[2], zones)
             for arg in reversed(node[2]):
                 stack.append(arg)
 
     return None
+
+
+def _time_of_day_args(args: list, zones: frozenset) -> None:
+    """time_of_day(<time>, "<zone>"): exactly two arguments, the second a string written in
+    the expression naming one of ``zones``.  A computed zone could name anything per row --
+    a zone one engine knows and the other reads differently -- so it is never admitted."""
+    if len(args) != 2:
+        raise Refused(
+            "time_of_day",
+            "`time_of_day` takes a time and a time zone, as in "
+            'time_of_day($.ts, "America/Denver")',
+        )
+    zone = args[1]
+    if not (isinstance(zone, tuple) and len(zone) == 2 and zone[0] == "str"
+            and isinstance(zone[1], str)):
+        raise Refused(
+            "time_of_day",
+            "`time_of_day`'s time zone must be written in the expression, as in "
+            'time_of_day($.ts, "America/Denver"), never computed',
+        )
+    if zone[1] not in zones:
+        raise Refused(
+            "time_of_day",
+            f"“{zone[1]}” is not a time zone `time_of_day` can read: it takes a zone's "
+            f"name as the zone list spells it, such as America/Denver or UTC",
+        )
 
 
 # ---------------------------------------------------------------------------------

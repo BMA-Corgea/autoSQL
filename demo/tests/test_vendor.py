@@ -122,6 +122,28 @@ VENDORED_FROM_GIMS: dict[str, str] = {
     "demo/vendor/ui.jsx": "frontend/lib/ui.jsx",
 }
 
+# T-98 (2026-10-13): files vendored from a GIMS COMMIT rather than from whatever a
+# checkout holds. `expr.py` comes from GIMS's autosql/integration line (T-36 plus
+# T-98's time_of_day), not from the branch ../GIMS-Project happens to have out --
+# comparing against that branch is how a July copy went unnoticed beside GIMS's
+# October one. With no AUTOSQL_GIMS_TREE, the tree half reads the file at this
+# commit from the GIMS repository (read-only `git cat-file`). demo/vendor/NOTICE.md
+# records the same commit; re-pin both whenever expr.py is re-vendored.
+VENDORED_AT_COMMIT: dict[str, str] = {
+    "demo/vendor/expr.py": "344d7b5dd6c7c6fdfe633d2aa4758b0d7e80cdbe",
+}
+
+
+def _blob_at_commit(repo: Path, commit: str, relpath: str) -> bytes | None:
+    """The file at `commit` in the git repository holding `repo`, or None when
+    that repository does not have the commit (another machine, a fresh clone)."""
+    got = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "blob", f"{commit}:{relpath}"],
+        capture_output=True,
+    )
+    return got.stdout if got.returncode == 0 else None
+
+
 # The spike file AC-33 still covers in place. Reused *as is* (Q19), not
 # vendored — there is no live-tree half for it, only "has the committed file
 # changed since the ticket started".
@@ -243,6 +265,23 @@ def test_ac34_tree_half(vendored_relpath: str, tree_relpath: str) -> None:
     manifest = _manifest()
     gims_path, gims_present = _gims_tree()
     guts_path, guts_present = _guts_tree()
+
+    commit = VENDORED_AT_COMMIT.get(vendored_relpath)
+    if commit and not os.environ.get("AUTOSQL_GIMS_TREE"):
+        blob = _blob_at_commit(gims_path, commit, tree_relpath) if gims_present else None
+        if blob is None:
+            pytest.skip(
+                f"AC-34 (tree half): {vendored_relpath} is vendored from GIMS commit {commit}, "
+                f"which the GIMS repository at {gims_path} does not hold -- set AUTOSQL_GIMS_TREE "
+                f"to a checkout of it"
+            )
+        got = hashlib.sha256(blob).hexdigest()
+        assert got == manifest.get(vendored_relpath), (
+            f"DRIFT DETECTED: {tree_relpath} at GIMS commit {commit} is sha256 {got}, but "
+            f"demo/manifest.json records {manifest.get(vendored_relpath)}. The commit in "
+            f"VENDORED_AT_COMMIT (and demo/vendor/NOTICE.md) and the vendored bytes must move together."
+        )
+        return
 
     if not gims_present and not guts_present:
         ac = "AC-34" if vendored_relpath == "demo/vendor/expr.py" else "D1"

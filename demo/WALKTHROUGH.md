@@ -388,19 +388,24 @@ either engine's fast number type can hold — and the SQL pane's guard catches
 it and stops before returning anything.
 
 The part worth watching is the other side. **The Python pane cannot read it
-either**, and says so: it reports `raised`<!--#steps[12].expect.python_pane-->
-rather than an answer, with the error named underneath it. Here is why, in
-order. The database does not keep the shorthand you typed; it stores the
-number exactly and writes it back out as all 401 of its digits. Python reads
-a plain run of digits — no decimal point, no `e` anywhere in it — as a whole
-number, so it hands back that exact 401-digit integer rather than an
-approximation of it. Then the `× 1` in the expression has to convert that
-integer into the very same fast number type the SQL side just refused it
-for, and it cannot: the number does not fit, and the conversion fails.
+either**, and says so with a blank: it reports `answered`<!--#steps[12].expect.python_pane-->,
+and edge-03's `scaled` cell is empty. GIMS's own calculator leaves a number it
+cannot hold as no value, rather than making one up. Here is why, in order. The
+database does not keep the shorthand you typed; it stores the number exactly
+and writes it back out as all 401 of its digits. Python reads a plain run of
+digits as a whole number, so it gets that exact 401-digit number rather than an
+approximation of it. Then the `× 1` in the expression has to turn it into the
+very same fast number type the SQL side just refused it for. It does not fit,
+so GIMS's calculator gives no value for that row. (The other rows have no
+`huge` at all, so their `scaled` is blank too.)
+
+(Changed 2026-10-13: until then this pane reported `raised`, an error, because
+the demo carried GIMS's July copy of its calculator. GIMS has since made its
+calculator turn such a number into a blank, and the demo now carries that copy.)
 
 That is a better outcome than it first looks, and it is the point of the
 step. The honest statement about this value is *neither calculator can
-represent it*, and that is now what the screen says on both sides. The
+represent it*, and that is what the screen says on both sides. The
 alternative would be one side quietly printing `inf` — computer shorthand
 for "past anything I can count to" — beside the other side's refusal, which
 would read as the two calculators disagreeing when in truth they agree

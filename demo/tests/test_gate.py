@@ -462,7 +462,8 @@ def test_gate_module_imports_only_the_stdlib_re():
 def test_allowlists_are_exactly_the_subset_definition():
     """Pinned literally HERE, so the test's expectation cannot be read out of
     the code under test."""
-    assert ALLOWED_FUNCTIONS == {"abs", "coalesce", "count", "if", "length", "max", "min"}
+    # time_of_day: the owner's ruling, GA-68 Q6 (2026-10-13) -- real time of day on any date.
+    assert ALLOWED_FUNCTIONS == {"abs", "coalesce", "count", "if", "length", "max", "min", "time_of_day"}
     assert ALLOWED_BIN_OPS == {"+", "-", "*", "/"}
     assert ALLOWED_CMP_OPS == {"==", "!=", "<", "<=", ">", ">="}
     assert len(ALLOWED_TAGS) == 12

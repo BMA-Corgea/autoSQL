@@ -75,10 +75,12 @@ def test_contains_is_gims_contains(conn):
 
 @needs_db
 def test_beyond_dbl_max_it_refuses_where_python_raises(conn):
+    """T-98 re-vendored GIMS's current evaluator: its T-36 reads a number past the double range as
+    infinite instead of raising, so contains([10**400], 1) is False in Python. SQL still refuses
+    by name (XPR01) -- T-36's accepted fallback: SQL refuses rather than answer differently."""
     import psycopg
     huge = 10 ** 400
-    with pytest.raises(OverflowError):
-        GIMS._fn_contains([[huge], 1], {})
+    assert GIMS._fn_contains([[huge], 1], {}) is False
     with pytest.raises(psycopg.Error) as exc:
         _sql(conn, [[[huge], 1]])
     assert exc.value.sqlstate == "XPR01"

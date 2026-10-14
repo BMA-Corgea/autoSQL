@@ -85,6 +85,11 @@ def source_row(collection: str, key: str, raw: str) -> SourceRow:
     lie about what Python really does with the row, which is the exact
     failure this project exists to prevent.
 
+    (T-98, 2026-10-13: the vendored ``expr.py`` is now GIMS's current one.
+    Its T-36 declines to make a double of that int, so ``$.huge * 1`` is
+    null and the pane answers with the cell blank, rather than raising.
+    Still no inf, and still neither side produces a number for this value.)
+
     (CORRECTION, 2026-08-22: this docstring claimed the ``float('inf')``
     parse, and AC-17 was signed on that claim.  See the correction note
     beside AC-17 in ``.autodev/specs/T-2.md``.  A float LITERAL above

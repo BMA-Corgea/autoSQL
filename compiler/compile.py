@@ -46,8 +46,11 @@ before it (proved case by case over 11,367 battery expressions, spikes/T-44/FIND
 
 from __future__ import annotations
 
+import functools
 import math
+from datetime import datetime
 from typing import Any, Dict, List, NamedTuple, Tuple
+from zoneinfo import ZoneInfo
 
 MS_PER_DAY_SQL = "86400000.0"
 
@@ -76,7 +79,57 @@ _INLINE_MAX_CHARS = 512
 
 # Builtins whose value is always a number or null (the float8 channel).
 _NUM_FUNCS = frozenset({"number", "abs", "floor", "ceil", "round", "length", "count",
-                        "sum", "avg", "min", "max", "days_between"})
+                        "sum", "avg", "min", "max", "days_between", "time_of_day"})
+
+# ---------------------------------------------------------------------------------
+# T-98: time_of_day(t, zone) reads a wall clock in a NAMED zone (GIMS's expr.py; GA-68
+# Q6). The two engines read that clock from two time-zone databases -- Python's zoneinfo
+# and the Postgres server's own -- which can disagree (measured 2026-10-13 on this
+# machine: 109 of 484 zones, four of them this autumn). So the compiler hands the server
+# Python's clock for the zone, and xpr.zone_checked compares the server's with it once per
+# statement, refusing (XPR05, by name) before any row is read where they differ.
+# ---------------------------------------------------------------------------------
+ZONE_CHECK_FROM = -5364662400    # 1800-01-01T00:00:00Z
+ZONE_CHECK_TO = 4133980800       # 2101-01-01T00:00:00Z
+_ZONE_SCAN_STEP = 43200          # Python's clock is read every 12 hours, then each change is found to the second
+
+
+def _offset(zone: ZoneInfo, t: int) -> int:
+    return int(datetime.fromtimestamp(t, zone).utcoffset().total_seconds())
+
+
+@functools.lru_cache(maxsize=None)
+def _zone_transitions(name: str) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    zone = ZoneInfo(name)
+    starts, offsets = [ZONE_CHECK_FROM], [_offset(zone, ZONE_CHECK_FROM)]
+    prev_t, prev = ZONE_CHECK_FROM, offsets[0]
+    for t in range(ZONE_CHECK_FROM + _ZONE_SCAN_STEP, ZONE_CHECK_TO, _ZONE_SCAN_STEP):
+        cur = _offset(zone, t)
+        if cur != prev:
+            lo, hi = prev_t, t          # the offset is `prev` at lo and something else at hi
+            while hi - lo > 1:
+                mid = (lo + hi) // 2
+                if _offset(zone, mid) == prev:
+                    lo = mid
+                else:
+                    hi = mid
+            starts.append(hi)
+            offsets.append(_offset(zone, hi))
+            prev = offsets[-1]
+            if prev != cur:             # two changes inside one step: take up the second from here
+                starts.append(t)
+                offsets.append(cur)
+                prev = cur
+        prev_t = t
+    return tuple(starts), tuple(offsets)
+
+
+def zone_transitions(name: str) -> Tuple[List[int], List[int]]:
+    """Python's clock for the zone ``name`` from 1800 through 2100: ``(starts, offsets)``,
+    the offset in seconds in force from each start (epoch seconds, ascending; the first is
+    1800-01-01T00:00:00Z). Cached per process."""
+    starts, offsets = _zone_transitions(name)
+    return list(starts), list(offsets)
 
 
 class Uncompilable(Exception):
@@ -238,8 +291,10 @@ KNOWN_DIVERGENCES = [
 # Compiler
 # ---------------------------------------------------------------------------------
 class _Compiler:
-    def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None):
+    def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None,
+                 time_zones: Any = None):
         self.column = column
+        self.time_zones = time_zones
         self.ctx_param = ctx_param
         self.fold = fold
         self.noun = noun
@@ -510,6 +565,10 @@ class _Compiler:
                 return "NULL::float8"
             a, b = self._j(args[0]), self._j(args[1])
             return f"((xpr.pdate_ms({b}) - xpr.pdate_ms({a})) / {MS_PER_DAY_SQL}::float8)"
+        if name == "time_of_day":                             # expr.py _fn_time_of_day (GIMS T-98)
+            if len(args) != 2:
+                return "NULL::float8"
+            return f"xpr.time_of_day({self._j(args[0])}, {self._zone(args[1])})"
         if name == "coalesce":                                # expr.py:535
             if not args:
                 return "NULL::float8"
@@ -520,6 +579,24 @@ class _Compiler:
             return (f"CASE WHEN {self._truthy(args[0])} "
                     f"THEN {self._f8(args[1])} ELSE {self._f8(args[2])} END")
         raise AssertionError(f"_f8 called on a node _is_num does not admit: {node!r}")
+
+    def _zone(self, node) -> str:
+        """time_of_day's zone: a name written in the expression, one of the evaluator's
+        TIME_ZONES, behind the guard that the server's clock for it is Python's."""
+        if self.time_zones is None:
+            raise Uncompilable(
+                "time_of_day needs the evaluator's zone list (time_zones=...): without it the "
+                "compiler cannot know which zones the evaluator reads")
+        if not (isinstance(node, tuple) and len(node) == 2 and node[0] == "str"):
+            raise Uncompilable(
+                "time_of_day's zone must be written in the expression as one of the evaluator's "
+                "zone names, never computed")
+        name = node[1]
+        if name not in self.time_zones:
+            raise Uncompilable(f"{name!r} is not one of the evaluator's zone names")
+        starts, offsets = zone_transitions(name)
+        return (f"(SELECT xpr.zone_checked({self._bind(name, 'text')}, "
+                f"{self._bind(starts, 'bigint[]')}, {self._bind(offsets, 'int[]')}))")
 
     def _inline_coerce(self, j: str) -> str:
         """xpr.num(j) written inline for a cheap j; the rare paths still call the runtime."""
@@ -615,10 +692,13 @@ class _Compiler:
 
 
 def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
-                fold: Any = None, noun: Any = None) -> Compiled:
+                fold: Any = None, noun: Any = None, time_zones: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
 
     Raises Uncompilable for anything this compiler is not sure of.
+
+    time_zones (T-98): the evaluator's TIME_ZONES. time_of_day compiles only with it, and
+    only for a zone written in the expression as one of those names.
 
     fold="gims" (T-48): compile field access as GIMS's dashboard pipeline serves a noun
     row (its key copies and the _noun_type tag; see gims_copy_sources), for a WHERE run
@@ -629,7 +709,7 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones)
     sql = c.compile(ast)
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.
@@ -638,7 +718,7 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
 
 
 def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
-                      fold: Any = None, noun: Any = None) -> Compiled:
+                      fold: Any = None, noun: Any = None, time_zones: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres BOOLEAN: true exactly where expr's
     _truthy(evaluate(ast)) is.  For a WHERE.  Same arguments and refusals as compile_ast.
 
@@ -650,7 +730,7 @@ def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones)
     sql = c.predicate(ast)
     if len(sql) > MAX_SQL_CHARS:
         raise Uncompilable(f"generated SQL is {len(sql)} chars, over the {MAX_SQL_CHARS} cap")
@@ -672,6 +752,11 @@ def render_for_display(sql: str, params: Dict[str, Any], ctx_param: str = "ctx",
             lit = "true" if value else "false"
         elif isinstance(value, float):
             lit = repr(value)
+        elif isinstance(value, list):
+            # a zone's clock (T-98): hundreds of numbers; the display shows the ends
+            shown = value if len(value) <= 6 else value[:3] + ["…"] + value[-2:]
+            lit = (f"ARRAY[{', '.join(str(v) for v in shown)}]"
+                   + ("" if len(value) <= 6 else f" /* {len(value)} values */"))
         else:
             lit = str(value)
         out = out.replace(f"%({name})s", lit)

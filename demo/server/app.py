@@ -855,6 +855,11 @@ def _sql_block(*, parameterised, display, params, outcomes, sent, collection):
 #: demo's point than an ``inf`` would be — *neither* side can read it.  So
 #: the pane reports the refusal by name.
 #:
+#: T-98 (2026-10-13): step 13 no longer reaches this catch.  The vendored
+#: evaluator is now GIMS's current one, whose T-36 leaves a number past the
+#: double range as null, so the pane ANSWERS with edge-03's cell blank.  The
+#: catch stays for anything else the second calculator raises here.
+#:
 #: This catch is deliberately confined to the already-refused path.  On the
 #: accepted path an exception from either pane propagates: a pick that
 #: produces a number must never be able to produce it by swallowing

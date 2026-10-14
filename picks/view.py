@@ -126,6 +126,20 @@ SELECT r.data #>> %(path)s AS v, count(*) AS n
 """
 
 
+#: How many of a field's text values are NOT in each time form (T-98): the kind is decided
+#: over every value, never over _VALUES_SQL's first VALUE_LIMIT + 1 (a field wider than that,
+#: with one odd value sorting after them, used to be called a time). ASCII digits only, the
+#: fixed-width form T-88's ruling names.
+_FORMS_SQL = """
+SELECT count(*),
+       count(*) FILTER (WHERE NOT (r.data #>> %(path)s) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'),
+       count(*) FILTER (WHERE NOT (r.data #>> %(path)s) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+  FROM {table} r
+ WHERE {scope}
+   AND jsonb_typeof(r.data #> %(path)s) = 'string'
+"""
+
+
 _RANGE_SQL = """
 SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
   FROM {table} r
@@ -134,8 +148,10 @@ SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
 """
 
 
-def _kind(types: set, strings: list) -> str:
-    """One field's kind, from the JSON types its values take.
+def _kind(types: set, forms: tuple) -> str:
+    """One field's kind, from the JSON types its values take and ``forms`` --
+    (text values, how many are not the UTC time form, how many not a date),
+    counted over EVERY value by ``_FORMS_SQL``.
 
     * ``number`` — every value is a number;
     * ``time`` / ``date`` — every value is text in the one fixed-width UTC
@@ -147,9 +163,10 @@ def _kind(types: set, strings: list) -> str:
     if types == {"number"}:
         return "number"
     if types == {"string"}:
-        if strings and all(_TIME_RE.match(s) for s in strings):
+        n, not_time, not_date = forms
+        if n and not not_time:
             return "time"
-        if strings and all(_DATE_RE.match(s) for s in strings):
+        if n and not not_date:
             return "date"
         return "text"
     if types == {"boolean"}:
@@ -252,7 +269,11 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
                 }).fetchall()
             ]
         scalar_types = ts - {"null"}
-        kind = _kind(scalar_types, strings)
+        forms = (0, 0, 0)
+        if "string" in ts:
+            forms = tuple(_read(conn, records, _FORMS_SQL, {
+                "collection": collection, "path": paths.steps(path)}).fetchone())
+        kind = _kind(scalar_types, forms)
         ops = _ops_for(kind, ts)
         field = {
             "path": path,

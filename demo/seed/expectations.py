@@ -835,7 +835,7 @@ def build_answers() -> Dict[str, Any]:
         "derivation": (
             "Refused at RUNTIME — layer 2 member (a) — naming the out-of-range magnitude. This "
             "is the step that shows WHY refusing beats printing: the second calculator cannot "
-            "read this value either — it raises rather than answering — so NEITHER side "
+            "hold this value either, and says so with a blank — so NEITHER side "
             "produces a number here, and saying that plainly is a truer statement than either "
             "side inventing one."
         ),
@@ -845,22 +845,20 @@ def build_answers() -> Dict[str, Any]:
             "offending_row": entry("edge-03", "The one seeded EdgeCase row with a `huge` key, whose stored JSON number is 1e400 (B24, written as raw JSON text precisely so it survives into the database exactly)."),
             "sql_pane": entry(None, "No number: the probe fired instead of returning a value. The pane shows the probe, not a blank — a blank would be indistinguishable from a query that returned nothing."),
             "python_pane": entry(
-                "raised",
-                "No number on this side either — the pane's state is `raised`. Postgres holds a "
-                "jsonb number as an exact `numeric` and renders it in FULL POSITIONAL DIGITS, so "
-                "`data::text` carries edge-03's `huge` as a bare 401-digit INTEGER literal: no "
-                "decimal point, no exponent. JSON's grammar calls a literal with neither of those "
-                "an integer, so Python's parser routes it through its integer hook and never its "
-                "float hook, and hands back an EXACT arbitrary-precision int. The float conversion "
-                "that would have produced inf is therefore never performed — inf never comes into "
-                "existence. Multiplying that int by 1 in the float world then has to make a double "
-                "of it, and a 401-digit integer has no double: the conversion raises OverflowError, "
-                "which the pane reports by name. Derived from jsonb's numeric rendering and JSON's "
-                "integer-vs-float grammar, not by running the pane. AC-17 pins the pair: 1e400 "
-                "refuses and 1e300 does NOT — the guard must not be a blanket ban on large numbers. "
-                "(CORRECTION, 2026-08-22: this entry read `inf` and derived it from the IEEE-754 "
-                "double range. That derivation assumed the value reaches Python as a FLOAT literal; "
-                "it does not. See the note beside AC-17 in .autodev/specs/T-2.md.)",
+                "answered",
+                "No number on this side either: the pane answers, and edge-03's `scaled` is blank. "
+                "GIMS's own evaluator leaves a number it cannot hold as no value rather than an "
+                "error. Postgres holds a jsonb number as an exact `numeric` and renders it in FULL "
+                "POSITIONAL DIGITS, so `data::text` carries edge-03's `huge` as a bare 401-digit "
+                "INTEGER literal, and Python's JSON parser hands back an EXACT int: no inf ever "
+                "comes into existence. GIMS's T-36 makes its evaluator decline any number past the "
+                "double range, so `$.huge * 1` is null; every other row has no `huge`, so its "
+                "`scaled` is blank too. AC-17 pins the pair: 1e400 refuses and 1e300 does NOT — the "
+                "guard must not be a blanket ban on large numbers. (CHANGED, 2026-10-13, T-98: this "
+                "entry read `raised`. The vendored evaluator was GIMS's July copy, which raised "
+                "OverflowError making a double of that int; T-98 re-vendored GIMS's current "
+                "evaluator, ruled under GA-68. CORRECTION, 2026-08-22: before that it read `inf`; "
+                "see the note beside AC-17 in .autodev/specs/T-2.md.)",
             ),
         },
     })
