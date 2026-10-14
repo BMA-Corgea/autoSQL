@@ -25,8 +25,8 @@ V = "../picks/view.py"
 
 T96_MUTANTS = [
     dict(id="R1", defect="a nested box joins by its parent's join (both engines)",
-         edits=[(V, '            expr, words, n = _box(item, fields, "A group")',
-                 '            expr, words, n = _box(dict(item, join=box.get("join")), fields, "A group")')],
+         edits=[(V, '            expr, words, n = _box(item, fields, "A group", zone)',
+                 '            expr, words, n = _box(dict(item, join=box.get("join")), fields, "A group", zone)')],
          selector=TRUTH, expect="kept"),
     dict(id="R2", defect="a group of one reads in brackets",
          edits=[(V, '            parts.append((expr, f"({words})" if n >= 2 else words))',
@@ -66,9 +66,9 @@ T96_MUTANTS = [
          selector=[_M + "test_time_on_aug_20_and_warn_or_error", _M + "test_a_nested_one_of_reads_in_brackets"],
          expect="where Time is on Aug 20 and Status is warn or Status is error"),
     dict(id="R11", defect="a count column's nested groups are dropped (both engines)",
-         edits=[(V, "    expr, words = filter_parts(c, fields, where, where)",
+         edits=[(V, "    expr, words = filter_parts(c, fields, where, where, zone)",
                  "    expr, words = filter_parts(dict(c, filter=dict(c['filter'], items=[i for i in c['filter']['items'] "
-                 "if 'items' not in i])) if c.get('filter') else c, fields, where, where)")],
+                 "if 'items' not in i])) if c.get('filter') else c, fields, where, where, zone)")],
          selector=_M + "test_a_count_columns_tree_equals_hand_sql", expect="a count column's tree counted other rows"),
     dict(id="R12", defect="the tree's own depth limit off by one (64 groups refused)",
          edits=[(V, "        if depth > limit:", "        if depth >= limit:")],

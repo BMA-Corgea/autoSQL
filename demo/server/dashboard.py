@@ -324,6 +324,11 @@ def setup(conn) -> dict:
             # more than the sentence's word: a row WITHOUT the field is "not"
             # the value picked, so it is counted.
             "op_labels": dict(OP_WORDS, ne="is not (rows without a value count too)"),
+            # T-98: a time field's time of day, its conditions and how the picker names them
+            "time_of_day_ops": list(_pv.TIME_OF_DAY_OPS),
+            "time_of_day_labels": {"from": "from (this time and later)",
+                                   "until": "until (stops just before it)",
+                                   "between": "between (can cross midnight)"},
             "logic_needs_two": WHY_LOGIC_NEEDS_TWO,
             "max_counts": group.MAX_COUNTS,
             # T-76: the field kinds a match may pair (two of the same kind);
@@ -504,11 +509,21 @@ def _reasons_table(datasets: list) -> dict:
 # 4 · The sentence (AC8) — by template, from the picks
 # ═════════════════════════════════════════════════════════════════════════
 
+def filter_said(view: dict, fields: dict):
+    """The filter as the sentence says it, naming the clock once when a card reads a time on it
+    (T-98): ``Time is on Aug 20 and Time (time of day) from 5:00 PM (Denver time)``."""
+    said = filter_words(view, fields)
+    zone = _pv.view_zone(view)
+    if said and zone is not None and _pv.filter_reads_clock(view, fields):
+        said += f" ({_zones.label(zone)})"
+    return said
+
+
 def question_words(ds: dict, view: dict, fields: dict, *, sort: bool = True) -> str:
     """The question without its answer: ``Heartbeats where Status is warn,
     newest first``."""
     head = ds["name"]
-    said = filter_words(view, fields)
+    said = filter_said(view, fields)
     if said:
         head += " where " + said
     order = sort_words(view, fields) if sort else ""
@@ -605,6 +620,8 @@ def agreed_rows(conn, pick: dict) -> int | None:
 #: raising; app.run_pick does not catch it on this path (the two-pane screen
 #: answers HTTP 500 for the same pick; that screen is not changed here).
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
+#: T-98: the zone guard's refusal (runtime xpr.zone_checked).
+ZONE_REFUSAL_SQLSTATE = "XPR05"
 
 #: The headline of every refusal where the statement answered and the second
 #: engine could not finish (scoreboard.py writes the same words).
@@ -800,6 +817,17 @@ def _admin_block(answer: dict) -> dict:
     }
 
 
+def _refuse_unusable_zone(conn, view: dict) -> None:
+    """T-98 (GA-68 Q3): a question on a clock this computer and its database disagree about is
+    refused, by name, before anything runs, in the words the clock setting's list uses."""
+    zone = _pv.view_zone(view)
+    if zone is None:
+        return
+    mark = _zones.marks(conn, [zone])[zone]
+    if mark:
+        raise ViewError(_zones.use_words(zone, mark))
+
+
 def _refuse_hidden(view: dict, fields: dict) -> None:
     """The Everyone view names no field hidden from it (T-77's rule, held at
     the gate by T-76 AC8): not a column, a condition, the sort, a summary's
@@ -822,6 +850,7 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
     ds, fields = _dataset(setup_payload, view)
     if not admin:
         _refuse_hidden(view, fields)
+    _refuse_unusable_zone(conn, view)
     if view.get("scoreboard") is not None:
         return scoreboard_answer(conn, setup_payload, view, page, admin)
     if view.get("matched") is not None:
@@ -869,7 +898,7 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
     rows = []
     for row in pane["rows"][start:start + PAGE_SIZE]:
         rows.append([
-            fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"])
+            fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"], _pv.view_zone(view))
             for i in shown
         ])
 
@@ -976,6 +1005,9 @@ def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
         head += f", per {summary['per']}"
         if summary.get("time"):
             head += f" of {fields[summary['time']]['label']}"
+        zone = _pv.view_zone(view)
+        if zone is not None and _zones.label(zone) != "UTC":
+            head += " (UTC)"        # T-98: a summary's hours and days stay UTC this run (T-100)
     return head
 
 
@@ -1266,7 +1298,7 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
     # "Senders, one row each" — never "Senders per Sender" (S11 check, LOW 3).
     own_key = by["path"] in {r["parent_key"] for r in RELATIONS.get(ds["id"], [])}
     head = ds["name"] if own_key else f"{ds['name']} per {by['label']}"
-    said = filter_words(view, fields)
+    said = filter_said(view, fields)
     if said:
         head += " where " + said
     relation = about["relation"]
@@ -1354,13 +1386,13 @@ def scoreboard_answer(conn, setup_payload: dict, view: dict, page: int = 0, admi
 
     def cell(name: str, text: str, tag: str):
         if name == "grp":
-            return "(blank)" if tag == "null" else fmt_cell(text, tag, by["kind"])
+            return "(blank)" if tag == "null" else fmt_cell(text, tag, by["kind"], _pv.view_zone(view))
         if tag == "null":
             return None
         if name.endswith("_pct"):
             return fmt_number(text, places=1) + "%"
         if name == "time":
-            return fmt_cell(text, "string", counted[spec["time"]["field"]]["kind"])
+            return fmt_cell(text, "string", counted[spec["time"]["field"]]["kind"], _pv.view_zone(view))
         if name == "measure":
             return _summary_value(text, tag, spec["measure"]["fn"])[0]
         return fmt_number(text)
@@ -1582,7 +1614,7 @@ def matched_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: 
     last = max(0, (total - 1) // PAGE_SIZE)
     page = min(page, last)
     start = page * PAGE_SIZE
-    rows = [[fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"]) for i in shown]
+    rows = [[fmt_cell(row["c"][i], row["t"][i], by_alias[columns[i]]["kind"], _pv.view_zone(view)) for i in shown]
             for row in pane["rows"][start:start + PAGE_SIZE]]
     show = view.get("show")
     of_total = agreed_count(conn, pick) if show is not None and total >= show else None
@@ -1681,6 +1713,13 @@ def api_answer(body: dict) -> JSONResponse:
         except ViewError as exc:
             return JSONResponse({"kind": "invalid", "sentence": "",
                                  "message": str(exc)}, status_code=422)
+        except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+            # T-98: the zone guard in the statement (xpr.zone_checked) refused the
+            # question's clock: said in words, on whichever answer path ran it.
+            if getattr(exc, "sqlstate", None) != ZONE_REFUSAL_SQLSTATE:
+                raise
+            return JSONResponse({"kind": "invalid", "sentence": "",
+                                 "message": _zones.refusal_words(str(exc))}, status_code=422)
         if wants_admin:
             if "admin" in out:
                 out["admin"] = dict(out["admin"], notes=list(_NOTES.get() or []))
@@ -1726,7 +1765,7 @@ def category_answer(conn, setup_payload: dict, view: dict, page: int = 0, admin:
     items = []
     for r in pane["rows"]:
         g_text, g_tag = r["c"][0], r["t"][0]
-        name = "(blank)" if g_tag == "null" else ("“”" if g_tag == "string" and g_text == "" else fmt_cell(g_text, g_tag, by["kind"]))
+        name = "(blank)" if g_tag == "null" else ("“”" if g_tag == "string" and g_text == "" else fmt_cell(g_text, g_tag, by["kind"], _pv.view_zone(view)))
         text, tag = r["c"][col], r["t"][col]
         if fn == "count":
             shown, exact = fmt_number(text), text

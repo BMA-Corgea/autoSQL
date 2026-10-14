@@ -216,3 +216,9 @@ def marks(conn, names, cache: bool = True) -> dict:
                     day = lambda t: _dt.datetime.fromtimestamp(t, _UTC).date()  # noqa: E731
                     known[z] = mark_words(day(differ[0]), day(differ[-1])) if differ else None
         return {z: known[z] for z in names}
+
+
+def use_words(zone: str, mark: str) -> str:
+    """A list mark as the refusal of a question on that clock: ``Amsterdam time can't be used
+    yet: this computer and its database disagree on its clocks before 1970.``"""
+    return f"{label(zone)} can't be used yet: " + mark.removeprefix("Not available: ")

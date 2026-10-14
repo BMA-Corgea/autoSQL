@@ -27,7 +27,7 @@ from dataclasses import dataclass, field as _dc_field
 from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from typing import Any, Mapping, Optional
 
-from . import env, group, legality, lookup, paths
+from . import env, group, legality, lookup, paths, zones
 from .records import Records
 
 
@@ -360,11 +360,11 @@ def _name(value):
 #: condition and sort.  Anything else is REFUSED by name, never ignored: a
 #: choice the page shows but the answer drops would be a pick silently
 #: ignored, which is the one thing this page must never do.
-VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "filter", "sort", "show", "summary",
+VIEW_KEYS = {"dataset", "columns", "conditions", "logic", "filter", "zone", "sort", "show", "summary",
              "scoreboard", "matched"}
 
 
-CONDITION_KEYS = {"field", "op", "value", "value2", "values"}
+CONDITION_KEYS = {"field", "op", "value", "value2", "values", "part"}
 
 
 SORT_KEYS = {"field", "dir"}
@@ -386,6 +386,20 @@ def _refuse_extra(given: dict, allowed: set, what: str) -> None:
     extra = sorted(set(given) - allowed)
     if extra:
         raise ViewError(f"This page can't use {extra[0]!r} in {what} yet.")
+
+
+def view_zone(view: dict):
+    """The clock a question reads its times on (T-98, GA-68 Q7): one of the zones both engines
+    read (the evaluator's TIME_ZONES), or ``None`` when the question names none — read as
+    before T-98, in UTC, word for word.  Anything else is refused in plain words."""
+    if "zone" not in view:
+        return None
+    zone = view["zone"]
+    known = getattr(env.get("evaluator"), "TIME_ZONES", frozenset())
+    if not isinstance(zone, str) or zone not in known:
+        shown = zone if isinstance(zone, str) else "that"
+        raise ViewError(f"This page doesn't know the time zone “{shown}”. Pick one from the list.")
+    return zone
 
 
 def _dataset(setup_payload: dict, view: dict) -> tuple[dict, dict]:
@@ -658,9 +672,11 @@ def _day(value) -> _dt.date:
         raise ViewError("A day must be picked as a date.") from None
 
 
-def _instant(value) -> str:
+def _instant(value, zone=None) -> str:
     """A picked time → the data's own fixed-width UTC text, which orders as
-    time orders (``2026-08-18T06:00:00Z``)."""
+    time orders (``2026-08-18T06:00:00Z``).  With a zone (T-98) the time is a
+    wall time on that clock — the first of two on a day the clocks go back, a
+    skipped one refused in words — unless it ends in ``Z``, which says UTC."""
     m = _MINUTE_RE.match(value) if isinstance(value, str) else None
     if not m:
         raise ViewError("A time must be picked as a date and a time.")
@@ -668,7 +684,23 @@ def _instant(value) -> str:
     hh, mm, ss = int(m.group(2)), int(m.group(3)), int(m.group(4) or 0)
     if hh > 23 or mm > 59 or ss > 59:
         raise ViewError("A time must be picked as a date and a time.")
+    if zone is not None and not value.endswith("Z"):
+        try:
+            return zones.wall_instant(day, hh, mm, ss, zone)
+        except zones.ZoneError as exc:
+            raise ViewError(str(exc)) from None
     return f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+
+
+_CLOCK_RE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\Z")
+
+
+def _clock(value) -> int:
+    """A picked time of day (``17:00`` or ``17:00:15``, 24-hour) → seconds since midnight."""
+    m = _CLOCK_RE.match(value) if isinstance(value, str) else None
+    if not m:
+        raise ViewError("A time of day is picked as hours and minutes, such as 17:00.")
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + int(m.group(3) or 0)
 
 
 #: The words each condition reads as, by kind.  The screen shows these in
@@ -680,21 +712,27 @@ OP_WORDS = {
     "on": "is on", "after": "is after", "before": "is before",
     "yes": "is yes", "no": "is no",
     "present": "has a value", "blank": "is blank",
+    "from": "from", "until": "until",
 }
+
+#: A time field's time of day (T-98, GA-68 Q6): the conditions it takes and how they read.
+#: "from" takes the time itself, "until" stops just before it, "between" wraps midnight.
+TIME_OF_DAY_OPS = ("from", "until", "between")
+TIME_OF_DAY_WORDS = {"from": "from", "until": "until", "between": "between"}
 
 
 #: The most values one "is one of" may carry.
 IN_LIMIT = 200
 
 
-def _value_for(field: dict, value):
+def _value_for(field: dict, value, zone=None):
     """One picked value → (its literal, how the sentence reads it)."""
     kind = field["kind"]
     if kind == "number":
         return number_literal(value), fmt_number(str(value))
     if kind == "time":
-        t = _instant(value)
-        return string_literal(t), fmt_time(t)
+        t = _instant(value, zone)
+        return string_literal(t), fmt_time(t, zone)
     if kind == "date":
         d = _day(value).isoformat()
         return string_literal(d), fmt_date(d)
@@ -710,24 +748,62 @@ def said_text(value: str) -> str:
     return value
 
 
-def _order_key(field: dict, value):
+def _order_key(field: dict, value, zone=None):
     if field["kind"] == "number":
         return value
     if field["kind"] == "time":
-        return _instant(value)
+        return _instant(value, zone)
     if field["kind"] == "date":
         return _day(value).isoformat()
     return value
 
 
-def condition(field: dict, cond: dict) -> tuple[str, str]:
+def _time_of_day(field: dict, cond: dict, zone) -> tuple[str, str]:
+    """A time field's time of day on the question's clock (T-98): ``time_of_day($.ts, "<zone>")``,
+    whole seconds since that clock's midnight, the one name GA-68 Q6 added to the gate."""
+    label = f"{field['label']} (time of day)"
+    if field["kind"] != "time":
+        raise ViewError(f"{field['label']} has no time of day.")
+    op = cond.get("op")
+    if op not in TIME_OF_DAY_OPS:
+        raise ViewError(f"{label} can't be matched that way.")
+    reads = {"value", "value2"} if op == "between" else {"value"}
+    unread = [k for k in ("value", "value2", "values") if k not in reads and not _empty(cond.get(k))]
+    if unread:
+        slot = {"value": "value", "value2": "second value", "values": "list of values"}[unread[0]]
+        raise ViewError(f"“{label} {TIME_OF_DAY_WORDS[op]}” takes no {slot}.")
+    t = f"time_of_day({field_ref(field['path'])}, {string_literal(zone or 'UTC')})"
+    a = _clock(cond.get("value"))
+    if op == "from":
+        return f"{t} >= {a}", f"{label} from {zones.clock_words(a)}"
+    if op == "until":
+        return f"{t} < {a}", f"{label} until {zones.clock_words(a)}"
+    b = _clock(cond.get("value2"))
+    if a == b:
+        raise ViewError(f"Pick two different times for {label}.")
+    # from a until b; when a is later than b the window wraps midnight
+    joined = "and" if a < b else "or"
+    return (f"({t} >= {a} {joined} {t} < {b})",
+            f"{label} between {zones.clock_words(a)} and {zones.clock_words(b)}")
+
+
+def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
     """One clicked condition → (its expression, its words in the sentence).
 
     The expression is only ever comparisons, ``and``, ``or`` and ``null`` —
     every one inside the gate's subset — over one field read with ``$.``
-    and values written by :func:`string_literal` / :func:`number_literal`.
+    and values written by :func:`string_literal` / :func:`number_literal`;
+    and, for a time field's time of day, the gate's ``time_of_day`` (T-98).
+
+    ``zone`` (T-98): the question's clock.  A time field's day, its picked
+    times and its time of day are read on it; ``None`` is UTC, as before.
     """
     _refuse_extra(cond, CONDITION_KEYS, "a condition")
+    part = cond.get("part")
+    if part is not None:
+        if part != "time_of_day":
+            raise ViewError("A condition reads a field, or a time field's time of day.")
+        return _time_of_day(field, cond, zone)
     op = cond.get("op")
     if op not in field["ops"]:
         raise ViewError(f"{field['label']} can't be matched that way.")
@@ -758,7 +834,7 @@ def condition(field: dict, cond: dict) -> tuple[str, str]:
         if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool) for v in values):
             raise ViewError(f"Each value for {label} must be one value.")
         unique = list(dict.fromkeys(values))
-        pairs = [_value_for(field, v) for v in unique]
+        pairs = [_value_for(field, v, zone) for v in unique]
         if len(pairs) == 1:
             lit, said = pairs[0]
             return f"{ref} == {lit}", f"{label} is {said}"
@@ -768,26 +844,31 @@ def condition(field: dict, cond: dict) -> tuple[str, str]:
 
     if op == "on" and field["kind"] == "time":
         d = _day(cond.get("value"))
-        start = string_literal(f"{d.isoformat()}T00:00:00Z")
-        end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00Z")
+        if zone is None:
+            start = string_literal(f"{d.isoformat()}T00:00:00Z")
+            end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00Z")
+        else:
+            # the day on the question's clock: its first instant to the next day's (DST-correct)
+            first, nxt = zones.day_span(d, zone)
+            start, end = string_literal(first), string_literal(nxt)
         return (f"({ref} >= {start} and {ref} < {end})",
                 f"{label} {words} {fmt_day(d.isoformat())}")
 
     if op == "between":
         lo, hi = cond.get("value"), cond.get("value2")
-        a, said_a = _value_for(field, lo)
-        b, said_b = _value_for(field, hi)
+        a, said_a = _value_for(field, lo, zone)
+        b, said_b = _value_for(field, hi, zone)
         # "between 50 and 10" means the same as "between 10 and 50" to a
         # person; the two ends are put in order rather than matching nothing.
         key = (lambda v: float(v)) if field["kind"] == "number" else (lambda v: v)
-        if key(_order_key(field, lo)) > key(_order_key(field, hi)):
+        if key(_order_key(field, lo, zone)) > key(_order_key(field, hi, zone)):
             (a, said_a), (b, said_b) = (b, said_b), (a, said_a)
         return (f"({ref} >= {a} and {ref} <= {b})",
                 f"{label} {words} {said_a} and {said_b}")
 
     sym = {"eq": "==", "on": "==", "ne": "!=", "gt": ">", "lt": "<",
            "ge": ">=", "le": "<=", "after": ">", "before": "<"}[op]
-    lit, said = _value_for(field, cond.get("value"))
+    lit, said = _value_for(field, cond.get("value"), zone)
     return f"{ref} {sym} {lit}", f"{label} {words} {said}"
 
 
@@ -951,7 +1032,7 @@ def _deeper_than(items: list, limit: int) -> bool:
     return False
 
 
-def _box(box: dict, fields: dict, where: str) -> tuple:
+def _box(box: dict, fields: dict, where: str, zone=None) -> tuple:
     """One box → (its expression, its words, how many live items).  A box
     that holds nothing adds nothing; a box of one is that one item."""
     parts = []
@@ -960,7 +1041,7 @@ def _box(box: dict, fields: dict, where: str) -> tuple:
             _refuse_extra(item, BOX_KEYS, "a group")
             if not isinstance(item["items"], list):
                 raise ViewError("A group's items must be a list.")
-            expr, words, n = _box(item, fields, "A group")
+            expr, words, n = _box(item, fields, "A group", zone)
             if expr is None:
                 continue
             # a group of two or more reads in brackets in the sentence
@@ -968,7 +1049,7 @@ def _box(box: dict, fields: dict, where: str) -> tuple:
         else:
             if not isinstance(item, dict) or _name(item.get("field")) not in fields:
                 raise ViewError("A condition names a field this data set doesn't have.")
-            parts.append(condition(fields[item["field"]], item))
+            parts.append(condition(fields[item["field"]], item, zone))
     logic = _logic(box.get("join"), len(parts), where)
     if not parts:
         return None, None, 0
@@ -1006,31 +1087,42 @@ def checked_filter(expr: str | None) -> str | None:
     return expr
 
 
-def filter_parts(holder: dict, fields: dict, what: str = "A question", where: str = "Only rows where") -> tuple:
+def filter_parts(holder: dict, fields: dict, what: str = "A question", where: str = "Only rows where",
+                 zone=None) -> tuple:
     """(expression, words) of the filter a question or a count column asks
-    for — (None, None) when it asks for none.  Every limit is checked."""
+    for — (None, None) when it asks for none.  Every limit is checked.
+    ``zone``: the question's clock (a count column reads its question's)."""
     tree = filter_tree(holder, what)
     if _deeper_than(tree["items"], MAX_GROUP_DEPTH):
         raise ViewError(TOO_DEEP)
-    expr, words, _n = _box(tree, fields, where)
+    expr, words, _n = _box(tree, fields, where, zone)
     return checked_filter(expr), words
 
 
 def filter_expression(view: dict, fields: dict) -> str | None:
     """The page's filter as one expression: ``(a) and ((b) or (c))``."""
-    return filter_parts(view, fields)[0]
+    return filter_parts(view, fields, zone=view_zone(view))[0]
 
 
 def filter_words(view: dict, fields: dict) -> str | None:
     """The page's filter as the sentence says it: ``Time is on Aug 20 and
     (Status is warn or Status is error)``."""
-    return filter_parts(view, fields)[1]
+    return filter_parts(view, fields, zone=view_zone(view))[1]
 
 
-def filter_fields(holder: dict) -> list:
-    """Every field a filter's cards name, at any depth, the tree as sent or
-    the old flat form — for the Everyone view's hidden-field rule.  Lenient:
-    what is malformed is refused where the filter is read."""
+def filter_reads_clock(holder: dict, fields: dict) -> bool:
+    """Does any card read a time on the question's clock — a time field's day, a picked time or
+    its time of day (T-98)?  The sentence then names the clock once."""
+    for c in _cards(holder):
+        f = fields.get(c.get("field")) if isinstance(c.get("field"), str) else None
+        if f and f["kind"] == "time" and (c.get("part") == "time_of_day"
+                                           or c.get("op") not in ("present", "blank")):
+            return True
+    return False
+
+
+def _cards(holder: dict) -> list:
+    """Every card of a filter, at any depth (the tree as sent, or the old flat form)."""
     out, stack = [], []
     flt = holder.get("filter")
     for items in ((flt.get("items") if isinstance(flt, dict) else None), holder.get("conditions")):
@@ -1043,8 +1135,15 @@ def filter_fields(holder: dict) -> list:
                     if isinstance(it["items"], list):
                         stack.append(it["items"])
                 else:
-                    out.append(it.get("field"))
+                    out.append(it)
     return out
+
+
+def filter_fields(holder: dict) -> list:
+    """Every field a filter's cards name, at any depth, the tree as sent or
+    the old flat form — for the Everyone view's hidden-field rule.  Lenient:
+    what is malformed is refused where the filter is read."""
+    return [c.get("field") for c in _cards(holder)]
 
 
 #: How each kind reads a sort direction.
@@ -1087,13 +1186,19 @@ _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
-def fmt_time(text: str) -> str:
+def fmt_time(text: str, zone=None) -> str:
     """``2026-08-20T23:00:00Z`` → ``Aug 20, 23:00 UTC``; ``…23:00:15Z`` →
-    ``Aug 20, 23:00:15 UTC``."""
+    ``Aug 20, 23:00:15 UTC``.  On a question's clock (T-98) the time reads as
+    that clock shows it, ``Aug 20, 5:00 PM`` in Denver: the screen names the
+    clock once, not in every cell."""
     try:
         t = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
     except ValueError:
         return text
+    if zone is not None:
+        local = t.replace(tzinfo=_dt.timezone.utc).astimezone(zones.ZoneInfo(zone))
+        return (f"{_MONTHS[local.month - 1]} {local.day}, "
+                f"{zones.clock_words(local.hour * 3600 + local.minute * 60 + local.second)}")
     seconds = f":{t.second:02d}" if t.second else ""      # shown when not zero (T-75)
     return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d}{seconds} UTC"
 
@@ -1198,8 +1303,9 @@ def _plain_json(value: Any, *, inside: bool = False) -> str:
     return str(value)
 
 
-def fmt_cell(text: str, tag: str, kind: str):
-    """One answer cell → what a person reads.  ``None`` is a blank cell."""
+def fmt_cell(text: str, tag: str, kind: str, zone=None):
+    """One answer cell → what a person reads.  ``None`` is a blank cell.
+    A time reads on the question's clock (``zone``, T-98)."""
     if tag == "null":
         return None
     if tag == "boolean":
@@ -1208,7 +1314,7 @@ def fmt_cell(text: str, tag: str, kind: str):
         return fmt_number(text)
     if tag == "string":
         if kind == "time":
-            return fmt_time(text)
+            return fmt_time(text, zone)
         if kind == "date":
             return fmt_date(text)
         return text
@@ -1297,12 +1403,12 @@ def _same_name(label: str) -> str:
     return re.sub(r"\s+", " ", label).strip().casefold()
 
 
-def _count_conditions(c: dict, fields: dict, where: str) -> tuple[str, str]:
+def _count_conditions(c: dict, fields: dict, where: str, zone=None) -> tuple[str, str]:
     # T-96: a count column's filter is a tree too (``filter``), or the old
     # flat ``{conditions, logic}``; either way it needs a condition.
     if c.get("filter") is None and not isinstance(c.get("conditions"), list):
         raise ViewError(f"{where} needs at least one condition.")
-    expr, words = filter_parts(c, fields, where, where)
+    expr, words = filter_parts(c, fields, where, where, zone)
     if expr is None:
         raise ViewError(f"{where} needs at least one condition.")
     return expr, words
@@ -1422,7 +1528,7 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
             raise ViewError("A count column's id must be a whole number.")
         if cid in [x["id"] for x in labels]:
             raise ViewError("Two count columns share one id.")
-        expr, said = _count_conditions(c, counted_fields, f"“{label}”")
+        expr, said = _count_conditions(c, counted_fields, f"“{label}”", view_zone(view))
         counts.append({"expr": expr, "pct": bool(c.get("pct"))})
         labels.append({"id": cid, "label": label, "said": said, "pct": bool(c.get("pct"))})
 

@@ -292,3 +292,262 @@ def test_the_list_is_the_same_for_either_view():
     c = _client()
     a, b = c.get("/api/dashboard/zones"), c.get("/api/dashboard/zones?view=admin")
     assert a.status_code == b.status_code == 200 and a.json() == b.json()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# b2 · a question's zone, and what a card means on its clock
+# ═════════════════════════════════════════════════════════════════════════
+
+from picks import view as pview  # noqa: E402
+
+TS = {"path": "ts", "label": "Time", "kind": "time",
+      "ops": ["on", "after", "before", "between", "present", "blank"]}
+DUE = {"path": "due_date", "label": "Due date", "kind": "date",
+       "ops": ["on", "after", "before", "between", "present", "blank"]}
+STATUS = {"path": "status", "label": "Status", "kind": "text", "ops": ["eq", "ne", "in", "present", "blank"]}
+DEN = "America/Denver"
+TOD = 'time_of_day($.ts, "America/Denver")'
+
+
+def c(field, op, value="", value2="", **kw):
+    return {"field": field, "op": op, "value": value, "value2": value2, "values": [], **kw}
+
+
+def tod(op, value="", value2=""):
+    return c("ts", op, value, value2, part="time_of_day")
+
+
+@pytest.mark.parametrize("zone, out", [(None, None), (DEN, DEN), ("UTC", "UTC"), ("Etc/GMT+12", "Etc/GMT+12")])
+def test_a_questions_zone_is_one_both_engines_read(zone, out):
+    v = {} if zone is None else {"zone": zone}
+    assert pview.view_zone(v) == out
+
+
+@pytest.mark.parametrize("zone", ["Mars/Olympus", "america/denver", "EST5EDT", "+05:30", "", 5, ["UTC"], None])
+def test_any_other_zone_is_refused_in_words(zone):
+    with pytest.raises(pview.ViewError) as e:
+        pview.view_zone({"zone": zone})
+    assert "time zone" in str(e.value) and "Pick one from the list." in str(e.value)
+
+
+@pytest.mark.parametrize("cond, zone, expr, words", [
+    (c("ts", "on", "2026-08-20"), DEN,
+     '($.ts >= "2026-08-20T06:00:00Z" and $.ts < "2026-08-21T06:00:00Z")', "Time is on Aug 20"),
+    (c("ts", "on", "2026-03-08"), DEN,
+     '($.ts >= "2026-03-08T07:00:00Z" and $.ts < "2026-03-09T06:00:00Z")', "Time is on Mar 8"),
+    (c("ts", "on", "2026-11-01"), DEN,
+     '($.ts >= "2026-11-01T06:00:00Z" and $.ts < "2026-11-02T07:00:00Z")', "Time is on Nov 1"),
+    (c("ts", "on", "2026-08-21"), "Pacific/Kiritimati",
+     '($.ts >= "2026-08-20T10:00:00Z" and $.ts < "2026-08-21T10:00:00Z")', "Time is on Aug 21"),
+    (c("ts", "after", "2026-08-20T17:00"), DEN, '$.ts > "2026-08-20T23:00:00Z"', "Time is after Aug 20, 5:00 PM"),
+    (c("ts", "before", "2026-11-01T01:30"), DEN, '$.ts < "2026-11-01T07:30:00Z"', "Time is before Nov 1, 1:30 AM"),
+    (c("ts", "between", "2026-08-20T17:00", "2026-08-20T09:00"), DEN,
+     '($.ts >= "2026-08-20T15:00:00Z" and $.ts <= "2026-08-20T23:00:00Z")',
+     "Time is between Aug 20, 9:00 AM and Aug 20, 5:00 PM"),
+    (c("ts", "after", "2026-08-20T23:00:00Z"), DEN, '$.ts > "2026-08-20T23:00:00Z"', "Time is after Aug 20, 5:00 PM"),
+    # no zone: exactly as before T-98
+    (c("ts", "on", "2026-08-20"), None,
+     '($.ts >= "2026-08-20T00:00:00Z" and $.ts < "2026-08-21T00:00:00Z")', "Time is on Aug 20"),
+    (c("ts", "after", "2026-08-20T17:00"), None, '$.ts > "2026-08-20T17:00:00Z"', "Time is after Aug 20, 17:00 UTC"),
+    # a calendar date is its own day, on any clock
+    (c("due_date", "on", "2026-09-03"), DEN, '$.due_date == "2026-09-03"', "Due date is on Sep 3, 2026"),
+    # time of day
+    (tod("from", "17:00"), DEN, f"{TOD} >= 61200", "Time (time of day) from 5:00 PM"),
+    (tod("until", "17:00"), DEN, f"{TOD} < 61200", "Time (time of day) until 5:00 PM"),
+    (tod("from", "17:00:15"), DEN, f"{TOD} >= 61215", "Time (time of day) from 5:00:15 PM"),
+    (tod("between", "22:00", "02:00"), DEN, f"({TOD} >= 79200 or {TOD} < 7200)",
+     "Time (time of day) between 10:00 PM and 2:00 AM"),
+    (tod("between", "09:00", "17:00"), DEN, f"({TOD} >= 32400 and {TOD} < 61200)",
+     "Time (time of day) between 9:00 AM and 5:00 PM"),
+    (tod("from", "00:00"), None, 'time_of_day($.ts, "UTC") >= 0', "Time (time of day) from 12:00 AM"),
+])
+def test_a_card_means_this_on_the_questions_clock(cond, zone, expr, words):
+    field = {"ts": TS, "due_date": DUE}[cond["field"]]
+    assert pview.condition(field, cond, zone) == (expr, words)
+
+
+@pytest.mark.parametrize("field, cond, words", [
+    (TS, c("ts", "after", "2026-03-08T02:30"),
+     "2:30 AM doesn't happen on Mar 8 in Denver time: the clocks go forward an hour."),
+    (TS, tod("between", "17:00", "17:00"), "Pick two different times for Time (time of day)."),
+    (TS, tod("from", "24:00"), "A time of day is picked as hours and minutes, such as 17:00."),
+    (TS, tod("from", "5pm"), "A time of day is picked as hours and minutes, such as 17:00."),
+    (TS, tod("from", 61200), "A time of day is picked as hours and minutes, such as 17:00."),
+    (TS, tod("eq", "17:00"), "Time (time of day) can't be matched that way."),
+    (TS, tod("on", "2026-08-20"), "Time (time of day) can't be matched that way."),
+    (TS, tod("from", "17:00", "18:00"), "“Time (time of day) from” takes no second value."),
+    (TS, c("ts", "on", "2026-08-20", part="date"), "A condition reads a field, or a time field's time of day."),
+    (DUE, {**c("due_date", "from", "17:00"), "part": "time_of_day"}, "Due date has no time of day."),
+    (STATUS, {**c("status", "from", "17:00"), "part": "time_of_day"}, "Status has no time of day."),
+])
+def test_a_card_its_clock_cant_read_is_refused_in_words(field, cond, words):
+    with pytest.raises(pview.ViewError) as e:
+        pview.condition(field, cond, DEN)
+    assert str(e.value) == words
+
+
+def test_the_tree_and_its_count_columns_read_the_questions_zone():
+    fields = {"ts": TS, "status": STATUS}
+    v = {"zone": DEN, "filter": {"version": 1, "join": "all", "items": [
+        c("ts", "on", "2026-08-20"), tod("from", "17:00")]}}
+    assert pview.filter_expression(v, fields) == (
+        f'(($.ts >= "2026-08-20T06:00:00Z" and $.ts < "2026-08-21T06:00:00Z")) and ({TOD} >= 61200)')
+    assert pview.filter_words(v, fields) == "Time is on Aug 20 and Time (time of day) from 5:00 PM"
+
+
+@pytest.mark.parametrize("text, zone, words", [
+    ("2026-08-20T23:00:00Z", DEN, "Aug 20, 5:00 PM"), ("2026-08-21T05:59:59Z", DEN, "Aug 20, 11:59:59 PM"),
+    ("2026-08-20T23:00:00Z", "UTC", "Aug 20, 11:00 PM"), ("2026-08-20T23:00:00Z", None, "Aug 20, 23:00 UTC"),
+    ("2026-08-20", DEN, "2026-08-20"),
+])
+def test_a_time_reads_on_the_questions_clock(text, zone, words):
+    assert pview.fmt_time(text, zone) == words
+
+
+# ── b2 through the page, on the demo's own data (no runtime function needed) ──
+
+def _ask(c, v, admin=True):
+    r = c.post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": admin})
+    return r.status_code, r.json()
+
+
+def _hb(setup_json, **kw):
+    d = next(x for x in setup_json["datasets"] if x["id"] == "heartbeats")
+    v = {"dataset": "heartbeats", "columns": list(d["default_columns"]), "sort": None, "show": None,
+         "summary": None}
+    v.update(kw)
+    return v
+
+
+def _tree(*items):
+    return {"version": 1, "join": "all", "items": list(items)}
+
+
+@pytest.fixture(scope="module")
+def page():
+    c = _client()
+    return c, c.get("/api/dashboard/setup?view=admin").json()
+
+
+def _hand(where: str) -> int:
+    from demo.server import db
+    conn = db.connect(application_name="autosql-t98-hand")
+    try:
+        return conn.execute("SELECT count(*) FROM demo.records WHERE collection = 'noun:Heartbeat' AND "
+                            + where).fetchone()[0]
+    finally:
+        conn.rollback()
+        conn.close()
+
+
+def test_the_setup_names_the_time_of_day_conditions(page):
+    _, st = page
+    assert st["time_of_day_ops"] == ["from", "until", "between"]
+    assert set(st["time_of_day_labels"]) == {"from", "until", "between"}
+
+
+def test_aug_20_in_denver_is_denvers_day_and_the_rows_read_on_its_clock(page):
+    c, st = page
+    want = _hand("data->>'ts' >= '2026-08-20T06:00:00Z' AND data->>'ts' < '2026-08-21T06:00:00Z'")
+    code, a = _ask(c, _hb(st, zone=DEN, filter=_tree(c_("ts", "on", "2026-08-20"))))
+    assert code == 200 and a["admin"]["verdict"] == "agree", a
+    assert a["total"] == want == 900
+    assert "where Time is on Aug 20 (Denver time)" in a["sentence"], a["sentence"]
+    t = a["columns"].index("Time") if "columns" in a and "Time" in a["columns"] else 1
+    assert any(row[t] == "Aug 20, 5:00 PM" for row in a["rows"]), a["rows"][:3]
+
+
+def test_the_same_day_in_utc_moves_the_rows(page):
+    c, st = page
+    want = _hand("data->>'ts' >= '2026-08-20T00:00:00Z' AND data->>'ts' < '2026-08-21T00:00:00Z'")
+    code, a = _ask(c, _hb(st, zone="UTC", filter=_tree(c_("ts", "on", "2026-08-20"))))
+    assert code == 200 and a["total"] == want == 1200
+    assert "where Time is on Aug 20 (UTC)" in a["sentence"], a["sentence"]
+
+
+def test_a_question_without_a_zone_reads_as_before(page):
+    c, st = page
+    code, a = _ask(c, _hb(st, filter=_tree(c_("ts", "on", "2026-08-20"))))
+    assert code == 200 and a["total"] == 1200
+    assert "where Time is on Aug 20," in a["sentence"] or a["sentence"].endswith("1,200 rows"), a["sentence"]
+    assert "(UTC)" not in a["sentence"]
+
+
+def test_an_unknown_zone_is_refused_in_words(page):
+    c, st = page
+    code, a = _ask(c, _hb(st, zone="Mars/Olympus"))
+    assert code == 422 and a["message"] == "This page doesn't know the time zone “Mars/Olympus”. Pick one from the list."
+
+
+def test_a_zone_the_two_clocks_disagree_on_is_refused_by_name(page, monkeypatch):
+    c, st = page
+    monkeypatch.setattr(zones, "marks", lambda conn, names, cache=True: {
+        z: zones.mark_words(_dt.date(1800, 1, 1), _dt.date(1937, 1, 1)) for z in names})
+    code, a = _ask(c, _hb(st, zone="Europe/Amsterdam"))
+    assert code == 422
+    assert a["message"] == ("Amsterdam time can't be used yet: this computer and its database disagree "
+                            "on its clocks before 1970.")
+
+
+def test_the_guards_refusal_reaches_the_page_in_words(page, monkeypatch):
+    from demo.server import dashboard
+
+    class Refused(Exception):
+        sqlstate = "XPR05"
+
+    def guard(*a, **k):
+        raise Refused("time zone America/Edmonton: this database's clock differs from the evaluator's from 2026-11-01")
+    monkeypatch.setattr(dashboard, "answer", guard)
+    c, st = page
+    code, a = _ask(c, _hb(st, zone="America/Edmonton"))
+    assert code == 422 and a["message"] == (
+        "Edmonton time can't be used yet: this computer and its database disagree about "
+        "Edmonton's clocks from Nov 1, 2026.")
+
+
+def c_(field, op, value="", value2="", **kw):
+    return c(field, op, value, value2, **kw)
+
+
+def test_a_boards_sentence_names_the_clock_too(page):
+    c, st = page
+    sb = {"by": "sender_id", "count_from": None, "counts": [], "time": None, "measure": None, "sort": None}
+    code, a = _ask(c, _hb(st, zone=DEN, columns=[], filter=_tree(c_("ts", "on", "2026-08-20")), scoreboard=sb))
+    assert code == 200, a
+    assert "where Time is on Aug 20 (Denver time)" in a["sentence"], a["sentence"]
+
+
+def test_a_summary_per_day_on_another_clock_says_its_days_are_utc(page):
+    """Summaries stay UTC this run (T-100): on Denver's clock a per-day summary says so, rather than
+    let "per day" read as Denver's days."""
+    c, st = page
+    code, a = _ask(c, _hb(st, zone=DEN, columns=[], summary={"fn": "count", "field": None, "per": "day"}))
+    assert code == 200, a
+    assert a["sentence"].startswith("Number of Heartbeats, per day (UTC)"), a["sentence"]
+    code, a = _ask(c, _hb(st, zone="UTC", columns=[], summary={"fn": "count", "field": None, "per": "day"}))
+    assert "(UTC)" not in a["sentence"], a["sentence"]
+
+
+@pytest.mark.parametrize("zone, start, end", [
+    (DEN, "2026-08-20T06:00:00Z", "2026-08-21T06:00:00Z"),
+    ("UTC", "2026-08-20T00:00:00Z", "2026-08-21T00:00:00Z"),
+])
+def test_a_count_column_reads_its_questions_clock(page, zone, start, end):
+    from demo.server import db
+    conn = db.connect(application_name="autosql-t98-count")
+    try:
+        want = dict(conn.execute(
+            "SELECT data->>'sender_id', count(*) FILTER (WHERE data->>'ts' >= %(a)s AND data->>'ts' < %(b)s)"
+            " FROM demo.records WHERE collection = 'noun:Heartbeat' GROUP BY 1", {"a": start, "b": end}).fetchall())
+    finally:
+        conn.rollback()
+        conn.close()
+    c, st = page
+    count = {"label": "On Aug 20", "pct": False, "filter": _tree(c_("ts", "on", "2026-08-20"))}
+    v = {"dataset": "heartbeats", "columns": [], "sort": None, "show": None, "summary": None, "zone": zone,
+         "scoreboard": {"by": "sender_id", "counts": [count]}}
+    code, a = _ask(c, v)
+    assert code == 200 and a["admin"]["verdict"] == "agree", a
+    ids = [col["id"] for col in a["columns"]]
+    got = {r[ids.index("group")]: int(r[ids.index("count:1")]) for r in a["rows"]}
+    assert got == want and set(want.values()) == {18 if zone == DEN else 24}, (got, want)
