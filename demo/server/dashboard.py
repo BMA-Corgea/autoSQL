@@ -943,25 +943,28 @@ def _summary_value(text: str, tag: str, fn: str):
     return shown, exact, drawn if math.isfinite(drawn) else None
 
 
-def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str, str]:
+def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | None]:
     """The data set's whole span over one time or date field, read from the
     data at setup — a date as its UTC midnight (T-88).  On a question's clock
     (T-100) the span is in that clock's wall-clock form: a time read on it, a
-    date as its own midnight, no Z."""
+    date as its own midnight, no Z.  An edge the clock can't show (it leaves
+    years 1..9999 there) is no edge: ``None``, and the axis ends at the answer's
+    own first or last bucket instead (T-104; it used to be 0001-01-01, an axis
+    from year 1)."""
     r = fields[time]["range"]
     if zone is None:
         as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
         return as_time(r["min"]), as_time(r["max"])
 
-    def on_clock(v, edge):
+    def on_clock(v):
         if len(v) == 10:
             return v + "T00:00:00"
         t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
         try:
             return _iso(t.astimezone(_zones.ZoneInfo(zone)))
         except OverflowError:
-            return edge      # read on this clock it leaves years 1..9999: that time is in no bucket
-    return on_clock(r["min"], "0001-01-01T00:00:00"), on_clock(r["max"], "9999-12-31T23:00:00")
+            return None      # read on this clock it leaves years 1..9999: that time is in no bucket
+    return on_clock(r["min"]), on_clock(r["max"])
 
 
 def _iso(t, z: str = "") -> str:
@@ -974,9 +977,25 @@ def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
     to ``hi``, in the engine's own label form (``2026-08-14T00:00:00Z``).  On a
     question's clock (T-100) the steps are that clock's (labels without Z), and
     an hour the clock skips (a spring-forward night) is no slot at all."""
+    t, end = _slot_ends(unit, lo, hi, zone)
+
+    def step(d):
+        if unit == "month":
+            return d.replace(year=d.year + (d.month == 12), month=d.month % 12 + 1)
+        return d + {"hour": _dt.timedelta(hours=1), "day": _dt.timedelta(days=1),
+                    "week": _dt.timedelta(days=7)}[unit]
+
+    out = []
+    while t <= end:
+        if zone is None or unit != "hour" or _clock_shows(t, zone):
+            out.append(_iso(t, "Z" if zone is None else ""))
+        t = step(t)
+    return out
+
+
+def _slot_ends(unit: str, lo: str, hi: str, zone=None) -> tuple:
+    """The first and last slot's start, from ``lo`` and ``hi`` in the engine's label form."""
     fmt = "%Y-%m-%dT%H:%M:%SZ" if zone is None else "%Y-%m-%dT%H:%M:%S"
-    t = _dt.datetime.strptime(lo, fmt)
-    end = _dt.datetime.strptime(hi, fmt)
 
     def start(d):
         if unit == "hour":
@@ -987,20 +1006,34 @@ def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
         if unit == "month":
             return d.replace(day=1)
         return d
+    return start(_dt.datetime.strptime(lo, fmt)), start(_dt.datetime.strptime(hi, fmt))
 
-    def step(d):
-        if unit == "month":
-            return d.replace(year=d.year + (d.month == 12), month=d.month % 12 + 1)
-        return d + {"hour": _dt.timedelta(hours=1), "day": _dt.timedelta(days=1),
-                    "week": _dt.timedelta(days=7)}[unit]
 
-    t, end = start(t), start(end)
-    out = []
-    while t <= end:
-        if zone is None or unit != "hour" or _clock_shows(t, zone):
-            out.append(_iso(t, "Z" if zone is None else ""))
-        t = step(t)
-    return out
+#: The most slots a summary's time axis lays (T-104).  A year of hours is 8,784; 1900 to 2026 by day is
+#: 46,253 and still draws.  One reading in 1900 made 1.11 M hourly slots (865 MB); a zero date ran 4 GB out.
+AXIS_SLOTS = 50_000
+
+#: What a summary too wide to draw says, by its step.  The page offers "Per hour" and "Per day".
+_TOO_WIDE = {
+    "hour": "This summary spans too many hours to draw. Pick \u201cPer day\u201d, or filter it to a shorter time in step 3.",
+    "day": "This summary spans too many days to draw. Filter it to a shorter time in step 3.",
+    "week": "This summary spans too many weeks to draw. Filter it to a shorter time in step 3.",
+    "month": "This summary spans too many months to draw. Filter it to a shorter time in step 3.",
+}
+
+
+def _slot_count(unit: str, lo: str, hi: str, zone=None) -> int:
+    """How many slots ``_slots`` would lay from ``lo`` to ``hi`` — counted from the two ends, never by laying
+    them (an hour a clock skips is counted: this is the most it lays)."""
+    t, end = _slot_ends(unit, lo, hi, zone)
+    if end < t:
+        return 0
+    if unit == "month":
+        return (end.year - t.year) * 12 + end.month - t.month + 1
+    days = (end - t).days
+    if unit == "hour":
+        return int((end - t).total_seconds() // 3600) + 1
+    return days // 7 + 1 if unit == "week" else days + 1
 
 
 def _clock_shows(t: "_dt.datetime", zone: str) -> bool:
@@ -1131,7 +1164,20 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         bars = []
     else:
         zone = _pv.view_zone(view)
-        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields, summary.get("time") or "ts", zone)
+        first, last = min(b["start"] for b in got), max(b["start"] for b in got)
+        if capped:
+            lo, hi = first, last
+        else:
+            lo, hi = _span(fields, summary.get("time") or "ts", zone)
+            lo, hi = lo or first, hi or last        # an edge this clock can't show is no edge (T-104)
+            if _slot_count(unit, lo, hi, zone) > AXIS_SLOTS:
+                # Past the limit the axis is the answer's own span, so a filter to a shorter time answers again:
+                # the data set's span, which no filter changes, would refuse every one (T-104).
+                lo, hi = first, last
+        if _slot_count(unit, lo, hi, zone) > AXIS_SLOTS:
+            # Too wide to draw, even from the first bucket with rows to the last: said in words, never laid
+            # (drawing only the buckets with rows would put 1900 beside 2026 as if adjacent; T-88).
+            raise ViewError(_TOO_WIDE[unit])
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
                 for t in _slots(unit, lo, hi, zone)]
