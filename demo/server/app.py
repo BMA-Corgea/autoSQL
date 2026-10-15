@@ -435,6 +435,17 @@ _EMPTY_PANE_OVERFLOW = (
     "float8_overflow_raises). Nothing was written and nothing was committed "
     "— the session is read-only and the failed transaction was rolled back."
 )
+_EMPTY_PANE_OVERFLOW_CHECKING = (
+    "No number from this side. While the rows were being checked, before the "
+    "statement was sent, the database refused the arithmetic: float8 "
+    "arithmetic overflowed (SQLSTATE 22003). Nothing was written and nothing "
+    "was committed — the session is read-only."
+)
+_EMPTY_PANE_ZONE = (
+    "No number from this side. The database refused to read a time on the "
+    "question's clock where it and this computer disagree (SQLSTATE XPR05). "
+    "Nothing was written and nothing was committed — the session is read-only."
+)
 _EMPTY_PANE_OUT_OF_RANGE = (
     "No number from this side. The data holds a number larger than the largest "
     "double, and the database refused to read it (SQLSTATE XPR01). Nothing was "
@@ -962,7 +973,7 @@ _FLOAT8_OVERFLOW_SQLSTATE = "22003"
 
 
 def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
-                             outcomes, source, shape) -> dict:
+                             outcomes, source, shape, sent=True) -> dict:
     """The float8-overflow refusal, named (spec §4.3's doctrine: whichever
     layer refuses, the person sees it, and it names what caused it).
 
@@ -987,10 +998,15 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
         "kind": "runtime",
         "headline": errors.LAYER_2_HEADLINE,
         "body": (
-            "The expression was inside the subset, SQL was compiled and "
-            "the statement was sent — and the database refused it "
-            "mid-computation: float8 arithmetic overflowed. This is the "
-            "pinned compiler's own recorded divergence "
+            ("The expression was inside the subset, SQL was compiled and "
+             "the statement was sent — and the database refused it "
+             "mid-computation: float8 arithmetic overflowed. This is the "
+             if sent else
+             # T-105: met by a probe computing an operand, before the statement
+             "The expression was inside the subset and SQL was compiled — and "
+             "while the rows were being checked, before the statement was sent, "
+             "the database refused the arithmetic: float8 arithmetic overflowed. This is the ")
+            + "pinned compiler's own recorded divergence "
             "(KNOWN_DIVERGENCES.float8_overflow_raises): Postgres raises "
             "where Python's float quietly becomes inf. No number came "
             "back from the SQL side, and refusing by name is the honest "
@@ -1001,20 +1017,21 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
             f"the database refused the arithmetic: {detail} (SQLSTATE "
             f"{_FLOAT8_OVERFLOW_SQLSTATE}) — a float8 value in this "
             "expression exceeded the largest double, about "
-            "1.7976931348623157e+308, while the statement ran"
+            "1.7976931348623157e+308, " + ("while the statement ran" if sent else "while the rows were checked")
         ),
         "row_key": None,
         "sql_existed": True,
-        "statement_sent": True,
+        "statement_sent": sent,
     }
     py_pane, py_total = _fallback_python_pane(conn, pick)
     body = _refused(
         payload, pick=pick,
-        panes={"sql": _empty_pane("raised", _EMPTY_PANE_OVERFLOW),
+        panes={"sql": _empty_pane("raised", _EMPTY_PANE_OVERFLOW) if sent
+               else _empty_pane("abandoned", _EMPTY_PANE_OVERFLOW_CHECKING),
                "python": py_pane},
         sql_block=_sql_block(parameterised=built.sql, display=display_sql,
                              params=built.params, outcomes=outcomes,
-                             sent=True, collection=source),
+                             sent=sent, collection=source),
     )
     body["page"]["total"] = py_total
     body["page"]["ordered_by"] = _ordered_by(pick, shape)
@@ -1027,7 +1044,7 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
 #: == is not a numeric-read place, so the magnitude probe never looks). It used
 #: to answer HTTP 500 (a-chk's LATER-verify, item 5a); now it is refused by
 #: name, as the 22003 overflow is. Caught by SQLSTATE, as that one is -- and
-#: only for the two-pane screen (``refuse_out_of_range``): the dashboard
+#: only for the two-pane screen (``refusals_in_words``): the dashboard
 #: catches XPR01 from run_pick itself and says it in its own words (T-75), so
 #: its answers are left exactly as they were.
 _OUT_OF_RANGE_SQLSTATE = "XPR01"
@@ -1077,24 +1094,65 @@ def _out_of_range_refusal(conn, pick, exc, *, built, display_sql, outcomes,
     return body
 
 
+#: T-101's refusal of a row read on a clock where this database and the
+#: evaluator disagree (xpr.clock_refused).  The dashboard says it in words at
+#: its own endpoint; on the two-pane screen it was a 500 (a-chk, T-105 check).
+_ZONE_SQLSTATE = "XPR05"
+
+
+def _zone_refusal(conn, pick, exc, *, built, display_sql, outcomes, source,
+                  shape, sent) -> dict:
+    """XPR05 as a named layer-2 refusal in the dashboard's own sentence (the zone,
+    the row's date, why it matters), the Python pane still answering (T-105)."""
+    from picks import zones as _zones
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    refuse_writes(conn)
+    detail = str(exc).strip().splitlines()[0] if str(exc).strip() else "time zone refused"
+    payload = {
+        "layer": 2,
+        "kind": "runtime",
+        "headline": errors.LAYER_2_HEADLINE,
+        "body": _zones.refusal_words(detail),
+        "construct": "time zone",
+        "why": f"{detail} (SQLSTATE {_ZONE_SQLSTATE})",
+        "row_key": None,
+        "sql_existed": True,
+        "statement_sent": sent,
+    }
+    py_pane, py_total = _fallback_python_pane(conn, pick)
+    body = _refused(
+        payload, pick=pick,
+        panes={"sql": _empty_pane("raised" if sent else "abandoned", _EMPTY_PANE_ZONE),
+               "python": py_pane},
+        sql_block=_sql_block(parameterised=built.sql, display=display_sql,
+                             params=built.params, outcomes=outcomes,
+                             sent=sent, collection=source),
+    )
+    body["page"]["total"] = py_total
+    body["page"]["ordered_by"] = _ordered_by(pick, shape)
+    return body
+
+
 class SecondEngineFailed(RuntimeError):
     """The second engine could not compute an answer the statement did
     (T-79): raised by :func:`run_pick` in place of whatever it raised, so a
     caller that answers in words (the dashboard) can name it."""
 
 
-def run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: bool = False) -> dict:
+def run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool = False) -> dict:
     """T-101: every clock reading of the pick is checked against D (picks/zones.py), with the
     question's own resolver when one is set (the dashboard sets it once per question)."""
     from picks import env as _penv
     from picks import zones as _zones
     if _penv.zone_gaps() is not None:
-        return _run_pick(conn, pick, whole=whole, refuse_out_of_range=refuse_out_of_range)
+        return _run_pick(conn, pick, whole=whole, refusals_in_words=refusals_in_words)
     with _penv.checking_zones(_zones.clock_check(conn)):
-        return _run_pick(conn, pick, whole=whole, refuse_out_of_range=refuse_out_of_range)
+        return _run_pick(conn, pick, whole=whole, refusals_in_words=refusals_in_words)
 
 
-def _run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: bool = False) -> dict:
+def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool = False) -> dict:
     """One pick → the whole response body.  Separated from the route so the
     suite drives the same code the screen does, with no HTTP in the way.
 
@@ -1233,15 +1291,19 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: boo
         body["page"]["total"] = py_total
         body["page"]["ordered_by"] = _ordered_by(pick, verdict["shape"])
         return body
-    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
-        # T-105: a probe computing an operand met a number past the largest
-        # double (abs($.huge) == 1): refused by name, never a 500
-        if not refuse_out_of_range or getattr(exc, "sqlstate", None) != _OUT_OF_RANGE_SQLSTATE:
-            raise
-        return _out_of_range_refusal(
-            conn, pick, exc, built=built, display_sql=display_sql,
-            outcomes=[], source=source, shape=verdict["shape"], sent=False,
-        )
+    except Exception as exc:  # noqa: BLE001 — three SQLSTATEs, re-raised otherwise
+        # T-105: a probe computing an operand was refused by the database:
+        # each refusal in its own words on the two-pane screen, never a 500
+        refused = dict(built=built, display_sql=display_sql, outcomes=[], source=source,
+                       shape=verdict["shape"], sent=False)
+        state = getattr(exc, "sqlstate", None)
+        if refusals_in_words and state == _OUT_OF_RANGE_SQLSTATE:      # abs($.huge) == 1
+            return _out_of_range_refusal(conn, pick, exc, **refused)
+        if refusals_in_words and state == _ZONE_SQLSTATE:              # T-101: a row inside D
+            return _zone_refusal(conn, pick, exc, **refused)
+        if refusals_in_words and state == _FLOAT8_OVERFLOW_SQLSTATE:   # $.a * $.a == 1
+            return _float8_overflow_refusal(conn, pick, exc, **refused)
+        raise
 
     # ── 5 · both panes, then the whole comparison ───────────────────────
     # One database error, and only that one, is a refusal rather than a
@@ -1250,13 +1312,16 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: boo
     # produces a number must never produce it by swallowing something.
     try:
         sql = sql_pane(conn, built)
-    except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
-        if refuse_out_of_range and getattr(exc, "sqlstate", None) == _OUT_OF_RANGE_SQLSTATE:
+    except Exception as exc:  # noqa: BLE001 — three SQLSTATEs, re-raised otherwise
+        refused = dict(built=built, display_sql=display_sql, outcomes=outcomes, source=source,
+                       shape=verdict["shape"], sent=True)
+        state = getattr(exc, "sqlstate", None)
+        if refusals_in_words and state == _OUT_OF_RANGE_SQLSTATE:
             # T-105: the statement itself read a number past the largest double
-            return _out_of_range_refusal(
-                conn, pick, exc, built=built, display_sql=display_sql,
-                outcomes=outcomes, source=source, shape=verdict["shape"], sent=True,
-            )
+            return _out_of_range_refusal(conn, pick, exc, **refused)
+        if refusals_in_words and state == _ZONE_SQLSTATE:
+            # T-105: the statement read a row on a clock inside D (T-101)
+            return _zone_refusal(conn, pick, exc, **refused)
         if getattr(exc, "sqlstate", None) != _FLOAT8_OVERFLOW_SQLSTATE:
             raise
         return _float8_overflow_refusal(
@@ -1663,7 +1728,7 @@ def api_pick(body: dict) -> JSONResponse:
         # runs in — and reads the setting back; the session-characteristics
         # statement alone provably did not (see its docstring).
         refuse_writes(conn)
-        answer = run_pick(conn, pick, refuse_out_of_range=True)   # T-105: words, never a 500
+        answer = run_pick(conn, pick, refusals_in_words=True)   # T-105: words, never a 500
     finally:
         conn.close()
     return JSONResponse(answer, status_code=200 if answer["accepted"] else 422)

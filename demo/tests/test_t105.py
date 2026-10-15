@@ -61,3 +61,54 @@ def test_a_neighbour_that_already_answered_in_words_is_unchanged(client, flt, la
     r = _ask(client, flt)
     rf = r.json()["refusal"]
     assert r.status_code == 422 and (rf["layer"], rf["construct"]) == (layer, construct)
+
+
+def test_a_float8_overflow_met_by_a_probe_is_refused_in_its_own_words(client):
+    """$.a * $.a == 1: the container-equality probe computes the product before the statement runs; the
+    database refuses the arithmetic (22003). It was a 500 too; now the overflow refusal, said as such."""
+    r = _ask(client, "$.a * $.a == 1")
+    assert r.status_code == 422, (r.status_code, r.text[:200])
+    rf = r.json()["refusal"]
+    assert (rf["layer"], rf["construct"], rf["statement_sent"]) == (2, "float8 overflow", False)
+    assert "before the statement was sent" in rf["body"] and "22003" in rf["why"]
+
+
+class _Refused(Exception):
+    def __init__(self, sqlstate, message):
+        super().__init__(message)
+        self.sqlstate = sqlstate
+
+
+_ZONE_MSG = ("time zone America/Edmonton: this database's clock differs from the evaluator's on 2026-11-02, "
+             "a time this question reads")
+
+
+@pytest.mark.parametrize("sqlstate, message, construct", [
+    ("XPR01", "xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)", "number out of range"),
+    ("XPR05", _ZONE_MSG, "time zone"),
+    ("22003", "value out of range: overflow", "float8 overflow"),
+    ("XX000", "some other failure of the database", None),
+])
+def test_each_refusal_the_statement_meets_is_told_in_its_own_words(client, monkeypatch, sqlstate, message, construct):
+    """a-chk's MEDIUM (MQ1 survived): only XPR01 gets the out-of-range number's words; the zone refusal gets the
+    dashboard's sentence; the float8 overflow keeps its own; any other database error is not reworded (it is
+    still the error it is). The statement is made to raise each in turn on a pick the probes pass."""
+    from demo.server import app as server_app
+    from picks import zones
+
+    def refuse(conn, built):
+        raise _Refused(sqlstate, message)
+    monkeypatch.setattr(server_app, "sql_pane", refuse)
+    pick = {"source": "noun:Heartbeat", "computed": [], "filter": '$.status == "ok"', "sort": None, "cap": None,
+            "window": None, "changed": False, "bucket": "off", "aggregate": None}
+    r = client.post("/api/pick", json={"pick": pick})
+    if construct is None:
+        assert r.status_code == 500
+        return
+    assert r.status_code == 422, (r.status_code, r.text[:200])
+    rf = r.json()["refusal"]
+    assert (rf["construct"], rf["statement_sent"]) == (construct, True) and sqlstate in rf["why"]
+    if sqlstate == "XPR05":
+        assert rf["body"] == zones.refusal_words(_ZONE_MSG) == (
+            "Edmonton time can't read these times: this computer and its database disagree about Edmonton's "
+            "clocks on Nov 2, 2026, and this question reads a time from then.")
