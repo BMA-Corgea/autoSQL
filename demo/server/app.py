@@ -435,6 +435,11 @@ _EMPTY_PANE_OVERFLOW = (
     "float8_overflow_raises). Nothing was written and nothing was committed "
     "— the session is read-only and the failed transaction was rolled back."
 )
+_EMPTY_PANE_OUT_OF_RANGE = (
+    "No number from this side. The data holds a number larger than the largest "
+    "double, and the database refused to read it (SQLSTATE XPR01). Nothing was "
+    "written and nothing was committed — the session is read-only."
+)
 _SQL_NOTE = (
     "The parameterised statement above, run once against the demo's own "
     "database on 127.0.0.1:55440."
@@ -1016,6 +1021,59 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
     return body
 
 
+#: T-105: the runtime's named refusal of a stored JSON number past the largest
+#: double (``xpr.f8``). Through == or != it is met by a probe computing an
+#: operand (``abs($.huge) == 1``) or by the statement itself (``$.huge == 1``:
+#: == is not a numeric-read place, so the magnitude probe never looks). It used
+#: to answer HTTP 500 (a-chk's LATER-verify, item 5a); now it is refused by
+#: name, as the 22003 overflow is. Caught by SQLSTATE, as that one is.
+_OUT_OF_RANGE_SQLSTATE = "XPR01"
+
+
+def _out_of_range_refusal(conn, pick, exc, *, built, display_sql, outcomes,
+                          source, shape, sent) -> dict:
+    """XPR01 from the probes or the statement, as a named layer-2 refusal
+    (HTTP 422, never a 500), the Python pane still answering (T-105)."""
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    refuse_writes(conn)
+    detail = str(exc).strip().splitlines()[0] if str(exc).strip() else "number out of range"
+    payload = {
+        "layer": 2,
+        "kind": "runtime",
+        "headline": errors.LAYER_2_HEADLINE,
+        "body": (
+            "The expression was inside the subset and SQL was compiled — and "
+            "the database refused to read a stored number: it is larger than "
+            "the largest double (about 1.8e308), so this expression cannot be "
+            "worked out in SQL for that row. No number came back from the SQL "
+            "side, and refusing by name is the honest answer."
+        ),
+        "construct": "number out of range",
+        "why": (
+            f"the database refused a stored number: {detail} (SQLSTATE "
+            f"{_OUT_OF_RANGE_SQLSTATE}) — a value this expression reads is past "
+            "the largest double, about 1.7976931348623157e+308"
+        ),
+        "row_key": None,
+        "sql_existed": True,
+        "statement_sent": sent,
+    }
+    py_pane, py_total = _fallback_python_pane(conn, pick)
+    body = _refused(
+        payload, pick=pick,
+        panes={"sql": _empty_pane("raised" if sent else "abandoned", _EMPTY_PANE_OUT_OF_RANGE),
+               "python": py_pane},
+        sql_block=_sql_block(parameterised=built.sql, display=display_sql,
+                             params=built.params, outcomes=outcomes,
+                             sent=sent, collection=source),
+    )
+    body["page"]["total"] = py_total
+    body["page"]["ordered_by"] = _ordered_by(pick, shape)
+    return body
+
+
 class SecondEngineFailed(RuntimeError):
     """The second engine could not compute an answer the statement did
     (T-79): raised by :func:`run_pick` in place of whatever it raised, so a
@@ -1172,6 +1230,15 @@ def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
         body["page"]["total"] = py_total
         body["page"]["ordered_by"] = _ordered_by(pick, verdict["shape"])
         return body
+    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+        # T-105: a probe computing an operand met a number past the largest
+        # double (abs($.huge) == 1): refused by name, never a 500
+        if getattr(exc, "sqlstate", None) != _OUT_OF_RANGE_SQLSTATE:
+            raise
+        return _out_of_range_refusal(
+            conn, pick, exc, built=built, display_sql=display_sql,
+            outcomes=[], source=source, shape=verdict["shape"], sent=False,
+        )
 
     # ── 5 · both panes, then the whole comparison ───────────────────────
     # One database error, and only that one, is a refusal rather than a
@@ -1180,7 +1247,13 @@ def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     # produces a number must never produce it by swallowing something.
     try:
         sql = sql_pane(conn, built)
-    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+    except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
+        if getattr(exc, "sqlstate", None) == _OUT_OF_RANGE_SQLSTATE:
+            # T-105: the statement itself read a number past the largest double
+            return _out_of_range_refusal(
+                conn, pick, exc, built=built, display_sql=display_sql,
+                outcomes=outcomes, source=source, shape=verdict["shape"], sent=True,
+            )
         if getattr(exc, "sqlstate", None) != _FLOAT8_OVERFLOW_SQLSTATE:
             raise
         return _float8_overflow_refusal(
