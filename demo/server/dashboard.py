@@ -953,12 +953,20 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str, str]:
         as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
         return as_time(r["min"]), as_time(r["max"])
 
-    def on_clock(v):
+    def on_clock(v, edge):
         if len(v) == 10:
             return v + "T00:00:00"
         t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
-        return t.astimezone(_zones.ZoneInfo(zone)).strftime("%Y-%m-%dT%H:%M:%S")
-    return on_clock(r["min"]), on_clock(r["max"])
+        try:
+            return _iso(t.astimezone(_zones.ZoneInfo(zone)))
+        except OverflowError:
+            return edge      # read on this clock it leaves years 1..9999: that time is in no bucket
+    return on_clock(r["min"], "0001-01-01T00:00:00"), on_clock(r["max"], "9999-12-31T23:00:00")
+
+
+def _iso(t, z: str = "") -> str:
+    """The engines' fixed-width form, years in four digits (strftime writes year 1 as "1")."""
+    return (f"{t.year:04d}-{t.month:02d}-{t.day:02d}T{t.hour:02d}:{t.minute:02d}:{t.second:02d}{z}")
 
 
 def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
@@ -990,18 +998,22 @@ def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
     out = []
     while t <= end:
         if zone is None or unit != "hour" or _clock_shows(t, zone):
-            out.append(t.strftime(fmt))
+            out.append(_iso(t, "Z" if zone is None else ""))
         t = step(t)
     return out
 
 
 def _clock_shows(t: "_dt.datetime", zone: str) -> bool:
-    """Does the zone's wall clock ever show this hour (not skipped by a change)?"""
-    try:
-        _zones.wall_instant(t.date(), t.hour, t.minute, t.second, zone)
-        return True
-    except _zones.ZoneError:
-        return False
+    """Does the zone's wall clock show any of this hour? A change skips a stretch that starts or ends
+    on it, so the hour shows if its first second or its last one does (a-chk's MEDIUM: Lord Howe's
+    half-hour jump skips 2:00-2:29 but shows 2:30-2:59)."""
+    for m, s in ((t.minute, t.second), (59, 59)):
+        try:
+            _zones.wall_instant(t.date(), t.hour, m, s, zone)
+            return True
+        except _zones.ZoneError:
+            pass
+    return False
 
 
 #: How a per-time slot reads, and its column's name (T-88: weeks, months).

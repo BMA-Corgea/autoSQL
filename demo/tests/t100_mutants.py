@@ -68,6 +68,17 @@ T100_MUTANTS = [
          edits=[(_B, _SQL_LABEL, _SQL_LABEL.replace("HH24:MI:SS' )", "HH24:MI:SS\\\"Z\\\"' )")),
                 (_E, _PY_WALL, _PY_WALL.replace("[:-1]", ""))],
          selector=VECTORS, expect="Denver, Mar 8: a 23-hour day"),
+    # a-chk's two MEDIUMs on T-100 (both HTTP 500s), each held by its own test
+    dict(id="Z7", defect="the hour axis tests only an hour's first second (Lord Howe's 2:30-2:59 lose their slot)",
+         edits=[(_D, "    for m, s in ((t.minute, t.second), (59, 59)):", "    for m, s in ((t.minute, t.second),):")],
+         selector=_T + "test_an_hour_whose_first_minutes_the_clock_skips_keeps_its_slot", expect="2026-10-04T02:00:00"),
+    dict(id="Z8", defect="the statement buckets a clock reading outside years 1..9999 (the zero date west of UTC)",
+         edits=[(_B, "    return f\"({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp)\"",
+                 "    return \"true\"")],
+         selector=VECTORS, expect="Denver: the zero date"),
+    dict(id="Z9", defect="the axis writes year 1 as \"1\" (strftime's way), so its slots never meet the engines' buckets",
+         edits=[(_D, "    return (f\"{t.year:04d}-", "    return (f\"{t.year}-")],
+         selector=_T + "test_the_axis_writes_years_with_four_digits", expect="1-01-01"),
 ]
 
 

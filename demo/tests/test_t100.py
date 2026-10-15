@@ -140,3 +140,23 @@ def test_the_axis_has_no_slot_for_an_hour_the_clock_skips():
     fall = d._slots("hour", "2026-11-01T00:00:00", "2026-11-01T03:00:00", DEN)
     assert fall == ["2026-11-01T00:00:00", "2026-11-01T01:00:00", "2026-11-01T02:00:00", "2026-11-01T03:00:00"]
     assert len(d._slots("hour", "2026-03-08T00:00:00", "2026-03-08T04:00:00", "UTC")) == 5
+
+
+def test_an_hour_whose_first_minutes_the_clock_skips_keeps_its_slot():
+    """a-chk's MEDIUM: Lord Howe springs forward half an hour (Oct 4 2026, 2:00 -> 2:30), so 2:30-2:59 exist
+    and a row there is bucketed 2:00 by both engines; the axis must keep the 2:00 slot, or the page fails."""
+    from demo.server import dashboard as d
+    assert d._slots("hour", "2026-10-04T01:00:00", "2026-10-04T03:00:00", "Australia/Lord_Howe") == [
+        "2026-10-04T01:00:00", "2026-10-04T02:00:00", "2026-10-04T03:00:00"]
+
+
+def test_the_axis_writes_years_with_four_digits():
+    """a-chk's MEDIUM: the zero date (0001-01-01T00:00:00Z) is a time like any other on the axis, written as the
+    engines write it (four-digit years), on UTC and on a clock."""
+    from demo.server import dashboard as d
+    assert d._slots("day", "0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z") == [
+        "0001-01-01T00:00:00Z", "0001-01-02T00:00:00Z"]
+    fields = {"ts": {"range": {"min": "0001-01-01T00:00:00Z", "max": "0001-01-02T00:00:00Z"}}}
+    lo, hi = d._span(fields, "ts", "Asia/Kolkata")
+    assert lo.startswith("0001-01-01T05:") and hi.startswith("0001-01-02T05:")
+    assert d._slots("day", lo, hi, "Asia/Kolkata") == ["0001-01-01T00:00:00", "0001-01-02T00:00:00"]

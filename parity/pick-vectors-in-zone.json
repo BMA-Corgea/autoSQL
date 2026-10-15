@@ -612,6 +612,27 @@
         "at": "2026-08-20T14:30",
         "set": "odd"
       }
+    },
+    {
+      "key": "E1",
+      "data": {
+        "at": "0001-01-01T00:00:00Z",
+        "set": "edge"
+      }
+    },
+    {
+      "key": "E2",
+      "data": {
+        "at": "9999-12-31T23:00:00Z",
+        "set": "edge"
+      }
+    },
+    {
+      "key": "E3",
+      "data": {
+        "at": "0001-01-02T00:00:00Z",
+        "set": "edge"
+      }
     }
   ],
   "cases": [
@@ -953,6 +974,48 @@
         "bucket_zone": "America/Denver"
       },
       "expect": []
+    },
+    {
+      "name": "Denver: the zero date (1 BC there) is in no bucket; Jan 2, year 1 (00:00Z) is Jan 1 there; 9999-12-31T23:00Z is Dec 31",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"edge\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "0001-01-01T00:00:00",
+          "1"
+        ],
+        [
+          "9999-12-31T00:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kiritimati: 9999-12-31T23:00Z (year 10000 there) is in no bucket; so is the zero date, its clock 10:29:20 behind UTC before 1901; Jan 2, year 1 (00:00Z) is Jan 1",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"edge\"",
+        "bucket_zone": "Pacific/Kiritimati"
+      },
+      "expect": [
+        [
+          "0001-01-01T00:00:00",
+          "1"
+        ]
+      ]
     }
   ]
 }

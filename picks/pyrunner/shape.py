@@ -242,7 +242,9 @@ def _bucket(
         if zone:
             # T-100: the series' own time, on the zone's wall clock
             ev.bucket_label(ts, granularity)               # the same fixed-width check, loud
-            groups.setdefault(ev.truncate_wall(ev.local_time(ts, zone), granularity), []).append(r)
+            at = ev.local_time(ts, zone)
+            if at is not None:                             # a reading outside years 1..9999: no bucket
+                groups.setdefault(ev.truncate_wall(at, granularity), []).append(r)
         else:
             groups.setdefault(ev.bucket_label(ts, granularity), []).append(r)
 

@@ -178,6 +178,12 @@ def _zoned_local(value: str, z: str, dates: bool) -> str:
     return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
 
 
+def _in_years(local: str) -> str:
+    """A wall-clock reading inside years 1..9999, the second engine's whole range (a-chk's MEDIUM on
+    T-100: the zero date read west of UTC is 1 BC; 9999-12-31T23:00Z read at +14 is year 10000)."""
+    return f"({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp)"
+
+
 def _zone_guard(p, zone: str) -> str:
     """The zone, behind the guard every clock reading carries (T-98): Python's clock for it,
     compared with the server's once per statement; XPR05 by name where they differ."""
@@ -655,18 +661,25 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         # zone (the T-88 check) — a timestamptz would read a date in it.
         if zone:
             # T-100: cut on the zone's wall clock; a date is its own local midnight
-            label = _ZONED_LABEL.format(g=g, local=_zoned_local(value, _zone_guard(p, zone), True))
+            local = _zoned_local(value, _zone_guard(p, zone), True)
+            label = _ZONED_LABEL.format(g=g, local=local)
         else:
             label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
                      "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
-        guard = (f"\n   AND jsonb_typeof(data #> %(bkt_path)s) = 'string'"
+        valid = (f"jsonb_typeof(data #> %(bkt_path)s) = 'string'"
                  f"\n   AND {value} ~ %(bkt_re)s"
                  f"\n   AND pg_input_is_valid({value}, 'timestamp')")
+        guard = f"\n   AND {valid}"
+        if zone:
+            # a-chk's MEDIUM: a time whose clock reading leaves years 1..9999 is in no bucket (Python's
+            # datetime has no such year); read only once the value is known to be a time (CASE)
+            guard += f"\n   AND CASE WHEN {valid} THEN {_in_years(local)} ELSE false END"
     elif zone:
         # T-100: the series' own time, on the zone's wall clock (its values are the full UTC form)
         time = (p.records.series or {}).get("time") or "ts"
-        label = _ZONED_LABEL.format(g=g, local=_zoned_local(f"(data ->> '{time}')", _zone_guard(p, zone), False))
-        guard = ""
+        local = _zoned_local(f"(data ->> '{time}')", _zone_guard(p, zone), False)
+        label = _ZONED_LABEL.format(g=g, local=local)
+        guard = f"\n   AND {_in_years(local)}"
     else:
         label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
         guard = ""

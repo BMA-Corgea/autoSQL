@@ -439,7 +439,10 @@ def local_time(value: Any, zone: str) -> Optional[datetime]:
         return None
     if len(value) == 10:
         return at.replace(tzinfo=None)
-    return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)
+    try:
+        return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)
+    except OverflowError:
+        return None          # its clock reading leaves years 1..9999: in no bucket (a-chk's MEDIUM)
 
 
 def truncate_wall(at: datetime, granularity: str) -> str:
