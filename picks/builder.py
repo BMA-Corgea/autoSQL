@@ -164,15 +164,16 @@ def _series_texts(records) -> dict:
 #: T-100: the zoned twins of the bucket labels.  A summary on a question's clock is cut on that
 #: zone's WALL CLOCK -- hour, day, week from Monday, month -- and labelled by the bucket's local start
 #: WITHOUT a Z, so a zoned label is never mistaken for a UTC one.  ``{z}`` is the zone behind the
-#: guard (``_zone_guard``); ``{t}`` the time read.  A calendar date (YYYY-MM-DD) is its own local
+#: guard (``_zone_reading``); ``{t}`` the time read.  A calendar date (YYYY-MM-DD) is its own local
 #: midnight, never shifted by the zone's offset.  The frozen _BUCKET_LABEL_TEMPLATE is untouched.
 _ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\n"
                 "                'YYYY-MM-DD\"T\"HH24:MI:SS' )")
 
 
-def _zoned_local(value: str, z: str, dates: bool) -> str:
-    """A stored time as a wall-clock timestamp on zone ``z``; a date (when ``dates``) as its own midnight."""
-    on_clock = f"({value}::timestamptz AT TIME ZONE {z})"
+def _zoned_local(value: str, read, dates: bool) -> str:
+    """A stored time as a wall-clock timestamp, read by ``read`` (_zone_reading); a date (when
+    ``dates``) as its own midnight, never read on any clock."""
+    on_clock = read(f"{value}::timestamptz")
     if not dates:
         return on_clock
     return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
@@ -188,15 +189,21 @@ def _in_years(local: str, value: str) -> str:
             f" OR ({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp))")
 
 
-def _zone_guard(p, zone: str) -> str:
-    """The zone, behind the guard every clock reading carries (T-98): Python's clock for it,
-    compared with the server's once per statement; XPR05 by name where they differ."""
-    starts, offsets = _compile.zone_transitions(zone)
+def _zone_reading(p, zone: str):
+    """How the bucket reads a timestamptz on the zone's clock (T-101): plainly where this database
+    and Python agree on every instant (D empty), else through xpr.clock, which refuses by name a row
+    whose instant lies in D. D comes from the question's resolver (env.checking_zones); with none,
+    nothing is read on a clock at all."""
+    resolver = env.zone_gaps()
+    if resolver is None:
+        raise RuntimeError("a summary on a clock needs the question's zone check (picks.env.checking_zones)")
+    gaps = tuple(resolver(zone))
     p.params["bkt_zone"] = zone
-    p.params["bkt_starts"] = starts
-    p.params["bkt_offs"] = offsets
-    return ("(SELECT xpr.zone_checked(%(bkt_zone)s::text, %(bkt_starts)s::bigint[], "
-            "%(bkt_offs)s::int[]))")
+    if not gaps:
+        return lambda t: f"({t} AT TIME ZONE %(bkt_zone)s::text)"
+    p.params["bkt_los"] = [g[0] for g in gaps]
+    p.params["bkt_his"] = [g[1] for g in gaps]
+    return lambda t: f"xpr.clock({t}, %(bkt_zone)s::text, %(bkt_los)s::float8[], %(bkt_his)s::float8[])"
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -387,7 +394,7 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
     gate.gate(ast, zones=zones)  # Refused propagates with the construct named
     try:
         frag = compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
-                           **(compile_kw or {}))
+                           zone_gaps=env.zone_gaps(), **(compile_kw or {}))
         _charge(len(frag.sql))     # T-102: into the statement being built
         return frag
     except _compile.TooBig as exc:
@@ -665,7 +672,7 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         # zone (the T-88 check) — a timestamptz would read a date in it.
         if zone:
             # T-100: cut on the zone's wall clock; a date is its own local midnight
-            local = _zoned_local(value, _zone_guard(p, zone), True)
+            local = _zoned_local(value, _zone_reading(p, zone), True)
             label = _ZONED_LABEL.format(g=g, local=local)
         else:
             label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
@@ -682,7 +689,7 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         # T-100: the series' own time, on the zone's wall clock (its values are the full UTC form)
         time = (p.records.series or {}).get("time") or "ts"
         value = f"(data ->> '{time}')"
-        local = _zoned_local(value, _zone_guard(p, zone), False)
+        local = _zoned_local(value, _zone_reading(p, zone), False)
         label = _ZONED_LABEL.format(g=g, local=local)
         guard = f"\n   AND {_in_years(local, value)}"
     else:

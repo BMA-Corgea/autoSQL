@@ -28,7 +28,7 @@ _B = "../picks/builder.py"
 _E = "../picks/pyrunner/evaluate.py"
 _D = "server/dashboard.py"
 
-_SQL_ON_CLOCK = '    on_clock = f"({value}::timestamptz AT TIME ZONE {z})"'
+_SQL_ON_CLOCK = '        return lambda t: f"({t} AT TIME ZONE %(bkt_zone)s::text)"'   # the plain reading (D empty)
 _PY_ON_CLOCK = "    return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)"
 _PY_DATE = "    if len(value) == 10:\n        return at.replace(tzinfo=None)\n"
 _PY_WALL = "    return truncate_label(at.replace(tzinfo=timezone.utc), granularity)[:-1]"
@@ -37,7 +37,7 @@ _SQL_LABEL = ('_ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\\n"\n'
 
 T100_MUTANTS = [
     dict(id="Z1", defect="BOTH engines cut the buckets in UTC whatever the zone (they agree)",
-         edits=[(_B, _SQL_ON_CLOCK, _SQL_ON_CLOCK.replace("AT TIME ZONE {z})", "AT TIME ZONE 'UTC')")),
+         edits=[(_B, _SQL_ON_CLOCK, _SQL_ON_CLOCK.replace("AT TIME ZONE %(bkt_zone)s::text)", "AT TIME ZONE 'UTC')")),
                 (_E, _PY_ON_CLOCK, _PY_ON_CLOCK.replace("ZoneInfo(zone)", 'ZoneInfo("UTC")'))],
          selector=VECTORS, expect="Denver, Mar 8: a 23-hour day"),
     dict(id="Z2", defect="BOTH engines start the week on Sunday",
@@ -59,10 +59,9 @@ T100_MUTANTS = [
          edits=[(_D, "        if zone is None or unit != \"hour\" or _clock_shows(t, zone):",
                  "        if zone is None or unit != \"hour\" or True:")],
          selector=_T + "test_the_axis_has_no_slot_for_an_hour_the_clock_skips", expect="2026-03-08T02:00:00"),
-    dict(id="Z5", defect="the statement reads the zone without its guard",
-         edits=[(_B, '    return ("(SELECT xpr.zone_checked(%(bkt_zone)s::text, %(bkt_starts)s::bigint[], "\n'
-                     '            "%(bkt_offs)s::int[]))")',
-                 '    return "%(bkt_zone)s::text"')],
+    dict(id="Z5", defect="the zoned bucket reads the clock without its check (T-101: D ignored)",
+         edits=[(_B, "    gaps = tuple(resolver(zone))\n    p.params[\"bkt_zone\"] = zone\n    if not gaps:",
+                 "    gaps = tuple(resolver(zone))\n    p.params[\"bkt_zone\"] = zone\n    if True:")],
          selector=GUARD, expect="DID NOT RAISE"),
     dict(id="Z6", defect="BOTH engines keep the Z on a zoned label",
          edits=[(_B, _SQL_LABEL, _SQL_LABEL.replace("HH24:MI:SS' )", "HH24:MI:SS\\\"Z\\\"' )")),

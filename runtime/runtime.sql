@@ -562,10 +562,14 @@ $$;
 --   the instant is in year 0, and Python refuses it.
 --   The zone is one of expr.py's TIME_ZONES: the compiler emits this call only
 --   with such a name, as a bound parameter, never anything computed. Its rules
---   come from THIS server's time-zone data; picks/zones.py refuses a zone whose
---   rules this server and Python disagree on, before any pick that uses it runs.
+--   come from THIS server's time-zone data. T-101: where this server and Python
+--   disagree on a zone, the compiler hands over D (los, his) and the clock is read
+--   through xpr.clock, which refuses a row inside D; without D (NULL, the default)
+--   it is the plain reading. The instant is read only after the range check, so a
+--   row whose clock is never read is never checked.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION xpr.time_of_day(j jsonb, zone text) RETURNS float8
+CREATE OR REPLACE FUNCTION xpr.time_of_day(j jsonb, zone text, los float8[] DEFAULT NULL,
+                                           his float8[] DEFAULT NULL) RETURNS float8
 LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE ms float8; sec float8; clock timestamp;
 BEGIN
@@ -574,7 +578,8 @@ BEGIN
   sec := floor(ms / 1000.0::float8);
   -- 0001-01-01T00:00:00Z .. 9999-12-31T23:59:59Z
   IF sec < -62135596800::float8 OR sec > 253402300799::float8 THEN RETURN NULL; END IF;
-  clock := to_timestamp(sec) AT TIME ZONE zone;
+  clock := CASE WHEN los IS NULL THEN to_timestamp(sec) AT TIME ZONE zone
+                ELSE xpr.clock(to_timestamp(sec), zone, los, his) END;
   IF clock < '0001-01-01 00:00:00'::timestamp OR clock >= '10000-01-01 00:00:00'::timestamp THEN
     RETURN NULL;
   END IF;
@@ -584,58 +589,30 @@ END
 $$;
 
 -- ----------------------------------------------------------------------------
--- zone_checked : the guard every compiled time_of_day carries (T-98).
---   xpr.time_of_day reads THIS server's clock rules for a zone; GIMS's evaluator
---   reads Python's. Two time-zone databases on one machine disagree (measured
---   2026-10-13: Edmonton, Yellowknife, Casablanca and El Aaiun from this autumn,
---   105 zones' history before 1970), and each engine would be "right" by its own
---   data. So the compiler hands over Python's clock for the zone -- `starts` (epoch
---   seconds, ascending, the first 1800-01-01T00:00:00Z) and the offset in force
---   from each -- and this compares the server's clock with it: the second before
---   and the second of every change, weekly noons to 1970 and daily noons from 1970
---   through 2100. Any difference, or a zone this server does not know, RAISES the
---   named refusal XPR05 with the zone and the first date that differs; otherwise
---   it returns the zone. Compiled as a scalar subquery: once per statement,
---   before any row is read.
+-- clock : a clock reading that is checked first (T-101, replacing T-98's per-statement guard).
+--   The server reads a zone's clock from ITS time-zone data and GIMS's evaluator from Python's,
+--   and the two can disagree (measured 2026-10-14: 109 of 484 zones on this machine, mostly
+--   before 1970). The host works out, once per zone and database, the instants they disagree
+--   on -- D, as half-open intervals [los[i], his[i]) of epoch seconds, +-Infinity at an open
+--   end -- and the compiler hands D over only when it is not empty (an empty D compiles to the
+--   plain reading). This reads t on zone's clock, unless t's second lies in D: then it RAISES
+--   the named refusal XPR05 with the zone and t's date, so no row is ever read two ways. A row
+--   whose clock is never read is never checked: it cannot change the answer.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION xpr._zone_offset(zone text, t bigint) RETURNS int
-LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
-  SELECT extract(epoch from ((to_timestamp(t) AT TIME ZONE zone)
-                             - (to_timestamp(t) AT TIME ZONE 'UTC')))::int
-$$;
-
-CREATE OR REPLACE FUNCTION xpr.zone_checked(zone text, starts bigint[], offs int[]) RETURNS text
-LANGUAGE plpgsql STABLE PARALLEL SAFE AS $$
-DECLARE bad bigint;
+CREATE OR REPLACE FUNCTION xpr.clock(t timestamptz, zone text, los float8[], his float8[]) RETURNS timestamp
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
+DECLARE s float8;
 BEGIN
-  IF zone IS NULL OR starts IS NULL OR offs IS NULL OR cardinality(starts) = 0
-     OR cardinality(starts) <> cardinality(offs) OR starts[1] <> -5364662400 THEN
-    RAISE EXCEPTION USING ERRCODE = 'XPR05',
-      MESSAGE = format('time zone %s: no clock was handed over to compare with', zone);
-  END IF;
-  -- An unknown name would make AT TIME ZONE raise; looked up first, so no EXCEPTION block
-  -- (a subtransaction: parallel unsafe, whatever the label says).
-  IF NOT EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = zone) THEN
-    RAISE EXCEPTION USING ERRCODE = 'XPR05',
-      MESSAGE = format('time zone %s: this database does not know it', zone);
-  END IF;
-  SELECT min(c.t) INTO bad FROM (
-        SELECT starts[i] - 1 AS t, offs[i - 1] AS want FROM generate_subscripts(starts, 1) AS i WHERE i > 1
-        UNION ALL
-        SELECT starts[i], offs[i] FROM generate_subscripts(starts, 1) AS i
-        UNION ALL
-        SELECT s.t, offs[width_bucket(s.t, starts)] FROM (
-            SELECT generate_series(-5364619200::bigint, -1::bigint, 604800::bigint) AS t
-            UNION ALL
-            SELECT generate_series(43200::bigint, 4133937600::bigint, 86400::bigint)) AS s
-      ) AS c
-     WHERE xpr._zone_offset(zone, c.t) IS DISTINCT FROM c.want;
-  IF bad IS NOT NULL THEN
-    RAISE EXCEPTION USING ERRCODE = 'XPR05',
-      MESSAGE = format('time zone %s: this database''s clock differs from the evaluator''s from %s',
-                       zone, to_char(to_timestamp(bad) AT TIME ZONE 'UTC', 'YYYY-MM-DD'));
-  END IF;
-  RETURN zone;
+  IF t IS NULL THEN RETURN NULL; END IF;
+  s := floor(extract(epoch from t));
+  FOR i IN 1 .. coalesce(array_length(los, 1), 0) LOOP
+    IF s >= los[i] AND s < his[i] THEN
+      RAISE EXCEPTION USING ERRCODE = 'XPR05',
+        MESSAGE = format('time zone %s: this database''s clock differs from the evaluator''s on %s, a time this question reads',
+                         zone, to_char(t AT TIME ZONE 'UTC', 'YYYY-MM-DD'));
+    END IF;
+  END LOOP;
+  RETURN t AT TIME ZONE zone;
 END
 $$;
 

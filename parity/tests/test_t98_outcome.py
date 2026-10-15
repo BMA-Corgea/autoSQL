@@ -101,7 +101,9 @@ def world():
     fields = {f["path"]: f for f in view._read_fields(conn, "noun:Heartbeat", records=records)}
     assert fields["ts"]["kind"] == "time" and len(rows) == 8400
     fields["ts"]["label"] = "Time"                   # as the demo's setup names it
-    yield conn, records, fields, keys
+    from picks import env, zones
+    with env.checking_zones(zones.clock_check(conn)):      # T-101: the question's zone check
+        yield conn, records, fields, keys
     conn.rollback()
     conn.close()
 
@@ -141,7 +143,7 @@ def test_the_counts_the_owner_will_see(world):
 @needs_db
 def test_a_probe_over_a_time_of_day_runs_and_never_fires(world):
     """a-chk's MEDIUM on b1: time_of_day inside a probed operand. The probes compile it behind the
-    zone guard, run it on the real Heartbeats, and find nothing out of range (0..86399 never is)."""
+    zone check, run it on the real Heartbeats, and find nothing out of range (0..86399 never is)."""
 
     from picks import env, probes
 
@@ -153,4 +155,4 @@ def test_a_probe_over_a_time_of_day_runs_and_never_fires(world):
     parse = env.get("parser").parse
     outcomes = probes.check(conn, "noun:Heartbeat", [parse(s) for s in srcs], records=records)
     assert outcomes and not any(o.fired for o in outcomes)
-    assert any("xpr.zone_checked(" in o.probe.sql for o in outcomes)
+    assert any("xpr.time_of_day(" in o.probe.sql for o in outcomes)    # UTC and Denver: D empty here

@@ -79,6 +79,15 @@ def run_vectors(conn, path: Path = VECTORS) -> List[Result]:
     records = Records(table=TABLE, sources={coll: ", ".join(keys)})
     rows = read_rows(conn, coll, records)
 
+    from picks import env, zones
+    with env.checking_zones(zones.clock_check(conn)):
+        return _run_cases(conn, v, coll, keys, records, rows)
+
+
+def _run_cases(conn, v, coll, keys, records, rows) -> List[Result]:
+    from picks import builder, group
+    from picks.pyrunner import group as pygroup
+    from picks.pyrunner import shape as pyshape
     out = []
     for case in v["cases"]:
         if "pick" in case:

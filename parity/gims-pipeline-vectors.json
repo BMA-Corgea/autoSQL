@@ -2,9 +2,9 @@
  "format": "gims-pipeline-vectors/1",
  "version": 11,
  "source": {
-  "autosql": "run7/filters b219ec3 + T-102 (fix/T-102-compiler-budget)",
-  "compiler_sha256": "65ef99e0609cf03ee4898ec3302b25aa27bc186eb86e0e95db4e38fdfe830ea6",
-  "runtime_sha256": "d4017fbbdbe58684b404c2d1c441fd127bb9c679a36a7a49e3ce8da9c88a3607",
+  "autosql": "77e6439 + T-101 (picks/T-101-zone-window): the compiler re-measured, every status unchanged",
+  "compiler_sha256": "cf2b3f740a2c865a670b2d333155b73273b5844b409b83be486ad2801b73bbb3",
+  "runtime_sha256": "d29efd1818784a1bd539cb8f34ac93c7f3f41166f1652049e23e120097d9f856",
   "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },
  "noun": "parity_case",

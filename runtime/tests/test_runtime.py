@@ -236,8 +236,9 @@ def test_the_installed_schema_is_complete(conn):
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
         # T-61 added xpr.eq_deep (Python's _eq for lists and dicts); T-98 added xpr.time_of_day, its
-        # zone guard xpr.zone_checked, and the guard's xpr._zone_offset.
-        assert cur.fetchone()[0] == 27
+        # zone guard xpr.zone_checked, and the guard's xpr._zone_offset; T-101 swapped those two for
+        # xpr.clock (a reading checked against D): 26.
+        assert cur.fetchone()[0] == 26
 
 
 @needs_db
@@ -375,11 +376,13 @@ def test_the_schema_gained_exactly_the_two_new_functions(conn):
     """AC-4 — 21 before T-9, 23 after. A third would be unrecorded scope. T-61 (2026-10-01)
     recorded the next one: xpr.eq_deep, so == / != match Python's _eq on lists and dicts. T-98
     (2026-10-13) recorded three: xpr.time_of_day (GIMS's time_of_day, GA-68 Q6), xpr.zone_checked
-    (the guard that the server's clock for a zone is Python's) and xpr._zone_offset (its reading)."""
+    (the guard that the server's clock for a zone is Python's) and xpr._zone_offset (its reading).
+    T-101 (2026-10-14) swapped those two for xpr.clock (a clock reading checked against D, the
+    instants the two clocks disagree on; xpr.time_of_day reads through it when handed D): 26."""
     with conn.cursor() as cur:
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
-        assert cur.fetchone()[0] == 27
+        assert cur.fetchone()[0] == 26
 
 
 # ── T-37 M1 (GIMS adapter review, b-check P0) · a number's truthiness goes through xpr.f8 ──

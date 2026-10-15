@@ -77,10 +77,25 @@ def _pick(flt):
     return p
 
 
-def test_the_builder_compiles_time_of_day_behind_the_zone_guard():
-    built = builder.build(_pick('time_of_day($.ts, "America/Denver") >= 61200'), ["ts", "status"])
-    assert "xpr.time_of_day(" in built.sql and "xpr.zone_checked(" in built.sql
+def _gaps(**d):
+    """A question's zone check (T-101) with D given by hand: zone → D, empty for any other."""
+    return env.checking_zones(lambda z: d.get(z.replace("/", "_"), ()))
+
+
+def test_the_builder_reads_the_clock_checked_only_where_the_clocks_disagree():
+    """T-101: Denver with D empty is the plain reading; with a D, the checked one; with no zone
+    check at all (a path that forgot), nothing compiles."""
+    src = 'time_of_day($.ts, "America/Denver") >= 61200'
+    with _gaps():
+        built = builder.build(_pick(src), ["ts", "status"])
+    assert "xpr.time_of_day(" in built.sql and "float8[]" not in built.sql and "zone_checked" not in built.sql
     assert "America/Denver" in built.params.values()
+    with _gaps(America_Denver=((1793520000.0, float("inf")),)):
+        built = builder.build(_pick(src), ["ts", "status"])
+    assert built.sql.count("::float8[]") == 2 and [1793520000.0] in built.params.values()
+    with pytest.raises(gate.Refused) as e:
+        builder.build(_pick(src), ["ts", "status"])
+    assert "disagreements" in str(e.value)
 
 
 def test_the_builder_refuses_an_unlisted_zone_before_any_sql():
@@ -163,11 +178,13 @@ def test_a_time_of_day_reads_on_a_clock_face(seconds, words):
     assert zones.clock_words(seconds) == words
 
 
-def test_a_zone_the_guard_refused_is_named_in_plain_words():
-    msg = "time zone America/Edmonton: this database's clock differs from the evaluator's from 2026-11-01"
+def test_a_row_the_check_refused_is_named_in_plain_words():
+    """T-101: the zone, the row's date, and why that date matters."""
+    msg = ("time zone Europe/Amsterdam: this database's clock differs from the evaluator's on 1916-04-30, "
+           "a time this question reads")
     assert zones.refusal_words(msg) == (
-        "Edmonton time can't be used yet: this computer and its database disagree about "
-        "Edmonton's clocks from Nov 1, 2026.")
+        "Amsterdam time can't read these times: this computer and its database disagree about "
+        "Amsterdam's clocks on Apr 30, 1916, and this question reads a time from then.")
     assert zones.refusal_words("time zone Mars/Olympus: this database does not know it") == (
         "Olympus time can't be used yet: this computer's database doesn't know it.")
 
@@ -231,15 +248,17 @@ def test_the_list_offers_one_entry_per_place():
     assert [e["zone"] for e in zones.offered(names, links)][0] == "UTC"
 
 
-@pytest.mark.parametrize("first, last, words", [
-    (_dt.date(1800, 1, 1), _dt.date(1937, 6, 1), "Not available: this computer and its database disagree on its clocks before 1970."),
-    (_dt.date(1916, 5, 1), _dt.date(2027, 1, 1), "Not available: this computer and its database disagree on its clocks from 1916."),
-    (_dt.date(2026, 11, 26), _dt.date(2100, 1, 1), "Not available: this computer and its database disagree on its clocks from November 2026."),
-    (None, None, "Not available: this computer's database doesn't know it."),
+@pytest.mark.parametrize("first, last, to_end, words", [
+    (_dt.date(1800, 1, 1), _dt.date(1937, 6, 1), False, "Times before 1970 can't be read on this clock."),
+    (_dt.date(2026, 11, 26), _dt.date(2100, 12, 1), True, "Times from November 2026 on can't be read on this clock."),
+    (_dt.date(1800, 1, 1), _dt.date(2027, 1, 1), False, "Times before January 2027 can't be read on this clock."),
+    (_dt.date(2026, 9, 20), _dt.date(2027, 3, 1), False, "Times from September 2026 to March 2027 can't be read on this clock."),
 ])
-def test_a_refused_zone_reads_in_one_short_line(first, last, words):
-    assert zones.mark_words(first, last) == words
+def test_a_zone_the_clocks_disagree_on_in_some_period_says_which_in_one_line(first, last, to_end, words):
+    """T-101: such a zone stays selectable, with the period it can't read."""
+    assert zones.note_words(first, last, to_end) == words
     assert "tzdata" not in words and "backzone" not in words and len(words) <= 90
+    assert zones.UNKNOWN_WORDS == "Not available: this computer's database doesn't know it."
 
 
 def test_the_marks_come_from_both_clocks(monkeypatch):
@@ -249,12 +268,13 @@ def test_the_marks_come_from_both_clocks(monkeypatch):
     conn = db.connect(application_name="autosql-t98-marks")
     try:
         marks = zones.marks(conn, ["UTC", "America/Denver"])
-        assert marks == {"UTC": None, "America/Denver": None}
+        assert marks == {"UTC": (None, None), "America/Denver": (None, None)}
         real = zones._python_offsets
         monkeypatch.setattr(zones, "_python_offsets", lambda z, ts: [
             o + 3600 if t >= 1793520000 else o for t, o in zip(ts, real(z, ts))])
         moved = zones.marks(conn, ["America/Denver"], cache=False)
-        assert moved["America/Denver"] == "Not available: this computer and its database disagree on its clocks from November 2026."
+        assert moved["America/Denver"] == (None, "Times from November 2026 on can't be read on this clock.")
+        assert zones.marks(conn, ["Mars/Olympus"], cache=False)["Mars/Olympus"] == (zones.UNKNOWN_WORDS, None)
     finally:
         conn.rollback()
         conn.close()
@@ -267,8 +287,10 @@ def _client():
 
 
 def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
+    """T-101: greyed (why) only when the database doesn't know a zone; a period's line (note) else."""
     monkeypatch.setattr(zones, "marks", lambda conn, names, cache=True: {
-        z: ("Not available: this computer's database doesn't know it." if z == "Europe/Amsterdam" else None)
+        z: ((zones.UNKNOWN_WORDS, None) if z == "Europe/Amsterdam"
+            else (None, "Times before 1970 can't be read on this clock.") if z == "Europe/Oslo" else (None, None))
         for z in names})
     r = _client().get("/api/dashboard/zones")
     assert r.status_code == 200
@@ -276,8 +298,9 @@ def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
     by = {e["zone"]: e for e in body["zones"]}
     assert body["zones"][0]["zone"] == "UTC"
     assert by["America/Denver"] == {"zone": "America/Denver", "label": "Denver time", "place": "Denver",
-                                     "area": "America", "why": None}
+                                     "area": "America", "why": None, "note": None}
     assert by["Europe/Amsterdam"]["why"] == "Not available: this computer's database doesn't know it."
+    assert by["Europe/Oslo"]["why"] is None and by["Europe/Oslo"]["note"] == "Times before 1970 can't be read on this clock."
     # every name both engines accept reaches a listed place: listed itself, or by its old name
     others = {e["zone"]: e for e in body["others"]}
     accepted = set(by) | set(body["aliases"]) | set(others)
@@ -480,14 +503,14 @@ def test_an_unknown_zone_is_refused_in_words(page):
     assert code == 422 and a["message"] == "This page doesn't know the time zone “Mars/Olympus”. Pick one from the list."
 
 
-def test_a_zone_the_two_clocks_disagree_on_is_refused_by_name(page, monkeypatch):
+def test_a_zone_the_clocks_disagree_on_only_long_ago_answers_a_question_about_now(page):
+    """T-101: Amsterdam's clocks differ on this machine only before 1937; Aug 20 there (UTC+2) is
+    answered: 24 hours of Heartbeats, by hand. (Its day is two instants worked out in Python, so no
+    row's clock is read in the database at all.)"""
     c, st = page
-    monkeypatch.setattr(zones, "marks", lambda conn, names, cache=True: {
-        z: zones.mark_words(_dt.date(1800, 1, 1), _dt.date(1937, 1, 1)) for z in names})
-    code, a = _ask(c, _hb(st, zone="Europe/Amsterdam"))
-    assert code == 422
-    assert a["message"] == ("Amsterdam time can't be used yet: this computer and its database disagree "
-                            "on its clocks before 1970.")
+    code, a = _ask(c, _hb(st, zone="Europe/Amsterdam", filter=_tree(c_("ts", "on", "2026-08-20"))))
+    assert code == 200, a
+    assert a["total"] == _hand("data->>'ts' >= '2026-08-19T22:00:00Z' AND data->>'ts' < '2026-08-20T22:00:00Z'") == 1200
 
 
 def test_the_guards_refusal_reaches_the_page_in_words(page, monkeypatch):
@@ -497,13 +520,14 @@ def test_the_guards_refusal_reaches_the_page_in_words(page, monkeypatch):
         sqlstate = "XPR05"
 
     def guard(*a, **k):
-        raise Refused("time zone America/Edmonton: this database's clock differs from the evaluator's from 2026-11-01")
+        raise Refused("time zone America/Edmonton: this database's clock differs from the evaluator's on "
+                      "2026-11-02, a time this question reads")
     monkeypatch.setattr(dashboard, "answer", guard)
     c, st = page
     code, a = _ask(c, _hb(st, zone="America/Edmonton"))
     assert code == 422 and a["message"] == (
-        "Edmonton time can't be used yet: this computer and its database disagree about "
-        "Edmonton's clocks from Nov 1, 2026.")
+        "Edmonton time can't read these times: this computer and its database disagree about "
+        "Edmonton's clocks on Nov 2, 2026, and this question reads a time from then.")
 
 
 def c_(field, op, value="", value2="", **kw):
@@ -570,20 +594,27 @@ PROBED = [
 ]
 
 
+D_UTC = ((-float("inf"), -2208988800.0),)    # a D by hand: before 1900
+
+
 @pytest.mark.parametrize("src", PROBED)
-def test_a_probe_compiles_time_of_day_behind_the_zone_guard(src):
+def test_a_probe_reads_the_clock_checked_as_the_statement_does(src):
+    """T-101: a probed operand's clock is read through the same D as the statement's."""
     from picks import probes
-    built = probes.build_probes([EXPR.parse(src)])
+    with _gaps(UTC=D_UTC, America_Denver=D_UTC):
+        built = probes.build_probes([EXPR.parse(src)])
     assert built, "this expression has an operand a probe asks about"
+    assert any("time_of_day" in p.sql for p in built)
     for p in built:
-        if "xpr.time_of_day(" in p.sql:
-            assert "xpr.zone_checked(" in p.sql, p.sql
+        if "time_of_day" in p.sql:
+            assert p.sql.count("xpr.time_of_day(") * 2 == p.sql.count("::float8[]"), p.sql
 
 
 @pytest.mark.parametrize("src", PROBED)
 def test_the_statement_compiles_it_too(src):
-    built = builder.build(_pick(src), ["ts", "payload"])
-    assert "xpr.zone_checked(" in built.sql
+    with _gaps(UTC=D_UTC, America_Denver=D_UTC):
+        built = builder.build(_pick(src), ["ts", "payload"])
+    assert built.sql.count("xpr.time_of_day(") * 2 == built.sql.count("::float8[]") > 0
 
 
 # ── the suite says whether the database runs this tree's runtime ─────────────

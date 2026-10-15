@@ -1,14 +1,14 @@
-"""T-98: compiling time_of_day(t, zone), and the zone guard every such statement carries.
+"""T-98: compiling time_of_day(t, zone); T-101: each row's clock reading checked against D.
 
 GIMS's time_of_day reads a wall clock in a NAMED zone (GA-68 Q6). The compiler emits it only for
-a zone written in the expression as one of the evaluator's TIME_ZONES, and wraps that zone in
-xpr.zone_checked: Python's own clock for the zone (its transitions, 1800 to 2100, from the same
-zoneinfo data the evaluator reads) is handed to the database, which compares it with ITS clock
-for the zone once per statement and refuses (XPR05, the zone named) before any row is read if
-the two differ anywhere. Two clock databases on one machine disagree today (measured 2026-10-13:
-the host's tzdata 2026c and the demo container's 2026b differ on Edmonton, Yellowknife,
-Casablanca and El Aaiun from this autumn, and on 105 other zones' history before 1970), so
-without the guard the two engines would return different rows, both "correct".
+a zone written in the expression as one of the evaluator's TIME_ZONES. Two clock databases on one
+machine disagree (measured 2026-10-13: the host's tzdata and the demo container's differ on
+Edmonton, Yellowknife, Casablanca and El Aaiun from this autumn, and on 105 other zones' history
+before 1970). T-98 refused such a zone outright; T-101 checks each row instead: the host works out
+D, the instants the two clocks disagree on (picks/zones.py, from Python's clock below), and the
+compiler reads the clock plainly where D is empty and through xpr.clock otherwise, which refuses
+(XPR05, the zone and the row's date) a row whose instant lies in D. A clock reading without D does
+not compile.
 
 Database tests: AUTOSQL_COMPILER_DSN, a throwaway Postgres with THIS tree's runtime installed.
 They SKIP without it.
@@ -50,10 +50,20 @@ def _load(name, rel):
 EXPR = _load("t98_expr", "demo/vendor/expr.py")
 C = _load("t98_compile", "compiler/compile.py")
 ZONES = EXPR.TIME_ZONES
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from picks import zones as Z  # noqa: E402  (D's arithmetic; stdlib only)
+
+NONE = lambda z: ()  # noqa: E731  -- every zone's D empty: the plain reading
 
 
-def _compile(src, zones=ZONES):
-    return C.compile_predicate(EXPR.parse(src), column="data", time_zones=zones)
+def _compile(src, zones=ZONES, gaps=NONE):
+    return C.compile_predicate(EXPR.parse(src), column="data", time_zones=zones, zone_gaps=gaps)
+
+
+def _d(db):
+    """D on the throwaway, from THIS module's Python clock (so a test may move it)."""
+    return Z.clock_check(db, transitions=lambda z: C.zone_transitions(z))
 
 
 # ---- refusals, no database ----------------------------------------------------------------------
@@ -77,9 +87,26 @@ def test_without_the_evaluators_zone_list_nothing_compiles():
     assert "zone list" in e.value.reason
 
 
+def test_without_the_zones_disagreements_nothing_compiles():
+    """T-101: a path that forgets to hand D over fails closed."""
+    with pytest.raises(C.Uncompilable) as e:
+        C.compile_predicate(EXPR.parse('time_of_day($.t, "UTC") >= 0'), column="data", time_zones=ZONES)
+    assert "disagreements" in e.value.reason
+
+
+def test_an_empty_D_is_the_plain_reading_and_any_other_is_checked():
+    plain = _compile('time_of_day($.t, "America/Denver") >= 61200')
+    assert "xpr.time_of_day(" in plain.sql and "float8[]" not in plain.sql and "SELECT" not in plain.sql
+    d = ((-float("inf"), -1041379200.0), (1793520000.0, float("inf")))
+    checked = _compile('time_of_day($.t, "America/Denver") >= 61200', gaps=lambda z: d)
+    assert "xpr.time_of_day(" in checked.sql and checked.sql.count("::float8[]") == 2 and "SELECT" not in checked.sql
+    assert [-float("inf"), 1793520000.0] in checked.params.values()
+    assert [-1041379200.0, float("inf")] in checked.params.values()
+
+
 def test_wrong_arity_is_the_evaluators_null():
     for src in ('time_of_day($.t)', 'time_of_day($.t, "UTC", "UTC")', 'time_of_day()'):
-        assert C.compile_ast(EXPR.parse(src), column="data", time_zones=ZONES).sql == "xpr.j(NULL::float8)"
+        assert C.compile_ast(EXPR.parse(src), column="data", time_zones=ZONES, zone_gaps=NONE).sql == "xpr.j(NULL::float8)"
         assert EXPR.evaluate(EXPR.parse(src), {"t": "2026-08-20T17:00:00Z"}) is None
 
 
@@ -126,10 +153,10 @@ def db():
     cx.close()
 
 
-def _sql_keys(db, src, zones=ZONES):
-    c = _compile(src, zones)
+def _sql_keys(db, src, zones=ZONES, table="t98"):
+    c = _compile(src, zones, _d(db))
     params = dict(c.params, ctx="{}")
-    return sorted(r[0] for r in db.execute(f"SELECT k FROM t98 WHERE {c.sql}", params).fetchall())
+    return sorted(r[0] for r in db.execute(f"SELECT k FROM {table} WHERE {c.sql}", params).fetchall())
 
 
 def _py_keys(src):
@@ -157,90 +184,126 @@ def test_the_outcome_rows_in_denver(db):
 
 
 @needs_db
-def test_the_guard_runs_once_per_statement_before_the_rows(db):
-    c = _compile('time_of_day($.t, "America/Denver") >= 61200')
-    plan = "\n".join(r[0] for r in db.execute(f"EXPLAIN SELECT k FROM t98 WHERE {c.sql}", dict(c.params, ctx="{}")))
-    assert "InitPlan" in plan, plan
+def test_the_check_is_no_subquery_and_the_plan_scans_once(db, monkeypatch):
+    """T-101: no per-statement guard any more (no InitPlan), with D empty or not: one scan."""
+    for gaps in (NONE, lambda z: ((1793520000.0, float("inf")),)):
+        c = _compile('time_of_day($.t, "America/Denver") >= 61200', gaps=gaps)
+        plan = "\n".join(r[0] for r in db.execute(f"EXPLAIN SELECT k FROM t98 WHERE {c.sql}", dict(c.params, ctx="{}")))
+        assert "InitPlan" not in plan and "SubPlan" not in plan and plan.count("Scan on t98") == 1, plan
+
+
+def _moved(monkeypatch, fn):
+    real = C.zone_transitions
+    starts, offsets = real("America/Denver")
+    s2, o2 = fn(list(starts), list(offsets))
+    monkeypatch.setattr(C, "zone_transitions", lambda z: (s2, o2) if z == "America/Denver" else real(z))
+
+
+def _edge_table(db, name, *instants):
+    db.execute(f"DROP TABLE IF EXISTS {name}")
+    db.execute(f"CREATE TEMP TABLE {name} (k int, data jsonb)")
+    with db.cursor() as cur:
+        cur.executemany(f"INSERT INTO {name} VALUES (%s, %s::jsonb)",
+                        [(i, json.dumps({"t": t})) for i, t in enumerate(instants)])
+
+
+def _refused(db, table, src='time_of_day($.t, "America/Denver") >= 0'):
+    import psycopg
+    try:
+        _sql_keys(db, src, table=table)
+    except psycopg.Error as e:
+        assert e.sqlstate == "XPR05", (e.sqlstate, str(e))
+        db.execute("SELECT 1")
+        return str(e)
+    return None
 
 
 @needs_db
-def test_the_guard_refuses_a_zone_whose_clocks_differ(db, monkeypatch):
-    """Python's clock for Denver, moved by an hour from 2026-11-01: the database's differs, so the
-    statement is refused by name, with the date, and no row comes back."""
-    import psycopg
-    starts, offsets = C.zone_transitions("America/Denver")
-    moved = [o + 3600 if s >= 1793520000 else o for s, o in zip(starts, offsets)]
-    monkeypatch.setattr(C, "zone_transitions", lambda z: (starts, moved) if z == "America/Denver" else C.zone_transitions(z))
-    with pytest.raises(psycopg.Error) as e:
-        _sql_keys(db, 'time_of_day($.t, "America/Denver") >= 61200')
-    assert e.value.sqlstate == "XPR05"
-    assert "America/Denver" in str(e.value) and "2026-11-01" in str(e.value)
+def test_a_row_at_the_first_differing_second_is_refused_and_the_second_before_is_not(db, monkeypatch):
+    """Python's Denver clock moved an hour from 2026-11-01T08:00:00Z on: D = [that second, on)."""
+    _moved(monkeypatch, lambda s, o: (s, [x + 3600 if t >= 1793520000 else x for t, x in zip(s, o)]))
+    assert _d(db)("America/Denver") == ((1793520000.0, float("inf")),)
+    _edge_table(db, "e1", "2026-11-01T07:59:59Z")
+    assert _refused(db, "e1") is None
+    _edge_table(db, "e2", "2026-11-01T08:00:00Z")
+    assert "America/Denver" in _refused(db, "e2") and "2026-11-01" in _refused(db, "e2")
 
 
 @needs_db
-def test_the_guard_finds_a_change_pythons_clock_does_not_have(db, monkeypatch):
-    """Edmonton's shape: one database has a change the other doesn't. Python's Denver clock with
-    Nov 2026 and Mar 2027 removed (so it keeps MDT until Nov 2027); no change of Python's is near
-    the database's Nov 1 2026, so only the daily samples can find it."""
-    import psycopg
-    starts, offsets = C.zone_transitions("America/Denver")
-    gone = {1793520000, 1805014800}            # 2026-11-01T08:00Z, 2027-03-14T09:00Z
-    assert gone <= set(starts)
-    kept = [(s, o) for s, o in zip(starts, offsets) if s not in gone]
-    monkeypatch.setattr(C, "zone_transitions",
-                        lambda z: ([s for s, _ in kept], [o for _, o in kept]) if z == "America/Denver" else C.zone_transitions(z))
-    with pytest.raises(psycopg.Error) as e:
-        _sql_keys(db, 'time_of_day($.t, "America/Denver") >= 61200')
-    assert e.value.sqlstate == "XPR05" and "2026-11-01" in str(e.value)
+def test_a_difference_ends_at_the_first_second_the_clocks_agree_again(db, monkeypatch):
+    """Moved only from Nov 1 2026 to Mar 14 2027 (09:00Z): D = [1793520000, 1805014800)."""
+    _moved(monkeypatch, lambda s, o: (s, [x + 3600 if 1793520000 <= t < 1805014800 else x for t, x in zip(s, o)]))
+    assert _d(db)("America/Denver") == ((1793520000.0, 1805014800.0),)
+    _edge_table(db, "e3", "2027-03-14T08:59:59Z")
+    assert "2027-03-14" in _refused(db, "e3")
+    _edge_table(db, "e4", "2027-03-14T09:00:00Z", "2026-08-20T23:00:00Z")
+    assert _refused(db, "e4") is None
 
 
 @needs_db
-def test_the_guard_finds_a_change_an_hour_out_on_the_same_day(db, monkeypatch):
-    """Python's Nov 1 2026 change put at 09:00Z instead of 08:00Z: both clocks agree at every noon,
-    so only the probes at the change itself can find it."""
-    import psycopg
-    starts, offsets = C.zone_transitions("America/Denver")
-    moved = [s + 3600 if s == 1793520000 else s for s in starts]
-    monkeypatch.setattr(C, "zone_transitions", lambda z: (moved, offsets) if z == "America/Denver" else C.zone_transitions(z))
-    with pytest.raises(psycopg.Error) as e:
-        _sql_keys(db, 'time_of_day($.t, "America/Denver") >= 61200')
-    assert e.value.sqlstate == "XPR05" and "2026-11-01" in str(e.value)
+def test_a_change_pythons_clock_does_not_have_is_found_by_the_daily_noons(db, monkeypatch):
+    """Edmonton's shape: Python's Denver keeps MDT through Nov 2026 - Mar 2027. No change of Python's
+    is near the database's Nov 1, so D's ends are the noons either side the clocks agree on."""
+    gone = {1793520000, 1805014800}
+    _moved(monkeypatch, lambda s, o: ([t for t in s if t not in gone], [x for t, x in zip(s, o) if t not in gone]))
+    assert _d(db)("America/Denver") == ((1793448001.0, 1805025600.0),)   # 2026-10-31T12:00:01Z .. 2027-03-14T12:00Z
+    _edge_table(db, "e5", "2026-12-25T12:00:00Z")
+    assert "2026-12-25" in _refused(db, "e5")
+    _edge_table(db, "e6", "2026-10-31T12:00:00Z", "2027-03-14T12:00:00Z")
+    assert _refused(db, "e6") is None
 
 
 @needs_db
-def test_the_guard_refuses_a_zone_the_database_does_not_know(db, monkeypatch):
-    import psycopg
+def test_a_change_an_hour_out_on_the_same_day_is_found_at_the_change(db, monkeypatch):
+    """Python's Nov 1 2026 change at 09:00Z instead of 08:00Z: every noon agrees; the second before
+    Python's change does not."""
+    _moved(monkeypatch, lambda s, o: ([t + 3600 if t == 1793520000 else t for t in s], o))
+    (lo, hi), = _d(db)("America/Denver")
+    assert lo <= 1793520000 and hi == 1793523600.0
+    _edge_table(db, "e7", "2026-11-01T08:30:00Z")
+    assert "2026-11-01" in _refused(db, "e7")
+
+
+@needs_db
+def test_a_zone_the_database_does_not_know_is_refused_in_words(db, monkeypatch):
     zones = set(ZONES) | {"Mars/Olympus"}
     monkeypatch.setattr(C, "zone_transitions", lambda z: ([C.ZONE_CHECK_FROM], [0]))
-    with pytest.raises(psycopg.Error) as e:
+    with pytest.raises(Z.ZoneUnknown) as e:
         _sql_keys(db, 'time_of_day($.t, "Mars/Olympus") >= 0', zones=zones)
-    assert e.value.sqlstate == "XPR05" and "Mars/Olympus" in str(e.value)
+    assert str(e.value) == "Olympus time can't be used yet: this computer's database doesn't know it."
 
 
 @needs_db
-def test_every_listed_zone_agrees_or_is_refused(db):
-    """Every zone the evaluator lists: either the guard passes and the database's clock equals
-    Python's at a spread of instants, or the guard refuses it by name. Never a third outcome."""
+def test_every_listed_zone_reads_alike_outside_D_and_refuses_inside_it(db):
+    """Every zone the evaluator lists, at a spread of instants: outside its D the database's clock
+    equals Python's; inside it the row is refused by name. Never a third outcome."""
     import psycopg
     instants = ["1800-01-01T12:00:00Z", "1900-01-01T00:00:00Z", "1950-06-15T12:00:00Z",
                 "1970-01-01T00:00:00Z", "2026-01-15T03:17:41Z", "2026-07-15T21:44:09Z",
                 "2026-12-15T09:00:00Z", "2040-07-01T12:00:00Z", "2100-12-31T12:00:00Z"]
-    refused, wrong = [], []
+    from datetime import datetime
+    sec = [datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp() for t in instants]
+    resolve = _d(db)
+    wrong, with_d = [], []
     for zone in sorted(ZONES):
-        c = C.compile_ast(EXPR.parse(f'time_of_day($.t, "{zone}")'), column="x", time_zones=ZONES)
-        try:
-            got = [r[0] for r in db.execute(
-                f"SELECT {c.sql} FROM jsonb_array_elements(%(ts)s::jsonb) WITH ORDINALITY AS a(t, n),"
-                f" LATERAL (SELECT jsonb_build_object('t', a.t) AS x) b ORDER BY n",
-                dict(c.params, ctx="{}", ts=json.dumps(instants))).fetchall()]
-        except psycopg.Error as e:
-            assert e.sqlstate == "XPR05" and zone in str(e), (zone, e.sqlstate, str(e))
-            refused.append(zone)
-            continue
-        want = [EXPR.evaluate(EXPR.parse(f'time_of_day($.t, "{zone}")'), {"t": t}) for t in instants]
-        got = [None if g is None else json.loads(g) if isinstance(g, str) else g for g in got]
-        if got != want:
-            wrong.append((zone, got, want))
+        d = resolve(zone)
+        if d:
+            with_d.append(zone)
+        src = f'time_of_day($.t, "{zone}")'
+        c = C.compile_ast(EXPR.parse(src), column="x", time_zones=ZONES, zone_gaps=resolve)
+        for t, s in zip(instants, sec):
+            inside = any(lo <= s < hi for lo, hi in d)
+            try:
+                g = db.execute(f"SELECT {c.sql} FROM (SELECT jsonb_build_object('t', %(t)s::text) AS x) b",
+                               dict(c.params, ctx="{}", t=t)).fetchone()[0]
+            except psycopg.Error as e:
+                if not (inside and e.sqlstate == "XPR05" and zone in str(e)):
+                    wrong.append((zone, t, "refused", str(e)[:80]))
+                continue
+            want = EXPR.evaluate(EXPR.parse(src), {"t": t})
+            g = None if g is None else json.loads(g) if isinstance(g, str) else g
+            if inside or g != want:
+                wrong.append((zone, t, g, want))
     assert not wrong, wrong[:5]
-    assert len(refused) < len(ZONES) // 2, f"refused {len(refused)}: {refused[:10]}"
-    print(f"\n{len(refused)} of {len(ZONES)} zones refused by the guard on this machine: {refused}")
+    assert len(with_d) < len(ZONES) // 2, f"{len(with_d)} zones have a D: {with_d[:10]}"
+    print(f"\n{len(with_d)} of {len(ZONES)} zones have a non-empty D on this machine: {with_d}")

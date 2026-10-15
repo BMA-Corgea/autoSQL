@@ -1023,6 +1023,17 @@ class SecondEngineFailed(RuntimeError):
 
 
 def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
+    """T-101: every clock reading of the pick is checked against D (picks/zones.py), with the
+    question's own resolver when one is set (the dashboard sets it once per question)."""
+    from picks import env as _penv
+    from picks import zones as _zones
+    if _penv.zone_gaps() is not None:
+        return _run_pick(conn, pick, whole=whole)
+    with _penv.checking_zones(_zones.clock_check(conn)):
+        return _run_pick(conn, pick, whole=whole)
+
+
+def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     """One pick → the whole response body.  Separated from the route so the
     suite drives the same code the screen does, with no HTTP in the way.
 

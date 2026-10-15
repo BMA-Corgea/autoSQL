@@ -23,7 +23,9 @@ A host serving many owners passes ``records=`` on every call instead.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+import contextlib
+import contextvars
+from typing import Any, Callable, Optional
 
 from .records import Records
 
@@ -56,6 +58,27 @@ def time_zones() -> frozenset:
     evaluator without the function lists none, and ``time_of_day`` is then refused.  The ONE
     source: every compile path hands this to the gate and the compiler."""
     return frozenset(getattr(get("evaluator"), "TIME_ZONES", frozenset()))
+
+
+#: T-101: zone → D(zone), the instants this database's clock and the evaluator's disagree on, for the
+#: question being built (``picks.zones.clock_check(conn)``). Per question, so a context, not a global.
+_ZONE_GAPS: "contextvars.ContextVar[Optional[Callable]]" = contextvars.ContextVar("zone_gaps", default=None)
+
+
+@contextlib.contextmanager
+def checking_zones(resolver: Callable):
+    """Compile every clock reading in this block against ``resolver`` (zone → D). Outside any such
+    block a clock reading does not compile: a path that forgets fails closed."""
+    token = _ZONE_GAPS.set(resolver)
+    try:
+        yield resolver
+    finally:
+        _ZONE_GAPS.reset(token)
+
+
+def zone_gaps() -> Optional[Callable]:
+    """The resolver of the question being built, or None."""
+    return _ZONE_GAPS.get()
 
 
 def set_default_records(records: Records) -> None:

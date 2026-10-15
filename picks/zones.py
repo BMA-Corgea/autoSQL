@@ -12,8 +12,9 @@ GIMS's evaluator reads:
 * a time of day and a zone read as a person says them ("5:00 PM", "Denver time").
 
 The per-row reading — ``time_of_day(t, zone)`` — is the expression language's, in both
-engines, behind the compiler's zone guard (``xpr.zone_checked``). When the guard refuses a
-zone, :func:`refusal_words` turns its message into the sentence the screen shows.
+engines. T-101: where this database's clock and Python's disagree (D, :func:`disagreements`), a
+row's reading is checked against D and refused by name (``xpr.clock``); :func:`refusal_words`
+turns that refusal into the sentence the screen shows.
 """
 
 from __future__ import annotations
@@ -25,7 +26,8 @@ import zoneinfo
 from zoneinfo import ZoneInfo
 
 __all__ = ["ZoneError", "label", "place", "day_span", "wall_instant", "clock_words",
-           "refusal_words", "UTC_TEXT", "offered", "links", "marks", "mark_words"]
+           "refusal_words", "UTC_TEXT", "offered", "links", "marks", "note_words", "UNKNOWN_WORDS",
+           "disagreements", "clock_check", "ZoneUnknown"]
 
 _UTC = _dt.timezone.utc
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -105,7 +107,7 @@ def clock_words(seconds: int) -> str:
     return f"{hour}:{m:02d}{tail} {'AM' if h < 12 else 'PM'}"
 
 
-_GUARD_DIFFERS = re.compile(r"time zone (.+?): this database's clock differs from the evaluator's from (\d{4})-(\d{2})-(\d{2})")
+_GUARD_DIFFERS = re.compile(r"time zone (.+?): this database's clock differs from the evaluator's on (\d{4})-(\d{2})-(\d{2})")
 _GUARD_UNKNOWN = re.compile(r"time zone (.+?): (this database does not know it|no clock was handed over)")
 
 
@@ -114,8 +116,9 @@ def refusal_words(message: str) -> str:
     m = _GUARD_DIFFERS.search(message)
     if m:
         zone, y, mo, d = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        return (f"{label(zone)} can't be used yet: this computer and its database disagree "
-                f"about {place(zone)}'s clocks from {_MONTHS[mo - 1]} {d}, {y}.")
+        return (f"{label(zone)} can't read these times: this computer and its database disagree "
+                f"about {place(zone)}'s clocks on {_MONTHS[mo - 1]} {d}, {y}, and this question reads "
+                f"a time from then.")
     m = _GUARD_UNKNOWN.search(message)
     if m:
         return f"{label(m.group(1))} can't be used yet: this computer's database doesn't know it."
@@ -160,21 +163,30 @@ def offered(names, link_map=None) -> list:
     return sorted(out, key=lambda e: (e["zone"] != "UTC", e["area"], e["place"], e["zone"]))
 
 
-def mark_words(first, last=None) -> str:
-    """Why a zone can't be used, in one short line: "before 1970" when every difference is
-    history, else the first date the two clocks differ (a year before 1970, a month after);
-    or that the database doesn't know it."""
-    if first is None:
-        return "Not available: this computer's database doesn't know it."
-    if last is not None and last.year < 1970:
-        return "Not available: this computer and its database disagree on its clocks before 1970."
-    when = str(first.year) if first.year < 1970 else f"{_MONTH_NAMES[first.month - 1]} {first.year}"
-    return f"Not available: this computer and its database disagree on its clocks from {when}."
+#: T-101: the one reason a zone is greyed in the list.
+UNKNOWN_WORDS = "Not available: this computer's database doesn't know it."
 
 
-#: The list's marks read both clocks every 30 days at noon from 1800 through 2100 (about 3 s for
-#: every zone, once per process). They are advice for the list: the zone guard in each statement
-#: (xpr.zone_checked) decides, at the second.
+def _when(d) -> str:
+    return str(d.year) if d.year < 1970 else f"{_MONTH_NAMES[d.month - 1]} {d.year}"
+
+
+def note_words(first, last, to_the_end: bool) -> str:
+    """T-101: a zone the two clocks disagree on only in some period stays selectable, with that
+    period in one line: "Times before 1970 ..." when every difference is history, "Times from
+    November 2026 on ..." when they run to the end of what is compared, else from .. to."""
+    if last.year < 1970:
+        return "Times before 1970 can't be read on this clock."
+    if to_the_end:
+        return f"Times from {_when(first)} on can't be read on this clock."
+    if first.year < 1970:
+        return f"Times before {_when(last)} can't be read on this clock."
+    return f"Times from {_when(first)} to {_when(last)} can't be read on this clock."
+
+
+#: The list's lines read both clocks every 30 days at noon from 1800 through 2100 (about 3 s for
+#: every zone, once per process). They are advice for the list: each question's own check against
+#: D (xpr.clock, T-101) decides, row by row.
 _MARK_SAMPLES = tuple(range(-5364662400 + 43200, 4133980800, 30 * 86400))
 _MARK_CACHE: dict = {}
 _MARK_LOCK = threading.Lock()
@@ -194,8 +206,10 @@ SELECT z, array_agg(extract(epoch FROM ((to_timestamp(t) AT TIME ZONE z)
 
 
 def marks(conn, names, cache: bool = True) -> dict:
-    """``{zone: None}`` for a zone both clocks agree on, else ``{zone: mark_words(...)}``.
-    Built-in SQL only, so it needs no runtime function; cached per process and database."""
+    """``{zone: (why, note)}``: ``why`` greys a zone this database doesn't know (UNKNOWN_WORDS);
+    ``note`` is the one line for a zone the two clocks disagree on in some period, which stays
+    selectable (T-101); both None for a zone they agree on. Built-in SQL only, so it needs no
+    runtime function; cached per process and database."""
     key = (conn.info.host, conn.info.port, conn.info.dbname)
     names = sorted(set(names))
     with _MARK_LOCK:
@@ -206,7 +220,7 @@ def marks(conn, names, cache: bool = True) -> dict:
                 "SELECT name FROM pg_timezone_names WHERE name = ANY(%(z)s)", {"z": todo}).fetchall()}
             for z in todo:
                 if z not in in_db:
-                    known[z] = mark_words(None)
+                    known[z] = (UNKNOWN_WORDS, None)
             asked = [z for z in todo if z in in_db]
             if asked:
                 rows = conn.execute(_MARK_SQL, {"zones": asked, "samples": list(_MARK_SAMPLES)}).fetchall()
@@ -214,11 +228,144 @@ def marks(conn, names, cache: bool = True) -> dict:
                     ours = _python_offsets(z, _MARK_SAMPLES)
                     differ = [t for t, a, b in zip(_MARK_SAMPLES, ours, theirs) if a != b]
                     day = lambda t: _dt.datetime.fromtimestamp(t, _UTC).date()  # noqa: E731
-                    known[z] = mark_words(day(differ[0]), day(differ[-1])) if differ else None
+                    known[z] = ((None, note_words(day(differ[0]), day(differ[-1]), differ[-1] == _MARK_SAMPLES[-1]))
+                                if differ else (None, None))
         return {z: known[z] for z in names}
 
 
-def use_words(zone: str, mark: str) -> str:
-    """A list mark as the refusal of a question on that clock: ``Amsterdam time can't be used
-    yet: this computer and its database disagree on its clocks before 1970.``"""
-    return f"{label(zone)} can't be used yet: " + mark.removeprefix("Not available: ")
+# ── D(zone): where this database's clock and Python's disagree (T-101) ─────────────────────────
+#
+# The statement reads a zone's clock with the SERVER's time-zone data, the second engine with
+# Python's. Rather than refuse a zone that differs anywhere in 1800..2100 (T-98's per-statement
+# guard), each row's clock reading is checked against D, the instants the two disagree on: a row
+# outside D reads the same on both, a row inside it is refused by name (xpr.clock). D is worked
+# out once per zone and database -- Python's clock (the compiler's zone_transitions) against the
+# server's at the second before and the second of every change of Python's, weekly noons to 1970
+# and daily noons from 1970 through 2100 -- as half-open intervals [lo, hi) of epoch seconds, each
+# end at the nearest sample the two agree on, +-Infinity where the differences run off either end.
+#
+# Cached by (host, port, database, pg_postmaster_start_time()) and Python's clock for the zone.
+# A system-tzdata Postgres reads zone files as a backend first loads a zone, so a package upgrade
+# changes the server's rules with no restart: EVERY question therefore re-reads the server's
+# offsets at a few thousand instants (Python's change instants and every fourth week / thirtieth
+# day's noon; about 2-5 ms a zone) and works D out again when any of them moved.
+
+NEG_INF, POS_INF = float("-inf"), float("inf")
+
+
+class ZoneUnknown(ZoneError):
+    """This computer's database doesn't know a zone the question reads a clock on."""
+
+
+#: The server's offset at instant {t} on zone {z}, in seconds. One template, so a test can stand a
+#: schema-local function in for an upgraded zone file.
+_SERVER_OFFSET = ("extract(epoch FROM ((to_timestamp({t}) AT TIME ZONE {z}) "
+                  "- (to_timestamp({t}) AT TIME ZONE 'UTC')))::int")
+
+_FULL_SQL = """
+WITH c AS (
+  SELECT t, want FROM (
+    SELECT (%(st)s::bigint[])[i] - 1 AS t, (%(of)s::int[])[i - 1] AS want
+      FROM generate_subscripts(%(st)s::bigint[], 1) AS i WHERE i > 1
+    UNION ALL
+    SELECT (%(st)s::bigint[])[i], (%(of)s::int[])[i] FROM generate_subscripts(%(st)s::bigint[], 1) AS i
+    UNION ALL
+    SELECT g, (%(of)s::int[])[width_bucket(g, %(st)s::bigint[])] FROM (
+        SELECT generate_series(-5364619200::bigint, -1::bigint, 604800::bigint) AS g
+        UNION ALL
+        SELECT generate_series(43200::bigint, 4133937600::bigint, 86400::bigint)) AS n
+  ) AS x
+), s AS (
+  SELECT t, bool_or({off} IS DISTINCT FROM want) AS bad FROM c GROUP BY t
+), w AS (
+  SELECT t, bad, lag(t) OVER o AS pt, lead(t) OVER o AS nt,
+         coalesce(lag(bad) OVER o, false) AS pb, coalesce(lead(bad) OVER o, false) AS nb
+    FROM s WINDOW o AS (ORDER BY t)
+)
+SELECT t, pt, nt, pb, nb FROM w WHERE bad AND (NOT pb OR NOT nb) ORDER BY t
+"""
+
+_RECHECK_SQL = ("SELECT 1, array_agg({off} ORDER BY t) "
+                "FROM unnest(%(ts)s::bigint[]) AS t")
+_NAMES: dict = {}
+
+
+def _known_names(conn, started: str) -> frozenset:
+    """The zones this database knows, read once per server start (pg_timezone_names reads every
+    zone file: too dear for each question). A zone file a package upgrade REMOVES without a restart
+    is not seen until the next one; the reading then fails loudly in the database, never quietly."""
+    key = (conn.info.host, conn.info.port, conn.info.dbname, started)
+    if key not in _NAMES:
+        _NAMES[key] = frozenset(r[0] for r in conn.execute("SELECT name FROM pg_timezone_names").fetchall())
+    return _NAMES[key]
+
+_GAP_CACHE: dict = {}
+_GAP_LOCK = threading.Lock()
+#: How many full comparisons have run (a test reads it: a second question reads D from the cache).
+full_comparisons = 0
+
+
+def _python_clock(zone: str):
+    from picks import env
+    starts, offsets = env.get("compiler").zone_transitions(zone)
+    return tuple(starts), tuple(offsets)
+
+
+def _recheck_samples(starts) -> tuple:
+    """Python's change instants (the second before and the second of each), every fourth weekly
+    noon before 1970 and every thirtieth daily noon from 1970: all of them instants the full
+    comparison reads, so a re-check can only see what the full comparison would."""
+    out = set()
+    for s in starts[1:]:
+        out.update((s - 1, s))
+    out.update(range(-5364619200, 0, 4 * 604800))
+    out.update(range(43200, 4133937600 + 1, 30 * 86400))
+    return tuple(sorted(out))
+
+
+def _off_sql(sql: str) -> str:
+    return sql.replace("{off}", _SERVER_OFFSET.format(t="t", z="%(z)s::text"))
+
+
+def _gaps_from(rows) -> tuple:
+    gaps, lo = [], None
+    for t, pt, nt, pb, nb in rows:
+        if not pb:
+            lo = NEG_INF if pt is None else float(pt + 1)
+        if not nb:
+            gaps.append((lo, POS_INF if nt is None else float(nt)))
+    return tuple(gaps)
+
+
+def disagreements(conn, zone: str, transitions=None) -> tuple:
+    """D(zone) on ``conn``'s database: ``((lo, hi), ...)``, empty when the two clocks agree at every
+    instant compared. Re-checks the server cheaply first; works D out again only when it moved."""
+    global full_comparisons
+    starts, offsets = _python_clock(zone) if transitions is None else map(tuple, transitions(zone))
+    samples = _recheck_samples(starts)
+    started = conn.execute("SELECT pg_postmaster_start_time()::text").fetchone()[0]
+    if zone not in _known_names(conn, started):
+        raise ZoneUnknown(f"{label(zone)} can't be used yet: this computer's database doesn't know it.")
+    now = conn.execute(_off_sql(_RECHECK_SQL), {"ts": list(samples), "z": zone}).fetchone()[1]
+    key = (conn.info.host, conn.info.port, conn.info.dbname, zone)
+    with _GAP_LOCK:
+        hit = _GAP_CACHE.get(key)
+        if hit and hit["started"] == started and hit["python"] == (starts, offsets) and hit["seen"] == tuple(now):
+            return hit["gaps"]
+        rows = conn.execute(_off_sql(_FULL_SQL), {"st": list(starts), "of": list(offsets), "z": zone}).fetchall()
+        full_comparisons += 1
+        gaps = _gaps_from(rows)
+        _GAP_CACHE[key] = {"started": started, "python": (starts, offsets), "seen": tuple(now), "gaps": gaps}
+        return gaps
+
+
+def clock_check(conn, transitions=None):
+    """The resolver one question compiles with (``picks.env.checking_zones``): zone → D, re-checked
+    once per zone per question. ``transitions`` stands in for the compiler's (its own tests)."""
+    memo: dict = {}
+
+    def gaps(zone: str) -> tuple:
+        if zone not in memo:
+            memo[zone] = disagreements(conn, zone, transitions)
+        return memo[zone]
+    return gaps

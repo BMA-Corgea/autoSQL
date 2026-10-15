@@ -85,9 +85,10 @@ _NUM_FUNCS = frozenset({"number", "abs", "floor", "ceil", "round", "length", "co
 # T-98: time_of_day(t, zone) reads a wall clock in a NAMED zone (GIMS's expr.py; GA-68
 # Q6). The two engines read that clock from two time-zone databases -- Python's zoneinfo
 # and the Postgres server's own -- which can disagree (measured 2026-10-13 on this
-# machine: 109 of 484 zones, four of them this autumn). So the compiler hands the server
-# Python's clock for the zone, and xpr.zone_checked compares the server's with it once per
-# statement, refusing (XPR05, by name) before any row is read where they differ.
+# machine: 109 of 484 zones, four of them this autumn). T-101: the host compares the two
+# clocks once per zone and database (picks/zones.py, from Python's clock below) into D, the
+# instants they disagree on, and hands D over (zone_gaps). An empty D is the plain reading; any
+# other is read through xpr.clock, which refuses (XPR05, by name and date) a row inside D.
 # ---------------------------------------------------------------------------------
 ZONE_CHECK_FROM = -5364662400    # 1800-01-01T00:00:00Z
 ZONE_CHECK_TO = 4133980800       # 2101-01-01T00:00:00Z
@@ -302,9 +303,10 @@ KNOWN_DIVERGENCES = [
 # ---------------------------------------------------------------------------------
 class _Compiler:
     def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None,
-                 time_zones: Any = None):
+                 time_zones: Any = None, zone_gaps: Any = None):
         self.column = column
         self.time_zones = time_zones
+        self.zone_gaps = zone_gaps
         self.ctx_param = ctx_param
         self.fold = fold
         self.noun = noun
@@ -573,7 +575,12 @@ class _Compiler:
         if name == "time_of_day":                             # expr.py _fn_time_of_day (GIMS T-98)
             if len(args) != 2:
                 return "NULL::float8"
-            return f"xpr.time_of_day({self._j(args[0])}, {self._zone(args[1])})"
+            name = self._zone(args[1])
+            gaps = self._gaps(name)
+            if not gaps:                                      # the two clocks agree: the plain reading
+                return f"xpr.time_of_day({self._j(args[0])}, {self._bind(name, 'text')})"
+            return (f"xpr.time_of_day({self._j(args[0])}, {self._bind(name, 'text')}, "
+                    f"{self._bind([g[0] for g in gaps], 'float8[]')}, {self._bind([g[1] for g in gaps], 'float8[]')})")
         if name == "coalesce":                                # expr.py:535
             if not args:
                 return "NULL::float8"
@@ -585,9 +592,18 @@ class _Compiler:
                     f"THEN {self._f8(args[1])} ELSE {self._f8(args[2])} END")
         raise AssertionError(f"_f8 called on a node _is_num does not admit: {node!r}")
 
+    def _gaps(self, name: str):
+        """T-101: D(name), the instants this database's clock and Python's disagree on, from the
+        host's resolver; without one a clock reading does not compile (fails closed)."""
+        if self.zone_gaps is None:
+            raise Uncompilable(
+                "time_of_day needs the zones' disagreements (zone_gaps=...): without them the "
+                "compiler cannot know which rows the two clocks read alike")
+        return tuple(self.zone_gaps(name))
+
     def _zone(self, node) -> str:
         """time_of_day's zone: a name written in the expression, one of the evaluator's
-        TIME_ZONES, behind the guard that the server's clock for it is Python's."""
+        TIME_ZONES (T-101: its clock is read checked against D, see _gaps)."""
         if self.time_zones is None:
             raise Uncompilable(
                 "time_of_day needs the evaluator's zone list (time_zones=...): without it the "
@@ -599,9 +615,7 @@ class _Compiler:
         name = node[1]
         if name not in self.time_zones:
             raise Uncompilable(f"{name!r} is not one of the evaluator's zone names")
-        starts, offsets = zone_transitions(name)
-        return (f"(SELECT xpr.zone_checked({self._bind(name, 'text')}, "
-                f"{self._bind(starts, 'bigint[]')}, {self._bind(offsets, 'int[]')}))")
+        return name
 
     def _inline_coerce(self, j: str) -> str:
         """xpr.num(j) written inline for a cheap j; the rare paths still call the runtime."""
@@ -717,19 +731,24 @@ def _budgeted(method):
 
 
 for _name in ("_j", "_f8", "_num", "_truthy", "_str", "predicate", "_eq_sql", "_inline_coerce",
-              "_build_array", "_zone"):
+              "_build_array"):
     setattr(_Compiler, _name, _budgeted(getattr(_Compiler, _name)))
 del _name
 
 
 def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
-                fold: Any = None, noun: Any = None, time_zones: Any = None) -> Compiled:
+                fold: Any = None, noun: Any = None, time_zones: Any = None,
+                zone_gaps: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
 
     Raises Uncompilable for anything this compiler is not sure of.
 
     time_zones (T-98): the evaluator's TIME_ZONES. time_of_day compiles only with it, and
     only for a zone written in the expression as one of those names.
+
+    zone_gaps (T-101): zone → D(zone), the instants this database's clock and Python's disagree
+    on, as ((lo, hi), ...) epoch seconds. time_of_day compiles only with it: an empty D is the plain
+    reading, any other is read through xpr.clock, which refuses a row whose instant lies in D.
 
     fold="gims" (T-48): compile field access as GIMS's dashboard pipeline serves a noun
     row (its key copies and the _noun_type tag; see gims_copy_sources), for a WHERE run
@@ -740,7 +759,7 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps)
     sql = c.compile(ast)
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.
@@ -749,7 +768,8 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
 
 
 def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
-                      fold: Any = None, noun: Any = None, time_zones: Any = None) -> Compiled:
+                      fold: Any = None, noun: Any = None, time_zones: Any = None,
+                      zone_gaps: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres BOOLEAN: true exactly where expr's
     _truthy(evaluate(ast)) is.  For a WHERE.  Same arguments and refusals as compile_ast.
 
@@ -761,7 +781,7 @@ def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps)
     sql = c.predicate(ast)                   # measured as it is built (T-102)
     return Compiled(sql=sql, params=c.params)
 

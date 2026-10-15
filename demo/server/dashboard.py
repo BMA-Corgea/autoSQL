@@ -56,6 +56,7 @@ import lookup  # noqa: E402
 
 from . import db, settings  # noqa: E402
 
+from picks import env as _penv  # noqa: E402
 from picks import view as _pv  # noqa: E402
 from picks import zones as _zones  # noqa: E402
 from picks.view import (  # noqa: E402  (T-86: the view layer moved to picks/view.py)
@@ -621,7 +622,7 @@ def agreed_rows(conn, pick: dict) -> int | None:
 #: raising; app.run_pick does not catch it on this path (the two-pane screen
 #: answers HTTP 500 for the same pick; that screen is not changed here).
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
-#: T-98: the zone guard's refusal (runtime xpr.zone_checked).
+#: T-98/T-101: a clock reading refused by name (runtime xpr.clock).
 ZONE_REFUSAL_SQLSTATE = "XPR05"
 
 #: The headline of every refusal where the statement answered and the second
@@ -820,17 +821,6 @@ def _admin_block(answer: dict) -> dict:
     }
 
 
-def _refuse_unusable_zone(conn, view: dict) -> None:
-    """T-98 (GA-68 Q3): a question on a clock this computer and its database disagree about is
-    refused, by name, before anything runs, in the words the clock setting's list uses."""
-    zone = _pv.view_zone(view)
-    if zone is None:
-        return
-    mark = _zones.marks(conn, [zone])[zone]
-    if mark:
-        raise ViewError(_zones.use_words(zone, mark))
-
-
 def _refuse_hidden(view: dict, fields: dict) -> None:
     """The Everyone view names no field hidden from it (T-77's rule, held at
     the gate by T-76 AC8): not a column, a condition, the sort, a summary's
@@ -853,7 +843,6 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
     ds, fields = _dataset(setup_payload, view)
     if not admin:
         _refuse_hidden(view, fields)
-    _refuse_unusable_zone(conn, view)
     if view.get("scoreboard") is not None:
         return scoreboard_answer(conn, setup_payload, view, page, admin)
     if view.get("matched") is not None:
@@ -1729,13 +1718,16 @@ def api_zones() -> JSONResponse:
             aliases[z] = target
     conn = _connect()
     try:
-        why = _zones.marks(conn, listed | set(others))
+        mark = _zones.marks(conn, listed | set(others))
     finally:
         conn.close()
+    # T-101: greyed only when this computer's database doesn't know the zone (why); a zone the
+    # two clocks disagree on in some period stays selectable, with that period in one line (note)
     return JSONResponse({
-        "zones": [{**e, "why": why[e["zone"]]} for e in shown],
+        "zones": [{**e, "why": mark[e["zone"]][0], "note": mark[e["zone"]][1]} for e in shown],
         "aliases": aliases,
-        "others": [{"zone": z, "label": _zones.label(z), "why": why[z]} for z in others],
+        "others": [{"zone": z, "label": _zones.label(z), "why": mark[z][0], "note": mark[z][1]}
+                   for z in others],
     })
 
 
@@ -1758,13 +1750,17 @@ def api_answer(body: dict) -> JSONResponse:
     try:
         payload = setup(conn)
         try:
-            out = answer(conn, payload, view, page, admin=wants_admin)
+            # T-101: every clock reading of this question is checked against D (picks/zones.py)
+            with _penv.checking_zones(_zones.clock_check(conn)):
+                out = answer(conn, payload, view, page, admin=wants_admin)
+        except _zones.ZoneUnknown as exc:
+            return JSONResponse({"kind": "invalid", "sentence": "", "message": str(exc)}, status_code=422)
         except ViewError as exc:
             return JSONResponse({"kind": "invalid", "sentence": "",
                                  "message": str(exc)}, status_code=422)
         except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
-            # T-98: the zone guard in the statement (xpr.zone_checked) refused the
-            # question's clock: said in words, on whichever answer path ran it.
+            # T-101: a row this question reads on its clock lies where this database's clock
+            # and the evaluator's disagree (xpr.clock): said in words, on whichever path ran it.
             if getattr(exc, "sqlstate", None) != ZONE_REFUSAL_SQLSTATE:
                 raise
             return JSONResponse({"kind": "invalid", "sentence": "",

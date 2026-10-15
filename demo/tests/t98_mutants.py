@@ -30,7 +30,7 @@ BATTERY = "../runtime/tests/test_runtime_time_of_day.py::test_every_form_in_ever
 
 _PY_CLOCK = "        clock = datetime.fromtimestamp(math.floor(parsed[0] / 1000.0), ZoneInfo(zone))"
 _PY_RETURN = "    return float(clock.hour * 3600 + clock.minute * 60 + clock.second)"
-_SQL_CLOCK = "  clock := to_timestamp(sec) AT TIME ZONE zone;"
+_SQL_CLOCK = "  clock := CASE WHEN los IS NULL THEN to_timestamp(sec) AT TIME ZONE zone"   # T-101: the plain reading
 _SQL_BARE = "  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;"
 _SQL_SEC = "  sec := floor(ms / 1000.0::float8);"
 _RT = "../runtime/runtime.sql"
@@ -45,15 +45,15 @@ _D = "server/dashboard.py"
 T98_MUTANTS = [
     dict(id="B1", defect="BOTH engines read every zone's clock as UTC (they agree)",
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("ZoneInfo(zone)", 'ZoneInfo("UTC")')),
-                (_RT, _SQL_CLOCK, "  clock := to_timestamp(sec) AT TIME ZONE 'UTC';")],
+                (_RT, _SQL_CLOCK, "  clock := CASE WHEN los IS NULL THEN to_timestamp(sec) AT TIME ZONE 'UTC'")],
          selector=VECTORS, expect="Denver, from 5:00 PM"),
     dict(id="B2", defect="BOTH engines turn the offset the wrong way (UTC-6 read as UTC+6)",
          edits=[(_EV, _PY_RETURN,
                  "    _u = datetime.fromtimestamp(math.floor(parsed[0] / 1000.0), timezone.utc).replace(tzinfo=None)\n"
                  "    clock = _u - (clock.replace(tzinfo=None) - _u)\n" + _PY_RETURN),
                 (_RT, _SQL_CLOCK,
-                 "  clock := (to_timestamp(sec) AT TIME ZONE 'UTC') - ((to_timestamp(sec) AT TIME ZONE zone) "
-                 "- (to_timestamp(sec) AT TIME ZONE 'UTC'));")],
+                 "  clock := CASE WHEN los IS NULL THEN (to_timestamp(sec) AT TIME ZONE 'UTC') - ((to_timestamp(sec) AT TIME ZONE zone) "
+                 "- (to_timestamp(sec) AT TIME ZONE 'UTC'))")],
          selector=VECTORS, expect="Denver, from 5:00 PM"),
     dict(id="B3", defect="BOTH engines give a bare date the time of day of its midnight",
          edits=[(_EV, "    if parsed is None or parsed[1]:\n        return None\n    try:\n        clock",
@@ -64,24 +64,9 @@ T98_MUTANTS = [
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("math.floor(parsed[0] / 1000.0)", "round(parsed[0] / 1000.0)")),
                 (_RT, _SQL_SEC, "  sec := round(ms / 1000.0::float8);")],
          selector=VECTORS, expect="Denver, until 5:00 PM"),
-    dict(id="B5", defect="the compiler emits the zone without its guard",
-         edits=[("../compiler/compile.py",
-                 "        return (f\"(SELECT xpr.zone_checked({self._bind(name, 'text')}, \"\n"
-                 "                f\"{self._bind(starts, 'bigint[]')}, {self._bind(offsets, 'int[]')}))\")",
-                 "        return self._bind(name, 'text')")],
-         selector=_C + "test_the_guard_refuses_a_zone_whose_clocks_differ", expect="DID NOT RAISE"),
-    dict(id="B6", defect="the guard checks only Python's changes (no daily or weekly samples)",
-         edits=[(_RT, "            SELECT generate_series(-5364619200::bigint, -1::bigint, 604800::bigint) AS t",
-                 "            SELECT NULL::bigint AS t WHERE false"),
-                (_RT, "            SELECT generate_series(43200::bigint, 4133937600::bigint, 86400::bigint)) AS s",
-                 "            SELECT NULL::bigint WHERE false) AS s")],
-         selector=_C + "test_the_guard_finds_a_change_pythons_clock_does_not_have", expect="DID NOT RAISE"),
-    dict(id="B7", defect="the guard checks only the samples (not the second before and of each change)",
-         edits=[(_RT, "        SELECT starts[i] - 1 AS t, offs[i - 1] AS want FROM generate_subscripts(starts, 1) AS i WHERE i > 1",
-                 "        SELECT starts[i] - 1 AS t, offs[i - 1] AS want FROM generate_subscripts(starts, 1) AS i WHERE false"),
-                (_RT, "        SELECT starts[i], offs[i] FROM generate_subscripts(starts, 1) AS i\n",
-                 "        SELECT starts[i], offs[i] FROM generate_subscripts(starts, 1) AS i WHERE false\n")],
-         selector=_C + "test_the_guard_finds_a_change_an_hour_out_on_the_same_day", expect="DID NOT RAISE"),
+    # B5, B6, B7 (the per-statement guard's emission and samples) and C8 (the up-front refusal) went
+    # with what they broke: T-101 replaced both with each row's check against D. Its mutants
+    # (t101_mutants.py) break the check, D's arithmetic and the per-question re-check.
     dict(id="B8", defect="Python's clock table puts each change a second early",
          edits=[("../compiler/compile.py", "            starts.append(hi)\n", "            starts.append(lo)\n")],
          selector=_C + "test_denvers_clock_in_2026", expect="KeyError: 1772960400"),
@@ -134,8 +119,8 @@ T98_MUTANTS = [
                 (_RT, "          + floor(extract(second from clock)))::float8;", ")::float8;")],
          selector=VECTORS, expect="Denver, exactly 5:00:45 PM"),
     dict(id="D1", defect="the probes compile without the zone list (a-chk's MEDIUM on b1: a 500)",
-         edits=[("../picks/probes.py", "    compile_kw = dict(compile_kw, time_zones=env.time_zones())\n", "")],
-         selector=_T + "test_a_probe_compiles_time_of_day_behind_the_zone_guard", expect="Uncompilable"),
+         edits=[("../picks/probes.py", "    compile_kw = dict(compile_kw, time_zones=env.time_zones(), zone_gaps=env.zone_gaps())\n", "")],
+         selector=_T + "test_a_probe_reads_the_clock_checked_as_the_statement_does", expect="Uncompilable"),
     dict(id="D2", defect="the suite's runtime check says nothing when the runtimes differ",
          edits=[("tests/conftest.py", _LOUD, "")],
          selector=_T + "test_a_seat_whose_runtime_differs_is_told_loudly_which_and_how_to_fix_it",
@@ -169,10 +154,6 @@ T98_MUTANTS = [
     dict(id="C7", defect="any text is taken as a question's zone",
          edits=[(_V, "    if not isinstance(zone, str) or zone not in known:", "    if not isinstance(zone, str):")],
          selector=_T + "test_any_other_zone_is_refused_in_words", expect="DID NOT RAISE"),
-    dict(id="C8", defect="a zone the two clocks disagree on is answered",
-         edits=[(_D, "    if mark:\n        raise ViewError(_zones.use_words(zone, mark))",
-                 "    if False:\n        raise ViewError(_zones.use_words(zone, mark))")],
-         selector=_T + "test_a_zone_the_two_clocks_disagree_on_is_refused_by_name", expect="assert 200 == 422"),
     dict(id="C9", defect="BOTH engines: a count column reads UTC, not its question's clock",
          edits=[(_V, '        expr, said = _count_conditions(c, counted_fields, f"“{label}”", view_zone(view))',
                  '        expr, said = _count_conditions(c, counted_fields, f"“{label}”")')],

@@ -3,9 +3,10 @@
 // The owner's answer to the form (GA-68 Q7): times read on the viewer's own clock, and "we need
 // to be able to just set the clock in some setting somewhere". So the clock starts as this
 // computer's (the browser's own zone) and a setting in the header changes it. The list comes
-// from the server (/api/dashboard/zones): one entry per place, UTC first, and every zone the
-// two engines can't agree on still listed, greyed, with why in one line, so nobody wonders
-// where their city went. A zone the page can't use falls back to UTC, and says so.
+// from the server (/api/dashboard/zones): one entry per place, UTC first. A zone this computer's
+// database doesn't know is still listed, greyed, with why in one line, so nobody wonders where
+// their city went; a zone the two clocks disagree on in some period stays selectable, with that
+// period in one line (T-101). A zone the page can't use falls back to UTC, and says so.
 //
 // The choice is remembered in this browser for convenience only; the zone a question uses
 // travels inside the question itself, so a shared question reads the same everywhere.
@@ -134,7 +135,8 @@ function Entry({ e, on, onPick, extra }) {
         aria-disabled={off} aria-current={on ? "true" : undefined}
         data-zone={e.zone} onClick={() => { if (!off) onPick(); }}>
         <span className="dx-clock-item-name">{extra ? <><strong>{extra}</strong> · </> : null}{e.label}</span>
-        {off ? <span className="dx-clock-item-why">{e.why}</span> : null}
+        {off ? <span className="dx-clock-item-why">{e.why}</span>
+          : e.note ? <span className="dx-clock-item-why dx-clock-item-note">{e.note}</span> : null}
       </button>
     </li>
   );
