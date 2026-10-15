@@ -1026,7 +1026,10 @@ def _float8_overflow_refusal(conn, pick, exc, *, built, display_sql,
 #: operand (``abs($.huge) == 1``) or by the statement itself (``$.huge == 1``:
 #: == is not a numeric-read place, so the magnitude probe never looks). It used
 #: to answer HTTP 500 (a-chk's LATER-verify, item 5a); now it is refused by
-#: name, as the 22003 overflow is. Caught by SQLSTATE, as that one is.
+#: name, as the 22003 overflow is. Caught by SQLSTATE, as that one is -- and
+#: only for the two-pane screen (``refuse_out_of_range``): the dashboard
+#: catches XPR01 from run_pick itself and says it in its own words (T-75), so
+#: its answers are left exactly as they were.
 _OUT_OF_RANGE_SQLSTATE = "XPR01"
 
 
@@ -1080,18 +1083,18 @@ class SecondEngineFailed(RuntimeError):
     caller that answers in words (the dashboard) can name it."""
 
 
-def run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
+def run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: bool = False) -> dict:
     """T-101: every clock reading of the pick is checked against D (picks/zones.py), with the
     question's own resolver when one is set (the dashboard sets it once per question)."""
     from picks import env as _penv
     from picks import zones as _zones
     if _penv.zone_gaps() is not None:
-        return _run_pick(conn, pick, whole=whole)
+        return _run_pick(conn, pick, whole=whole, refuse_out_of_range=refuse_out_of_range)
     with _penv.checking_zones(_zones.clock_check(conn)):
-        return _run_pick(conn, pick, whole=whole)
+        return _run_pick(conn, pick, whole=whole, refuse_out_of_range=refuse_out_of_range)
 
 
-def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
+def _run_pick(conn, pick: dict, *, whole: bool = False, refuse_out_of_range: bool = False) -> dict:
     """One pick → the whole response body.  Separated from the route so the
     suite drives the same code the screen does, with no HTTP in the way.
 
@@ -1233,7 +1236,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
         # T-105: a probe computing an operand met a number past the largest
         # double (abs($.huge) == 1): refused by name, never a 500
-        if getattr(exc, "sqlstate", None) != _OUT_OF_RANGE_SQLSTATE:
+        if not refuse_out_of_range or getattr(exc, "sqlstate", None) != _OUT_OF_RANGE_SQLSTATE:
             raise
         return _out_of_range_refusal(
             conn, pick, exc, built=built, display_sql=display_sql,
@@ -1248,7 +1251,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False) -> dict:
     try:
         sql = sql_pane(conn, built)
     except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
-        if getattr(exc, "sqlstate", None) == _OUT_OF_RANGE_SQLSTATE:
+        if refuse_out_of_range and getattr(exc, "sqlstate", None) == _OUT_OF_RANGE_SQLSTATE:
             # T-105: the statement itself read a number past the largest double
             return _out_of_range_refusal(
                 conn, pick, exc, built=built, display_sql=display_sql,
@@ -1660,7 +1663,7 @@ def api_pick(body: dict) -> JSONResponse:
         # runs in — and reads the setting back; the session-characteristics
         # statement alone provably did not (see its docstring).
         refuse_writes(conn)
-        answer = run_pick(conn, pick)
+        answer = run_pick(conn, pick, refuse_out_of_range=True)   # T-105: words, never a 500
     finally:
         conn.close()
     return JSONResponse(answer, status_code=200 if answer["accepted"] else 422)
