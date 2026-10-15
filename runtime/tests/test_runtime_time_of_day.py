@@ -167,7 +167,7 @@ def test_a_database_running_another_runtime_is_named_function_by_function(conn):
     try:
         conn.execute("CREATE OR REPLACE FUNCTION xpr.div(a float8, b float8) RETURNS float8 "
                      "LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT a / nullif(b, 0) $$")
-        conn.execute("DROP FUNCTION xpr.time_of_day(jsonb, text)")
+        conn.execute("DROP FUNCTION xpr.time_of_day(jsonb, text, float8[], float8[])")   # T-101: D's two arguments
         conn.execute("CREATE FUNCTION xpr.stray() RETURNS int LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 1 $$")
         got = this_runtime.compare(conn, sql)
         assert got["state"] == "differs"

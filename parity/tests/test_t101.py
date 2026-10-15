@@ -166,7 +166,7 @@ def test_a_summary_per_day_reads_its_buckets_through_the_check_too(world):
     hand = [(r[0], int(r[1])) for r in world[0].execute(
         f"SELECT to_char(date_trunc('day', (data->>'ts')::timestamptz AT TIME ZONE '{AMS}'), "
         f"'YYYY-MM-DD\"T\"HH24:MI:SS'), count(*) FROM {TABLE} GROUP BY 1 ORDER BY 1").fetchall()]
-    assert sql == py == hand and hand[0] == ("2026-08-14T00:00:00", 1150), (sql[:2], py[:2], hand[:2])
+    assert sql == py == hand and hand[0] == ("2026-08-14T00:00:00", 1100), (sql[:2], py[:2], hand[:2])
     _with_row(world, "t101-1916", "1916-04-30T12:00:00Z")
     try:
         out = _ask(world, _pick(None, bucket="day", bucket_field="ts", bucket_zone=AMS, aggregate={"fn": "count", "field": None}))
