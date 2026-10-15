@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Context, Decimal, ROUND_HALF_UP, localcontext
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -427,6 +428,25 @@ def time_value(value: Any) -> Optional[datetime]:
         return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def local_time(value: Any, zone: str) -> Optional[datetime]:
+    """T-100: a stored time or date as a NAIVE wall-clock time on ``zone`` -- a time read on that
+    clock, a calendar date as its own midnight (never shifted) -- or ``None`` when it is neither
+    (the same values time_value refuses)."""
+    at = time_value(value)
+    if at is None:
+        return None
+    if len(value) == 10:
+        return at.replace(tzinfo=None)
+    return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)
+
+
+def truncate_wall(at: datetime, granularity: str) -> str:
+    """A naive wall-clock time → its bucket's label on that clock: the bucket's local start,
+    ``YYYY-MM-DDTHH:MM:SS`` with NO Z (T-100).  The same cut as truncate_label, on the wall clock:
+    a repeated hour is one bucket, a skipped hour has none."""
+    return truncate_label(at.replace(tzinfo=timezone.utc), granularity)[:-1]
 
 
 def truncate_label(at: datetime, granularity: str) -> str:

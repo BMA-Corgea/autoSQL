@@ -1,0 +1,939 @@
+{
+  "format": "pick-vectors/1",
+  "version": 1,
+  "note": "T-100: a summary's buckets cut on the question's clock (bucket_zone), each answer worked out BY HAND, never by either engine; run as parity/pick-vectors.json is (check_picks.run_vectors(conn, path)). RULES: (1) A time is read on bucket_zone's wall clock and cut there: hour, day, week (from Monday 12:00 AM local) or month; a calendar date YYYY-MM-DD is its own day on any clock. (2) A label is the bucket's local start, YYYY-MM-DDTHH:MM:SS with NO Z; without bucket_zone the cut and the labels are UTC with Z, as before T-100. (3) The wall clock decides: on a day the clocks go back the repeated hour is ONE bucket; on a day they go forward the skipped hour has none. (4) America/Denver is UTC-7 (MST) until 2026-03-08T09:00:00Z, UTC-6 (MDT) until 2026-11-01T08:00:00Z, then UTC-7. (5) A value in neither T-88 form is in no bucket. (6) Each record's `set` names the case it serves.",
+  "collection": "noun:Clock3",
+  "records": [
+    {
+      "key": "S00",
+      "data": {
+        "at": "2026-03-08T00:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S01",
+      "data": {
+        "at": "2026-03-08T01:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S02",
+      "data": {
+        "at": "2026-03-08T02:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S03",
+      "data": {
+        "at": "2026-03-08T03:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S04",
+      "data": {
+        "at": "2026-03-08T04:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S05",
+      "data": {
+        "at": "2026-03-08T05:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S06",
+      "data": {
+        "at": "2026-03-08T06:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S07",
+      "data": {
+        "at": "2026-03-08T07:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S08",
+      "data": {
+        "at": "2026-03-08T08:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S09",
+      "data": {
+        "at": "2026-03-08T09:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S10",
+      "data": {
+        "at": "2026-03-08T10:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S11",
+      "data": {
+        "at": "2026-03-08T11:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S12",
+      "data": {
+        "at": "2026-03-08T12:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S13",
+      "data": {
+        "at": "2026-03-08T13:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S14",
+      "data": {
+        "at": "2026-03-08T14:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S15",
+      "data": {
+        "at": "2026-03-08T15:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S16",
+      "data": {
+        "at": "2026-03-08T16:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S17",
+      "data": {
+        "at": "2026-03-08T17:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S18",
+      "data": {
+        "at": "2026-03-08T18:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S19",
+      "data": {
+        "at": "2026-03-08T19:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S20",
+      "data": {
+        "at": "2026-03-08T20:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S21",
+      "data": {
+        "at": "2026-03-08T21:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S22",
+      "data": {
+        "at": "2026-03-08T22:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S23",
+      "data": {
+        "at": "2026-03-08T23:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S24",
+      "data": {
+        "at": "2026-03-09T00:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S25",
+      "data": {
+        "at": "2026-03-09T01:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S26",
+      "data": {
+        "at": "2026-03-09T02:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S27",
+      "data": {
+        "at": "2026-03-09T03:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S28",
+      "data": {
+        "at": "2026-03-09T04:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S29",
+      "data": {
+        "at": "2026-03-09T05:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S30",
+      "data": {
+        "at": "2026-03-09T06:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S31",
+      "data": {
+        "at": "2026-03-09T07:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S32",
+      "data": {
+        "at": "2026-03-09T08:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S33",
+      "data": {
+        "at": "2026-03-09T09:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S34",
+      "data": {
+        "at": "2026-03-09T10:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "S35",
+      "data": {
+        "at": "2026-03-09T11:00:00Z",
+        "set": "spring"
+      }
+    },
+    {
+      "key": "F00",
+      "data": {
+        "at": "2026-11-01T00:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F01",
+      "data": {
+        "at": "2026-11-01T01:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F02",
+      "data": {
+        "at": "2026-11-01T02:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F03",
+      "data": {
+        "at": "2026-11-01T03:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F04",
+      "data": {
+        "at": "2026-11-01T04:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F05",
+      "data": {
+        "at": "2026-11-01T05:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F06",
+      "data": {
+        "at": "2026-11-01T06:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F07",
+      "data": {
+        "at": "2026-11-01T07:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F08",
+      "data": {
+        "at": "2026-11-01T08:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F09",
+      "data": {
+        "at": "2026-11-01T09:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F10",
+      "data": {
+        "at": "2026-11-01T10:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F11",
+      "data": {
+        "at": "2026-11-01T11:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F12",
+      "data": {
+        "at": "2026-11-01T12:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F13",
+      "data": {
+        "at": "2026-11-01T13:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F14",
+      "data": {
+        "at": "2026-11-01T14:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F15",
+      "data": {
+        "at": "2026-11-01T15:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F16",
+      "data": {
+        "at": "2026-11-01T16:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F17",
+      "data": {
+        "at": "2026-11-01T17:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F18",
+      "data": {
+        "at": "2026-11-01T18:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F19",
+      "data": {
+        "at": "2026-11-01T19:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F20",
+      "data": {
+        "at": "2026-11-01T20:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F21",
+      "data": {
+        "at": "2026-11-01T21:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F22",
+      "data": {
+        "at": "2026-11-01T22:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F23",
+      "data": {
+        "at": "2026-11-01T23:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F24",
+      "data": {
+        "at": "2026-11-02T00:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F25",
+      "data": {
+        "at": "2026-11-02T01:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F26",
+      "data": {
+        "at": "2026-11-02T02:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F27",
+      "data": {
+        "at": "2026-11-02T03:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F28",
+      "data": {
+        "at": "2026-11-02T04:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F29",
+      "data": {
+        "at": "2026-11-02T05:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F30",
+      "data": {
+        "at": "2026-11-02T06:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F31",
+      "data": {
+        "at": "2026-11-02T07:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F32",
+      "data": {
+        "at": "2026-11-02T08:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F33",
+      "data": {
+        "at": "2026-11-02T09:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F34",
+      "data": {
+        "at": "2026-11-02T10:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "F35",
+      "data": {
+        "at": "2026-11-02T11:00:00Z",
+        "set": "fall"
+      }
+    },
+    {
+      "key": "W1",
+      "data": {
+        "at": "2026-08-17T05:59:59Z",
+        "set": "week"
+      }
+    },
+    {
+      "key": "W2",
+      "data": {
+        "at": "2026-08-17T06:00:00Z",
+        "set": "week"
+      }
+    },
+    {
+      "key": "W3",
+      "data": {
+        "at": "2026-08-17T03:00:00Z",
+        "set": "week"
+      }
+    },
+    {
+      "key": "K1",
+      "data": {
+        "at": "2026-08-31T09:59:59Z",
+        "set": "kiri"
+      }
+    },
+    {
+      "key": "K2",
+      "data": {
+        "at": "2026-08-31T10:00:00Z",
+        "set": "kiri"
+      }
+    },
+    {
+      "key": "M1",
+      "data": {
+        "at": "2026-09-01T11:59:00Z",
+        "set": "minus12"
+      }
+    },
+    {
+      "key": "M2",
+      "data": {
+        "at": "2026-09-01T12:00:00Z",
+        "set": "minus12"
+      }
+    },
+    {
+      "key": "I1",
+      "data": {
+        "at": "2026-08-20T11:29:59Z",
+        "set": "kolkata"
+      }
+    },
+    {
+      "key": "I2",
+      "data": {
+        "at": "2026-08-20T11:30:00Z",
+        "set": "kolkata"
+      }
+    },
+    {
+      "key": "N1",
+      "data": {
+        "at": "2026-08-20T11:14:59Z",
+        "set": "kathmandu"
+      }
+    },
+    {
+      "key": "N2",
+      "data": {
+        "at": "2026-08-20T11:15:00Z",
+        "set": "kathmandu"
+      }
+    },
+    {
+      "key": "D1",
+      "data": {
+        "at": "2026-08-20",
+        "set": "date"
+      }
+    },
+    {
+      "key": "D2",
+      "data": {
+        "at": "2026-08-20T23:00:00Z",
+        "set": "date"
+      }
+    },
+    {
+      "key": "O1",
+      "data": {
+        "at": "teatime",
+        "set": "odd"
+      }
+    },
+    {
+      "key": "O2",
+      "data": {
+        "at": "2026-08-20T14:30",
+        "set": "odd"
+      }
+    }
+  ],
+  "cases": [
+    {
+      "name": "Denver, Mar 8: a 23-hour day (MST until 09:00Z, MDT after)",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"spring\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-03-07T00:00:00",
+          "7"
+        ],
+        [
+          "2026-03-08T00:00:00",
+          "23"
+        ],
+        [
+          "2026-03-09T00:00:00",
+          "6"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, Mar 8 by the hour: no 2:00 AM bucket",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "hour",
+        "bucket_field": "at",
+        "filter": "$.set == \"spring\" and $.at >= \"2026-03-08T07:00:00Z\" and $.at <= \"2026-03-08T10:00:00Z\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-03-08T00:00:00",
+          "1"
+        ],
+        [
+          "2026-03-08T01:00:00",
+          "1"
+        ],
+        [
+          "2026-03-08T03:00:00",
+          "1"
+        ],
+        [
+          "2026-03-08T04:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, Nov 1: a 25-hour day (MDT until 08:00Z, MST after)",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"fall\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-10-31T00:00:00",
+          "6"
+        ],
+        [
+          "2026-11-01T00:00:00",
+          "25"
+        ],
+        [
+          "2026-11-02T00:00:00",
+          "5"
+        ]
+      ]
+    },
+    {
+      "name": "Denver, Nov 1 by the hour: the 1:00 AM hour holds both 1:00s",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "hour",
+        "bucket_field": "at",
+        "filter": "$.set == \"fall\" and $.at >= \"2026-11-01T06:00:00Z\" and $.at <= \"2026-11-01T09:00:00Z\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-11-01T00:00:00",
+          "1"
+        ],
+        [
+          "2026-11-01T01:00:00",
+          "2"
+        ],
+        [
+          "2026-11-01T02:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Denver weeks start on Monday 12:00 AM local: Sunday 11:59:59 PM and 9:00 PM are the week before",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "week",
+        "bucket_field": "at",
+        "filter": "$.set == \"week\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-08-10T00:00:00",
+          "2"
+        ],
+        [
+          "2026-08-17T00:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "the same three in UTC: all Monday Aug 17",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "week",
+        "bucket_field": "at",
+        "filter": "$.set == \"week\"",
+        "bucket_zone": "UTC"
+      },
+      "expect": [
+        [
+          "2026-08-17T00:00:00",
+          "3"
+        ]
+      ]
+    },
+    {
+      "name": "no zone: UTC, labels as before (with Z)",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "week",
+        "bucket_field": "at",
+        "filter": "$.set == \"week\""
+      },
+      "expect": [
+        [
+          "2026-08-17T00:00:00Z",
+          "3"
+        ]
+      ]
+    },
+    {
+      "name": "Kiritimati (UTC+14): Aug 31 10:00Z is Sep 1",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "month",
+        "bucket_field": "at",
+        "filter": "$.set == \"kiri\"",
+        "bucket_zone": "Pacific/Kiritimati"
+      },
+      "expect": [
+        [
+          "2026-08-01T00:00:00",
+          "1"
+        ],
+        [
+          "2026-09-01T00:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "the same two in UTC: both August",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "month",
+        "bucket_field": "at",
+        "filter": "$.set == \"kiri\"",
+        "bucket_zone": "UTC"
+      },
+      "expect": [
+        [
+          "2026-08-01T00:00:00",
+          "2"
+        ]
+      ]
+    },
+    {
+      "name": "Etc/GMT+12 (UTC-12): Sep 1 11:59Z is still Aug 31",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "month",
+        "bucket_field": "at",
+        "filter": "$.set == \"minus12\"",
+        "bucket_zone": "Etc/GMT+12"
+      },
+      "expect": [
+        [
+          "2026-08-01T00:00:00",
+          "1"
+        ],
+        [
+          "2026-09-01T00:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kolkata (UTC+5:30): 11:29:59Z is 4:59:59 PM, 11:30Z is 5:00 PM",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "hour",
+        "bucket_field": "at",
+        "filter": "$.set == \"kolkata\"",
+        "bucket_zone": "Asia/Kolkata"
+      },
+      "expect": [
+        [
+          "2026-08-20T16:00:00",
+          "1"
+        ],
+        [
+          "2026-08-20T17:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "Kathmandu (UTC+5:45): 11:14:59Z is 4:59:59 PM, 11:15Z is 5:00 PM",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "hour",
+        "bucket_field": "at",
+        "filter": "$.set == \"kathmandu\"",
+        "bucket_zone": "Asia/Kathmandu"
+      },
+      "expect": [
+        [
+          "2026-08-20T16:00:00",
+          "1"
+        ],
+        [
+          "2026-08-20T17:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "a date is its own day on any clock; 23:00Z is the next day in Kiritimati",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"date\"",
+        "bucket_zone": "Pacific/Kiritimati"
+      },
+      "expect": [
+        [
+          "2026-08-20T00:00:00",
+          "1"
+        ],
+        [
+          "2026-08-21T00:00:00",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "a value in neither time form is in no bucket",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"odd\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": []
+    }
+  ]
+}

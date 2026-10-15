@@ -217,7 +217,15 @@ def _bucket(
 
     groups: Dict[str, List[SourceRow]] = {}
     named = pick.get("bucket_field")
-    if named:
+    zone = pick.get("bucket_zone")   # T-100: the clock the buckets are cut on
+    if named and zone:
+        steps = ev.dollar_path(paths.dollar(named))
+        for r in rows:
+            v = ev.resolve(r.record_d, steps)
+            at = ev.local_time(v, zone) if isinstance(v, str) else None
+            if at is not None:
+                groups.setdefault(ev.truncate_wall(at, granularity), []).append(r)
+    elif named:
         # T-88: any time or date field the pick names; a record whose value
         # is not a time or a date in the one form is in no bucket
         steps = ev.dollar_path(paths.dollar(named))
@@ -231,7 +239,12 @@ def _bucket(
             # date_trunc(NULL) would be a silent NULL bucket; B4 restricts
             # bucketing to noun:Heartbeat, where ts is on every row — loud.
             raise ValueError(f"row {r.key!r} has no ts to bucket")
-        groups.setdefault(ev.bucket_label(ts, granularity), []).append(r)
+        if zone:
+            # T-100: the series' own time, on the zone's wall clock
+            ev.bucket_label(ts, granularity)               # the same fixed-width check, loud
+            groups.setdefault(ev.truncate_wall(ev.local_time(ts, zone), granularity), []).append(r)
+        else:
+            groups.setdefault(ev.bucket_label(ts, granularity), []).append(r)
 
     # §7.1's time-bucket rule: bucketed results are ordered by the bucket —
     # text order over the fixed-width label IS time order.  Cap caps

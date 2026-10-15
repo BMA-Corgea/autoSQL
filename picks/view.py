@@ -477,6 +477,8 @@ def to_pick(catalog: "Catalog", setup_payload: dict, view: dict) -> dict:
             # one number per value of a field is a board's shape (to_category_spec)
             raise ViewError("One number per value of a field is answered as a board, not as one pick.")
         pick["bucket"] = "off" if summary["per"] == "all" else summary["per"]
+        if summary["per"] in TIME_PERS and view_zone(view) is not None:
+            pick["bucket_zone"] = view_zone(view)    # T-100: cut on the question's clock
         if summary["time"]:
             pick["bucket_field"] = summary["time"]
         elif summary["per"] in TIME_PERS and not _is_series(catalog, pick["source"]):

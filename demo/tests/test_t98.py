@@ -518,15 +518,15 @@ def test_a_boards_sentence_names_the_clock_too(page):
     assert "where Time is on Aug 20 (Denver time)" in a["sentence"], a["sentence"]
 
 
-def test_a_summary_per_day_on_another_clock_says_its_days_are_utc(page):
-    """Summaries stay UTC this run (T-100): on Denver's clock a per-day summary says so, rather than
-    let "per day" read as Denver's days."""
+def test_a_summary_per_day_names_the_clock_its_days_are_on(page):
+    """T-100 (superseding T-98's interim "(UTC)" note): a summary's days are cut on the question's
+    clock, and the sentence names that clock once."""
     c, st = page
     code, a = _ask(c, _hb(st, zone=DEN, columns=[], summary={"fn": "count", "field": None, "per": "day"}))
     assert code == 200, a
-    assert a["sentence"].startswith("Number of Heartbeats, per day (UTC)"), a["sentence"]
+    assert a["sentence"].startswith("Number of Heartbeats, per day (Denver time)"), a["sentence"]
     code, a = _ask(c, _hb(st, zone="UTC", columns=[], summary={"fn": "count", "field": None, "per": "day"}))
-    assert "(UTC)" not in a["sentence"], a["sentence"]
+    assert a["sentence"].startswith("Number of Heartbeats, per day (UTC)"), a["sentence"]
 
 
 @pytest.mark.parametrize("zone, start, end", [

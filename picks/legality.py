@@ -170,6 +170,8 @@ WHY_BUCKET_NEEDS_AGG = "a bucket has to count or total something; set to count"
 #   bucket    "off" | "hour" | "day" | "week" | "month"   (op 7)
 #   bucket_field  str | None  the time or date field op 7 groups by — on any
 #             source (T-88); None reads the time series' own time field
+#   bucket_zone   str | None  the clock op 7 cuts its buckets on (T-100): one of
+#             the zones both engines read; None cuts in UTC, as before
 #   window    {"field": str} | None                       (op 8)
 #   changed   bool                                        (op 9)
 
@@ -378,6 +380,13 @@ def shape_violations(pick: dict) -> list[dict]:
     if bucket_field is not None and not isinstance(bucket_field, str):
         bad(7, f"the field to group by time must be a field path — text — and this pick "
                f"carries {_slot_kind(bucket_field)}")
+    bucket_zone = pick.get("bucket_zone")
+    if bucket_zone is not None:
+        # T-100: the clock the buckets are cut on; refused, never ignored
+        if not isinstance(bucket_zone, str) or bucket_zone not in env.time_zones():
+            bad(7, "the clock to cut time buckets on must be one of the zone names both engines read")
+        elif bucket in (None, "off"):
+            bad(7, "a clock to cut time buckets on goes with a time bucket: hour, day, week or month")
 
     window = pick.get("window")
     if window is not None and not isinstance(window, dict):

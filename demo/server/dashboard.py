@@ -943,18 +943,30 @@ def _summary_value(text: str, tag: str, fn: str):
     return shown, exact, drawn if math.isfinite(drawn) else None
 
 
-def _span(fields: dict, time: str = "ts") -> tuple[str, str]:
+def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str, str]:
     """The data set's whole span over one time or date field, read from the
-    data at setup — a date as its UTC midnight (T-88)."""
+    data at setup — a date as its UTC midnight (T-88).  On a question's clock
+    (T-100) the span is in that clock's wall-clock form: a time read on it, a
+    date as its own midnight, no Z."""
     r = fields[time]["range"]
-    as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
-    return as_time(r["min"]), as_time(r["max"])
+    if zone is None:
+        as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
+        return as_time(r["min"]), as_time(r["max"])
+
+    def on_clock(v):
+        if len(v) == 10:
+            return v + "T00:00:00"
+        t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
+        return t.astimezone(_zones.ZoneInfo(zone)).strftime("%Y-%m-%dT%H:%M:%S")
+    return on_clock(r["min"]), on_clock(r["max"])
 
 
-def _slots(unit: str, lo: str, hi: str) -> list:
+def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
     """Every hour, day, week (from its Monday) or calendar month from ``lo``
-    to ``hi``, in the engine's own label form (``2026-08-14T00:00:00Z``)."""
-    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    to ``hi``, in the engine's own label form (``2026-08-14T00:00:00Z``).  On a
+    question's clock (T-100) the steps are that clock's (labels without Z), and
+    an hour the clock skips (a spring-forward night) is no slot at all."""
+    fmt = "%Y-%m-%dT%H:%M:%SZ" if zone is None else "%Y-%m-%dT%H:%M:%S"
     t = _dt.datetime.strptime(lo, fmt)
     end = _dt.datetime.strptime(hi, fmt)
 
@@ -977,16 +989,32 @@ def _slots(unit: str, lo: str, hi: str) -> list:
     t, end = start(t), start(end)
     out = []
     while t <= end:
-        out.append(t.strftime(fmt))
+        if zone is None or unit != "hour" or _clock_shows(t, zone):
+            out.append(t.strftime(fmt))
         t = step(t)
     return out
 
 
+def _clock_shows(t: "_dt.datetime", zone: str) -> bool:
+    """Does the zone's wall clock ever show this hour (not skipped by a change)?"""
+    try:
+        _zones.wall_instant(t.date(), t.hour, t.minute, t.second, zone)
+        return True
+    except _zones.ZoneError:
+        return False
+
+
 #: How a per-time slot reads, and its column's name (T-88: weeks, months).
 _UNIT_COLUMN = {"hour": "Hour (UTC)", "day": "Day", "week": "Week (from Monday)", "month": "Month"}
+#: T-100: on a question's clock the hour is that clock's; the sentence names it
+_UNIT_COLUMN_ON_CLOCK = dict(_UNIT_COLUMN, hour="Hour")
 
 
 def _slot_label(unit: str, when: str) -> str:
+    if unit == "hour" and not when.endswith("Z"):
+        # T-100: an hour on the question's clock, as the clock shows it
+        t = _dt.datetime.strptime(when, "%Y-%m-%dT%H:%M:%S")
+        return f"{_MONTHS[t.month - 1]} {t.day}, {_zones.clock_words(t.hour * 3600)}"
     if unit == "day":
         return fmt_day(when)
     if unit == "week":
@@ -1009,8 +1037,8 @@ def summary_words(ds: dict, view: dict, fields: dict, summary: dict) -> str:
         if summary.get("time"):
             head += f" of {fields[summary['time']]['label']}"
         zone = _pv.view_zone(view)
-        if zone is not None and _zones.label(zone) != "UTC":
-            head += " (UTC)"        # T-98: a summary's hours and days stay UTC this run (T-100)
+        if zone is not None and not _pv.filter_reads_clock(view, fields):
+            head += f" ({_zones.label(zone)})"   # T-100: its buckets are cut on the question's clock
     return head
 
 
@@ -1090,10 +1118,11 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
     if not got:
         bars = []
     else:
-        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields, summary.get("time") or "ts")
+        zone = _pv.view_zone(view)
+        lo, hi = (got[0]["start"], got[-1]["start"]) if capped else _span(fields, summary.get("time") or "ts", zone)
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
-                for t in _slots(unit, lo, hi)]
+                for t in _slots(unit, lo, hi, zone)]
         placed = {b["start"] for b in bars}
         if any(b["start"] not in placed for b in got):
             # A bucket with rows outside the axis would vanish from the
@@ -1126,7 +1155,7 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         "unit": unit,
         "measure": label,
         "bars": bars,
-        "columns": [{"path": "bucket", "label": _UNIT_COLUMN[unit], "kind": "text"},
+        "columns": [{"path": "bucket", "label": (_UNIT_COLUMN_ON_CLOCK if _pv.view_zone(view) else _UNIT_COLUMN)[unit], "kind": "text"},
                     {"path": "value", "label": label, "kind": "number"}],
         "rows": rows,
         "page": {"index": page, "size": PAGE_SIZE, "start": start,

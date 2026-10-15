@@ -161,6 +161,34 @@ def _series_texts(records) -> dict:
     }
 
 
+#: T-100: the zoned twins of the bucket labels.  A summary on a question's clock is cut on that
+#: zone's WALL CLOCK -- hour, day, week from Monday, month -- and labelled by the bucket's local start
+#: WITHOUT a Z, so a zoned label is never mistaken for a UTC one.  ``{z}`` is the zone behind the
+#: guard (``_zone_guard``); ``{t}`` the time read.  A calendar date (YYYY-MM-DD) is its own local
+#: midnight, never shifted by the zone's offset.  The frozen _BUCKET_LABEL_TEMPLATE is untouched.
+_ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\n"
+                "                'YYYY-MM-DD\"T\"HH24:MI:SS' )")
+
+
+def _zoned_local(value: str, z: str, dates: bool) -> str:
+    """A stored time as a wall-clock timestamp on zone ``z``; a date (when ``dates``) as its own midnight."""
+    on_clock = f"({value}::timestamptz AT TIME ZONE {z})"
+    if not dates:
+        return on_clock
+    return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
+
+
+def _zone_guard(p, zone: str) -> str:
+    """The zone, behind the guard every clock reading carries (T-98): Python's clock for it,
+    compared with the server's once per statement; XPR05 by name where they differ."""
+    starts, offsets = _compile.zone_transitions(zone)
+    p.params["bkt_zone"] = zone
+    p.params["bkt_starts"] = starts
+    p.params["bkt_offs"] = offsets
+    return ("(SELECT xpr.zone_checked(%(bkt_zone)s::text, %(bkt_starts)s::bigint[], "
+            "%(bkt_offs)s::int[]))")
+
+
 # ═════════════════════════════════════════════════════════════════════════
 # The two §4.5 rules this file owns.
 # ═════════════════════════════════════════════════════════════════════════
@@ -614,6 +642,8 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     B1 writes this shape without a table alias; the shared pieces compiled
     every fragment unqualified for it (``_Pieces.col``)."""
     field = pick.get("bucket_field")
+    zone = pick.get("bucket_zone")
+    g = _GRANULARITY_SQL[pick["bucket"]]
     if field:
         # T-88: any time or date field, named by the pick — bound, never text
         p.params["bkt_path"] = _field_path(field, what="the time to group by")
@@ -623,11 +653,20 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         # is UTC (a date is its UTC midnight, the time form ends in Z, which a
         # timestamp ignores), so the cut is in UTC whatever the session's time
         # zone (the T-88 check) — a timestamptz would read a date in it.
-        label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
-                 "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
+        if zone:
+            # T-100: cut on the zone's wall clock; a date is its own local midnight
+            label = _ZONED_LABEL.format(g=g, local=_zoned_local(value, _zone_guard(p, zone), True))
+        else:
+            label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
+                     "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
         guard = (f"\n   AND jsonb_typeof(data #> %(bkt_path)s) = 'string'"
                  f"\n   AND {value} ~ %(bkt_re)s"
                  f"\n   AND pg_input_is_valid({value}, 'timestamp')")
+    elif zone:
+        # T-100: the series' own time, on the zone's wall clock (its values are the full UTC form)
+        time = (p.records.series or {}).get("time") or "ts"
+        label = _ZONED_LABEL.format(g=g, local=_zoned_local(f"(data ->> '{time}')", _zone_guard(p, zone), False))
+        guard = ""
     else:
         label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
         guard = ""

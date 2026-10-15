@@ -172,7 +172,7 @@ function ClockPanel({ clock, onClose }) {
         <h2 className="dx-clock-title" id="dx-clock-title">Show times in</h2>
         <button type="button" className="dx-clock-close" aria-label="Close" onClick={onClose}>×</button>
       </div>
-      <p className="dx-clock-hint">Days, times and times of day are read on this clock. Summaries per hour or day stay in UTC.</p>
+      <p className="dx-clock-hint">Days, times, times of day and summaries are read on this clock.</p>
       <input ref={input} className="dx-input dx-clock-find" type="search" placeholder="Find a place"
         aria-label="Find a place" value={q} onChange={(ev) => setQ(ev.target.value)} />
       {failed ? <p className="dx-status">The list of time zones didn't load. Times are on {clock.label}.</p>
