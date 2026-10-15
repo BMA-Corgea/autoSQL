@@ -178,10 +178,14 @@ def _zoned_local(value: str, z: str, dates: bool) -> str:
     return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
 
 
-def _in_years(local: str) -> str:
+def _in_years(local: str, value: str) -> str:
     """A wall-clock reading inside years 1..9999, the second engine's whole range (a-chk's MEDIUM on
-    T-100: the zero date read west of UTC is 1 BC; 9999-12-31T23:00Z read at +14 is year 10000)."""
-    return f"({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp)"
+    T-100: the zero date read west of UTC is 1 BC; 9999-12-31T23:00Z read at +14 is year 10000).
+    No clock is a day or more from UTC, so the stored text settles every time a day or more from
+    either end with one comparison (C collation: text order is time order); only those near an
+    end are read on the clock here (else every row would be read three times)."""
+    return (f"(({value} COLLATE \"C\" >= '0001-01-02' AND {value} COLLATE \"C\" < '9999-12-31')"
+            f" OR ({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp))")
 
 
 def _zone_guard(p, zone: str) -> str:
@@ -673,13 +677,14 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         if zone:
             # a-chk's MEDIUM: a time whose clock reading leaves years 1..9999 is in no bucket (Python's
             # datetime has no such year); read only once the value is known to be a time (CASE)
-            guard += f"\n   AND CASE WHEN {valid} THEN {_in_years(local)} ELSE false END"
+            guard += f"\n   AND CASE WHEN {valid} THEN {_in_years(local, value)} ELSE false END"
     elif zone:
         # T-100: the series' own time, on the zone's wall clock (its values are the full UTC form)
         time = (p.records.series or {}).get("time") or "ts"
-        local = _zoned_local(f"(data ->> '{time}')", _zone_guard(p, zone), False)
+        value = f"(data ->> '{time}')"
+        local = _zoned_local(value, _zone_guard(p, zone), False)
         label = _ZONED_LABEL.format(g=g, local=local)
-        guard = f"\n   AND {_in_years(local)}"
+        guard = f"\n   AND {_in_years(local, value)}"
     else:
         label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
         guard = ""
