@@ -54,7 +54,7 @@ T100_MUTANTS = [
     dict(id="Z3", defect="BOTH engines shift a calendar date by the zone's offset",
          edits=[(_B, "    if not dates:\n        return on_clock\n", "    if True:\n        return on_clock\n"),
                 (_E, _PY_DATE, "")],
-         selector=VECTORS, expect="a date is its own day on any clock"),
+         selector=VECTORS, expect="a date is its own day west of UTC too"),
     dict(id="Z4", defect="the hour axis keeps an hour the clock skips (an empty 2:00 AM bar on Mar 8)",
          edits=[(_D, "        if zone is None or unit != \"hour\" or _clock_shows(t, zone):",
                  "        if zone is None or unit != \"hour\" or True:")],
@@ -67,7 +67,7 @@ T100_MUTANTS = [
     dict(id="Z6", defect="BOTH engines keep the Z on a zoned label",
          edits=[(_B, _SQL_LABEL, _SQL_LABEL.replace("HH24:MI:SS' )", "HH24:MI:SS\\\"Z\\\"' )")),
                 (_E, _PY_WALL, _PY_WALL.replace("[:-1]", ""))],
-         selector=_T + "test_utc_as_a_zone_cuts_utc_days_with_zoned_labels", expect="T00:00:00Z"),
+         selector=VECTORS, expect="Denver, Mar 8: a 23-hour day"),
 ]
 
 

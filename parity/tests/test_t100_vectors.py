@@ -34,7 +34,7 @@ def test_every_bucket_case_equals_its_hand_answer_in_both_engines():
         results = check_picks.run_vectors(conn, VECTORS)
         conn.rollback()
     bad = [f"{r.name}: statement {r.sql}, second engine {r.python}, by hand {r.expect}" for r in results if not r.ok]
-    assert len(results) == 14, f"{len(results)} cases ran, not 14"
+    assert len(results) == 15, f"{len(results)} cases ran, not 15"
     assert not bad, "\n".join(bad)
 
 

@@ -922,6 +922,25 @@
       ]
     },
     {
+      "name": "a date is its own day west of UTC too: shifted, Denver would read it as Aug 19",
+      "pick": {
+        "aggregate": {
+          "fn": "count",
+          "field": null
+        },
+        "bucket": "day",
+        "bucket_field": "at",
+        "filter": "$.set == \"date\"",
+        "bucket_zone": "America/Denver"
+      },
+      "expect": [
+        [
+          "2026-08-20T00:00:00",
+          "2"
+        ]
+      ]
+    },
+    {
       "name": "a value in neither time form is in no bucket",
       "pick": {
         "aggregate": {
