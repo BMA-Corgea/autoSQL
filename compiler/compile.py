@@ -731,7 +731,7 @@ def _budgeted(method):
 
 
 for _name in ("_j", "_f8", "_num", "_truthy", "_str", "predicate", "_eq_sql", "_inline_coerce",
-              "_build_array"):
+              "_build_array", "_zone"):
     setattr(_Compiler, _name, _budgeted(getattr(_Compiler, _name)))
 del _name
 

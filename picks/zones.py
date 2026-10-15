@@ -248,7 +248,8 @@ def marks(conn, names, cache: bool = True) -> dict:
 # A system-tzdata Postgres reads zone files as a backend first loads a zone, so a package upgrade
 # changes the server's rules with no restart: EVERY question therefore re-reads the server's
 # offsets at a few thousand instants (Python's change instants and every fourth week / thirtieth
-# day's noon; about 2-5 ms a zone) and works D out again when any of them moved.
+# day's noon: a fixed amount of work a zone, whatever the collection's size) and works D out
+# again when any of them moved.
 
 NEG_INF, POS_INF = float("-inf"), float("inf")
 
