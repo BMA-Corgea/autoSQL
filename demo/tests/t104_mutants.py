@@ -36,6 +36,11 @@ T104_MUTANTS = [
                  "                pass\n        if _slot_count(unit, lo, hi, zone) > AXIS_SLOTS:")],
          selector=_M + "test_a_filter_to_a_short_time_answers_again",
          expect="refused with a filter to one day"),
+    dict(id="A4", defect="the limit off by one: exactly AXIS_SLOTS slots refused (a-chk's MX1)",
+         edits=[(D, "        if _slot_count(unit, lo, hi, zone) > AXIS_SLOTS:\n            # Too wide",
+                 "        if _slot_count(unit, lo, hi, zone) >= AXIS_SLOTS:\n            # Too wide")],
+         selector=(_M + "test_exactly_the_limit_draws[UTC-50000]", _M + "test_exactly_the_limit_draws[America/Denver-49994]"),
+         expect="were refused"),
 ]
 
 

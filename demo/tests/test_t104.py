@@ -12,9 +12,11 @@ Each case adds ONE Heartbeat inside a transaction this file rolls back: the shar
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import sys
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -115,3 +117,41 @@ def test_within_the_limit_nothing_changes(stray):
     a = ask(stray("1900-01-01T00:00:00Z"), "day", "UTC")
     assert a["total"] == 46_253 and a["admin"]["verdict"] == "agree", (a["total"], a["sentence"])
     assert a["bars"][0]["start"] == "1900-01-01T00:00:00"
+
+
+# ── the limit, exactly: AXIS_SLOTS slots draw, one more is refused (a-chk's MX1 moved it by one) ──
+
+def _last_reading(conn) -> "_dt.datetime":
+    ds = next(d for d in D.setup(conn)["datasets"] if d["id"] == "heartbeats")
+    top = next(f for f in ds["fields"] if f["path"] == "ts")["range"]["max"]
+    return _dt.datetime.strptime(top, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
+
+
+def _hours_before(conn, n: int, zone: str) -> str:
+    """The instant whose hour is ``n`` hours on ``zone``'s wall clock before the data's last reading's, so a
+    per-hour axis from it to the end spans ``n + 1`` wall hours.  (A whole hour, far from any clock change.)"""
+    tz = ZoneInfo(zone)
+    wall = _last_reading(conn).astimezone(tz).replace(tzinfo=None, minute=0, second=0) - _dt.timedelta(hours=n)
+    t = wall.replace(tzinfo=tz)
+    assert t.astimezone(_dt.timezone.utc).astimezone(tz).replace(tzinfo=None) == wall, f"{wall} isn't on {zone}'s clock"
+    return t.astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+@pytest.mark.parametrize("zone, laid", [("UTC", D.AXIS_SLOTS),
+                                        # six spring-forward nights in the span: counted by the limit, not laid
+                                        ("America/Denver", D.AXIS_SLOTS - 6)])
+def test_exactly_the_limit_draws(stray, zone, laid):
+    conn = stray(None)
+    ts = _hours_before(conn, D.AXIS_SLOTS - 1, zone)
+    try:
+        a = ask(stray(ts), "hour", zone)
+    except D.ViewError as exc:
+        raise AssertionError(f"exactly {D.AXIS_SLOTS:,} wall hours on {zone} were refused: {exc}") from None
+    assert a["total"] == laid and a["admin"]["verdict"] == "agree", (a["total"], a["sentence"])
+
+
+@pytest.mark.parametrize("zone", ["UTC", "America/Denver"])
+def test_one_more_than_the_limit_is_refused(stray, zone):
+    conn = stray(None)
+    ts = _hours_before(conn, D.AXIS_SLOTS, zone)
+    assert refused(stray(ts), "hour", zone) == HOURS
