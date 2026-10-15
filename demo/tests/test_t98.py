@@ -92,7 +92,7 @@ def test_the_builder_reads_the_clock_checked_only_where_the_clocks_disagree():
     assert "America/Denver" in built.params.values()
     with _gaps(America_Denver=((1793520000.0, float("inf")),)):
         built = builder.build(_pick(src), ["ts", "status"])
-    assert built.sql.count("::float8[]") == 2 and [1793520000.0] in built.params.values()
+    assert built.sql.count("::float8[]") == 1 and [1793520000.0] in built.params.values()
     with pytest.raises(gate.Refused) as e:
         builder.build(_pick(src), ["ts", "status"])
     assert "disagreements" in str(e.value)
@@ -607,14 +607,14 @@ def test_a_probe_reads_the_clock_checked_as_the_statement_does(src):
     assert any("time_of_day" in p.sql for p in built)
     for p in built:
         if "time_of_day" in p.sql:
-            assert p.sql.count("xpr.time_of_day(") * 2 == p.sql.count("::float8[]"), p.sql
+            assert p.sql.count("xpr.time_of_day(") == p.sql.count("::float8[]"), p.sql
 
 
 @pytest.mark.parametrize("src", PROBED)
 def test_the_statement_compiles_it_too(src):
     with _gaps(UTC=D_UTC, America_Denver=D_UTC):
         built = builder.build(_pick(src), ["ts", "payload"])
-    assert built.sql.count("xpr.time_of_day(") * 2 == built.sql.count("::float8[]") > 0
+    assert built.sql.count("xpr.time_of_day(") == built.sql.count("::float8[]") > 0
 
 
 # ── the suite says whether the database runs this tree's runtime ─────────────

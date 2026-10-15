@@ -271,3 +271,33 @@ def test_a_restarted_server_works_D_out_again(world):
     zones._GAP_CACHE[key] = dict(zones._GAP_CACHE[key], started="1999-01-01 00:00:00+00", gaps=((0.0, float("inf")),))
     before = zones.full_comparisons
     assert zones.disagreements(conn, DEN) == () and zones.full_comparisons == before + 1
+
+
+_XPR_CALLS = ("SELECT p.proname, pg_stat_get_xact_function_calls(p.oid) FROM pg_proc p "
+              "JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'xpr' "
+              "AND pg_stat_get_xact_function_calls(p.oid) > 0")
+
+
+@needs_db
+def test_a_row_outside_D_costs_no_call_of_ours(world):
+    """The fix round's point (the measured +18% / +31% / +187%): D is written into the statement, so a
+    row outside it is tested with built-ins only. Counted by the database itself (track_functions):
+    a per-day summary on Amsterdam's clock over August calls nothing of ours; a time-of-day filter
+    calls xpr.time_of_day once a row (as with no D at all) and never the refusal."""
+    from picks import builder, env, zones
+    conn, records, keys = world
+    conn.execute("SAVEPOINT calls")
+    conn.execute("SET LOCAL track_functions = 'pl'")
+    try:
+        with env.checking_zones(zones.clock_check(conn)):
+            assert zones.disagreements(conn, AMS)
+            summary = builder.build(_pick(None, bucket="day", bucket_field="ts", bucket_zone=AMS,
+                                          aggregate={"fn": "count", "field": None}), keys, records=records)
+            tod = builder.build(_pick(f'time_of_day($.ts, "{AMS}") >= 61200'), keys, records=records)
+        conn.execute("SELECT pg_stat_clear_snapshot()")
+        assert conn.execute(summary.sql, summary.params).fetchall()
+        assert dict(conn.execute(_XPR_CALLS).fetchall()) == {}
+        n = len(conn.execute(tod.sql, tod.params).fetchall())
+        assert dict(conn.execute(_XPR_CALLS).fetchall()) == {"time_of_day": 8400} and n == 2450
+    finally:
+        conn.execute("ROLLBACK TO SAVEPOINT calls")

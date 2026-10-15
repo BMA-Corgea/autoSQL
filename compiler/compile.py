@@ -95,6 +95,23 @@ ZONE_CHECK_TO = 4133980800       # 2101-01-01T00:00:00Z
 _ZONE_SCAN_STEP = 43200          # Python's clock is read every 12 hours, then each change is found to the second
 
 
+def gap_bounds(gaps) -> Tuple[list, int]:
+    """D's half-open intervals [lo, hi) as ONE sorted list of finite bounds and the parity of
+    width_bucket(x, bounds) that means "x lies in D" (T-101): with every bound kept, x is inside
+    when an odd number of bounds are <= x; an open start (-Infinity) is left out, which flips it;
+    an open end (+Infinity) is left out too. D with no finite bound at all (everything) is
+    [+Infinity] with parity 0: no bound is <= any finite x."""
+    flat = [b for g in gaps for b in g]
+    inside = 1
+    if flat and flat[0] == float("-inf"):
+        flat, inside = flat[1:], 0
+    if flat and flat[-1] == float("inf"):
+        flat = flat[:-1]
+    if not flat:
+        return [float("inf")], 0
+    return flat, inside
+
+
 def _offset(zone: ZoneInfo, t: int) -> int:
     return int(datetime.fromtimestamp(t, zone).utcoffset().total_seconds())
 
@@ -579,8 +596,9 @@ class _Compiler:
             gaps = self._gaps(name)
             if not gaps:                                      # the two clocks agree: the plain reading
                 return f"xpr.time_of_day({self._j(args[0])}, {self._bind(name, 'text')})"
+            bounds, inside = gap_bounds(gaps)
             return (f"xpr.time_of_day({self._j(args[0])}, {self._bind(name, 'text')}, "
-                    f"{self._bind([g[0] for g in gaps], 'float8[]')}, {self._bind([g[1] for g in gaps], 'float8[]')})")
+                    f"{self._bind(bounds, 'float8[]')}, {inside})")
         if name == "coalesce":                                # expr.py:535
             if not args:
                 return "NULL::float8"

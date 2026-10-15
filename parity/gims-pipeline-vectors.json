@@ -3,8 +3,8 @@
  "version": 11,
  "source": {
   "autosql": "77e6439 + T-101 (picks/T-101-zone-window): the compiler re-measured, every status unchanged",
-  "compiler_sha256": "57111b8e2a9135fc92a35be9e9d9a22ed71dbec048037420da9b638bdd007c80",
-  "runtime_sha256": "d29efd1818784a1bd539cb8f34ac93c7f3f41166f1652049e23e120097d9f856",
+  "compiler_sha256": "dd45d83caf1ee3f1f1c4b7771ee47b307f7577d283e6dce4e4f7a5e910a7d828",
+  "runtime_sha256": "4655a9f44738f9af78950748c7f990bd33b83c67eac8be5bb9dc1316ae0da733",
   "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },
  "noun": "parity_case",

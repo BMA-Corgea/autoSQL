@@ -30,7 +30,7 @@ BATTERY = "../runtime/tests/test_runtime_time_of_day.py::test_every_form_in_ever
 
 _PY_CLOCK = "        clock = datetime.fromtimestamp(math.floor(parsed[0] / 1000.0), ZoneInfo(zone))"
 _PY_RETURN = "    return float(clock.hour * 3600 + clock.minute * 60 + clock.second)"
-_SQL_CLOCK = "  clock := CASE WHEN los IS NULL THEN to_timestamp(sec) AT TIME ZONE zone"   # T-101: the plain reading
+_SQL_CLOCK = "  clock := to_timestamp(sec) AT TIME ZONE zone;"
 _SQL_BARE = "  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;"
 _SQL_SEC = "  sec := floor(ms / 1000.0::float8);"
 _RT = "../runtime/runtime.sql"
@@ -45,15 +45,15 @@ _D = "server/dashboard.py"
 T98_MUTANTS = [
     dict(id="B1", defect="BOTH engines read every zone's clock as UTC (they agree)",
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("ZoneInfo(zone)", 'ZoneInfo("UTC")')),
-                (_RT, _SQL_CLOCK, "  clock := CASE WHEN los IS NULL THEN to_timestamp(sec) AT TIME ZONE 'UTC'")],
+                (_RT, _SQL_CLOCK, "  clock := to_timestamp(sec) AT TIME ZONE 'UTC';")],
          selector=VECTORS, expect="Denver, from 5:00 PM"),
     dict(id="B2", defect="BOTH engines turn the offset the wrong way (UTC-6 read as UTC+6)",
          edits=[(_EV, _PY_RETURN,
                  "    _u = datetime.fromtimestamp(math.floor(parsed[0] / 1000.0), timezone.utc).replace(tzinfo=None)\n"
                  "    clock = _u - (clock.replace(tzinfo=None) - _u)\n" + _PY_RETURN),
                 (_RT, _SQL_CLOCK,
-                 "  clock := CASE WHEN los IS NULL THEN (to_timestamp(sec) AT TIME ZONE 'UTC') - ((to_timestamp(sec) AT TIME ZONE zone) "
-                 "- (to_timestamp(sec) AT TIME ZONE 'UTC'))")],
+                 "  clock := (to_timestamp(sec) AT TIME ZONE 'UTC') - ((to_timestamp(sec) AT TIME ZONE zone) "
+                 "- (to_timestamp(sec) AT TIME ZONE 'UTC'));")],
          selector=VECTORS, expect="Denver, from 5:00 PM"),
     dict(id="B3", defect="BOTH engines give a bare date the time of day of its midnight",
          edits=[(_EV, "    if parsed is None or parsed[1]:\n        return None\n    try:\n        clock",

@@ -99,9 +99,21 @@ def test_an_empty_D_is_the_plain_reading_and_any_other_is_checked():
     assert "xpr.time_of_day(" in plain.sql and "float8[]" not in plain.sql and "SELECT" not in plain.sql
     d = ((-float("inf"), -1041379200.0), (1793520000.0, float("inf")))
     checked = _compile('time_of_day($.t, "America/Denver") >= 61200', gaps=lambda z: d)
-    assert "xpr.time_of_day(" in checked.sql and checked.sql.count("::float8[]") == 2 and "SELECT" not in checked.sql
-    assert [-float("inf"), 1793520000.0] in checked.params.values()
-    assert [-1041379200.0, float("inf")] in checked.params.values()
+    assert "xpr.time_of_day(" in checked.sql and checked.sql.count("::float8[]") == 1 and "SELECT" not in checked.sql
+    assert [-1041379200.0, 1793520000.0] in checked.params.values()          # the bounds; open ends left out
+    assert C.gap_bounds(d) == ([-1041379200.0, 1793520000.0], 0)
+
+
+def test_D_as_bounds_puts_every_instant_on_the_right_side():
+    """width_bucket(x, bounds) % 2 == inside exactly when x lies in D, ends included as written."""
+    import bisect
+    cases = [((-float("inf"), 100.0),), ((100.0, float("inf")),), ((100.0, 200.0), (300.0, 400.0)),
+             ((-float("inf"), 100.0), (200.0, 300.0), (400.0, float("inf"))), ((-float("inf"), float("inf")),)]
+    for d in cases:
+        bounds, inside = C.gap_bounds(d)
+        for x in (-1e12, 99.0, 100.0, 150.0, 199.0, 200.0, 250.0, 300.0, 399.0, 400.0, 1e12):
+            want = any(lo <= x < hi for lo, hi in d)
+            assert (bisect.bisect_right(bounds, x) % 2 == inside) is want, (d, x)
 
 
 def test_wrong_arity_is_the_evaluators_null():

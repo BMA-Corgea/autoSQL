@@ -33,7 +33,7 @@ _HIT = ('        if hit and hit["started"] == started and hit["python"] == (star
 
 T101_MUTANTS = [
     dict(id="T1", defect="D ignored: the runtime's check never refuses a row (xpr.clock reads every instant)",
-         edits=[(_RT, "    IF s >= los[i] AND s < his[i] THEN", "    IF false THEN")],
+         edits=[(_RT, "  IF bounds IS NOT NULL AND width_bucket(sec, bounds) % 2 = inside THEN", "  IF false THEN")],
          selector=_P + "test_a_row_where_the_clocks_disagree_is_refused_naming_its_date", expect="('rows'"),
     dict(id="T2", defect="D's intervals one second off at their start",
          edits=[(_Z, "            lo = NEG_INF if pt is None else float(pt + 1)", "            lo = NEG_INF if pt is None else float(pt)")],
@@ -50,6 +50,11 @@ T101_MUTANTS = [
     dict(id="T5", defect="the list greys a zone the clocks disagree on only in history",
          edits=[("server/dashboard.py", '"why": mark[e["zone"]][0], "note"', '"why": mark[e["zone"]][0] or mark[e["zone"]][1], "note"')],
          selector=_T + "test_the_page_gets_the_list_with_each_zones_mark", expect="Times before 1970"),
+    dict(id="T6", defect="the per-row call put back: the summary's check goes through a call of ours for every row",
+         edits=[("../picks/builder.py",
+                 "    return lambda v: (f\"(CASE WHEN mod(width_bucket(",
+                 "    return lambda v: (f\"(CASE WHEN xpr.time_of_day(to_jsonb({v}), 'UTC') IS NOT NULL AND mod(width_bucket(")],
+         selector=_P + "test_a_row_outside_D_costs_no_call_of_ours", expect="time_of_day"),
     dict(id="R1", defect="the per-question re-check skipped (the cached readings stand in for the server's)",
          edits=[(_Z, _NOW, '    now = (_GAP_CACHE.get((conn.info.host, conn.info.port, conn.info.dbname, zone)) or {}).get("seen") \\\n'
                            '        or conn.execute(_off_sql(_RECHECK_SQL), {"ts": list(samples), "z": zone}).fetchone()[1]\n')],

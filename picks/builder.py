@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import contextvars
 import functools
+from datetime import datetime, timezone
 import json
 import re
 from typing import Any, NamedTuple
@@ -171,9 +172,9 @@ _ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\n"
 
 
 def _zoned_local(value: str, read, dates: bool) -> str:
-    """A stored time as a wall-clock timestamp, read by ``read`` (_zone_reading); a date (when
-    ``dates``) as its own midnight, never read on any clock."""
-    on_clock = read(f"{value}::timestamptz")
+    """A stored time (its text) as a wall-clock timestamp, read by ``read`` (_zone_reading); a date
+    (when ``dates``) as its own midnight, never read on any clock."""
+    on_clock = read(value)
     if not dates:
         return on_clock
     return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
@@ -190,9 +191,12 @@ def _in_years(local: str, value: str) -> str:
 
 
 def _zone_reading(p, zone: str):
-    """How the bucket reads a timestamptz on the zone's clock (T-101): plainly where this database
-    and Python agree on every instant (D empty), else through xpr.clock, which refuses by name a row
-    whose instant lies in D. D comes from the question's resolver (env.checking_zones); with none,
+    """How the bucket reads a stored time (its fixed-width UTC text) on the zone's clock (T-101):
+    plainly where this database and Python agree on every instant (D empty). Else D is written into
+    the statement: its bounds as the same fixed-width text, so text order is time order (C
+    collation) and the stored text is tested as it is, with the built-in width_bucket -- no second
+    parse and no call of ours for a row outside D; a row inside D reaches xpr.clock_refused, which
+    refuses it by name. D comes from the question's resolver (env.checking_zones); with none,
     nothing is read on a clock at all."""
     resolver = env.zone_gaps()
     if resolver is None:
@@ -200,10 +204,20 @@ def _zone_reading(p, zone: str):
     gaps = tuple(resolver(zone))
     p.params["bkt_zone"] = zone
     if not gaps:
-        return lambda t: f"({t} AT TIME ZONE %(bkt_zone)s::text)"
-    p.params["bkt_los"] = [g[0] for g in gaps]
-    p.params["bkt_his"] = [g[1] for g in gaps]
-    return lambda t: f"xpr.clock({t}, %(bkt_zone)s::text, %(bkt_los)s::float8[], %(bkt_his)s::float8[])"
+        return lambda v: f"({v}::timestamptz AT TIME ZONE %(bkt_zone)s::text)"
+    bounds, inside = _compile.gap_bounds(gaps)
+    p.params["bkt_bounds"] = [_utc_text(b) for b in bounds]
+    return lambda v: (f"(CASE WHEN mod(width_bucket({v} COLLATE \"C\", %(bkt_bounds)s::text[]), 2) = {inside}"
+                      f" THEN xpr.clock_refused({v}::timestamptz, %(bkt_zone)s::text)"
+                      f" ELSE {v}::timestamptz AT TIME ZONE %(bkt_zone)s::text END)")
+
+
+def _utc_text(sec: float) -> str:
+    """An epoch second as the data's fixed-width UTC text; +Infinity (D everywhere) as a text after
+    every time ("~" sorts after the digits)."""
+    if sec == float("inf"):
+        return "~"
+    return datetime.fromtimestamp(sec, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ═════════════════════════════════════════════════════════════════════════

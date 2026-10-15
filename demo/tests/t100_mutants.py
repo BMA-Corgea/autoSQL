@@ -28,7 +28,7 @@ _B = "../picks/builder.py"
 _E = "../picks/pyrunner/evaluate.py"
 _D = "server/dashboard.py"
 
-_SQL_ON_CLOCK = '        return lambda t: f"({t} AT TIME ZONE %(bkt_zone)s::text)"'   # the plain reading (D empty)
+_SQL_ON_CLOCK = '        return lambda v: f"({v}::timestamptz AT TIME ZONE %(bkt_zone)s::text)"'   # the plain reading (D empty)
 _PY_ON_CLOCK = "    return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)"
 _PY_DATE = "    if len(value) == 10:\n        return at.replace(tzinfo=None)\n"
 _PY_WALL = "    return truncate_label(at.replace(tzinfo=timezone.utc), granularity)[:-1]"
