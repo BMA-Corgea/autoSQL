@@ -40,8 +40,9 @@ def test_every_bucket_case_equals_its_hand_answer_in_both_engines():
 
 @needs_db
 def test_a_summary_on_a_zone_the_clocks_disagree_on_is_refused_by_name(monkeypatch):
-    """The zoned cut carries time_of_day's guard: Python's Denver clock moved an hour from 2026-11-01
-    differs from the database's, so the statement is refused by name and date, never cut two ways."""
+    """The zoned cut carries time_of_day's check: Python's Denver clock moved an hour from 2026-11-01
+    differs from the database's, so a row read inside that is refused by name and date, never cut
+    two ways."""
     import psycopg
 
     import demo.picks_host  # noqa: F401
@@ -61,4 +62,7 @@ def test_a_summary_on_a_zone_the_clocks_disagree_on_is_refused_by_name(monkeypat
             check_picks.run_vectors(conn, VECTORS)
         conn.rollback()
     assert e.value.sqlstate == "XPR05"
-    assert "America/Denver" in str(e.value) and "2026-11-01" in str(e.value)
+    # T-101: the refusal names the date of a row read inside D (from 2026-11-01 on, as moved here)
+    import re
+    day = re.search(r"America/Denver: .* on (\d{4}-\d{2}-\d{2})", str(e.value))
+    assert day and day.group(1) >= "2026-11-01", str(e.value)

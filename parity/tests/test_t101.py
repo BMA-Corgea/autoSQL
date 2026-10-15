@@ -283,7 +283,8 @@ def test_a_row_outside_D_costs_no_call_of_ours(world):
     """The fix round's point (the measured +18% / +31% / +187%): D is written into the statement, so a
     row outside it is tested with built-ins only. Counted by the database itself (track_functions):
     a per-day summary on Amsterdam's clock over August calls nothing of ours; a time-of-day filter
-    calls xpr.time_of_day once a row (as with no D at all) and never the refusal."""
+    makes exactly the calls the same filter makes on a clock with no D (time_of_day and the date parse
+    inside it, once a row) and never the refusal."""
     from picks import builder, env, zones
     conn, records, keys = world
     conn.execute("SAVEPOINT calls")
@@ -294,10 +295,16 @@ def test_a_row_outside_D_costs_no_call_of_ours(world):
             summary = builder.build(_pick(None, bucket="day", bucket_field="ts", bucket_zone=AMS,
                                           aggregate={"fn": "count", "field": None}), keys, records=records)
             tod = builder.build(_pick(f'time_of_day($.ts, "{AMS}") >= 61200'), keys, records=records)
+            plain = builder.build(_pick(f'time_of_day($.ts, "{DEN}") >= 61200'), keys, records=records)
+        assert zones.disagreements(conn, DEN) == ()
         conn.execute("SELECT pg_stat_clear_snapshot()")
         assert conn.execute(summary.sql, summary.params).fetchall()
         assert dict(conn.execute(_XPR_CALLS).fetchall()) == {}
-        n = len(conn.execute(tod.sql, tod.params).fetchall())
-        assert dict(conn.execute(_XPR_CALLS).fetchall()) == {"time_of_day": 8400} and n == 2450
+        n = len(conn.execute(plain.sql, plain.params).fetchall())
+        no_d = dict(conn.execute(_XPR_CALLS).fetchall())
+        assert no_d.get("time_of_day") == 8400, no_d
+        n2 = len(conn.execute(tod.sql, tod.params).fetchall())
+        with_d = {k: v - no_d.get(k, 0) for k, v in conn.execute(_XPR_CALLS).fetchall()}
+        assert with_d == no_d and "clock_refused" not in with_d and n == n2 == 2450, (with_d, no_d)
     finally:
         conn.execute("ROLLBACK TO SAVEPOINT calls")
