@@ -100,10 +100,11 @@ CHANGED_SQL = (
 
 #: The one frame operations 8 and 9 share (§7.1's window rule, R9) — written
 #: once, used twice, as B3 detail 6 demands.  Both components are read out of
-#: the jsonb with ``->>`` (text; byte order under the C collation).
+#: the jsonb with ``->>`` (text) and ordered in code points whatever the
+#: database's collation (T-106: COLLATE "C"; the second engine compares bytes).
 WINDOW_DEF = (
     "WINDOW w AS (PARTITION BY (r.data ->> 'sender_id')\n"
-    "               ORDER BY     (r.data ->> 'ts'), r.key)"
+    "               ORDER BY     (r.data ->> 'ts') COLLATE \"C\", r.key COLLATE \"C\")"
 )
 
 #: Operation 8's frame extent (R14: width 3, trailing, a mean).
@@ -157,7 +158,7 @@ def _series_texts(records) -> dict:
         "changed": (f'( lag( {compared} ) OVER w\n'
                     f'             IS DISTINCT FROM ( {compared} ) )     AS "changed"'),
         "window": (f"WINDOW w AS (PARTITION BY (r.data ->> '{member}')\n"
-                   f"               ORDER BY     (r.data ->> '{time}'), r.key)"),
+                   f"               ORDER BY     (r.data ->> '{time}') COLLATE \"C\", r.key COLLATE \"C\")"),
         "bucket_label": _BUCKET_LABEL_UTC.replace("(data ->> 'ts')", f"(data ->> '{time}')"),
     }
 
@@ -218,6 +219,18 @@ def _utc_text(sec: float) -> str:
     if sec == float("inf"):
         return "~"
     return datetime.fromtimestamp(sec, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def code_point_order(value: str, direction: str) -> str:
+    """T-106: ``ORDER BY`` keys for a jsonb value in §7.4's order with its strings in code points.
+    Postgres orders jsonb by type, then strings by the DATABASE's collation (glibc or ICU ``en_US``
+    gives ``a, b, B``; the second engine gives ``B, a, b``). The first key keeps jsonb's own order
+    for every non-string and puts all strings at the string rank (one placeholder string); the
+    second orders the strings themselves under ``COLLATE "C"``, NULL (and so never deciding) for
+    the rest. A string nested inside an array or object still follows the collation: no COLLATE
+    reaches inside a jsonb comparison (a recorded limit)."""
+    return (f"(CASE WHEN jsonb_typeof({value}) = 'string' THEN '\"\"'::jsonb ELSE {value} END) {direction} NULLS LAST, "
+            f"(CASE WHEN jsonb_typeof({value}) = 'string' THEN {value} #>> '{{}}' END) COLLATE \"C\" {direction} NULLS LAST")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -538,7 +551,7 @@ class _Pieces:
             series = self.records.series
             over = (
                 f"OVER (PARTITION BY (r.data ->> '{series['member']}')\n"
-                f"               ORDER BY     (r.data ->> '{series['time']}'), r.key\n"
+                f"               ORDER BY     (r.data ->> '{series['time']}') COLLATE \"C\", r.key COLLATE \"C\"\n"
                 f"               {ROLLING_FRAME})"
             )
         return (
@@ -549,19 +562,32 @@ class _Pieces:
     def order_by(self, pick: dict, *, qualify: str) -> str:
         """§7.4 — the total order every multi-row result carries; the last
         component is always ``key ASC`` (AC-41(a)), the tiebreak ascending
-        whichever way the sort field runs (§7.4(1a))."""
+        whichever way the sort field runs (§7.4(1a)).
+
+        T-106: text in code points whatever the database's collation (the
+        second engine compares UTF-8 bytes): the sort value by
+        :func:`code_point_order`, the key as ``key COLLATE "C"``, put ahead
+        of the closing ``key ASC`` -- which keys' uniqueness then makes a
+        no-op, and which AC-41(a) and the frozen pass's M15 read as written."""
         q = qualify  # "r." inside single-level statements, "" over the CTE
         sort = pick.get("sort") or None
         if not (sort and sort.get("field")):
-            return f" ORDER BY {q}key ASC"
+            return f' ORDER BY {q}key COLLATE "C", {q}key ASC'
         direction = _DIRECTION_SQL[sort["dir"]]  # closed set; refused upstream
         field = sort["field"]
         if field in self.cc_order:
-            # §4.4 row 6: an ORDER BY alias reference is legal and stays.
-            lead = f"{self.cc_quoted[field]} {direction} NULLS LAST"
+            # §4.4 row 6: over the CTE the alias names a column; in a single-level statement an
+            # alias can't stand inside an expression, so the column's own SQL is ordered (T-106)
+            if q:
+                sql, prm = namespace(self.cc_frag[field], f"cc{self.cc_index(field)}s")   # its own names (B11)
+                merge_params(self.params, prm)
+                value = f"({sql})"
+            else:
+                value = self.cc_quoted[field]
         else:
             self.params["sort_path"] = _field_path(field, what="the sort")
-            lead = f"( {q}data #> %(sort_path)s ) {direction} NULLS LAST"
+            value = f"( {q}data #> %(sort_path)s )"
+        lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
 
     def limit(self, pick: dict) -> str:

@@ -71,7 +71,7 @@ PAGE_SIZE = 50
 #: else.  The alias check is only as trustworthy as this list being read
 #: from the data rather than typed.
 COLLECTION_KEYS_SQL = (
-    "SELECT DISTINCT k FROM demo.records, LATERAL jsonb_object_keys(data) AS k"
+    "SELECT DISTINCT k COLLATE \"C\" AS k FROM demo.records, LATERAL jsonb_object_keys(data) AS k"
     " WHERE collection = %(collection)s ORDER BY k"
 )
 

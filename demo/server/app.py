@@ -619,7 +619,7 @@ SELECT k FROM (
            LATERAL jsonb_each(e.v) AS e2(k, v)
      WHERE r.collection = %(collection)s
        AND jsonb_typeof(e.v) = 'object' AND jsonb_typeof(e2.v) = 'number'
-) AS paths ORDER BY k
+) AS paths ORDER BY k COLLATE "C"
 """
 
 

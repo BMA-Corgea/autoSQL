@@ -118,7 +118,7 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
         "    ON " + records.scope("m", p.params, collection_param="mt_source") + "\n"
         f"   AND {on}\n"
         + p.where_clause() + "\n"
-        + p.order_by(pick, qualify="r.") + ", m.key ASC"
+        + p.order_by(pick, qualify="r.") + ', m.key COLLATE "C", m.key ASC'   # T-106: code points
         + p.limit(pick) + ";"
     )
     builder._bind_ctx_values(sql, p.params, p.ctx_value)

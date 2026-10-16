@@ -361,7 +361,7 @@ def _build_probe_unbudgeted(member: str, operand_asts: Sequence, records, compil
     row_sql = (
         f"SELECT r.key FROM {records.table} AS r\n"
         + where + "\n"
-        " ORDER BY r.key\n"
+        ' ORDER BY r.key COLLATE "C"\n'
         " LIMIT 1;"
     )
     return Probe(
