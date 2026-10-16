@@ -479,19 +479,22 @@ $$;
 -- pdate_ms / pdate_only : implement _parse_date_ms (expr.py:409-431).
 --   Strict ISO subset; calendar-validated the way Python's datetime() is;
 --   UTC assumed when no offset; totally NULL on any failure.
+--   T-103: the text is validated with ~ (the same pattern, no capture groups)
+--   and its fields read by position. Asking Postgres for captured groups
+--   (regexp_match) forced its slow matching path, some eighty times dearer than
+--   ~ here, and time_of_day parsed each value three times. Once the text
+--   matches, every field sits at a known place.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.pdate_ms(j jsonb) RETURNS float8
 LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE
-  s text; m text[]; y int; mo int; d int; hh int; mi int; ss int; us int;
+  s text; r text; frac text; k int; y int; mo int; d int; hh int; mi int; ss int; us int;
   off text; dim int; sec numeric; ms numeric; sgn int; dig text;
 BEGIN
   IF j IS NULL OR jsonb_typeof(j) <> 'string' THEN RETURN NULL; END IF;  -- expr.py:411-412
   -- [0-9], never \d: what \d matches depends on the database's locale (T-60).
   s := btrim(j #>> '{}', E' \t\n\r\f\x0b');
-  m := regexp_match(s,
-        '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$');
-  IF m IS NULL THEN
+  IF s !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,6})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?$' THEN
     -- ── T-60 (T-37 review F3): MATCH _parse_date_ms on Unicode, exactly as xpr.num does ──
     -- Python strips its own isspace set (v.strip()) and its \d reads any Nd digit, which int()
     -- then reads by value. So a date with a trailing NBSP, a leading U+3000, Arabic-Indic or
@@ -501,14 +504,27 @@ BEGIN
     -- cannot drift apart, because one generator writes both. Nested here, like xpr.num's, so an
     -- ordinary ASCII date never pays translate()'s cost.
     s := translate(btrim(j #>> '{}', E'{{PY_WS}}'), E'{{ND_MAP_FROM}}', '{{ND_MAP_TO}}');
-    m := regexp_match(s,
-          '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$');
-    IF m IS NULL THEN RETURN NULL; END IF;
+    IF s !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,6})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?$' THEN RETURN NULL; END IF;
   END IF;
-  y := m[1]::int; mo := m[2]::int; d := m[3]::int;
-  hh := coalesce(m[4], '0')::int; mi := coalesce(m[5], '0')::int; ss := coalesce(m[6], '0')::int;
-  us := rpad(coalesce(m[7], '0'), 6, '0')::int;                          -- expr.py:422
-  off := m[8];
+  -- T-103: s matches, so: the date at 1-10; a time HH:MM at 12-16; then an optional :SS, an
+  -- optional .f of 1-6 digits (only after seconds), an optional Z / +-HH:MM / +-HHMM.
+  y := substr(s, 1, 4)::int; mo := substr(s, 6, 2)::int; d := substr(s, 9, 2)::int;
+  hh := 0; mi := 0; ss := 0; frac := NULL; off := NULL;
+  IF length(s) > 10 THEN
+    hh := substr(s, 12, 2)::int; mi := substr(s, 15, 2)::int;
+    r := substr(s, 17);
+    IF left(r, 1) = ':' THEN
+      ss := substr(r, 2, 2)::int;
+      r := substr(r, 4);
+      IF left(r, 1) = '.' THEN
+        k := length(substr(r, 2)) - length(ltrim(substr(r, 2), '0123456789'));
+        frac := substr(r, 2, k);
+        r := substr(r, 2 + k);
+      END IF;
+    END IF;
+    off := nullif(r, '');
+  END IF;
+  us := rpad(coalesce(frac, '0'), 6, '0')::int;                          -- expr.py:422
   -- datetime(...) would raise ValueError -> _parse_date_ms returns None (expr.py:425-426)
   IF y < 1 OR y > 9999 THEN RETURN NULL; END IF;
   IF mo < 1 OR mo > 12 THEN RETURN NULL; END IF;
@@ -537,15 +553,12 @@ $$;
 
 CREATE OR REPLACE FUNCTION xpr.pdate_only(j jsonb) RETURNS boolean
 LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  -- has_time == hh is not None (expr.py). T-103: read from the same text pdate_ms matched, not a
+  -- second regex: a matched string begins and ends with a digit or Z, so Python's whitespace trim
+  -- leaves exactly it on either of pdate_ms's two paths, and it has a time part iff it is longer
+  -- than its 10-character date.
   SELECT CASE WHEN xpr.pdate_ms(j) IS NULL THEN NULL::boolean
-              -- the same two steps as pdate_ms (T-60): the ASCII path, then Python's whitespace
-              -- set and the Nd map; COALESCE evaluates the second only when the first missed
-              ELSE (coalesce(
-                     regexp_match(btrim(j #>> '{}', E' \t\n\r\f\x0b'),
-                       '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$'),
-                     regexp_match(translate(btrim(j #>> '{}', E'{{PY_WS}}'), E'{{ND_MAP_FROM}}', '{{ND_MAP_TO}}'),
-                       '^([0-9]{4})-([0-9]{2})-([0-9]{2})(?:[T ]([0-9]{2}):([0-9]{2})(?::([0-9]{2})(?:\.([0-9]{1,6}))?)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?$')
-                   ))[4] IS NULL                                          -- has_time == hh is not None
+              ELSE length(btrim(j #>> '{}', E'{{PY_WS}}')) <= 10
   END
 $$;
 
@@ -573,7 +586,8 @@ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
 DECLARE ms float8; sec float8; clock timestamp;
 BEGIN
   ms := xpr.pdate_ms(j);
-  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;
+  -- a bare date is NULL (pdate_only's rule, read here without a second parse: T-103)
+  IF ms IS NULL OR length(btrim(j #>> '{}', E'{{PY_WS}}')) <= 10 THEN RETURN NULL; END IF;
   sec := floor(ms / 1000.0::float8);
   -- 0001-01-01T00:00:00Z .. 9999-12-31T23:59:59Z
   IF sec < -62135596800::float8 OR sec > 253402300799::float8 THEN RETURN NULL; END IF;

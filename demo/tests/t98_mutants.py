@@ -31,7 +31,7 @@ BATTERY = "../runtime/tests/test_runtime_time_of_day.py::test_every_form_in_ever
 _PY_CLOCK = "        clock = datetime.fromtimestamp(math.floor(parsed[0] / 1000.0), ZoneInfo(zone))"
 _PY_RETURN = "    return float(clock.hour * 3600 + clock.minute * 60 + clock.second)"
 _SQL_CLOCK = "  clock := to_timestamp(sec) AT TIME ZONE zone;"
-_SQL_BARE = "  IF ms IS NULL OR xpr.pdate_only(j) THEN RETURN NULL; END IF;"
+_SQL_BARE = ")) <= 10 THEN RETURN NULL; END IF;"   # T-103: time_of_day's bare-date rule, read without a second parse
 _SQL_SEC = "  sec := floor(ms / 1000.0::float8);"
 _RT = "../runtime/runtime.sql"
 _LOUD = ("    reporter.write_sep(\"=\", \"RUNTIME CHECK: THE DATABASE IS NOT RUNNING THIS TREE'S RUNTIME\", "
@@ -58,7 +58,7 @@ T98_MUTANTS = [
     dict(id="B3", defect="BOTH engines give a bare date the time of day of its midnight",
          edits=[(_EV, "    if parsed is None or parsed[1]:\n        return None\n    try:\n        clock",
                  "    if parsed is None:\n        return None\n    try:\n        clock"),
-                (_RT, _SQL_BARE, "  IF ms IS NULL THEN RETURN NULL; END IF;")],
+                (_RT, _SQL_BARE, ")) < 0 THEN RETURN NULL; END IF;")],
          selector=VECTORS, expect="a bare date, text that is no time"),
     dict(id="B4", defect="BOTH engines round a fraction of a second instead of dropping it",
          edits=[(_EV, _PY_CLOCK, _PY_CLOCK.replace("math.floor(parsed[0] / 1000.0)", "round(parsed[0] / 1000.0)")),
