@@ -25,6 +25,11 @@ _T = "../runtime/tests/test_t103_parse.py::"
 EDGES = _T + "test_every_null_rule_is_held_at_its_edge_in_both_engines"
 INNER = "    IF s !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\\.[0-9]{1,6})?)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?)?$' THEN RETURN NULL; END IF;"
 
+_TOD = next(line for line in open(Path(__file__).resolve().parents[2] / "runtime" / "runtime.sql", encoding="utf-8")
+            if ")) <= 10 THEN RETURN NULL" in line)            # time_of_day's own copy of the bare-date rule
+_ONLY = next(line for line in open(Path(__file__).resolve().parents[2] / "runtime" / "runtime.sql", encoding="utf-8")
+             if line.rstrip().endswith("')) <= 10"))               # pdate_only's
+
 T103_MUTANTS = [
     dict(id="BH1", defect="BOTH engines read hour 24 as the next day's midnight (they agree)",
          edits=[(_EV, "    has_time = hh is not None\n",
@@ -62,6 +67,19 @@ T103_MUTANTS = [
     dict(id="PM4", defect="'has a time part' off by one: a bare date of exactly 10 characters counted as having a time",
          edits=[(_RT, "')) <= 10\n  END", "')) < 10\n  END")],
          selector=_T + "test_a_time_part_is_decided_after_pythons_trim", expect="xpr.pdate_only"),
+    # a-chk's three survivors on T-103 (its check, 2026-10-16), each with the test that now kills it
+    dict(id="CS1", defect="SQL alone: time_of_day's own copy of the bare-date rule misses U+205F",
+         edits=[(_RT, _TOD, _TOD.replace("\\u205F", ""))],
+         selector=_T + "test_every_python_whitespace_around_a_bare_date_gives_no_time_of_day", expect="0x205f"),
+    dict(id="CB3", defect="BOTH engines: U+205F beside a bare date counts as a time",
+         edits=[(_EV, "    has_time = hh is not None\n", "    has_time = hh is not None or \"\\u205f\" in v\n"),
+                (_RT, _TOD, _TOD.replace("\\u205F", "")), (_RT, _ONLY, _ONLY.replace("\\u205F", ""))],
+         selector=_T + "test_every_python_whitespace_around_a_bare_date_gives_no_time_of_day", expect="assert"),
+    dict(id="CB7", defect="BOTH engines refuse a date written in astral digits",
+         edits=[(_EV, "    m = _DATE_RE.match(v.strip())\n",
+                 "    m = None if any(ord(c) > 0xFFFF for c in v) else _DATE_RE.match(v.strip())\n"),
+                (_RT, INNER, INNER + "\n    IF (j #>> '{}') ~ '[\\U00010000-\\U0010FFFF]' THEN RETURN NULL; END IF;")],
+         selector=EDGES, expect="by hand"),
     dict(id="PM5", defect="the new parser skips the Unicode path (Python's whitespace and Nd digits)",
          edits=[(_RT, INNER, "    RETURN NULL;")],
          selector=EDGES, expect="SQL disagrees"),

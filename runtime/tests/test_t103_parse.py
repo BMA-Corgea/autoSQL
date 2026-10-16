@@ -112,6 +112,23 @@ def test_a_time_part_is_decided_after_pythons_trim(db, text, date_only):
     assert (tod is None) is date_only and tod == _py_tod(text, "UTC")
 
 
+#: Python's whitespace: every code point str.isspace() holds true for (29), the set its strip() removes.
+PY_WS = [chr(c) for c in range(0x110000) if chr(c).isspace()]
+
+
+@needs_db
+def test_every_python_whitespace_around_a_bare_date_gives_no_time_of_day(db):
+    """a-chk's MEDIUM: time_of_day carries its own copy of the bare-date rule; each of the 29 around a bare date
+    leaves it a bare date (no time of day), in both engines (kills CS1 and CB3)."""
+    assert len(PY_WS) == 29
+    texts = [w + "2026-08-20" + w for w in PY_WS] + ["2026-08-20" + w for w in PY_WS]
+    assert [_py_only(t) for t in texts] == [True] * len(texts)
+    assert [_py_tod(t, "UTC") for t in texts] == [None] * len(texts)
+    assert _sql(db, "xpr.pdate_only", texts) == [True] * len(texts)
+    sql_tod = _sql(db, "xpr.time_of_day", texts, "UTC")
+    assert sql_tod == [None] * len(texts), [(hex(ord(t[-1])), v) for t, v in zip(texts, sql_tod) if v is not None]
+
+
 # ── every NULL rule at its edge, by hand, in both engines ───────────────────────────────────────────
 
 EDGES = [
@@ -142,6 +159,7 @@ EDGES = [
     ("2026-08-20Z", None),                                          # an offset needs a time
     ("２０２６-０８-２０", _utc_ms(2026, 8, 20)),                    # full-width digits (the Unicode path)
     ("٢٠٢٦-٠٨-٢٠T١٠:٠٠", _utc_ms(2026, 8, 20, 10)),                 # Arabic-Indic digits
+    ("𝟐𝟎𝟐𝟔-𝟎𝟖-𝟐𝟎T𝟏𝟎:𝟎𝟎Z", _utc_ms(2026, 8, 20, 10)),                # astral digits (U+1D7CE.., a-chk's CB7)
 ]
 
 
@@ -186,8 +204,8 @@ def test_the_clock_at_dst_edges_both_ways_is_the_hand_value_in_both_engines(db, 
 # ── the differential ──────────────────────────────────────────────────────────────────────────────
 
 _DIG = "0123456789"
-_UNI = ["٠١٢٣٤٥٦٧٨٩", "０１２３４５６７８９", "०१२३४५६७८९"]
-_WS = [" ", "\t", "\n", " ", "　", "\u001f", "\u0085", " ", "​", "\u000b"]
+_UNI = ["٠١٢٣٤٥٦٧٨٩", "０１２３４５６７８９", "०१२३४५६७८९", "𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗", "𞥐𞥑𞥒𞥓𞥔𞥕𞥖𞥗𞥘𞥙"]   # two astral blocks
+_WS = [chr(c) for c in range(0x110000) if chr(c).isspace()] + ["\u200b"]   # all 29, and one that is not whitespace
 _ALPHA = _DIG + "-:T .Z+zt" + " 　a" + "٣４"
 
 
