@@ -625,6 +625,11 @@ ENGINE_REFUSAL_SQLSTATE = "XPR01"
 #: T-98/T-101: a clock reading refused by name (runtime xpr.clock).
 ZONE_REFUSAL_SQLSTATE = "XPR05"
 
+#: T-85: a question nested deeper than the request's JSON reader goes (about 5,000 groups inside
+#: groups; the screen can't build one), said in a sentence rather than "There was an error parsing
+#: the body" (app.py's handler, on this page's answer only).
+TOO_DEEP_WORDS = "This question has too many groups inside groups to read. Take some of them out."
+
 #: The headline of every refusal where the statement answered and the second
 #: engine could not finish (scoreboard.py writes the same words).
 SECOND_ENGINE_HEADLINE = "The second engine could not finish"
@@ -1339,7 +1344,7 @@ def double_count_line(ds: dict, rel_ds: dict, prof: dict) -> str:
     more than one kept parent would be counted once per parent."""
     line = (f"Each {rel_ds['one']} would be counted once for every {ds['one']} that matches it "
             f"— up to {fmt_number(str(prof['most_parents']))} times, for "
-            f"{fmt_number(str(prof['counted_twice']))} of the {_n(prof['counted'], rel_ds)} "
+            f"{_of_the(prof['counted_twice'], prof['counted'], rel_ds)} "
             "— and a row is counted only once.")
     if any(r["to"] == ds["id"] for r in RELATIONS.get(rel_ds["id"], [])):
         line += f" Count it the other way round: {rel_ds['name']}, counting their {ds['name']}."
@@ -1606,6 +1611,18 @@ def matched_words(about: dict, fields: dict) -> str:
     return out
 
 
+def _a(word: str) -> str:
+    """"a sender", "an edge case" (T-85: the preview said "a edge case")."""
+    return ("an " if word[:1].lower() in "aeiou" else "a ") + word
+
+
+def _of_the(part: int, whole: int, ds: dict) -> str:
+    """"7 of the 2,000 samples", or "all 2,000 samples" when every one is meant (T-85)."""
+    if part == whole:
+        return f"all {_n(whole, ds)}"
+    return f"{fmt_number(str(part))} of the {_n(whole, ds)}"
+
+
 def matched_preview(ds: dict, rel_ds: dict, prof: dict) -> str | None:
     """What the match does, in one plain line, from the agreed profile
     (every kept row matches at most one row here)."""
@@ -1618,7 +1635,7 @@ def matched_preview(ds: dict, rel_ds: dict, prof: dict) -> str | None:
         return (f"Every {ds['one']} matches one {rel_ds['one']}." if rows > 1
                 else f"The {ds['one']} matches one {rel_ds['one']}.")
     if some == 0:
-        return f"No {ds['one']} here matches a {rel_ds['one']}, so {blank}."
+        return f"No {ds['one']} here matches {_a(rel_ds['one'])}, so {blank}."
     return (f"{_n(some, ds)} {'matches' if some == 1 else 'match'} one {rel_ds['one']}; "
             f"{fmt_number(str(none))} {'matches' if none == 1 else 'match'} none, so {blank}.")
 
@@ -1632,7 +1649,7 @@ def repeat_line(ds: dict, rel_ds: dict, prof: dict) -> str:
                 f"— {fmt_number(str(prof['most']))} times — and a row is shown only once.")
     return (f"Each {ds['one']} would be shown once for every {rel_ds['one']} that matches it "
             f"— up to {fmt_number(str(prof['most']))} times, for "
-            f"{fmt_number(str(prof['repeated']))} of the {_n(prof['rows'], ds)} "
+            f"{_of_the(prof['repeated'], prof['rows'], ds)} "
             "— and a row is shown only once.")
 
 

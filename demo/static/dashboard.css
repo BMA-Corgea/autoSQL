@@ -236,6 +236,12 @@ body.dx-body * { box-sizing: border-box; }
 .dx-table.is-board th:first-child, .dx-table.is-board td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
 .dx-table.is-board th:first-child { background: var(--surface); z-index: 2; }
 .dx-table.is-board th:first-child, .dx-table.is-board td:first-child { width: 1%; }  /* spare width goes to the counts */
+/* T-85: on a phone every table keeps its first column in view while it scrolls sideways, as the board does */
+@media (max-width: 760px) {
+  .dx-table th:first-child, .dx-table td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; }
+  .dx-table th:first-child { background: var(--surface); z-index: 2; }
+  .dx-table td:first-child .dx-cell { max-width: min(calc(40vw - 24px), 28em); }
+}
 .dx-pin { max-width: min(calc(40vw - 24px), 28em);   /* the whole cell, padding included, about 40% of a phone */ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .dx-pin.is-open { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
 .dx-held { color: var(--text); font-weight: 600; }

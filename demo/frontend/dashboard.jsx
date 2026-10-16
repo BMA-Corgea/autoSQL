@@ -104,8 +104,9 @@ function Cell({ value, kind, title, pinned }) {
   // A cell with an exact value beside it (a scoreboard average) shows that
   // value on hover, and on a tap or Enter, since a phone has no hover (T-75).
   const [exact, setExact] = useState(false);
-  if (value === null || value === undefined) return <td className="dx-td is-blank">—</td>;
   const cls = kind === "number" ? " is-num" : kind === "time" || kind === "date" ? " is-when" : "";
+  // T-85: a blank sits where its column's values do (right, under a number column's header)
+  if (value === null || value === undefined) return <td className={"dx-td is-blank" + cls}>—</td>;
   if (pinned) return <PinnedCell value={value} cls={cls} />;
   if (!title) return <td className={"dx-td" + cls}><span className="dx-cell">{value}</span></td>;
   return (
