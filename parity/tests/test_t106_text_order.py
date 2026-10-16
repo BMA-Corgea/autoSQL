@@ -39,7 +39,7 @@ THINGS = {
     "e1": {"name": "emile", "who": "s2", "ts": "2026-01-02T00:00:00Z", "n": 3},
     "e2": {"name": "Émile", "who": "s2", "ts": "2026-01-03T00:00:00Z", "n": 4},
     "a2": {"name": "a", "who": "s2", "ts": "2026-01-04T00:00:00Z", "n": 5},
-    "num": {"name": 5, "who": "s3", "ts": _TS, "n": 6},
+    "num": {"name": 5, "who": "s3", "ts": _TS, "n": 6, "Zeta": 1},   # a field name: Z before a in code points
     "nul": {"name": None, "who": "s3", "ts": "2026-01-02T00:00:00Z", "n": 7},
     "abs": {"who": "s3", "ts": "2026-01-03T00:00:00Z", "n": 8},
     "big1": {"who": "s4", "ts": _TS, "n": 9, "big": 1e300},
@@ -220,7 +220,8 @@ def test_the_setup_lists_values_and_keys_in_code_points(world):
     conn, records, _k, _c = world
     fields = {f["path"]: f for f in view._read_fields(conn, T, records=records)}
     assert fields["tag2"]["values"] == ["B", "a", "b"]
-    assert view.collection_keys(conn, T, records) == _cp({k for d in THINGS.values() for k in d})
+    got = view.collection_keys(conn, T, records)
+    assert got == _cp({k for d in THINGS.values() for k in d}) and got[0] == "Zeta"
 
 
 @pytest.mark.parametrize("member", ["sender_id", "who"])
