@@ -73,7 +73,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Response
-from fastapi.exception_handlers import http_exception_handler
+from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1102,6 +1104,57 @@ def _out_of_range_refusal(conn, pick, exc, *, built, display_sql, outcomes,
 _ZONE_SQLSTATE = "XPR05"
 
 
+#: T-109: a series row whose time the statement can't read, refused by name
+#: (xpr.series_time_refused).  The dashboard words it; on the two-pane screen it
+#: was a 500 (a-chk, T-109's round).
+_SERIES_TIME_SQLSTATE = "XPR06"
+_EMPTY_PANE_SERIES_TIME = (
+    "No number from this side. The database refused to put a row in a bucket: its "
+    "series time is not in the one fixed form (SQLSTATE XPR06). Nothing was written "
+    "and nothing was committed — the session is read-only."
+)
+
+
+def _series_time_refusal(conn, pick, exc, *, built, display_sql, outcomes, source,
+                         shape, sent) -> dict:
+    """XPR06 as a named layer-2 refusal in the dashboard's own sentence (the row's
+    key and stored time), the Python pane saying what it met (T-109's round)."""
+    conn.rollback()
+    for statement in settings.PINNED_SESSION_SQL:
+        conn.execute(statement)
+    refuse_writes(conn)
+    detail = str(exc).strip().splitlines()[0] if str(exc).strip() else "series time refused"
+    try:
+        row = json.loads(getattr(getattr(exc, "diag", None), "message_detail", None) or "{}")
+    except ValueError:
+        row = {}
+    payload = {
+        "layer": 2,
+        "kind": "runtime",
+        "headline": errors.LAYER_2_HEADLINE,
+        "body": errors.series_time_words(str(pick.get("source") or "").split(":", 1)[-1], row.get("key"),
+                                         row.get("value"), (pick.get("aggregate") or {}).get("fn"),
+                                         pick.get("bucket")),
+        "construct": "series time",
+        "why": f"{detail} (SQLSTATE {_SERIES_TIME_SQLSTATE})",
+        "row_key": row.get("key"),
+        "sql_existed": True,
+        "statement_sent": sent,
+    }
+    py_pane, py_total = _fallback_python_pane(conn, pick)
+    body = _refused(
+        payload, pick=pick,
+        panes={"sql": _empty_pane("raised" if sent else "abandoned", _EMPTY_PANE_SERIES_TIME),
+               "python": py_pane},
+        sql_block=_sql_block(parameterised=built.sql, display=display_sql,
+                             params=built.params, outcomes=outcomes,
+                             sent=sent, collection=source),
+    )
+    body["page"]["total"] = py_total
+    body["page"]["ordered_by"] = _ordered_by(pick, shape)
+    return body
+
+
 def _zone_refusal(conn, pick, exc, *, built, display_sql, outcomes, source,
                   shape, sent) -> dict:
     """XPR05 as a named layer-2 refusal in the dashboard's own sentence (the zone,
@@ -1299,7 +1352,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         body["page"]["total"] = py_total
         body["page"]["ordered_by"] = _ordered_by(pick, verdict["shape"])
         return body
-    except Exception as exc:  # noqa: BLE001 — three SQLSTATEs, re-raised otherwise
+    except Exception as exc:  # noqa: BLE001 — four SQLSTATEs, re-raised otherwise
         # T-105: a probe computing an operand was refused by the database:
         # each refusal in its own words on the two-pane screen, never a 500
         refused = dict(built=built, display_sql=display_sql, outcomes=[], source=source,
@@ -1309,6 +1362,8 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
             return _out_of_range_refusal(conn, pick, exc, **refused)
         if refusals_in_words and state == _ZONE_SQLSTATE:              # T-101: a row inside D
             return _zone_refusal(conn, pick, exc, **refused)
+        if refusals_in_words and state == _SERIES_TIME_SQLSTATE:       # T-109: a series time unread
+            return _series_time_refusal(conn, pick, exc, **refused)
         if refusals_in_words and state == _FLOAT8_OVERFLOW_SQLSTATE:   # $.a * $.a == 1
             return _float8_overflow_refusal(conn, pick, exc, **refused)
         raise
@@ -1320,7 +1375,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
     # produces a number must never produce it by swallowing something.
     try:
         sql = sql_pane(conn, built)
-    except Exception as exc:  # noqa: BLE001 — three SQLSTATEs, re-raised otherwise
+    except Exception as exc:  # noqa: BLE001 — four SQLSTATEs, re-raised otherwise
         refused = dict(built=built, display_sql=display_sql, outcomes=outcomes, source=source,
                        shape=verdict["shape"], sent=True)
         state = getattr(exc, "sqlstate", None)
@@ -1330,6 +1385,9 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         if refusals_in_words and state == _ZONE_SQLSTATE:
             # T-105: the statement read a row on a clock inside D (T-101)
             return _zone_refusal(conn, pick, exc, **refused)
+        if refusals_in_words and state == _SERIES_TIME_SQLSTATE:
+            # T-109's round: the statement met a series time it can't read, and refused it by name
+            return _series_time_refusal(conn, pick, exc, **refused)
         if getattr(exc, "sqlstate", None) != _FLOAT8_OVERFLOW_SQLSTATE:
             raise
         return _float8_overflow_refusal(
@@ -1759,3 +1817,15 @@ async def _http_error(request, exc):
         return JSONResponse({"kind": "invalid", "sentence": "", "message": dashboard.TOO_DEEP_WORDS},
                             status_code=400)
     return await http_exception_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request, exc):
+    """T-111: FastAPI's own 422 echoes the request's ``input``, and jsonable_encoder recursed into a bare array
+    thousands deep (RecursionError: HTTP 500, on /api/pick and the dashboard's answer). That one reply leaves the
+    input out and keeps its words; every other is FastAPI's own, byte for byte."""
+    try:
+        return await request_validation_exception_handler(request, exc)
+    except RecursionError:
+        errors = [{k: v for k, v in e.items() if k != "input"} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})

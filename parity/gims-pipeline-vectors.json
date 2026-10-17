@@ -2,9 +2,9 @@
  "format": "gims-pipeline-vectors/1",
  "version": 11,
  "source": {
-  "autosql": "0fbf225 + T-103 (t-103/time-of-day-cost): the runtime re-measured, every status unchanged",
+  "autosql": "f605043 + T-109 (fix/T-109-time-axis-guard): the runtime re-measured, every status unchanged",
   "compiler_sha256": "dd45d83caf1ee3f1f1c4b7771ee47b307f7577d283e6dce4e4f7a5e910a7d828",
-  "runtime_sha256": "b21ac75dc0cee396974565d2ec45ee866cda364cf0a8f4bfd8ae8cf199e2b465",
+  "runtime_sha256": "ae20207714e0599b81a9321c0e845f38146d300b5ce684c1110a888426f8afdf",
   "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },
  "noun": "parity_case",

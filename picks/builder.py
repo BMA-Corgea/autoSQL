@@ -191,6 +191,30 @@ def _in_years(local: str, value: str) -> str:
             f" OR ({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp))")
 
 
+#: T-109: the series' one time form (the second engine's bucket_label reads exactly it).
+SERIES_TIME_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
+
+
+def _series_readable(p, time: str) -> str:
+    """T-109: the guard date fields have (T-88), for the data set's own time: a string in the one form that Postgres
+    reads. Where the unguarded cast answered HTTP 500 for every summary of the data set (a-chk, T-103's check), a row
+    outside it now reaches :func:`_series_label`'s refusal."""
+    p.params["srs_re"] = SERIES_TIME_RE
+    v = f"(data ->> '{time}')"
+    return (f"(jsonb_typeof(data -> '{time}') = 'string' AND {v} ~ %(srs_re)s "
+            f"AND pg_input_is_valid({v}, 'timestamptz'))")
+
+
+def _series_label(p, time: str, label: str) -> str:
+    """T-109's round (a-chk's HIGH 1): the bucket label of the data set's own time, refusing by itself. A row whose
+    time is not in the one form (or that has none) is never left out of the number: the label raises XPR06 naming
+    the row's key and value (xpr.series_time_refused), so a host running the statement alone, with no second engine
+    (GIMS's pushed-down path), refuses too. The second engine refuses the same rows (B4, shape._bucket)."""
+    return (f"CASE WHEN {_series_readable(p, time)}\n"
+            f"            THEN {label}\n"
+            f"            ELSE xpr.series_time_refused(key, (data ->> '{time}')) END")
+
+
 def _zone_reading(p, zone: str):
     """How the bucket reads a stored time (its fixed-width UTC text) on the zone's clock (T-101):
     plainly where this database and Python agree on every instant (D empty). Else D is written into
@@ -740,10 +764,13 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         time = (p.records.series or {}).get("time") or "ts"
         value = f"(data ->> '{time}')"
         local = _zoned_local(value, _zone_reading(p, zone), False)
-        label = _ZONED_LABEL.format(g=g, local=local)
-        guard = f"\n   AND {_in_years(local, value)}"
+        label = _series_label(p, time, _ZONED_LABEL.format(g=g, local=local))
+        # T-109: read on the clock only once the value is known to be a readable time (CASE); an unreadable one
+        # stays in, for the label to refuse
+        guard = f"\n   AND CASE WHEN {_series_readable(p, time)} THEN {_in_years(local, value)} ELSE true END"
     else:
-        label = _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]])
+        time = (p.records.series or {}).get("time") or "ts"
+        label = _series_label(p, time, _series_texts(p.records)["bucket_label"].format(g=_GRANULARITY_SQL[pick["bucket"]]))
         guard = ""
     agg = p.aggregate_call(pick)
     where = p.where_clause() + guard

@@ -470,6 +470,11 @@ def truncate_label(at: datetime, granularity: str) -> str:
     return f"{trunc.year:04d}-{trunc.month:02d}-{trunc.day:02d}T{trunc.hour:02d}:{trunc.minute:02d}:{trunc.second:02d}Z"
 
 
+#: T-109's round: the series' one time form, the statement's own (builder.SERIES_TIME_RE); strptime then refuses a
+#: day the calendar lacks, as Postgres's pg_input_is_valid does.
+_SERIES_TIME = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z")
+
+
 def bucket_label(ts_text: str, granularity: str) -> str:
     """Operation 7's bucket for one row, as the label BOTH panes key by.
 
@@ -485,7 +490,9 @@ def bucket_label(ts_text: str, granularity: str) -> str:
     """
     if granularity not in ("hour", "day", "week", "month"):
         raise ValueError(f"granularity must be hour, day, week or month, got {granularity!r}")
-    if len(ts_text) != _TS_WIDTH:
+    if len(ts_text) != _TS_WIDTH or not _SERIES_TIME.fullmatch(ts_text):
+        # T-109's round: exactly the form, in ASCII digits and capital T and Z -- strptime alone matches its
+        # literals ignoring case, so "…t…z" passed here and was then left out on a clock (a-chk's HIGH 2)
         raise ValueError(f"not fixed-width UTC ISO-8601: {ts_text!r}")
     parsed = datetime.strptime(ts_text, "%Y-%m-%dT%H:%M:%SZ")
     aware = parsed.replace(tzinfo=timezone.utc)  # aware, UTC, immediately

@@ -49,6 +49,15 @@ RuntimeRefusal = probes.RuntimeRefusal
 LAYER_1_HEADLINE = "Refused before any SQL existed"
 LAYER_2_HEADLINE = "Refused while running"
 
+
+def series_time_words(one: str, key, value, fn: str | None, per: str | None) -> str:
+    """T-109: a series row whose time the statement can't read (XPR06), named, and what it stops -- one
+    sentence, said the same by the dashboard and by the two-pane screen."""
+    one = one[:1].upper() + one[1:]
+    verb = "counted" if (fn or "count") == "count" else "worked out"
+    has = "has no time" if value is None else f"has a time this can't read (\u201c{value}\u201d)"
+    return f"{one} {key} {has}, so these can't be {verb} per {per or 'day'}."
+
 _LAYER_1_BODY = {
     # T-102: the gate passed it; the compiler's running budget stopped it.
     "size": (
