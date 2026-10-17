@@ -100,10 +100,11 @@ CHANGED_SQL = (
 
 #: The one frame operations 8 and 9 share (§7.1's window rule, R9) — written
 #: once, used twice, as B3 detail 6 demands.  Both components are read out of
-#: the jsonb with ``->>`` (text; byte order under the C collation).
+#: the jsonb with ``->>`` (text) and ordered in code points whatever the
+#: database's collation (T-106: COLLATE "C"; the second engine compares bytes).
 WINDOW_DEF = (
     "WINDOW w AS (PARTITION BY (r.data ->> 'sender_id')\n"
-    "               ORDER BY     (r.data ->> 'ts'), r.key)"
+    "               ORDER BY     (r.data ->> 'ts') COLLATE \"C\", r.key COLLATE \"C\")"
 )
 
 #: Operation 8's frame extent (R14: width 3, trailing, a mean).
@@ -157,7 +158,7 @@ def _series_texts(records) -> dict:
         "changed": (f'( lag( {compared} ) OVER w\n'
                     f'             IS DISTINCT FROM ( {compared} ) )     AS "changed"'),
         "window": (f"WINDOW w AS (PARTITION BY (r.data ->> '{member}')\n"
-                   f"               ORDER BY     (r.data ->> '{time}'), r.key)"),
+                   f"               ORDER BY     (r.data ->> '{time}') COLLATE \"C\", r.key COLLATE \"C\")"),
         "bucket_label": _BUCKET_LABEL_UTC.replace("(data ->> 'ts')", f"(data ->> '{time}')"),
     }
 
@@ -218,6 +219,18 @@ def _utc_text(sec: float) -> str:
     if sec == float("inf"):
         return "~"
     return datetime.fromtimestamp(sec, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def code_point_order(value: str, direction: str) -> str:
+    """T-106: ``ORDER BY`` keys for a jsonb value in §7.4's order with its strings in code points.
+    Postgres orders jsonb by type, then strings by the DATABASE's collation (glibc or ICU ``en_US``
+    gives ``a, b, B``; the second engine gives ``B, a, b``). The first key keeps jsonb's own order
+    for every non-string and puts all strings at the string rank (one placeholder string); the
+    second orders the strings themselves under ``COLLATE "C"``, NULL (and so never deciding) for
+    the rest. A string nested inside an array or object still follows the collation: no COLLATE
+    reaches inside a jsonb comparison (a recorded limit)."""
+    return (f"(CASE WHEN jsonb_typeof({value}) = 'string' THEN '\"\"'::jsonb ELSE {value} END) {direction} NULLS LAST, "
+            f"(CASE WHEN jsonb_typeof({value}) = 'string' THEN {value} #>> '{{}}' END) COLLATE \"C\" {direction} NULLS LAST")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -470,6 +483,8 @@ class _Pieces:
         # Op 2 — parse+gate+compile each computed column ONCE; validate and
         # quote each alias against the vocabulary that existed before it.
         self.cc_order: list[str] = []       # names, entry order
+        self.sort_lateral = ""              # T-106 round: the sorted computed column, computed once (order_by)
+        self.sort_cc = None
         self.cc_frag: dict[str, Compiled] = {}
         self.cc_quoted: dict[str, str] = {}  # name -> emit_alias() output
         for i, cc in enumerate(pick.get("computed") or []):
@@ -538,7 +553,7 @@ class _Pieces:
             series = self.records.series
             over = (
                 f"OVER (PARTITION BY (r.data ->> '{series['member']}')\n"
-                f"               ORDER BY     (r.data ->> '{series['time']}'), r.key\n"
+                f"               ORDER BY     (r.data ->> '{series['time']}') COLLATE \"C\", r.key COLLATE \"C\"\n"
                 f"               {ROLLING_FRAME})"
             )
         return (
@@ -549,19 +564,36 @@ class _Pieces:
     def order_by(self, pick: dict, *, qualify: str) -> str:
         """§7.4 — the total order every multi-row result carries; the last
         component is always ``key ASC`` (AC-41(a)), the tiebreak ascending
-        whichever way the sort field runs (§7.4(1a))."""
+        whichever way the sort field runs (§7.4(1a)).
+
+        T-106: text in code points whatever the database's collation (the
+        second engine compares UTF-8 bytes): the sort value by
+        :func:`code_point_order`, the key as ``key COLLATE "C"``, put ahead
+        of the closing ``key ASC`` -- which keys' uniqueness then makes a
+        no-op, and which AC-41(a) and the frozen pass's M15 read as written."""
         q = qualify  # "r." inside single-level statements, "" over the CTE
         sort = pick.get("sort") or None
         if not (sort and sort.get("field")):
-            return f" ORDER BY {q}key ASC"
+            return f' ORDER BY {q}key COLLATE "C", {q}key ASC'
         direction = _DIRECTION_SQL[sort["dir"]]  # closed set; refused upstream
         field = sort["field"]
         if field in self.cc_order:
-            # §4.4 row 6: an ORDER BY alias reference is legal and stays.
-            lead = f"{self.cc_quoted[field]} {direction} NULLS LAST"
+            # §4.4 row 6: over the CTE the alias names a column. In a single-level statement an alias
+            # can't stand inside an expression, so the column is computed ONCE, in a LATERAL that the
+            # SELECT list reads too (T-106 round: repeating its SQL in the sort cost 2.8-3.9x). OFFSET 0
+            # keeps Postgres from pulling it up and pasting the expression back into every place.
+            if q:
+                sql, prm = namespace(self.cc_frag[field], f"cc{self.cc_index(field)}")
+                merge_params(self.params, prm)
+                self.sort_cc = field
+                self.sort_lateral = f"\n  CROSS JOIN LATERAL (SELECT {sql} AS v OFFSET 0) AS srt"
+                value = "srt.v"
+            else:
+                value = self.cc_quoted[field]
         else:
             self.params["sort_path"] = _field_path(field, what="the sort")
-            lead = f"( {q}data #> %(sort_path)s ) {direction} NULLS LAST"
+            value = f"( {q}data #> %(sort_path)s )"
+        lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
 
     def limit(self, pick: dict) -> str:
@@ -594,12 +626,16 @@ class _Pieces:
 def _shape_rows(p: _Pieces, pick: dict) -> Built:
     """Shape A — ROWS, no operation 9 (plan §4.2).  No CTE: a window
     function in the SELECT list needs no wrapping."""
+    order = p.order_by(pick, qualify="r.")   # first: a sorted computed column is computed in it (T-106 round)
     select = ["r.collection", "r.key", "r.data"]
     columns = ["collection", "key", "data"]
     for name in p.cc_order:
-        sql, prm = namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
-        merge_params(p.params, prm)
-        select.append(f"{sql}  AS {p.cc_quoted[name]}")
+        if name == p.sort_cc:
+            select.append(f"srt.v  AS {p.cc_quoted[name]}")
+        else:
+            sql, prm = namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
+            merge_params(p.params, prm)
+            select.append(f"{sql}  AS {p.cc_quoted[name]}")
         columns.append(name)
     if pick.get("window"):
         select.append(p.rolling_column(pick, named_window=False))
@@ -607,9 +643,9 @@ def _shape_rows(p: _Pieces, pick: dict) -> Built:
 
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        f"  FROM {p.records.table} AS r\n"
+        f"  FROM {p.records.table} AS r" + p.sort_lateral + "\n"
         + p.where_clause() + "\n"
-        + p.order_by(pick, qualify="r.")
+        + order
         + p.limit(pick) + ";"
     )
     return Built(sql, p.params, legality.ROWS, tuple(columns))

@@ -89,7 +89,7 @@ def _order(rows: List[dict], spec: dict) -> List[dict]:
     s = spec.get("sort") or {"column": "grp", "dir": "asc"}
     column, desc = s["column"], s["dir"] == "desc"
 
-    def compare_values(a, b, *, descending: bool) -> int:
+    def compare_values(a, b, *, descending: bool, group: bool = False) -> int:
         # blanks last whichever way the column runs
         if a is None and b is None:
             return 0
@@ -100,7 +100,9 @@ def _order(rows: List[dict], spec: dict) -> List[dict]:
         if isinstance(a, str) and isinstance(b, str):
             ka, kb = a.encode("utf-8"), b.encode("utf-8")
             c = (ka > kb) - (ka < kb)
-        elif column == "grp":
+        elif column == "grp" or group:
+            # a group value in §7.4's order (T-106: also as the tie-break of a board sorted by a
+            # count, where Python's > crashed on a number beside a string with the same count)
             c = compare_jsonb(a, b)
         else:
             c = (a > b) - (a < b)
@@ -110,7 +112,7 @@ def _order(rows: List[dict], spec: dict) -> List[dict]:
         c = compare_values(x[column], y[column], descending=desc)
         if c or column == "grp":
             return c
-        return compare_values(x["grp"], y["grp"], descending=False)
+        return compare_values(x["grp"], y["grp"], descending=False, group=True)
 
     return sorted(rows, key=cmp_to_key(compare))
 

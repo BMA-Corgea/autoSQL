@@ -116,7 +116,7 @@ SELECT e2.k, jsonb_typeof(e2.v) AS t, count(*)
 
 
 _VALUES_SQL = """
-SELECT r.data #>> %(path)s AS v, count(*) AS n
+SELECT r.data #>> %(path)s COLLATE "C" AS v, count(*) AS n
   FROM {table} r
  WHERE {scope}
    AND jsonb_typeof(r.data #> %(path)s) = 'string'
@@ -209,7 +209,7 @@ def _ops_for(kind: str, types: set) -> list:
 #: column names a pick may not take (the alias gate) is decided by them, so
 #: another owner's field names must never reach it.
 _KEYS_SQL = """
-SELECT DISTINCT k FROM {table} r, LATERAL jsonb_object_keys(r.data) AS k
+SELECT DISTINCT k COLLATE "C" AS k FROM {table} r, LATERAL jsonb_object_keys(r.data) AS k
  WHERE {scope}
  ORDER BY k
 """

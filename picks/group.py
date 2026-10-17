@@ -232,10 +232,14 @@ def build(spec: dict, records=None) -> Built:
         builder.merge_params(params, prm)
         where += f"\n   AND xpr.truthy( {sql} )"
 
+    # T-106: the group value (jsonb) in §7.4's order with its strings in code points. "grp" is an
+    # output name, which can't stand inside an expression, so the grouped rows are ordered from
+    # outside, where it is a column.
     s = spec.get("sort") or {"column": "grp", "dir": "asc"}
-    order = f'"{s["column"]}" {SORT_DIRS[s["dir"]]} NULLS LAST'
-    if s["column"] != "grp":
-        order += ', "grp" ASC NULLS LAST'
+    if s["column"] == "grp":
+        order = builder.code_point_order('"grp"', SORT_DIRS[s["dir"]])
+    else:
+        order = f'"{s["column"]}" {SORT_DIRS[s["dir"]]} NULLS LAST, ' + builder.code_point_order('"grp"', "ASC")
 
     limit = ""
     if spec.get("cap") is not None:
@@ -243,10 +247,12 @@ def build(spec: dict, records=None) -> Built:
         limit = "\n LIMIT %(cap)s"
 
     sql = (
+        "SELECT * FROM (\n"
         "SELECT " + ",\n       ".join(select) + "\n"
         + source
         + where + "\n"
         " GROUP BY 1\n"
+        ") AS board\n"
         f" ORDER BY {order}"
         + limit + ";"
     )
