@@ -495,6 +495,71 @@ def _cause(member: str, row_key: Optional[str]) -> str:
     )
 
 
+# ---------------------------------------------------------------------------------
+# T-110: a sort over text nested in jsonb, on a database that orders that text its own way
+# ---------------------------------------------------------------------------------
+#: How many order checks and sort probes have run (the tests read them: once per database; none on C).
+ORDER_CHECKS_RUN = 0
+SORT_PROBES_RUN = 0
+#: The order check's answer, cached by (host, port, database, pg_postmaster_start_time()), as zones caches D.
+_ORDER_CACHE: Dict[tuple, bool] = {}
+_ORDER_CHECK_SQL = ("SELECT '[\"B\"]'::jsonb < '[\"a\"]'::jsonb AND '{\"B\": 1}'::jsonb < '{\"a\": 1}'::jsonb, "
+                    "pg_postmaster_start_time()::text")
+
+
+class SortRefusal(RuntimeRefusal):
+    """Member "c": the pick sorts by a value whose nested text this database orders by its own collation, which
+    the second engine (code points) would not; ``field`` is the sort field as the pick names it."""
+
+    def __init__(self, field: str, row_key: Optional[str], probe: Probe):
+        self.field = field
+        where = f' (first such row, by key: "{row_key}")' if row_key else ""
+        super().__init__(member="c", row_key=row_key, probe=probe, cause=(
+            f"nested text order: two or more rows hold text inside a list or an object at the sort value {field}, "
+            "and this database orders text inside a jsonb value by its own collation, not in code points" + where))
+
+
+def nested_text_in_code_points(conn) -> bool:
+    """T-110 (a-chk's proposal): does this database compare text INSIDE a jsonb value in code points, as the second
+    engine does? A behaviour, not a collation's name: true on C and POSIX, false wherever the collation reaches into
+    containers (glibc, ICU). Asked once per database."""
+    global ORDER_CHECKS_RUN
+    info = conn.info
+    started = None
+    for key, hit in _ORDER_CACHE.items():
+        if key[:3] == (info.host, info.port, info.dbname):
+            started = started or conn.execute("SELECT pg_postmaster_start_time()::text").fetchone()[0]
+            if key[3] == started:
+                return hit
+    with conn.transaction():
+        same, started = conn.execute(_ORDER_CHECK_SQL).fetchone()
+    ORDER_CHECKS_RUN += 1
+    _ORDER_CACHE[(info.host, info.port, info.dbname, started)] = bool(same)
+    return bool(same)
+
+
+def check_sort(conn, pick: dict, collection_keys, *, records=None, ctx: Optional[dict] = None):
+    """T-110, layer 2 for a sort: on a database that orders nested text its own way, a rows pick sorted by a value
+    holding text inside a list or an object, in two or more rows, is refused (:class:`SortRefusal`) before its
+    statement runs, where its two engines could order the rows two ways. On C nothing is asked. Returns the
+    outcome when the probe ran and did not fire, else None."""
+    global SORT_PROBES_RUN
+    if nested_text_in_code_points(conn):
+        return None
+    from .builder import sort_probe  # the statement's own pieces (scope, filter, sort value)
+    built = sort_probe(pick, collection_keys, ctx=ctx, records=records)
+    if built is None:
+        return None
+    probe = Probe(member="c", sql=built.sql, row_sql=built.sql, params=dict(built.params), ctx_params=(),
+                  operands=())
+    with conn.transaction():
+        fired, first_key = conn.execute(built.sql, built.params).fetchone()
+    SORT_PROBES_RUN += 1
+    if fired:
+        raise SortRefusal(pick["sort"]["field"], first_key, probe)
+    return ProbeOutcome(probe=probe, fired=False)
+
+
 def check(conn, collection: str, exprs: Sequence, *,
           numeric_roots: Sequence = (), ctx: str = "{}", records=None) -> List[ProbeOutcome]:
     """Layer 2, in one call: build both probes, run both, and raise the named

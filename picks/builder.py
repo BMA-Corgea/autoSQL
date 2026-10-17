@@ -759,6 +759,44 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     return Built(sql, p.params, legality.BUCKET, ("bucket", "agg"))
 
 
+# ── T-110: the probe a sort over nested text needs on a locale database ──
+
+#: A sort value whose comparison reads text the database's collation orders: a list or an object holding a string at
+#: any depth, or a non-empty object (its keys are text). No COLLATE reaches inside a jsonb comparison.
+NESTED_TEXT_TEST = ("(jsonb_typeof({v}) IN ('array', 'object') AND jsonb_path_exists({v}, "
+                    "'strict $.** ? (@.type() == \"string\" || (@.type() == \"object\" && exists(@.*)))'))")
+
+
+def sort_probe(pick: dict, collection_keys, *, ctx: dict | None = None, records=None) -> Built | None:
+    """T-110: for a rows pick that is sorted, the one question to ask a database that orders nested text by its own
+    collation: do TWO or more rows of the statement's own scope (its collection, partition and filter) hold, at its
+    own sort value (a stored field, or a computed column's SQL), text inside a list or an object? One such row
+    compares with the others only by jsonb's type order, so two are needed. Its one row is ``(fired, first key)``,
+    the key in code points. ``None`` when the pick sorts nothing (a summary sorts nothing either)."""
+    sort = pick.get("sort") or None
+    if not (sort and sort.get("field")):
+        return None
+    p = _Pieces(pick, collection_keys, ctx, records)
+    if p.shape != legality.ROWS:
+        return None
+    field = sort["field"]
+    if field in p.cc_frag:
+        value, prm = namespace(p.cc_frag[field], f"cc{p.cc_index(field)}")
+        merge_params(p.params, prm)
+    else:
+        p.params["sort_path"] = _field_path(field, what="the sort")
+        value = "( r.data #> %(sort_path)s )"
+    sql = (
+        'SELECT count(*) >= 2 AS "fired", min(key COLLATE "C") AS "first_key" FROM (\n'
+        f"  SELECT r.key\n    FROM {p.records.table} AS r\n"
+        "  " + p.where_clause().replace("\n   ", "\n     ") + "\n"
+        f"     AND {NESTED_TEXT_TEST.format(v=value)}\n"
+        '   ORDER BY r.key COLLATE "C"\n   LIMIT 2\n) AS nested;'
+    )
+    _bind_ctx_values(sql, p.params, p.ctx_value)
+    return Built(sql, p.params, legality.ROWS, ("fired", "first_key"))
+
+
 # ── THE entry point ──────────────────────────────────────────────────────
 
 @build_statement

@@ -44,8 +44,10 @@ THINGS = {
     "abs": {"who": "s3", "ts": "2026-01-03T00:00:00Z", "n": 8},
     "big1": {"who": "s4", "ts": _TS, "n": 9, "big": 1e300},
     "Big2": {"who": "s4", "ts": "2026-01-02T00:00:00Z", "n": 11, "big": 1e300},
-    "t-a": {"name": "tie", "who": "s5", "ts": _TS, "n": 12, "arr": ["b"]},       # a tie whose keys order apart
-    "T-b": {"name": "tie", "who": "s5", "ts": _TS, "n": 13, "arr": ["B"]},
+    "t-a": {"name": "tie", "who": "s5", "ts": _TS, "n": 12, "arr": ["b"],        # a tie whose keys order apart
+            "obj": {"b": 1}, "objv": {"k": "b"}, "deep": [["b"]]},                 # T-110: text nested three ways
+    "T-b": {"name": "tie", "who": "s5", "ts": _TS, "n": 13, "arr": ["B"],
+            "obj": {"B": 1}, "objv": {"k": "B"}, "deep": [["B"]]},
     "u-a": {"who": "s6", "ts": _TS, "n": 14},     # two identical records at one time: "changed" keeps the first
     "U-b": {"who": "s6", "ts": _TS, "n": 14},
     # times that differ only in case (a-chk's LOW 1): code points put "T" before "t", en_US the other way round
@@ -251,10 +253,75 @@ def test_the_changed_flag_reads_ties_in_key_code_points(world, member):
     assert "v4" in sql and "v3" not in sql        # and the time "...T...Z" comes before "...t...z"
 
 
+#: T-110: text nested in a sorted value -- list elements, object keys, object values, a list inside a list
+NESTED = ["$.arr", "$.obj", "$.objv", "$.deep"]
+
+
+def _c_order(collate):
+    return collate in ("C", "POSIX")
+
+
+@pytest.mark.parametrize("field", NESTED)
+def test_text_nested_in_a_sorted_value_is_refused_on_a_locale_database(world, field):
+    """The limit T-106 kept, closed by T-110: no COLLATE reaches inside a jsonb comparison, so on en_US the
+    statement ordered ["b"] before ["B"] (and {"b": 1} before {"B": 1}, at any depth) while the second engine
+    orders code points. On a locale database the pick is refused before it runs, naming the first such row; on C
+    nothing changes: no probe, and both engines order the rows alike."""
+    from picks import probes
+    conn, records, keys, collate = world
+    pick = _pick(filter='$.name == "tie"', sort={"field": field, "dir": "asc"})
+    if _c_order(collate):
+        ran = probes.SORT_PROBES_RUN
+        assert probes.check_sort(conn, pick, keys, records=records) is None
+        assert probes.SORT_PROBES_RUN == ran, "on C no probe runs"
+        sql, py = _both(world, pick)
+        assert _keys(sql) == _keys(py) == ["T-b", "t-a"]          # ["B"] < ["b"] in code points
+        return
+    with pytest.raises(probes.RuntimeRefusal) as e:
+        probes.check_sort(conn, pick, keys, records=records)
+    assert (e.value.member, e.value.row_key) == ("c", "T-b")
+
+
+def test_a_computed_column_holding_nested_text_is_refused_too(world):
+    from picks import probes
+    conn, records, keys, collate = world
+    pick = _pick(filter='$.name == "tie"', computed=[{"name": "tags", "expr": "$.arr"}],
+                 sort={"field": "tags", "dir": "desc"})
+    if _c_order(collate):
+        assert probes.check_sort(conn, pick, keys, records=records) is None
+        sql, py = _both(world, pick)
+        assert _keys(sql) == _keys(py) == ["t-a", "T-b"]
+        return
+    with pytest.raises(probes.RuntimeRefusal) as e:
+        probes.check_sort(conn, pick, keys, records=records)
+    assert e.value.member == "c"
+
+
+def test_one_row_of_nested_text_compares_with_no_other_and_is_not_refused(world):
+    """Two such rows are needed for the collation to decide anything: one compares only by jsonb's type order."""
+    from picks import probes
+    conn, records, keys, collate = world
+    pick = _pick(filter='$.name == "tie" and $.n == 12', sort={"field": "$.arr", "dir": "asc"})
+    got = probes.check_sort(conn, pick, keys, records=records)
+    assert got is None if _c_order(collate) else (got.fired is False)    # on en_US it asked, and nothing fired
+    sql, py = _both(world, pick)
+    assert _keys(sql) == _keys(py) == ["t-a"]
+
+
+def test_the_order_check_runs_once_per_database(world):
+    from picks import probes
+    conn, _r, _k, collate = world
+    probes.nested_text_in_code_points(conn)
+    ran = probes.ORDER_CHECKS_RUN
+    assert probes.nested_text_in_code_points(conn) is _c_order(collate)
+    assert probes.ORDER_CHECKS_RUN == ran, "the second ask reads the cache"
+
+
 def test_a_string_nested_in_an_array_is_the_recorded_limit(world):
     """The one place left in the collation's hands (spec): a sort value that is an array holding strings. No COLLATE
-    reaches inside a jsonb comparison, so on en_US the statement orders ["b"] before ["B"] while the second engine
-    orders code points. Pinned, so a fix (or a change in Postgres) shows here."""
+    reaches inside a jsonb comparison, so on en_US the STATEMENT ALONE orders ["b"] before ["B"] while the second
+    engine orders code points. Pinned, so a change in Postgres shows here; since T-110 the pipeline refuses such a
+    pick on a locale database before the statement runs (below)."""
     conn, _r, _k, collate = world
     pick = _pick(filter='$.name == "tie"', sort={"field": "$.arr", "dir": "asc"})
     sql, py = _both(world, pick)

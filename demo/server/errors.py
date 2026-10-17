@@ -119,13 +119,21 @@ def layer_1(exc, *, kind: str) -> dict:
     }
 
 
+def sort_order_words(field: str) -> str:
+    """T-110: a sort over text nested in jsonb, refused on a database that orders that text its own way."""
+    return (f"These rows can't be sorted by {field} on this database: some of its values are lists or groups "
+            "holding text, and this database orders that text differently from the second engine. "
+            "Sort by another field.")
+
+
 def layer_2(exc) -> dict:
     """The JSON for a :class:`demo.probes.RuntimeRefusal`."""
     return {
         "layer": 2,
         "kind": "probe",
         "headline": LAYER_2_HEADLINE,
-        "body": _LAYER_2_BODY,
+        # each refusal in its own words (T-105's pattern): member "c" is T-110's sort
+        "body": sort_order_words(exc.field) if exc.member == "c" else _LAYER_2_BODY,
         "member": exc.member,
         "construct": f"probe ({exc.member})",
         "why": exc.cause,

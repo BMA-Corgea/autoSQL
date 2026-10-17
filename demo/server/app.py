@@ -1254,6 +1254,10 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
 
     try:
         outcomes = probes.check(conn, source, exprs, numeric_roots=roots)
+        # T-110: a sort over text nested in jsonb, on a database that orders it its own way, is refused here
+        sort_outcome = probes.check_sort(conn, pick, keys)
+        if sort_outcome is not None:
+            outcomes = outcomes + [sort_outcome]
     except gate.Refused as exc:
         # T-102: a probe's operand too big to check refuses the pick, as the build stage does
         return _refused(
@@ -1278,6 +1282,8 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
             conn, source,
             probes.build_probes(exprs, numeric_roots=roots),
         )
+        if isinstance(exc, probes.SortRefusal):          # T-110: the sort's own probe, shown as fired
+            outcomes = outcomes + [probes.ProbeOutcome(probe=exc.probe, fired=True, row_key=exc.row_key)]
         py_pane, py_total = _fallback_python_pane(conn, pick)
         panes = {
             "sql": _empty_pane("abandoned", _EMPTY_PANE_ABANDONED),

@@ -746,6 +746,10 @@ def _run(conn, pick: dict) -> dict:
 #: What a refusal says to a person, by what the engine found.  The engine's
 #: own words go to the admin panel unchanged.
 _PLAIN_REFUSAL = (
+    # T-110: a sort over text nested in jsonb, on a database that orders that text its own way
+    ("nested text order", "These rows can't be sorted by this field on this database: some of its values hold "
+                          "text inside a list or a group, and this database orders that text differently. "
+                          "Sort by another field."),
     ("container operand", "Some rows hold a list or a group of values in a "
                           "field you're matching on, so it can't be compared "
                           "with one value."),
