@@ -61,13 +61,15 @@ def screen(request):
                        (key, json.dumps({"ts": "2026-08-14T00:00:00Z", "status": "ok", "sender_id": "hb-01",
                                          "payload": {"load": -1, "note": note}})))
         cx.commit()
-        collate = cx.execute("SELECT datcollate FROM pg_database WHERE datname = current_database()").fetchone()[0]
+        # a-chk's round LOW 1: expect by the check itself, not by the collation's name (musl's en_US.utf8 is code points)
+        from picks import probes
+        code_points = probes.nested_text_in_code_points(cx)
     opts = f"-c timezone={settings.TIME_ZONE} -c extra_float_digits={settings.EXTRA_FLOAT_DIGITS}"
     real = db.connect
     db.connect = lambda *, application_name=None, autocommit=False: psycopg.connect(scratch, autocommit=autocommit,
                                                                                     options=opts)
     try:
-        yield TestClient(server_app.app, raise_server_exceptions=False), collate
+        yield TestClient(server_app.app, raise_server_exceptions=False), code_points
     finally:
         db.connect = real
         with psycopg.connect(dsn, autocommit=True) as cx:
@@ -83,9 +85,9 @@ def _pick(sort_field, cap=5, **kw):
 
 
 def test_a_sort_by_the_payload_is_refused_in_words_on_a_locale_database(screen):
-    client, collate = screen
+    client, code_points = screen
     r = client.post("/api/pick", json={"pick": _pick("$.payload")})
-    if collate in ("C", "POSIX"):
+    if code_points:
         assert r.status_code == 200 and r.json()["verdict"] == "agree", r.text[:200]
         return
     assert r.status_code == 422, (r.status_code, r.text[:200])
@@ -96,7 +98,7 @@ def test_a_sort_by_the_payload_is_refused_in_words_on_a_locale_database(screen):
 
 
 def test_a_sort_by_a_number_inside_the_payload_still_answers_everywhere(screen):
-    client, _collate = screen
+    client, _code_points = screen
     r = client.post("/api/pick", json={"pick": _pick("$.payload.load")})
     assert r.status_code == 200 and r.json()["verdict"] == "agree", r.text[:200]
 
@@ -112,3 +114,116 @@ def test_each_screen_says_the_sort_refusal_in_its_own_words():
     assert words == ("These rows can't be sorted by this field on this database: some of its values hold text "
                      "inside a list or a group, and this database orders that text differently. Sort by another field.")
     assert words != dashboard.plain_refusal({"why": "container operand: an == or != operand resolved to an object"})
+
+
+# ── T-110's round (a-chk's two MEDIUMs and LOW 2): what the check trusts, and what it remembers ─────────────────────
+
+LOCALE = os.environ.get("AUTOSQL_LOCALE_DSN")
+PARITY = os.environ.get("AUTOSQL_PARITY_DSN")
+needs_locale = pytest.mark.skipif(not LOCALE, reason="set AUTOSQL_LOCALE_DSN to a Debian postgres:16 throwaway")
+
+
+def _make(server: str, name: str, clause: str) -> str:
+    """A fresh database on a throwaway server, as ``clause`` describes it; its DSN."""
+    import psycopg
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+    with psycopg.connect(server, autocommit=True) as cx:
+        if int(cx.info.port) in (55433, 55440):
+            raise SystemExit("refusing: 55433 is a live database and 55440 is the shared demo's")
+        cx.execute(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)")
+        cx.execute(f"CREATE DATABASE {name} TEMPLATE template0 {clause}")
+    return make_conninfo(**{**conninfo_to_dict(server), "dbname": name})
+
+
+def _drop(server: str, name: str) -> None:
+    import psycopg
+    with psycopg.connect(server, autocommit=True) as cx:
+        cx.execute(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)")
+
+
+def _decides(dsn: str) -> bool:
+    import psycopg
+    from picks import probes
+    with psycopg.connect(dsn) as cx:
+        return probes.nested_text_in_code_points(cx)
+
+
+@needs_locale
+def test_one_custom_icu_rule_does_not_pass_for_code_points():
+    """a-chk's MEDIUM 1: an ICU database with one tailoring rule passed the B/a check while it orders ["f"] after
+    ["é"]; only a C or POSIX libc database is trusted by name, anything else must pass the whole battery."""
+    dsn = _make(LOCALE, "t110_icu_rule", "LOCALE_PROVIDER icu ICU_LOCALE 'en-US' LOCALE 'en_US.utf8' "
+                                         "ICU_RULES '&[before 1]a < B'")
+    try:
+        import psycopg
+        with psycopg.connect(dsn) as cx:
+            assert cx.execute("SELECT '[\"B\"]'::jsonb < '[\"a\"]'::jsonb AND '{\"B\":1}'::jsonb < '{\"a\":1}'::jsonb"
+                              ).fetchone()[0], "the repro: the rule makes B/a read as code points"
+        assert _decides(dsn) is False
+    finally:
+        _drop(LOCALE, "t110_icu_rule")
+
+
+@needs_locale
+def test_a_database_recreated_with_another_collation_is_checked_again():
+    """a-chk's MEDIUM 2: checked once as C.UTF-8, dropped and recreated as en_US with no server restart, it was
+    still read from the cache as code points. The key now holds the database's OID and collation facts."""
+    try:
+        assert _decides(_make(LOCALE, "t110_recreated", "LOCALE 'C.UTF-8'")) is True
+        assert _decides(_make(LOCALE, "t110_recreated", "LOCALE 'en_US.utf8'")) is False
+    finally:
+        _drop(LOCALE, "t110_recreated")
+
+
+@pytest.mark.parametrize("which, clause", [("glibc C.UTF-8", "LOCALE 'C.UTF-8'"), ("musl en_US.utf8", "LOCALE 'en_US.utf8'")])
+def test_code_point_databases_pass_the_battery_and_stay_probe_free(which, clause):
+    server = LOCALE if which.startswith("glibc") else PARITY
+    if not server:
+        pytest.skip("set AUTOSQL_LOCALE_DSN (glibc) / AUTOSQL_PARITY_DSN (musl, alpine)")
+    try:
+        assert _decides(_make(server, "t110_cp", clause)) is True
+    finally:
+        _drop(server, "t110_cp")
+
+
+class _Counting:
+    """A connection that counts what is asked of it (a-chk's LOW 2: one lookup a pick, on every database)."""
+
+    def __init__(self, conn):
+        self._conn, self.asked = conn, 0
+
+    def execute(self, *a, **kw):
+        self.asked += 1
+        return self._conn.execute(*a, **kw)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+def test_a_pick_with_no_sort_asks_nothing_and_a_connection_is_asked_once():
+    import psycopg
+    from picks import probes
+    dsn = LOCALE or PARITY
+    if not dsn:
+        pytest.skip("set AUTOSQL_LOCALE_DSN or AUTOSQL_PARITY_DSN")
+    with psycopg.connect(dsn) as raw:
+        cx = _Counting(raw)
+        assert probes.check_sort(cx, {"source": "noun:Heartbeat", "sort": None}, ["ts"]) is None
+        assert cx.asked == 0, "no sort: nothing asked"
+        first = probes.nested_text_in_code_points(cx)
+        asked = cx.asked
+        assert probes.nested_text_in_code_points(cx) is first and cx.asked == asked, "the same connection: asked once"
+
+
+def test_a_second_connection_to_the_same_database_reads_the_cache():
+    import psycopg
+    from picks import probes
+    dsn = LOCALE or PARITY
+    if not dsn:
+        pytest.skip("set AUTOSQL_LOCALE_DSN or AUTOSQL_PARITY_DSN")
+    with psycopg.connect(dsn) as one:
+        first = probes.nested_text_in_code_points(one)
+    ran = probes.ORDER_CHECKS_RUN
+    with psycopg.connect(dsn) as two:
+        assert probes.nested_text_in_code_points(two) is first
+    assert probes.ORDER_CHECKS_RUN == ran, "the same database, another connection: read from the cache"

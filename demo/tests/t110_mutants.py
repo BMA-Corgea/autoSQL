@@ -42,11 +42,26 @@ T110_MUTANTS = [
                  '"body": _LAYER_2_BODY,')],
          selector=_P + "test_a_sort_by_the_payload_is_refused_in_words_on_a_locale_database[en_US]",
          expect="The expression was inside the subset"),
-    dict(id="N5", defect="the order check asked again on every question, never read from its cache",
-         edits=[(_PR, "            if key[3] == started:\n                return hit\n",
-                 "            if False:\n                return hit\n")],
-         selector=_N + "test_the_order_check_runs_once_per_database[alpine-C]",
-         expect="the second ask reads the cache"),
+    dict(id="N5", defect="the order check asked again by every connection, never read from its cache",
+         edits=[(_PR, "        hit = _ORDER_CACHE.get(key)\n", "        hit = None\n")],
+         selector=_P + "test_a_second_connection_to_the_same_database_reads_the_cache",
+         expect="read from the cache"),
+    # T-110's round
+    dict(id="N6", defect="the battery cut to the B/a pair: one ICU tailoring rule passes for code points (MEDIUM 1)",
+         edits=[(_PR, "[list(p) for p in zip(*_CODE_POINT_PAIRS)]", "[list(p) for p in zip(*_CODE_POINT_PAIRS[:1])]")],
+         selector=_P + "test_one_custom_icu_rule_does_not_pass_for_code_points", expect="assert True is False"),
+    dict(id="N7", defect="the cache key without the database's OID and collation: a recreated database is stale (MEDIUM 2)",
+         edits=[(_PR, 'facts.get("oid"), facts.get("datlocprovider"),\n               facts.get("datcollate"), '
+                      'facts.get("daticulocale", facts.get("datlocale")), facts.get("daticurules"))', ")")],
+         selector=_P + "test_a_database_recreated_with_another_collation_is_checked_again", expect="assert True is False"),
+    dict(id="N8", defect="every libc database trusted by name: glibc's en_US read as code points",
+         edits=[(_PR, 'facts.get("datcollate") in ("C", "POSIX"):', 'True:')],
+         selector=_N + "test_text_nested_in_a_sorted_value_is_refused_on_a_locale_database[en_US-$.arr]",
+         expect="DID NOT RAISE"),
+    dict(id="N9", defect="every pick asks again on the same connection, and a pick with no sort asks too (LOW 2)",
+         edits=[(_PR, "    hit = _ORDER_SEEN.get(conn)\n", "    hit = None\n")],
+         selector=_P + "test_a_pick_with_no_sort_asks_nothing_and_a_connection_is_asked_once",
+         expect="the same connection: asked once"),
 ]
 
 

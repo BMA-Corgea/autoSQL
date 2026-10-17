@@ -73,6 +73,7 @@ is dead code to be deleted).
 from __future__ import annotations
 
 import re
+import weakref
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -501,10 +502,29 @@ def _cause(member: str, row_key: Optional[str]) -> str:
 #: How many order checks and sort probes have run (the tests read them: once per database; none on C).
 ORDER_CHECKS_RUN = 0
 SORT_PROBES_RUN = 0
-#: The order check's answer, cached by (host, port, database, pg_postmaster_start_time()), as zones caches D.
+#: The order check's answer, cached by the server (host, port, pg_postmaster_start_time()) and the database itself
+#: (name, OID and its collation facts: a database dropped and recreated with another collation is asked again; a-chk,
+#: T-110's round), as zones caches D; and remembered per connection, so a pick asks nothing twice.
 _ORDER_CACHE: Dict[tuple, bool] = {}
-_ORDER_CHECK_SQL = ("SELECT '[\"B\"]'::jsonb < '[\"a\"]'::jsonb AND '{\"B\": 1}'::jsonb < '{\"a\": 1}'::jsonb, "
-                    "pg_postmaster_start_time()::text")
+_ORDER_SEEN: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
+_DATABASE_FACTS_SQL = ("SELECT to_jsonb(d), pg_postmaster_start_time()::text FROM pg_database d "
+                       "WHERE d.datname = current_database()")
+#: The battery a database must pass before nested text is read as code points (a-chk, T-110's round: one tailoring
+#: rule passed the B/a pair alone): each (x, y) is x < y in code points, as list elements and, at equal UTF-8 lengths
+#: so no length rule decides them, as object keys -- case, an accent, a decomposed letter, digits as text,
+#: punctuation, a space, CJK against astral.
+_CODE_POINT_PAIRS = (
+    ("B", "a", "B", "a"),
+    ("f", "\u00e9", "ez", "\u00e9"),
+    ("ea", "e\u0301", "eaa", "e\u0301"),
+    ("10", "9", "10", "9a"),
+    ("-b", "a", "-b", "ab"),
+    (" b", "a", " b", "ab"),
+    ("\u4e2d", "\U0001F600", "\u4e2da", "\U0001F600"),
+)
+_BATTERY_SQL = ("SELECT bool_and(to_jsonb(ARRAY[x]) < to_jsonb(ARRAY[y]) "
+                "AND jsonb_build_object(kx, 1) < jsonb_build_object(ky, 1)) "
+                "FROM unnest(%s::text[], %s::text[], %s::text[], %s::text[]) AS t(x, y, kx, ky)")
 
 
 class SortRefusal(RuntimeRefusal):
@@ -521,21 +541,28 @@ class SortRefusal(RuntimeRefusal):
 
 def nested_text_in_code_points(conn) -> bool:
     """T-110 (a-chk's proposal): does this database compare text INSIDE a jsonb value in code points, as the second
-    engine does? A behaviour, not a collation's name: true on C and POSIX, false wherever the collation reaches into
-    containers (glibc, ICU). Asked once per database."""
+    engine does? Trusted by name only for a libc C or POSIX database; anything else must pass the whole battery
+    (glibc's C.UTF-8 and musl's locales do; glibc's en_US, ICU, and ICU with one tailoring rule don't). Asked once
+    per database (its OID and collation in the key), and once per connection."""
     global ORDER_CHECKS_RUN
+    hit = _ORDER_SEEN.get(conn)
+    if hit is not None:
+        return hit
     info = conn.info
-    started = None
-    for key, hit in _ORDER_CACHE.items():
-        if key[:3] == (info.host, info.port, info.dbname):
-            started = started or conn.execute("SELECT pg_postmaster_start_time()::text").fetchone()[0]
-            if key[3] == started:
-                return hit
     with conn.transaction():
-        same, started = conn.execute(_ORDER_CHECK_SQL).fetchone()
-    ORDER_CHECKS_RUN += 1
-    _ORDER_CACHE[(info.host, info.port, info.dbname, started)] = bool(same)
-    return bool(same)
+        facts, started = conn.execute(_DATABASE_FACTS_SQL).fetchone()
+        key = (info.host, info.port, started, facts.get("datname"), facts.get("oid"), facts.get("datlocprovider"),
+               facts.get("datcollate"), facts.get("daticulocale", facts.get("datlocale")), facts.get("daticurules"))
+        hit = _ORDER_CACHE.get(key)
+        if hit is None:
+            if facts.get("datlocprovider") == "c" and facts.get("datcollate") in ("C", "POSIX"):
+                hit = True
+            else:
+                hit = bool(conn.execute(_BATTERY_SQL, [list(p) for p in zip(*_CODE_POINT_PAIRS)]).fetchone()[0])
+            ORDER_CHECKS_RUN += 1
+            _ORDER_CACHE[key] = hit
+    _ORDER_SEEN[conn] = hit
+    return hit
 
 
 def check_sort(conn, pick: dict, collection_keys, *, records=None, ctx: Optional[dict] = None):
@@ -544,6 +571,8 @@ def check_sort(conn, pick: dict, collection_keys, *, records=None, ctx: Optional
     statement runs, where its two engines could order the rows two ways. On C nothing is asked. Returns the
     outcome when the probe ran and did not fire, else None."""
     global SORT_PROBES_RUN
+    if not ((pick.get("sort") or {}).get("field")):
+        return None                       # nothing sorted: nothing to ask (a-chk's LOW 2)
     if nested_text_in_code_points(conn):
         return None
     from .builder import sort_probe  # the statement's own pieces (scope, filter, sort value)
