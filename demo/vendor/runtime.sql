@@ -611,6 +611,24 @@ END
 $$;
 
 -- ----------------------------------------------------------------------------
+-- series_time_refused : the refusal of a series row whose time is not one this reads (T-109).
+--   A summary per hour, day, week or month buckets every row of the data set by its own time, which
+--   is stored in one fixed form (YYYY-MM-DDTHH:MM:SSZ). The statement's bucket label is
+--   CASE WHEN <the time is in that form and Postgres reads it> THEN <the label> ELSE this END, so a
+--   row outside it (or with no time at all) is never left out of the number in silence, by a host
+--   with no second engine either: this RAISES the named refusal XPR06, and its DETAIL is the row's
+--   key and stored value as JSON ({"key": …, "value": … or null}) for the host to say in words.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.series_time_refused(key text, value text) RETURNS text
+LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
+BEGIN
+  RAISE EXCEPTION USING ERRCODE = 'XPR06',
+    MESSAGE = format('row %s: its series time is not one this reads, so it can''t be put in a bucket', key),
+    DETAIL = json_build_object('key', key, 'value', value)::text;
+END
+$$;
+
+-- ----------------------------------------------------------------------------
 -- fmt_date_ms : implements _format_date_ms (expr.py:434-445), including the
 --   out-of-range -> NULL totality rule and 4-digit year zero-padding.
 --   Python bounds: datetime.min .. datetime.max, i.e. year 1 .. 9999 UTC.

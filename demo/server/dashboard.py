@@ -624,6 +624,8 @@ def agreed_rows(conn, pick: dict) -> int | None:
 ENGINE_REFUSAL_SQLSTATE = "XPR01"
 #: T-98/T-101: a clock reading refused by name (runtime xpr.clock).
 ZONE_REFUSAL_SQLSTATE = "XPR05"
+#: T-109: a series row whose time the statement can't read, refused by name (runtime xpr.series_time_refused).
+SERIES_TIME_SQLSTATE = "XPR06"
 
 #: The headline of every refusal where the statement answered and the second
 #: engine could not finish (scoreboard.py writes the same words).
@@ -712,7 +714,21 @@ def _run(conn, pick: dict) -> dict:
             "refusal": {"kind": "answer-unchecked",
                         "headline": SECOND_ENGINE_HEADLINE, "why": str(exc)},
         }
-    except Exception as exc:  # noqa: BLE001 — one SQLSTATE, re-raised otherwise
+    except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
+        if getattr(exc, "sqlstate", None) == SERIES_TIME_SQLSTATE:
+            # T-109: the statement refused a row whose time it can't read, by itself (so would a host
+            # with no second engine); the page names the row.  Nothing is cached.
+            try:
+                row = json.loads(exc.diag.message_detail or "{}")
+            except ValueError:
+                row = {}
+            return {
+                "accepted": False, "verdict": "no-compare", "comparison": {},
+                "sql": _statement_for_admin(conn, pick, server_app),
+                "refusal": {"kind": "series-time", "headline": "Refused while running",
+                            "why": f"{exc.sqlstate}: {str(exc).splitlines()[0]}",
+                            "key": row.get("key"), "value": row.get("value")},
+            }
         if getattr(exc, "sqlstate", None) != ENGINE_REFUSAL_SQLSTATE:
             raise
         # The runtime's own named refusal (a number past the largest double,
@@ -754,6 +770,17 @@ _PLAIN_REFUSAL = (
     ("too big to check", "This filter is too big to check. Take out a group."),
 )
 _PLAIN_REFUSAL_DEFAULT = "These choices can't be answered together. Try changing one."
+
+
+def series_time_words(ds: dict, view: dict, refusal: dict) -> str:
+    """T-109: the row whose time can't be read, named, and what it stops."""
+    one = ds["one"][:1].upper() + ds["one"][1:]
+    summary = view.get("summary") or {}
+    verb = "counted" if summary.get("fn", "count") == "count" else "worked out"
+    per = summary.get("per") or "day"
+    value = refusal.get("value")
+    has = "has no time" if value is None else f"has a time this can't read (\u201c{value}\u201d)"
+    return f"{one} {refusal.get('key')} {has}, so these can't be {verb} per {per}."
 
 
 def plain_refusal(refusal: dict | None) -> str:
@@ -859,6 +886,9 @@ def answer(conn, setup_payload: dict, view: dict, page: int = 0, admin: bool = T
             _note(f"The second engine could not compute this answer ({refusal.get('why')}), "
                   "so it couldn't be double-checked and nothing is shown.")
             message = ANSWER_UNCHECKED
+        elif refusal.get("kind") == "series-time":
+            _note(f"The statement refused a row whose time it can't read ({refusal.get('why')}).")
+            message = series_time_words(ds, view, refusal)
         else:
             message = plain_refusal(refusal)
         return {
@@ -939,8 +969,11 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | 
     date as its own midnight, no Z.  An edge the clock can't show (it leaves
     years 1..9999 there) is no edge: ``None``, and the axis ends at the answer's
     own first or last bucket instead (T-104; it used to be 0001-01-01, an axis
-    from year 1)."""
-    r = fields[time]["range"]
+    from year 1).  A field with no range (T-109: a series time outside the one form makes it text) has no
+    edge at either end."""
+    r = fields[time].get("range")
+    if not r:
+        return None, None
     if zone is None:
         as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
         return as_time(r["min"]), as_time(r["max"])
