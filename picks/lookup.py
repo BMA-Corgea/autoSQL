@@ -91,12 +91,16 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
     records = env.records(records)
     check(pick, lk, records)
     p = builder._Pieces(pick, collection_keys, None, records)
+    order = p.order_by(pick, qualify="r.")   # first: a sorted computed column is computed in it (T-106 round)
     select = ["r.collection", "r.key", "r.data"]
     columns = ["collection", "key", "data"]
     for name in p.cc_order:
-        sql, prm = builder.namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
-        builder.merge_params(p.params, prm)
-        select.append(f"{sql}  AS {p.cc_quoted[name]}")
+        if name == p.sort_cc:
+            select.append(f"srt.v  AS {p.cc_quoted[name]}")
+        else:
+            sql, prm = builder.namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
+            builder.merge_params(p.params, prm)
+            select.append(f"{sql}  AS {p.cc_quoted[name]}")
         columns.append(name)
     for i, c in enumerate(lk["columns"]):
         # One alias vocabulary for the whole SELECT list: the table's own
@@ -113,12 +117,12 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
     on = group._match_on(lk, p.params, "m.data", "r.data")
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        f"  FROM {records.table} AS r\n"
+        f"  FROM {records.table} AS r" + p.sort_lateral + "\n"
         f"  LEFT JOIN {records.table} AS m\n"
         "    ON " + records.scope("m", p.params, collection_param="mt_source") + "\n"
         f"   AND {on}\n"
         + p.where_clause() + "\n"
-        + p.order_by(pick, qualify="r.") + ', m.key COLLATE "C", m.key ASC'   # T-106: code points
+        + order + ', m.key COLLATE "C", m.key ASC'   # T-106: code points
         + p.limit(pick) + ";"
     )
     builder._bind_ctx_values(sql, p.params, p.ctx_value)

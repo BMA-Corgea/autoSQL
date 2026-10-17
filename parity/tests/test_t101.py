@@ -58,6 +58,17 @@ def world():
     conn.close()
 
 
+def _needs_d(conn, *names):
+    """These tests read THIS machine's zone-data pair (Postgres's against Python's). On a pair that agrees on a zone
+    (a Debian image's tzdata, or alpine once it ships Python's) there is no disagreement window to test: skip, saying
+    so, rather than fail (a-chk's LOW 3 on T-106)."""
+    from picks import zones
+    for z in names:
+        if not zones.disagreements(conn, z):
+            pytest.skip(f"{z} has no disagreement window on this database (its zone data agrees with Python's): "
+                        "nothing to test here")
+
+
 def _pick(flt, **kw):
     p = {"source": "noun:Heartbeat", "computed": [], "filter": flt, "sort": None, "cap": None,
          "window": None, "changed": False, "bucket": "off"}
@@ -120,6 +131,7 @@ def test_amsterdam_and_edmonton_answer_a_question_about_august_equal_to_hand_wri
     """Both zones have a D on this machine (Amsterdam before 1937, Edmonton from Nov 2026) and were
     refused outright before T-101. On the demo's August Heartbeats both are answered, the clock read
     through the check, both engines equal to hand-written SQL."""
+    _needs_d(world[0], AMS, EDM)
     from picks import zones
     conn = world[0]
     for zone, where in ((AMS, AMS_FROM_5), (EDM, EDM_FROM_5)):
@@ -133,6 +145,7 @@ def test_amsterdam_and_edmonton_answer_a_question_about_august_equal_to_hand_wri
 @needs_db
 def test_a_row_where_the_clocks_disagree_is_refused_naming_its_date(world):
     """A Heartbeat on 1916-04-30 read on Amsterdam's clock with no other condition: refused, by name."""
+    _needs_d(world[0], AMS)
     from picks import zones
     _with_row(world, "t101-1916", "1916-04-30T12:00:00Z")
     try:
@@ -147,6 +160,7 @@ def test_a_row_where_the_clocks_disagree_is_refused_naming_its_date(world):
 
 @needs_db
 def test_edmonton_refuses_a_row_from_november_with_its_date(world):
+    _needs_d(world[0], EDM)
     _with_row(world, "t101-nov", "2026-11-02T12:00:00Z")
     try:
         out = _ask(world, _pick(f'time_of_day($.ts, "{EDM}") >= 61200'))
@@ -159,6 +173,7 @@ def test_edmonton_refuses_a_row_from_november_with_its_date(world):
 def test_a_summary_per_day_reads_its_buckets_through_the_check_too(world):
     """T-100's zoned buckets: Amsterdam's days of August are answered (equal to hand-written SQL);
     with the 1916 row in the data set the cut is refused, never made two ways."""
+    _needs_d(world[0], AMS)
     out = _ask(world, _pick(None, bucket="day", bucket_field="ts", bucket_zone=AMS, aggregate={"fn": "count", "field": None}))
     assert out[0] == "rows", out
     sql = [(r[0], int(r[1])) for r in out[1]]
@@ -181,6 +196,7 @@ def test_a_disagreeing_row_another_condition_drops_is_never_a_wrong_number(world
     """Whether the 1916 row's clock is read depends on the plan (the other condition may drop it
     first). Under each forced plan the answer is the hand-written one or a refusal in words; never a
     third, wrong number."""
+    _needs_d(world[0], AMS)
     conn = world[0]
     _with_row(world, "t101-1916", "1916-04-30T12:00:00Z", status="late")
     conn.execute(f"CREATE INDEX IF NOT EXISTS t101_status ON {TABLE} ((data->>'status'))")
@@ -201,6 +217,7 @@ def test_a_disagreeing_row_another_condition_drops_is_never_a_wrong_number(world
 @needs_db
 def test_a_second_question_reads_D_from_the_cache(world):
     """The full comparison runs once per zone and database; the next question only re-checks."""
+    _needs_d(world[0], AMS)
     from picks import zones
     conn = world[0]
     zones._GAP_CACHE.clear()
@@ -247,13 +264,15 @@ def test_a_server_whose_zone_data_changed_without_a_restart_is_seen_by_the_next_
 def test_every_zone_this_machine_greyed_before_is_selectable_now(world):
     """The list (built-in SQL, 30-day noons): 109 zones had a mark under T-98, every one of them
     greyed; now a zone is greyed only when the database doesn't know it, and none is unknown here."""
+    _needs_d(world[0], AMS, EDM)
     from picks import env, zones
     conn = world[0]
     names = env.time_zones()
     marks = zones.marks(conn, names, cache=False)
     greyed = [z for z, (why, _note) in marks.items() if why]
+    known = {r[0] for r in conn.execute("SELECT name FROM pg_timezone_names").fetchall()}
     noted = {z: note for z, (_why, note) in marks.items() if note}
-    assert greyed == []
+    assert greyed == sorted(set(names) - known)       # greyed exactly when this database doesn't know the zone
     assert len(noted) >= 100, len(noted)
     assert noted[AMS] == "Times before 1970 can't be read on this clock."
     assert noted[EDM] == "Times from November 2026 on can't be read on this clock."
@@ -285,6 +304,7 @@ def test_a_row_outside_D_costs_no_call_of_ours(world):
     a per-day summary on Amsterdam's clock over August calls nothing of ours; a time-of-day filter
     makes exactly the calls the same filter makes on a clock with no D (time_of_day and the date parse
     inside it, once a row) and never the refusal."""
+    _needs_d(world[0], AMS)
     from picks import builder, env, zones
     conn, records, keys = world
     conn.execute("SAVEPOINT calls")

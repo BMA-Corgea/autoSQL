@@ -48,6 +48,11 @@ THINGS = {
     "T-b": {"name": "tie", "who": "s5", "ts": _TS, "n": 13, "arr": ["B"]},
     "u-a": {"who": "s6", "ts": _TS, "n": 14},     # two identical records at one time: "changed" keeps the first
     "U-b": {"who": "s6", "ts": _TS, "n": 14},
+    # times that differ only in case (a-chk's LOW 1): code points put "T" before "t", en_US the other way round
+    "v1": {"who": "s7", "ts": "2026-01-05t00:00:00z", "n": 100},
+    "v2": {"who": "s7", "ts": "2026-01-05T00:00:00Z", "n": 1},
+    "v3": {"who": "s8", "ts": "2026-01-05t00:00:00z", "n": 15},
+    "v4": {"who": "s8", "ts": "2026-01-05T00:00:00Z", "n": 15},
 }
 for _d in THINGS.values():                       # the series' member under both spellings the builder knows
     _d["sender_id"] = _d["who"]
@@ -56,7 +61,7 @@ PEERS = {"m-a": {"peer": "p", "tag": "A"}, "M-b": {"peer": "p", "tag": "B"}}
 #: By hand: jsonb's type order (Null < String < Number), strings in code points (B < X < _ < a < b < e < É),
 #: ties by key in code points (a2 < k-a, T-b < t-a), absent values last (keys in code points: Big2 < U-b < abs < ...).
 NAME_ASC = ["nul", "K-b", "Z1", "_k", "a2", "k-a", "k-c", "e1", "T-b", "t-a", "e2", "num",
-            "Big2", "U-b", "abs", "big1", "u-a"]
+            "Big2", "U-b", "abs", "big1", "u-a", "v1", "v2", "v3", "v4"]
 
 
 def _cp(xs):
@@ -155,6 +160,7 @@ def test_the_series_window_orders_ties_by_key_code_points(world):
     got = {r["key"]: Decimal(str(r["rolling_avg"])) for r in sql}
     assert got == {r["key"]: Decimal(str(r["rolling_avg"])) for r in py}
     assert got["K-b"] == Decimal(10) and got["k-a"] == Decimal("5.5")   # K-b first, then k-a (code points)
+    assert got["v2"] == Decimal(1) and got["v1"] == Decimal("50.5")    # "...T...Z" before "...t...z" (code points)
 
 
 def test_a_lookups_matches_are_in_key_code_points(world):
@@ -198,7 +204,7 @@ def test_a_board_by_count_breaks_ties_by_group_code_points(world):
     sql, py = _board(world, {"column": "rows", "dir": "desc"})
     assert sql == py
     # the blank group (JSON null and absent: 4 rows) leads, then "a" (2); the ones break ties in §7.4's order
-    assert sql[:3] == [(None, 6), ("a", 2), ("tie", 2)] and [g for g, n in sql if n == 1 and isinstance(g, str)][:3] == ["B", "X", "_x"]
+    assert sql[:3] == [(None, 10), ("a", 2), ("tie", 2)] and [g for g, n in sql if n == 1 and isinstance(g, str)][:3] == ["B", "X", "_x"]
     assert sql[-1] == (5, 1)                    # a number after every string (the tie-break that crashed Python)
 
 
@@ -242,6 +248,7 @@ def test_the_changed_flag_reads_ties_in_key_code_points(world, member):
     py = [r["key"] for r in pyshape.answer(read_rows(conn, T, records), pick, records)["rows"]]
     assert sql == py
     assert "U-b" in sql and "u-a" not in sql      # U-b comes first in code points, so it is the one kept
+    assert "v4" in sql and "v3" not in sql        # and the time "...T...Z" comes before "...t...z"
 
 
 def test_a_string_nested_in_an_array_is_the_recorded_limit(world):

@@ -483,6 +483,8 @@ class _Pieces:
         # Op 2 — parse+gate+compile each computed column ONCE; validate and
         # quote each alias against the vocabulary that existed before it.
         self.cc_order: list[str] = []       # names, entry order
+        self.sort_lateral = ""              # T-106 round: the sorted computed column, computed once (order_by)
+        self.sort_cc = None
         self.cc_frag: dict[str, Compiled] = {}
         self.cc_quoted: dict[str, str] = {}  # name -> emit_alias() output
         for i, cc in enumerate(pick.get("computed") or []):
@@ -576,12 +578,16 @@ class _Pieces:
         direction = _DIRECTION_SQL[sort["dir"]]  # closed set; refused upstream
         field = sort["field"]
         if field in self.cc_order:
-            # §4.4 row 6: over the CTE the alias names a column; in a single-level statement an
-            # alias can't stand inside an expression, so the column's own SQL is ordered (T-106)
+            # §4.4 row 6: over the CTE the alias names a column. In a single-level statement an alias
+            # can't stand inside an expression, so the column is computed ONCE, in a LATERAL that the
+            # SELECT list reads too (T-106 round: repeating its SQL in the sort cost 2.8-3.9x). OFFSET 0
+            # keeps Postgres from pulling it up and pasting the expression back into every place.
             if q:
-                sql, prm = namespace(self.cc_frag[field], f"cc{self.cc_index(field)}s")   # its own names (B11)
+                sql, prm = namespace(self.cc_frag[field], f"cc{self.cc_index(field)}")
                 merge_params(self.params, prm)
-                value = f"({sql})"
+                self.sort_cc = field
+                self.sort_lateral = f"\n  CROSS JOIN LATERAL (SELECT {sql} AS v OFFSET 0) AS srt"
+                value = "srt.v"
             else:
                 value = self.cc_quoted[field]
         else:
@@ -620,12 +626,16 @@ class _Pieces:
 def _shape_rows(p: _Pieces, pick: dict) -> Built:
     """Shape A — ROWS, no operation 9 (plan §4.2).  No CTE: a window
     function in the SELECT list needs no wrapping."""
+    order = p.order_by(pick, qualify="r.")   # first: a sorted computed column is computed in it (T-106 round)
     select = ["r.collection", "r.key", "r.data"]
     columns = ["collection", "key", "data"]
     for name in p.cc_order:
-        sql, prm = namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
-        merge_params(p.params, prm)
-        select.append(f"{sql}  AS {p.cc_quoted[name]}")
+        if name == p.sort_cc:
+            select.append(f"srt.v  AS {p.cc_quoted[name]}")
+        else:
+            sql, prm = namespace(p.cc_frag[name], f"cc{p.cc_index(name)}")
+            merge_params(p.params, prm)
+            select.append(f"{sql}  AS {p.cc_quoted[name]}")
         columns.append(name)
     if pick.get("window"):
         select.append(p.rolling_column(pick, named_window=False))
@@ -633,9 +643,9 @@ def _shape_rows(p: _Pieces, pick: dict) -> Built:
 
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        f"  FROM {p.records.table} AS r\n"
+        f"  FROM {p.records.table} AS r" + p.sort_lateral + "\n"
         + p.where_clause() + "\n"
-        + p.order_by(pick, qualify="r.")
+        + order
         + p.limit(pick) + ";"
     )
     return Built(sql, p.params, legality.ROWS, tuple(columns))
