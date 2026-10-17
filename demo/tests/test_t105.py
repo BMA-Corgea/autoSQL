@@ -74,10 +74,15 @@ def test_a_float8_overflow_met_by_a_probe_is_refused_in_its_own_words(client):
 
 
 class _Refused(Exception):
-    def __init__(self, sqlstate, message):
+    def __init__(self, sqlstate, message, detail=None):
         super().__init__(message)
         self.sqlstate = sqlstate
+        self.diag = type("Diag", (), {"message_detail": detail})()
 
+
+#: T-109: a series row whose time the statement can't read (xpr.series_time_refused), its key and value in DETAIL
+_SERIES_MSG = "row hb-zz-t109: its series time is not one this reads, so it can't be put in a bucket"
+_SERIES_DETAIL = '{"key" : "hb-zz-t109", "value" : "2026-08-20t10:00:00z"}'
 
 _ZONE_MSG = ("time zone America/Edmonton: this database's clock differs from the evaluator's on 2026-11-02, "
              "a time this question reads")
@@ -87,20 +92,24 @@ _ZONE_MSG = ("time zone America/Edmonton: this database's clock differs from the
     ("XPR01", "xpr.f8 refusal: JSON number magnitude exceeds float8 range (DBL_MAX)", "number out of range"),
     ("XPR05", _ZONE_MSG, "time zone"),
     ("22003", "value out of range: overflow", "float8 overflow"),
+    ("XPR06", _SERIES_MSG, "series time"),
     ("XX000", "some other failure of the database", None),
 ])
 def test_each_refusal_the_statement_meets_is_told_in_its_own_words(client, monkeypatch, sqlstate, message, construct):
     """a-chk's MEDIUM (MQ1 survived): only XPR01 gets the out-of-range number's words; the zone refusal gets the
     dashboard's sentence; the float8 overflow keeps its own; any other database error is not reworded (it is
-    still the error it is). The statement is made to raise each in turn on a pick the probes pass."""
+    still the error it is). The statement is made to raise each in turn on a pick the probes pass. T-109's round
+    (a-chk's MEDIUM): a series time the statement can't read (XPR06) gets the dashboard's sentence too."""
     from demo.server import app as server_app
     from picks import zones
 
     def refuse(conn, built):
-        raise _Refused(sqlstate, message)
+        raise _Refused(sqlstate, message, _SERIES_DETAIL if sqlstate == "XPR06" else None)
     monkeypatch.setattr(server_app, "sql_pane", refuse)
     pick = {"source": "noun:Heartbeat", "computed": [], "filter": '$.status == "ok"', "sort": None, "cap": None,
             "window": None, "changed": False, "bucket": "off", "aggregate": None}
+    if sqlstate == "XPR06":      # only a summary per hour, day, week or month buckets the series time
+        pick.update(bucket="day", aggregate={"fn": "count", "field": None})
     r = client.post("/api/pick", json={"pick": pick})
     if construct is None:
         assert r.status_code == 500
@@ -112,3 +121,6 @@ def test_each_refusal_the_statement_meets_is_told_in_its_own_words(client, monke
         assert rf["body"] == zones.refusal_words(_ZONE_MSG) == (
             "Edmonton time can't read these times: this computer and its database disagree about Edmonton's "
             "clocks on Nov 2, 2026, and this question reads a time from then.")
+    if sqlstate == "XPR06":
+        assert rf["body"] == ("Heartbeat hb-zz-t109 has a time this can't read (\u201c2026-08-20t10:00:00z\u201d), "
+                              "so these can't be counted per day.")

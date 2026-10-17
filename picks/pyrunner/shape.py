@@ -239,14 +239,19 @@ def _bucket(
             # date_trunc(NULL) would be a silent NULL bucket; B4 restricts
             # bucketing to noun:Heartbeat, where ts is on every row — loud.
             raise ValueError(f"row {r.key!r} has no ts to bucket")
+        try:
+            label = ev.bucket_label(ts, granularity)       # the one fixed form, exactly: loud
+        except ValueError:
+            # T-109's round: named, as the statement names it (XPR06)
+            raise ValueError(f"row {r.key!r} has a time this can't read: {ts!r}") from None
         if zone:
-            # T-100: the series' own time, on the zone's wall clock
-            ev.bucket_label(ts, granularity)               # the same fixed-width check, loud
+            # T-100: the series' own time, on the zone's wall clock; past the exact check above it is a time
+            # local_time reads, so its None is only a reading outside years 1..9999 (a-chk's HIGH 2)
             at = ev.local_time(ts, zone)
             if at is not None:                             # a reading outside years 1..9999: no bucket
                 groups.setdefault(ev.truncate_wall(at, granularity), []).append(r)
         else:
-            groups.setdefault(ev.bucket_label(ts, granularity), []).append(r)
+            groups.setdefault(label, []).append(r)
 
     # §7.1's time-bucket rule: bucketed results are ordered by the bucket —
     # text order over the fixed-width label IS time order.  Cap caps
