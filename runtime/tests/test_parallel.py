@@ -31,11 +31,17 @@ def test_no_function_opens_an_exception_block():
     assert "EXCEPTION WHEN" not in SQL
 
 
+#: T-109's round: the two raising refusals are VOLATILE (never folded at plan time on constant arguments); every
+#: other function stays IMMUTABLE or STABLE (a-chk: a VOLATILE pdate_ms passed this file, caught only by digests).
+RAISING_VOLATILE = {"clock_refused", "series_time_refused"}
+
+
 def test_every_function_is_labelled_parallel_safe():
-    # VOLATILE: the two raising refusals, never folded at plan time (T-109's round)
-    headers = re.findall(r"^LANGUAGE (?:sql|plpgsql) (?:IMMUTABLE|STABLE|VOLATILE)( PARALLEL SAFE)?", SQL, re.M)
+    headers = re.findall(r"^CREATE OR REPLACE FUNCTION xpr\.(\w+)\([\s\S]*?^"
+                         r"LANGUAGE (?:sql|plpgsql) (IMMUTABLE|STABLE|VOLATILE)( PARALLEL SAFE)?", SQL, re.M)
     assert len(headers) == SQL.count("CREATE OR REPLACE FUNCTION") >= 23
-    assert all(headers), "a function lost its PARALLEL SAFE label"
+    assert all(safe for _n, _v, safe in headers), "a function lost its PARALLEL SAFE label"
+    assert {n for n, v, _s in headers if v == "VOLATILE"} == RAISING_VOLATILE, "VOLATILE only for the raising refusals"
 
 
 @pytest.fixture(scope="module")
@@ -50,6 +56,14 @@ def test_every_installed_function_is_parallel_safe(conn):
     rows = conn.execute("select p.proname, p.proparallel from pg_proc p join pg_namespace n "
                         "on n.oid = p.pronamespace where n.nspname = 'xpr'").fetchall()
     assert len(rows) == SQL.count("CREATE OR REPLACE FUNCTION") and {r[1] for r in rows} == {"s"}, rows
+
+
+@needs_db
+def test_only_the_raising_refusals_are_installed_volatile(conn):
+    rows = conn.execute("select p.proname, p.provolatile from pg_proc p join pg_namespace n "
+                        "on n.oid = p.pronamespace where n.nspname = 'xpr'").fetchall()
+    assert {n for n, v in rows if v == "v"} == RAISING_VOLATILE, rows
+    assert {v for n, v in rows if n not in RAISING_VOLATILE} <= {"i", "s"}, rows
 
 
 @needs_db
