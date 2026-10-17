@@ -131,6 +131,8 @@ def _keys(rows):
 
 def test_the_database_collates_as_named(world):
     conn, _r, _k, collate = world
+    if conn.execute("SELECT datlocprovider FROM pg_database WHERE datname = current_database()").fetchone()[0] != "c":
+        pytest.skip("an ICU database: its order is its rules', not its name's (T-110's round)")
     order = conn.execute("SELECT array_agg(x ORDER BY x) FROM unnest(ARRAY['a', 'b', 'B']) x").fetchone()[0]
     assert order == (["B", "a", "b"] if collate in ("C", "POSIX") else ["a", "b", "B"]), (collate, order)
 
@@ -326,4 +328,6 @@ def test_a_string_nested_in_an_array_is_the_recorded_limit(world):
     pick = _pick(filter='$.name == "tie"', sort={"field": "$.arr", "dir": "asc"})
     sql, py = _both(world, pick)
     assert _keys(py) == ["T-b", "t-a"]                    # ["B"] < ["b"] in code points
-    assert _keys(sql) == (["T-b", "t-a"] if collate in ("C", "POSIX") else ["t-a", "T-b"])
+    # the statement's order is the database's own (asked, not read from its collation's name: T-110's round)
+    b_first = conn.execute("""SELECT '["B"]'::jsonb < '["b"]'::jsonb""").fetchone()[0]
+    assert _keys(sql) == (["T-b", "t-a"] if b_first else ["t-a", "T-b"])

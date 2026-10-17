@@ -177,9 +177,14 @@ def test_a_database_recreated_with_another_collation_is_checked_again():
 
 @pytest.mark.parametrize("which, clause", [("glibc C.UTF-8", "LOCALE 'C.UTF-8'"), ("musl en_US.utf8", "LOCALE 'en_US.utf8'")])
 def test_code_point_databases_pass_the_battery_and_stay_probe_free(which, clause):
+    import psycopg
     server = LOCALE if which.startswith("glibc") else PARITY
     if not server:
         pytest.skip("set AUTOSQL_LOCALE_DSN (glibc) / AUTOSQL_PARITY_DSN (musl, alpine)")
+    with psycopg.connect(server) as cx:
+        libc = "musl" if "musl" in cx.execute("SELECT version()").fetchone()[0] else "glibc"
+    if not which.startswith(libc):
+        pytest.skip(f"{which}: this server's C library is {libc}")
     try:
         assert _decides(_make(server, "t110_cp", clause)) is True
     finally:
