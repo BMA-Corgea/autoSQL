@@ -32,7 +32,8 @@ def test_no_function_opens_an_exception_block():
 
 
 def test_every_function_is_labelled_parallel_safe():
-    headers = re.findall(r"^LANGUAGE (?:sql|plpgsql) (?:IMMUTABLE|STABLE)( PARALLEL SAFE)?", SQL, re.M)
+    # VOLATILE: the two raising refusals, never folded at plan time (T-109's round)
+    headers = re.findall(r"^LANGUAGE (?:sql|plpgsql) (?:IMMUTABLE|STABLE|VOLATILE)( PARALLEL SAFE)?", SQL, re.M)
     assert len(headers) == SQL.count("CREATE OR REPLACE FUNCTION") >= 23
     assert all(headers), "a function lost its PARALLEL SAFE label"
 

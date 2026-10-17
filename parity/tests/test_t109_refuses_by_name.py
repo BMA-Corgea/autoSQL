@@ -180,6 +180,19 @@ def test_the_page_says_which_heartbeat_and_why(scratch, odd, form, zone):
 
 
 @needs_db
+@pytest.mark.parametrize("zone", ZONES)
+@pytest.mark.parametrize("form", ["em-spaces", "lowercase"])
+def test_the_two_pane_screen_says_which_heartbeat_and_why(scratch, odd, form, zone):
+    # a-chk's round MEDIUM (T-105's class): /api/pick answered 500 on XPR06; it is said in the dashboard's sentence
+    odd(ODD[form])
+    r = scratch["client"].post("/api/pick", json={"pick": _pick("day", zone)})
+    assert r.status_code == 422, (r.status_code, r.text[:200])
+    rf = r.json()["refusal"]
+    assert (rf["layer"], rf["construct"], rf["statement_sent"]) == (2, "series time", True) and "XPR06" in rf["why"]
+    assert rf["body"] == f"Heartbeat {KEY} has a time this can't read (\u201c{ODD[form]}\u201d), so these can't be counted per day."
+
+
+@needs_db
 def test_a_capped_denver_hour_with_a_lowercase_time_refuses(scratch, odd):
     # a-chk's HIGH 2: show 100 of 168 hours on Denver, one Heartbeat 2026-08-14t00:00:00z in the first hour
     # (Aug 13 18:00 there): by hand that hour holds 51, or a refusal under B4; T-109 drew 50, both engines agreeing

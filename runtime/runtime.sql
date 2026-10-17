@@ -599,10 +599,10 @@ $$;
 --   database; the compiler writes D into the statement as one sorted list of bounds, tested
 --   with the built-in width_bucket (no call of ours for a row outside D), and only a row
 --   inside D reaches this: it RAISES the named refusal XPR05 with the zone and t's date, so
---   no row is ever read two ways.
+--   no row is ever read two ways. VOLATILE (T-109's round): never folded at plan time on constant arguments.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.clock_refused(t timestamptz, zone text) RETURNS timestamp
-LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
+LANGUAGE plpgsql VOLATILE PARALLEL SAFE AS $$
 BEGIN
   RAISE EXCEPTION USING ERRCODE = 'XPR05',
     MESSAGE = format('time zone %s: this database''s clock differs from the evaluator''s on %s, a time this question reads',
@@ -618,9 +618,11 @@ $$;
 --   row outside it (or with no time at all) is never left out of the number in silence, by a host
 --   with no second engine either: this RAISES the named refusal XPR06, and its DETAIL is the row's
 --   key and stored value as JSON ({"key": …, "value": … or null}) for the host to say in words.
+--   VOLATILE, as xpr.clock_refused is: Postgres folds an IMMUTABLE call with constant arguments while it
+--   plans, which would raise although no row reaches the ELSE (a-chk, T-109's round). Still PARALLEL SAFE.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.series_time_refused(key text, value text) RETURNS text
-LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE AS $$
+LANGUAGE plpgsql VOLATILE PARALLEL SAFE AS $$
 BEGIN
   RAISE EXCEPTION USING ERRCODE = 'XPR06',
     MESSAGE = format('row %s: its series time is not one this reads, so it can''t be put in a bucket', key),

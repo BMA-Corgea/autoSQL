@@ -23,6 +23,9 @@ _B = "../picks/builder.py"
 _E = "../picks/pyrunner/evaluate.py"
 _S = "../picks/pyrunner/shape.py"
 _D = "../demo/server/dashboard.py"
+_A = "../demo/server/app.py"
+_RT = "../runtime/runtime.sql"
+_F = "../runtime/tests/test_refusals_never_fold.py::test_a_constant_argument_case_never_raises_when_the_else_is_not_reached"
 
 T109_MUTANTS = [
     dict(id="G3", defect="the label's refusal gone: an unreadable time is a NULL bucket again (8,401, nothing said)",
@@ -53,6 +56,20 @@ T109_MUTANTS = [
          edits=[(_D, "    if not r:\n        return None, None\n    if zone is None:", "    if zone is None:")],
          selector=_R + "test_a_field_with_no_range_is_no_edge[None]",
          expect="TypeError"),
+    dict(id="G9", defect="the two-pane screen doesn't word XPR06 from the statement: /api/pick answers 500 again",
+         edits=[(_A, "        if refusals_in_words and state == _SERIES_TIME_SQLSTATE:\n"
+                     "            # T-109's round: the statement met a series time it can't read, and refused it by name\n"
+                     "            return _series_time_refusal(conn, pick, exc, **refused)\n", "")],
+         selector=_R + "test_the_two_pane_screen_says_which_heartbeat_and_why[lowercase-None]",
+         expect="(500, 'Internal Server Error')"),
+    dict(id="G10", defect="xpr.series_time_refused IMMUTABLE again: a constant-argument CASE raises at plan time",
+         edits=[(_RT, "xpr.series_time_refused(key text, value text) RETURNS text\nLANGUAGE plpgsql VOLATILE",
+                 "xpr.series_time_refused(key text, value text) RETURNS text\nLANGUAGE plpgsql IMMUTABLE")],
+         selector=_F + "[series_time_refused]", expect="its series time is not one this reads"),
+    dict(id="G11", defect="xpr.clock_refused IMMUTABLE again: a constant-argument CASE raises at plan time",
+         edits=[(_RT, "xpr.clock_refused(t timestamptz, zone text) RETURNS timestamp\nLANGUAGE plpgsql VOLATILE",
+                 "xpr.clock_refused(t timestamptz, zone text) RETURNS timestamp\nLANGUAGE plpgsql IMMUTABLE")],
+         selector=_F + "[clock_refused]", expect="this database's clock differs from the evaluator's"),
 ]
 
 

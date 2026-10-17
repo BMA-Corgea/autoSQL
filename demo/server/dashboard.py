@@ -773,14 +773,11 @@ _PLAIN_REFUSAL_DEFAULT = "These choices can't be answered together. Try changing
 
 
 def series_time_words(ds: dict, view: dict, refusal: dict) -> str:
-    """T-109: the row whose time can't be read, named, and what it stops."""
-    one = ds["one"][:1].upper() + ds["one"][1:]
+    """T-109: the row whose time can't be read, named, and what it stops (the two-pane screen's words too)."""
+    from . import errors
     summary = view.get("summary") or {}
-    verb = "counted" if summary.get("fn", "count") == "count" else "worked out"
-    per = summary.get("per") or "day"
-    value = refusal.get("value")
-    has = "has no time" if value is None else f"has a time this can't read (\u201c{value}\u201d)"
-    return f"{one} {refusal.get('key')} {has}, so these can't be {verb} per {per}."
+    return errors.series_time_words(ds["one"], refusal.get("key"), refusal.get("value"),
+                                    summary.get("fn"), summary.get("per"))
 
 
 def plain_refusal(refusal: dict | None) -> str:
