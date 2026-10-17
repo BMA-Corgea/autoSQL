@@ -199,7 +199,7 @@ function Box({ node, depth, ctx }) {
         {ctx.matchable.length ? (
           <button type="button" className="dx-add" data-action={ctx.action} data-in={node._k}
             onClick={() => add(freshCondition(firstField(ctx.matchable, ctx.shown, ctx.admin)))}>
-            + {root ? ctx.addLabel : "Condition"}
+            + {ctx.addLabel}
           </button>
         ) : null}
         <button type="button" className="dx-add dx-add-group" data-action="add-group" data-in={node._k}

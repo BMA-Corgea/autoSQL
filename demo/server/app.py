@@ -73,6 +73,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Response
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -1739,3 +1741,15 @@ def api_pick(body: dict) -> JSONResponse:
 from . import dashboard  # noqa: E402
 
 app.include_router(dashboard.router)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request, exc):
+    """T-85: the one 400 FastAPI raises when the JSON reader itself gives out (a question nested about 5,000
+    groups deep -- RecursionError underneath "There was an error parsing the body"), on the dashboard's answer,
+    is said in a sentence the page shows. Every other HTTP error is answered exactly as FastAPI would."""
+    if (exc.status_code == 400 and isinstance(exc.__cause__, RecursionError)
+            and request.url.path == "/api/dashboard/answer"):
+        return JSONResponse({"kind": "invalid", "sentence": "", "message": dashboard.TOO_DEEP_WORDS},
+                            status_code=400)
+    return await http_exception_handler(request, exc)

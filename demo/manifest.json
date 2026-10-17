@@ -8,6 +8,6 @@
   "demo/vendor/ui.jsx": "df7ac5925b437e0abc0a8adee39b2af8c988025905f8ec34321a252c3739a53c",
   "spikes/T-1/proto/compile.py": "b71b153802d0df9479141ac02b662ca94d86268a940f66f1fb7a9782c8d0f3e2",
   "seed:demo.records:md5": "376496194db0a83b46963341710dba82",
-  "ui:frontend-sources:sha256": "ff4602997a0af6abe908caae7240fa96fe53bc8607b990348a6e45598b90868c",
+  "ui:frontend-sources:sha256": "5d79841fdd0b4d9632f9ed1a451047d31609315ae3bffc4205af573f262eff16",
   "demo/vendor/runtime.sql": "b21ac75dc0cee396974565d2ec45ee866cda364cf0a8f4bfd8ae8cf199e2b465"
 }

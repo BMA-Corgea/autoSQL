@@ -130,12 +130,14 @@ export function treeWords(node, fields, opWords, complete) {
 
 function phrase(node, fields, opWords, complete) { // → [words, how many parts they join]
   if (!isBox(node)) return [complete(node) ? cardWords(node, fields, opWords) : "", 1];
-  const parts = node.items.map((it) => {
-    if (isBox(it) && !boxReady(it, complete)) return "";
-    const [w, n] = phrase(it, fields, opWords, complete);
-    return n > 1 && w ? `(${w})` : w;
-  }).filter(Boolean);
-  if (parts.length < 2) return [parts[0] || "", 1];
+  const said = node.items.map((it) => {
+    if (isBox(it) && !boxReady(it, complete)) return ["", 1];
+    return phrase(it, fields, opWords, complete);
+  }).filter(([w]) => w);
+  // T-85: a group with one part IS that part; only a part among others is bracketed (a shut group holding
+  // one nested group read "((A and B))", its own brackets around the part's)
+  if (said.length < 2) return said[0] || ["", 1];
+  const parts = said.map(([w, n]) => (n > 1 ? `(${w})` : w));
   if (JOIN_WORDS[node.join]) return [parts.join(JOIN_WORDS[node.join]), parts.length];
   const listed = parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
   return [(node.join === "one" ? "exactly one of: " : "all or none of: ") + listed, parts.length];

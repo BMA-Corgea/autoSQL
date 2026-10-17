@@ -68,6 +68,9 @@ export function MatchedColumns({ setup, ds, admin, value, onChange, match, off }
   const mine = pairs.filter((p) => p.field.path === m.field).map((p) => p.matches);
   const shown = other ? offered(other.fields, admin) : [];
   const on = new Set(m.columns);
+  // T-85 (T-78 AC8): the ticks stop at the most a table can show, and say so
+  const most = setup.max_matched_columns || 6;
+  const full = on.size >= most;
   const hold = off ? null : waiting(ds, m);
   return (
     <div className={"dx-count dx-matched" + (hold ? " is-waiting" : "")} data-testid="matched">
@@ -120,6 +123,7 @@ export function MatchedColumns({ setup, ds, admin, value, onChange, match, off }
             {shown.map((f) => (
               <label key={f.path} className={"dx-check" + (on.has(f.path) ? " is-on" : "")}>
                 <input type="checkbox" checked={on.has(f.path)} data-matched-column={f.path}
+                  disabled={full && !on.has(f.path)}
                   onChange={() => onChange({ ...m, columns: on.has(f.path)
                     ? m.columns.filter((p) => p !== f.path)
                     : shown.map((x) => x.path).filter((p) => p === f.path || on.has(p)) })} />
@@ -127,6 +131,11 @@ export function MatchedColumns({ setup, ds, admin, value, onChange, match, off }
               </label>
             ))}
           </div>
+          {full ? (
+            <p className="dx-step-hint dx-why" data-testid="matched-most">
+              At most {most} of their fields can be shown. Untick one to pick another.
+            </p>
+          ) : null}
         </>
       ) : null}
       {hold ? <p className="dx-waiting" data-testid="matched-waiting">{hold} Until then, the table shows its own columns.</p> : null}
