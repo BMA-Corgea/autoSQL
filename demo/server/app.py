@@ -73,7 +73,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Response
-from fastapi.exception_handlers import http_exception_handler
+from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1753,3 +1755,15 @@ async def _http_error(request, exc):
         return JSONResponse({"kind": "invalid", "sentence": "", "message": dashboard.TOO_DEEP_WORDS},
                             status_code=400)
     return await http_exception_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request, exc):
+    """T-111: FastAPI's own 422 echoes the request's ``input``, and jsonable_encoder recursed into a bare array
+    thousands deep (RecursionError: HTTP 500, on /api/pick and the dashboard's answer). That one reply leaves the
+    input out and keeps its words; every other is FastAPI's own, byte for byte."""
+    try:
+        return await request_validation_exception_handler(request, exc)
+    except RecursionError:
+        errors = [{k: v for k, v in e.items() if k != "input"} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
