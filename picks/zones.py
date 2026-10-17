@@ -307,7 +307,7 @@ full_comparisons = 0
 
 
 def _python_clock(zone: str):
-    from picks import env
+    from . import env
     starts, offsets = env.get("compiler").zone_transitions(zone)
     return tuple(starts), tuple(offsets)
 
