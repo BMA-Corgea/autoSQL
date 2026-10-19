@@ -22,6 +22,7 @@ edge families (about 8 s).
 """
 from __future__ import annotations
 
+import inspect
 import json
 import math
 import os
@@ -55,6 +56,8 @@ NOT_HELD = {
     "2.4703282292062328e-324": "digits", "0.12345678901234567": "digits", "0.123456789012345678": "digits",
     "12345678901234567890.123456789": "digits", "1.7976931348623156e+308": "digits", "1e23": "digits",
     "44319635693286580": "digits",
+    # a-chk's M1: 29 digits just below the largest double (abs() rounded it to 28, onto the literal: "large")
+    "1.7976931348623156999999999999e308": "digits",
 }
 #: at or past the largest double ("large"): the statement's member a / XPR01 beside it; refused alone
 PAST = ["1e309", "1.7976931348623157e308"]
@@ -303,9 +306,13 @@ def _sql(conn, pick: dict):
     p = env.get("parser")
     exprs = [p.parse(c["expr"]) for c in pick.get("computed") or []]
     truths = [p.parse(pick["filter"])] if pick.get("filter") else []
+    if "truth_roots" in inspect.signature(probes.check).parameters:
+        probe_exprs, probe_kw = exprs, {"truth_roots": truths}
+    else:                                   # 6dd0eb8: no truth_roots, the filter was an expression (a-chk's LOW 2)
+        probe_exprs, probe_kw = exprs + truths, {}
     try:
         with conn.transaction():
-            probes.check(conn, T, exprs, truth_roots=truths, records=_records())
+            probes.check(conn, T, probe_exprs, records=_records(), **probe_kw)
     except probes.RuntimeRefusal as e:
         return e
     built = builder.build(pick, KEYS, records=_records())
@@ -410,6 +417,13 @@ def test_the_printer_emulation_is_postgres_own():
     vals += [2.0 ** e for e in range(-1074, 1024)] + [float(f"1e{e}") for e in range(-323, 309)]
     vals += [float(rnd.randrange(2**53, 2**64)) for _ in range(20_000)]
     vals += [1e23, 4.4319635693286576e16, 5e-324, 1.7976931348623157e308, -0.0]
+    # a-chk's LOW 1: short binary fractions in 2^43-2^52, where real ties sit (9113818375456.0625: ...062 or ...063,
+    # both shortest; Postgres and repr take the even digit) -- the random bit patterns reach them only by chance
+    for e in range(43, 53):                      # n + k/2^b, exactly: n has e+1 bits and b <= 52-e fraction bits
+        b = min(4, 52 - e)
+        vals += [rnd.randrange(2**e, 2**(e + 1)) + (rnd.randrange(1, 2**b, 2) / 2**b if b else 0.0)
+                 for _ in range(1_440)]
+    vals += [9113818375456.0625]
     with psycopg.connect(DSN) as c:
         c.execute("SET extra_float_digits = 1")
         bad = []
@@ -453,11 +467,13 @@ def demo():
     db.connect = lambda *, application_name=None, autocommit=False: psycopg.connect(dsn, autocommit=autocommit,
                                                                                     options=opts)
     dashboard._CACHE.clear()
+    dashboard._SETUP = None                 # the setup is read once a process: read it again, over this copy
     try:
         yield {"client": TestClient(server_app.app, raise_server_exceptions=False), "dsn": dsn}
     finally:
         db.connect = real
         dashboard._CACHE.clear()
+        dashboard._SETUP = None
         with psycopg.connect(DSN, autocommit=True) as cx:
             cx.execute(f"DROP DATABASE IF EXISTS {SCRATCH} WITH (FORCE)")
 
@@ -506,13 +522,28 @@ def test_the_two_pane_screen_refuses_on_both_panes_in_its_own_words(demo, beat, 
     assert "could not read the value either" in json.dumps(body["panes"]["python"])
 
 
+#: a-chk's H1: past 28 significant digits a shown number was rounded (Decimal.normalize in the default context)
+H1_VALUES = ["12345678901234567890.123456789", "1234567890123456789012345678901234567890"]
+
+
+def _shown(text: str) -> Decimal:
+    """A number as a person reads it on either screen, back to its value (thousands separators dropped)."""
+    return Decimal(text.replace(",", ""))
+
+
 @needs_db
-@pytest.mark.parametrize("lit", ["12345678901234567890.123456789", "1e-400"])
+@pytest.mark.parametrize("lit", H1_VALUES + ["1e-400"])
 def test_the_two_pane_screen_shows_a_stored_value_exactly_on_both_panes(demo, beat, lit):
     beat(lit)
     r = _two_pane(demo, {"computed": [{"name": "v", "expr": "$.payload.load"}], "filter": '$.payload.note == "t112"'})
     assert r.status_code == 200 and r.json()["verdict"] == "agree", r.text[:300]
     assert r.json()["page"]["total"] == 1
+    for side in ("sql", "python"):               # H1: every digit, in the column and in the record's data cell
+        pane = r.json()["panes"][side]
+        row = dict(zip(pane["columns"], pane["rows"][0]["c"]))
+        assert _shown(row["v"]) == Decimal(lit), (side, row["v"])
+        data = json.loads(row["data"], parse_float=Decimal, parse_int=Decimal)
+        assert data["payload"]["load"] == Decimal(lit), (side, row["data"])
 
 
 @needs_db
@@ -534,3 +565,387 @@ def test_the_dashboard_says_it_plainly_and_admin_gets_the_hint(demo, beat):
     assert "Store long numbers such as IDs as text." in json.dumps(a.get("admin") or {})
     everyone = demo["client"].post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": False}).json()
     assert "Store long numbers" not in json.dumps(everyone)
+
+
+# ── a-chk's round on 4d93236: H1-H3 and M1-M4, red first with a-chk's repros ──
+
+_N = "9007199254740993"                     # 2^53+1: a double holds it only as 2^53
+
+
+def _digits_in(script_zero: int) -> str:
+    return _N.translate({ord(c): script_zero + int(c) for c in "0123456789"})
+
+
+#: H2: 2^53+1 written so that both engines read it as a number -- Python's strip() and Unicode digits; the runtime's
+#: xpr.num, which since T-6 variant C strips the same 29 spaces and maps every script's digits -- and no check did
+UNICODE_TEXTS = {
+    "a no-break space before": " " + _N,
+    "a no-break space after": _N + " ",
+    "an em space before": " " + _N,
+    "U+001C before": "\x1c" + _N,
+    "fullwidth digits": _digits_in(0xFF10),
+    "Arabic-Indic digits": _digits_in(0x0660),
+}
+#: read as numbers a double holds: these still answer (walkthrough step 11's "１２３" is one)
+UNICODE_HELD = {"fullwidth 123": ("１２３", Decimal(123)),
+                "a no-break space and 12.5": (" 12.5", Decimal("12.5")),
+                "spaces of three kinds around 7": ("　\u0085 7 ", Decimal(7))}
+READS_TEXT = ["$.s * 1", "abs($.s)", "max($.s, 0)", "max($.s)"]
+
+
+@pytest.mark.parametrize("expr", READS_TEXT)
+@pytest.mark.parametrize("name", list(UNICODE_TEXTS))
+def test_h2_text_in_unicode_digits_or_spaces_is_checked_as_both_engines_read_it(name, expr):
+    """H2: both engines read these as 2^53+1, so the second engine's check reads them so too: refused, digits."""
+    stored = {"a": json.dumps({"s": UNICODE_TEXTS[name]}), "b": '{"s": "2"}'}
+    for records in (_records(), _alone()):
+        got = _py(stored, _pick(computed=[{"name": "w", "expr": expr}]), records=records)
+        assert isinstance(got, ValueError) and _kind(got) == "digits" and got.row_key == "a", (name, expr, got)
+
+
+def test_h2_a_tiny_number_after_a_no_break_space_is_too_small():
+    stored = {"a": json.dumps({"s": " 1e-400"}), "b": '{"s": "2"}'}
+    for records in (_records(), _alone()):
+        got = _py(stored, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]), records=records)
+        assert isinstance(got, ValueError) and _kind(got) == "small" and got.row_key == "a", got
+
+
+@pytest.mark.parametrize("name", list(UNICODE_HELD))
+def test_h2_unicode_text_a_double_holds_still_answers(name):
+    text, want = UNICODE_HELD[name]
+    for records in (_records(), _alone()):
+        got = _py({"a": json.dumps({"s": text})}, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]), records=records)
+        assert not isinstance(got, Exception) and got[0]["w"] == want, (name, got)
+
+
+def test_h2_the_check_reads_text_exactly_as_the_language_does():
+    """The language's own acceptance (expr._to_num: strip(), then its pattern) against the check's reading, on every
+    one of Python's 29 spaces and every script's digits, around and inside a number."""
+    from picks import doubles, env
+    lang = env.get("parser")
+    spaces = [chr(c) for c in range(0x110000) if chr(c).isspace()]
+    zeros = sorted({ord(c) - int(c) for c in map(chr, range(0x80, 0x110000)) if c.isdecimal()})
+    texts = [w + "12.5" for w in spaces] + ["12.5" + w for w in spaces] + ["1" + w + "2" for w in spaces]
+    texts += [_digits_in(z) for z in zeros] + ["1e" + chr(z + 5) for z in zeros] + [chr(z + 1) + ".5" for z in zeros]
+    texts += [" ", "", " ", "+", ".", "1e", "e5", "1_000", "0x10", "inf", "nan", "1,5", "１２３", "1.2.3"]
+    for t in texts:
+        lang_reads = lang._NUM_RE.match(t.strip()) is not None
+        assert (doubles.numeric_text(t) is not None) is lang_reads, repr(t)
+        if lang_reads and lang._to_num(t) is not None:
+            assert float(doubles.numeric_text(t)) == lang._to_num(t), repr(t)
+
+
+@needs_db
+@pytest.mark.parametrize("name", list(UNICODE_TEXTS))
+def test_h2_the_statement_alone_checks_unicode_text_as_it_reads_it(conn, name):
+    _put(conn, {"a": json.dumps({"s": UNICODE_TEXTS[name]}), "b": '{"s": "2"}'})
+    for expr in READS_TEXT:
+        got = _sql(conn, _pick(computed=[{"name": "w", "expr": expr}]))
+        assert _member_kind(got) == ("d", "digits") and got.row_key == "a", (name, expr, got)
+
+
+@needs_db
+def test_h2_the_statement_refuses_a_tiny_number_after_a_no_break_space_and_answers_held_text(conn):
+    _put(conn, {"a": json.dumps({"s": " 1e-400"})})
+    got = _sql(conn, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]))
+    assert _member_kind(got) == ("d", "small") and got.row_key == "a", got
+    for name, (text, want) in UNICODE_HELD.items():
+        _put(conn, {"a": json.dumps({"s": text})})
+        got = _sql(conn, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]))
+        assert not isinstance(got, Exception) and Decimal(got[0]["w"]) == want, (name, got)
+
+
+def test_h2_probe_d_reads_text_with_the_runtimes_own_tables():
+    """The probe reads text with xpr.num's tables: the 29 spaces and the digit map runtime/generate.py writes into
+    the runtime (whose committed bytes a runtime test holds to the generator's output)."""
+    import generate
+    tables = getattr(probes, "text_tables", None)
+    assert tables is not None, "probe d reads ASCII text only"
+    runtime = {k: v.encode("ascii").decode("unicode_escape") for k, v in generate.tables().items()}
+    assert tables() == (runtime["PY_WS"], runtime["ND_MAP_FROM"], runtime["ND_MAP_TO"])
+
+
+# ── H3: alone, a list or a group compared ──
+
+CONTAINER_ROWS = {
+    "lists, 1e309 and 1e310": ('{"l": [1e309], "p": [1e310]}', "l", "p"),
+    "lists, 2^53+1 and 2^53": ('{"l": [9007199254740993], "p": [9007199254740992]}', "l", "p"),
+    "lists, 1e-400 and 0": ('{"l": [1e-400], "p": [0]}', "l", "p"),
+    "groups, 1e309 and 1e310": ('{"o": {"x": 1e309}, "q": {"x": 1e310}}', "o", "q"),
+    "groups, 2^53+1 and 2^53": ('{"o": {"x": 9007199254740993}, "q": {"x": 9007199254740992}}', "o", "q"),
+    "groups, 1e-400 and 0": ('{"o": {"x": 1e-400}, "q": {"x": 0}}', "o", "q"),
+    "lists a double holds (as member b refuses it too)": ('{"l": [0.5], "p": [0.5]}', "l", "p"),
+}
+
+
+@pytest.mark.parametrize("op", ["==", "!="])
+@pytest.mark.parametrize("row", list(CONTAINER_ROWS))
+def test_h3_alone_a_list_or_group_compared_is_refused_as_member_b_refuses_it(row, op):
+    """H3: by itself (GIMS's SQLite mode) there is no member b beside the engine, and the language compares the
+    numbers inside two lists or two groups as doubles: it refuses the operand as member b does, naming the row."""
+    stored_a, x, y = CONTAINER_ROWS[row]
+    stored = {"a": stored_a, "b": '{"s": "x"}'}
+    pick = _pick(filter=f"$.{x} {op} $.{y}")
+    got = _py(stored, pick, records=_alone())
+    assert isinstance(got, ValueError) and _kind(got) == "container" and got.row_key == "a", (row, op, got)
+    assert str(got) == ('container operand: an == or != operand resolved to an object or an array, which the safe '
+                        'subset does not compare (first such row, by key: "a")')
+    assert not isinstance(_py(stored, pick), Exception)          # beside the statement: its member b refuses first
+
+
+def test_h3_alone_a_container_is_refused_wherever_it_is_compared():
+    stored = {"a": '{"l": [1], "n": 2}', "b": '{"n": 3}'}
+    for flt in ("$.l == 1", "1 != $.l", "if($.n > 1, $.l, 0) == 0", "not ($.l == $.l)", "coalesce($.z, $.l) == 2"):
+        got = _py(stored, _pick(filter=flt), records=_alone())
+        assert _kind(got) == "container" and got.row_key == "a", (flt, got)
+    got = _py(stored, _pick(computed=[{"name": "w", "expr": "if($.l == 1, 1, 0)"}]), records=_alone())
+    assert _kind(got) == "container", got
+    # a list only shown, counted or measured is never compared
+    got = _py(stored, _pick(computed=[{"name": "w", "expr": "$.l"}, {"name": "c", "expr": "count($.l)"}],
+                            filter="$.n > 1"), records=_alone())
+    assert not isinstance(got, Exception), got
+
+
+def test_alone_the_refusal_follows_the_probes_order_a_b_then_d():
+    """Beside the statement member a fires before b, and b before d, whichever row comes first; alone the second
+    engine names the same member and row."""
+    rows = {"a": '{"n": 9007199254740993}', "b": '{"n": 1e309}'}
+    got = _py(rows, _pick(filter="$.n > 0"), records=_alone())
+    assert (_kind(got), got.row_key) == ("large", "b"), got
+    rows = {"a": '{"n": 9007199254740993, "l": [1]}', "b": '{"n": 2, "l": [2]}'}
+    got = _py(rows, _pick(filter="$.n > 0 and $.l == $.l"), records=_alone())
+    assert (_kind(got), got.row_key) == ("container", "a"), got
+    rows = {"a": '{"n": 9007199254740993}', "b": '{"n": 2, "l": [2]}'}
+    got = _py(rows, _pick(filter="$.n > 0 and $.l == $.l"), records=_alone())
+    assert (_kind(got), got.row_key) == ("container", "b"), got
+
+
+# ── M1, M2, M3 ──
+
+M1_VALUES = ["1.7976931348623156" + "9" * k + "e308" for k in range(12, 19)]       # 29-35 digits
+
+
+@pytest.mark.parametrize("lit", M1_VALUES)
+def test_m1_29_to_35_digits_just_below_the_largest_double_have_too_many_digits(lit):
+    """M1: abs() rounded these to the default context's 28 digits, onto the largest double's literal: "large"."""
+    from picks import doubles
+    assert doubles.kind(Decimal(lit)) == "digits"
+    for records in (_records(), _alone()):
+        got = _py({"a": '{"n": ' + lit + '}', "b": '{"n": 2}'}, _pick(filter="$.n > 0"), records=records)
+        assert isinstance(got, ValueError) and _kind(got) == "digits" and got.row_key == "a", (lit, got)
+
+
+def test_m2_min_or_max_of_a_list_among_several_arguments_answers():
+    """M2: the language reads a list's elements only when it is the only argument (expr._as_list); among several it
+    skips the list, so nothing in it is read as a double and min($.l, 5) is 5."""
+    stored = {"a": '{"l": [9007199254740993]}', "b": '{"l": ["9007199254740993", 1e-400]}'}
+    pick = _pick(computed=[{"name": "w", "expr": "min($.l, 5)"}, {"name": "u", "expr": "max(0, $.l)"}])
+    for records in (_records(), _alone()):
+        got = _py(stored, pick, records=records)
+        assert not isinstance(got, Exception) and [(r["w"], r["u"]) for r in got] == [(5, 0), (5, 0)], got
+    assert _kind(_py(stored, _pick(computed=[{"name": "w", "expr": "min($.l)"}]))) == "digits"   # a sole list is read
+
+
+@needs_db
+def test_m2_the_statement_answers_min_of_a_list_among_several_arguments(conn):
+    _put(conn, {"a": '{"l": [9007199254740993]}', "b": '{"l": ["9007199254740993", 1e-400]}'})
+    got = _sql(conn, _pick(computed=[{"name": "w", "expr": "min($.l, 5)"}, {"name": "u", "expr": "max(0, $.l)"}]))
+    assert not isinstance(got, Exception) and [(Decimal(r["w"]), Decimal(r["u"])) for r in got] == [(5, 0), (5, 0)], got
+
+
+ZEROS = ["0e-20000", "-0.000e-99999", ".0E-400000"]
+
+
+@pytest.mark.parametrize("text", ZEROS)
+def test_m3_a_zero_written_with_an_exponent_numeric_cannot_take_is_held(text):
+    for records in (_records(), _alone()):
+        got = _py({"a": json.dumps({"s": text})}, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]), records=records)
+        assert not isinstance(got, Exception) and got[0]["w"] == 0, (text, got)
+
+
+@needs_db
+@pytest.mark.parametrize("text", ZEROS)
+def test_m3_the_statement_holds_it_too(conn, text):
+    _put(conn, {"a": json.dumps({"s": text})})
+    got = _sql(conn, _pick(computed=[{"name": "w", "expr": "$.s * 1"}]))
+    assert not isinstance(got, Exception) and Decimal(got[0]["w"]) == 0, (text, got)
+
+
+@needs_db
+def test_the_probe_and_the_second_engine_agree_on_text_and_the_largest_doubles_neighbours(conn):
+    """M1, M3 and H2 in the agreement: the probe's SQL against pyrunner's check, value for value, at every position."""
+    from picks.pyrunner import exact
+    texts = list(UNICODE_TEXTS.values()) + [t for t, _ in UNICODE_HELD.values()] + ZEROS
+    texts += [" 1e-400", " ١e5", "1e٥", "\x1f12.5\x1c", "  ", "1 2", "0e+20000"]
+    numbers = M1_VALUES + ["1.7976931348623156e308", "1.7976931348623157e308"]
+    tables = getattr(probes, "text_tables", None)                # 4d93236's probe read ASCII text, with no tables
+    kw = dict(zip(("prbD_ws", "prbD_nd_from", "prbD_nd_to"), tables())) if tables else {}
+    for pos in ("number", "coerced", "elements"):
+        fire = probes._d_forms("v.j", pos, probes._fires_sql)
+        vals = [json.dumps(t) for t in texts] + numbers
+        vals += ["[" + json.dumps(t) + "]" for t in texts] + ["[" + n + "]" for n in numbers]
+        cur = conn.execute(f"SELECT {fire} FROM unnest(%(vals)s::jsonb[]) WITH ORDINALITY AS v(j, o) ORDER BY o",
+                           {"vals": vals, **kw})
+        for v, (said,) in zip(vals, cur.fetchall()):
+            stored = json.loads(v, parse_float=Decimal)
+            py = exact._value_kind(stored, pos)
+            py_fires = py is not None and py[0] != "large"
+            assert said is py_fires, (pos, v, said, py)
+
+
+# ── M4: one vector per reading position, both engines; and the two walks tied together ──
+
+#: a-chk's 16 pick shapes, plus unary minus and max of a text (BM4, BM9): each with its hand truth over the exact
+#: value v of row a (b holds 2; d holds no n at all, and a missing field != 2 is true in the language)
+POSITIONS = {
+    "not": (dict(filter="not $.n"), lambda v: sorted(["d"] + (["a"] if v == 0 else []))),
+    "and": (dict(filter="$.n and true"), lambda v: sorted(["b"] + (["a"] if v != 0 else []))),
+    "or": (dict(filter="$.n or false"), lambda v: sorted(["b"] + (["a"] if v != 0 else []))),
+    "if's condition": (dict(computed=[{"name": "w", "expr": "if($.n, 1, 0)"}]),
+                       lambda v: {"a": 1 if v != 0 else 0, "b": 1, "d": 0}),
+    "coalesce compared": (dict(filter="coalesce($.n, 0) > 0"), lambda v: sorted(["b"] + (["a"] if v > 0 else []))),
+    "coalesce computed with": (dict(computed=[{"name": "w", "expr": "coalesce($.n, 0) * 1"}]),
+                               lambda v: {"a": v, "b": 2, "d": 0}),
+    "!=": (dict(filter="$.n != 2"), lambda v: sorted(["d"] + (["a"] if v != 2 else []))),
+    "<=": (dict(filter="$.n <= 0.5"), lambda v: ["a"] if v <= Decimal("0.5") else []),
+    ">=": (dict(filter="$.n >= 0.5"), lambda v: sorted(["b"] + (["a"] if v >= Decimal("0.5") else []))),
+    "/": (dict(computed=[{"name": "w", "expr": "$.n / 1"}]), lambda v: {"a": v, "b": 2, "d": None}),
+    "+": (dict(computed=[{"name": "w", "expr": "$.n + 0"}]), lambda v: {"a": v, "b": 2, "d": None}),
+    "-": (dict(computed=[{"name": "w", "expr": "$.n - 0"}]), lambda v: {"a": v, "b": 2, "d": None}),
+    "unary minus": (dict(computed=[{"name": "w", "expr": "-$.n"}]), lambda v: {"a": -v, "b": -2, "d": None}),
+    "abs": (dict(computed=[{"name": "w", "expr": "abs($.n)"}]), lambda v: {"a": abs(v), "b": 2, "d": None}),
+    "min of several": (dict(computed=[{"name": "w", "expr": "min($.n, 1e300)"}]),
+                       lambda v: {"a": min(v, Decimal("1e300")), "b": 2, "d": Decimal("1e300")}),
+    "max of a text": (dict(computed=[{"name": "w", "expr": "max($.t)"}]), lambda v: {"a": v, "b": 2, "d": None}),
+    "length (reads no number)": (dict(computed=[{"name": "w", "expr": "length($.n)"}]),
+                                 lambda v: {"a": None, "b": None, "d": None}),
+    "count (reads no number)": (dict(computed=[{"name": "w", "expr": "count($.n)"}]),
+                                lambda v: {"a": 1, "b": 1, "d": 0}),
+}
+POS_UNHELD = {"1e-400": "small", "9007199254740993": "digits", "0.12345678901234567": "digits"}
+POS_HELD = ["9007199254740992", "0.5"]
+_NO_READ = ("length (reads no number)", "count (reads no number)")
+
+
+def _pos_rows(lit):
+    """Row a holds the value as a number (n) and as text (t); b holds 2 both ways; d holds neither."""
+    return {"a": '{"n": %s, "t": "%s"}' % (lit, lit), "b": '{"n": 2, "t": "2"}', "d": '{"s": "x"}'}
+
+
+def _pos_same(rows, truth):
+    if isinstance(truth, list):
+        return sorted(r["key"] for r in rows) == truth
+    got = {r["key"]: r.get("w") for r in rows}
+    return all((got.get(k) is None) if t is None else (got.get(k) is not None and Decimal(got[k]) == Decimal(t))
+               for k, t in truth.items())
+
+
+@pytest.mark.parametrize("lit", list(POS_UNHELD) + POS_HELD)
+@pytest.mark.parametrize("position", list(POSITIONS))
+def test_m4_every_reading_position_by_hand_alone(position, lit):
+    kw, truth_of = POSITIONS[position]
+    got = _py(_pos_rows(lit), _pick(**kw), records=_alone())
+    if lit in POS_UNHELD and position not in _NO_READ:
+        assert isinstance(got, ValueError) and _kind(got) == POS_UNHELD[lit] and got.row_key == "a", (position, got)
+    else:
+        assert not isinstance(got, Exception) and _pos_same(got, truth_of(Decimal(lit))), (position, lit, got)
+
+
+@needs_db
+@pytest.mark.parametrize("lit", list(POS_UNHELD) + POS_HELD)
+@pytest.mark.parametrize("position", list(POSITIONS))
+def test_m4_every_reading_position_by_hand_on_the_statement(conn, position, lit):
+    kw, truth_of = POSITIONS[position]
+    _put(conn, _pos_rows(lit))
+    got = _sql(conn, _pick(**kw))
+    if lit in POS_UNHELD and position not in _NO_READ:
+        assert _member_kind(got) == ("d", POS_UNHELD[lit]) and got.row_key == "a", (position, got)
+    else:
+        assert not isinstance(got, Exception) and _pos_same(got, truth_of(Decimal(lit))), (position, lit, got)
+
+
+def _random_ast(rnd, depth):
+    """Any node the parser makes: the leaves, - not and or, the six comparisons, + - * /, and every call the gate
+    allows (min/max with one argument and with several)."""
+    leaves = [("field", [("key", rnd.choice("abc"))]), ("field", [("key", "o"), ("key", "x")]),
+              ("field", [("key", "l"), ("index", 0)]), ("num", 1.0), ("str", "x"), ("bool", True), ("null",)]
+    if depth == 0 or rnd.random() < 0.25:
+        return rnd.choice(leaves)
+    sub = lambda: _random_ast(rnd, depth - 1)  # noqa: E731
+    kind = rnd.choice(["neg", "not", "and", "or", "cmp", "bin", "call"])
+    if kind in ("neg", "not"):
+        return (kind, sub())
+    if kind in ("and", "or"):
+        return (kind, sub(), sub())
+    if kind == "cmp":
+        return ("cmp", rnd.choice(["==", "!=", "<", "<=", ">", ">="]), sub(), sub())
+    if kind == "bin":
+        return ("bin", rnd.choice("+-*/"), sub(), sub())
+    name = rnd.choice(["abs", "coalesce", "count", "if", "length", "max", "min", "time_of_day"])
+    n = {"abs": 1, "if": 3, "length": 1, "time_of_day": 2}.get(name, rnd.randint(1, 3))
+    return ("call", name, [sub() for _ in range(n)])
+
+
+def test_m4_the_two_walks_name_the_same_reads_for_every_node_type():
+    """pyrunner's walk (exact.readings) and probe d's (probes.exact_reading_operands) are two statements of one rule
+    (W12); nothing tied them together. Every node type, alone and nested to depth 4, at each root a pick uses."""
+    from picks.pyrunner import exact
+    rnd = random.Random(1124)
+    asts = [_random_ast(rnd, 4) for _ in range(3000)]
+    for ast in asts:
+        for root in ("shown", "number"):
+            py = {(repr(steps), pos) for steps, pos in exact.readings(ast, root)}
+            sql = {(repr(list(node[1])), pos) for node, pos in probes.exact_reading_operands(ast, root)}
+            assert py == sql, (ast, root, py ^ sql)
+    tags = {a[0] for a in asts} | {a[1] for a in asts if a[0] == "call"}
+    assert tags >= {"field", "neg", "not", "and", "or", "cmp", "bin", "call", "abs", "coalesce", "count", "if",
+                    "length", "max", "min", "time_of_day"}, tags
+
+
+# ── H1: every digit on both screens ──
+
+@pytest.fixture()
+def long_number(demo):
+    """H1's rows, the long number stored as a Heartbeat's load, an Edge case's big and a Site's capacity."""
+    import psycopg
+    from demo.server import dashboard
+
+    def put(lit):
+        with psycopg.connect(demo["dsn"], autocommit=True) as cx:
+            cx.execute("DELETE FROM demo.records WHERE key LIKE '%-zz-t112h1'")
+            if lit is not None:
+                cx.execute("INSERT INTO demo.records VALUES ('noun:Heartbeat', 'hb-zz-t112h1', ('{\"ts\": "
+                           "\"2026-08-14T00:00:00Z\", \"status\": \"ok\", \"sender_id\": \"hb-01\", \"payload\": "
+                           "{\"load\": ' || %s || ', \"note\": \"t112h1\"}}')::jsonb)", (lit,))
+                cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', 'edge-zz-t112h1', "
+                           "('{\"label\": \"t112 h1\", \"big\": ' || %s || '}')::jsonb)", (lit,))
+                cx.execute("INSERT INTO demo.records VALUES ('noun:Site', 'site-zz-t112h1', "
+                           "('{\"name\": \"H1 site\", \"capacity\": ' || %s || '}')::jsonb)", (lit,))
+        dashboard._CACHE.clear()
+        dashboard._SETUP = None                       # its new field is read by the next setup
+    yield put
+    put(None)
+
+
+@needs_db
+@pytest.mark.parametrize("lit", H1_VALUES)
+def test_h1_the_dashboard_shows_every_digit_in_cells_groups_and_matched_columns(demo, long_number, lit):
+    long_number(lit)
+    ask = lambda v: demo["client"].post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": True}).json()  # noqa: E731
+    base = {"columns": [], "conditions": [], "sort": None, "show": None, "summary": None}
+    table = ask(dict(base, dataset="heartbeats", columns=["sender_id", "payload.load"],
+                     conditions=[{"field": "payload.note", "op": "eq", "value": "t112h1"}]))
+    assert table["kind"] == "table" and _shown(table["rows"][0][1]) == Decimal(lit), table.get("rows")
+    board = ask(dict(base, dataset="edge", scoreboard={"by": "big", "counts": [
+        {"label": "All", "conditions": [{"field": "label", "op": "present"}]}]}))
+    names = [r[0] for r in board.get("rows") or [] if r[0] != "(blank)"]
+    assert len(names) == 1 and _shown(names[0]) == Decimal(lit), (board.get("kind"), names)
+    per_value = ask(dict(base, dataset="edge", summary={"fn": "count", "field": None, "per": "category", "by": "big"}))
+    labels = [c["label"] for c in per_value.get("categories") or [] if c["label"] != "(blank)"]
+    assert len(labels) == 1 and _shown(labels[0]) == Decimal(lit), (per_value.get("kind"), labels)
+    matched = ask(dict(base, dataset="heartbeats", columns=["sender_id", "payload.load"],
+                       conditions=[{"field": "payload.note", "op": "eq", "value": "t112h1"}],
+                       matched={"dataset": "sites", "field": "capacity", "matches": "payload.load",
+                                "columns": ["name", "capacity"]}))
+    assert matched["kind"] == "table" and matched["rows"][0][2] == "H1 site", matched.get("rows")
+    assert _shown(matched["rows"][0][1]) == _shown(matched["rows"][0][3]) == Decimal(lit), matched["rows"]
