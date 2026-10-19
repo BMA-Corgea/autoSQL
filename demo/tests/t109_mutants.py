@@ -37,16 +37,18 @@ T109_MUTANTS = [
          selector=_R + "test_the_statement_alone_refuses_the_row_by_name[lowercase-America/Denver]",
          expect="the statement alone answered 8,400, the row left out"),
     dict(id="G5", defect="the second engine's check is strptime's again, ignoring letter case (a-chk's HIGH 2)",
-         edits=[(_E, "if len(ts_text) != _TS_WIDTH or not _SERIES_TIME.fullmatch(ts_text):",
-                 "if len(ts_text) != _TS_WIDTH:")],
+         # T-114: the check is the rule's (picks/times.py), case-sensitive like the statement's
+         edits=[("../picks/times.py", "_READABLE = re.compile(READABLE)", "_READABLE = re.compile(READABLE, re.IGNORECASE)"),
+                ("../picks/times.py", '    if rest == "Z":', '    if rest in ("Z", "z"):')],
          # the zoned path is HIGH 2's: the row passed the check, then local_time's None dropped it (the page's capped
          # Denver hour now refuses through the statement's own XPR06, whatever the second engine does)
          selector=_R + "test_the_second_engine_refuses_the_same_row_by_name[lowercase-America/Denver]",
          expect="DID NOT RAISE"),
     dict(id="G6", defect="the second engine refuses without naming the row",
          edits=[(_S, "raise ValueError(f\"row {r.key!r} has a time this can't read: {ts!r}\") from None", "raise")],
-         selector=_R + "test_the_second_engine_refuses_the_same_row_by_name[fraction-None]",
-         expect="not fixed-width UTC ISO-8601"),
+         # T-114: a fraction reads now; lowercase is still no readable time (picks.times), its words the rule's
+         selector=_R + "test_the_second_engine_refuses_the_same_row_by_name[lowercase-None]",
+         expect="not a readable time"),
     dict(id="G7", defect="the page doesn't catch XPR06: the summary answers 500",
          edits=[(_D, "if getattr(exc, \"sqlstate\", None) == SERIES_TIME_SQLSTATE:",
                  "if getattr(exc, \"sqlstate\", None) == \"no such state\":")],

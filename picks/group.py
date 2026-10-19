@@ -46,9 +46,10 @@ THE RULES IT WRITES DOWN
   from zero (Postgres ``round`` on numeric), and ``coalesce(…, 0.0)`` gives a
   group with nothing counted (a sender with no heartbeats) ``0.0``, the same
   text the second engine writes (T-77).
-* Latest / earliest compare the field's TEXT (``#>>``) under the database's
-  C collation; only fixed-width ISO time and date fields are offered, whose
-  text order is time order.
+* Latest / earliest of a DATE field compare its text (``#>>``) under the
+  database's C collation (text order is date order); of a TIME field, its
+  instants (T-114: ``xpr.time_at``, every readable form), written in the
+  engine's one fixed form to the second.
 * Every result is in a total order: the chosen column, NULLS LAST, then the
   group key ascending, NULLS LAST.  The group key is unique per row of the
   answer, so paging can never drop or double a group.
@@ -124,6 +125,9 @@ def check(spec: dict, records=None) -> None:
     counts = spec.get("counts") or []
     if len(counts) > MAX_COUNTS:
         raise ValueError(f"at most {MAX_COUNTS} count-if columns")
+    for key in ("times", "count_times"):        # T-114: the time fields read as instants
+        for t in spec.get(key) or ():
+            _path(t, "a time field read as an instant")
     for c in counts:
         if not isinstance(c.get("expr"), str) or not c["expr"].strip():
             raise ValueError("a count-if column needs one expression")
@@ -192,7 +196,8 @@ def build(spec: dict, records=None) -> Built:
     for i, c in enumerate(spec.get("counts") or [], start=1):
         frag = builder._compile_expression(
             c["expr"], ctx_param=f"k{i}_ctx", column=col,
-            compile_kw=records.compile_kwargs(rel["source"] if rel else spec["source"]))
+            compile_kw=builder.instants_kw(records.compile_kwargs(rel["source"] if rel else spec["source"]),
+                                           spec.get("count_times")))
         sql, prm = builder.namespace(frag, f"k{i}")
         builder.merge_params(params, prm)
         hit = f"sum( CASE WHEN {present}xpr.truthy( {sql} ) THEN 1 ELSE 0 END )"
@@ -207,7 +212,13 @@ def build(spec: dict, records=None) -> Built:
     t = spec.get("time")
     if t:
         params["time_path"] = _path(t["field"], "the time field")
-        select.append(f'{TIME_FNS[t["fn"]]}( {col} #>> %(time_path)s )  AS "time"')
+        if t["field"] in (spec.get("count_times") or ()):
+            # T-114: a time field's latest / earliest by instant (xpr.time_at), in the engine's one fixed form to the
+            # second -- fixed width, so the column sorts as time; a value that is no readable time is not read
+            select.append(f"to_char( {TIME_FNS[t['fn']]}( xpr.time_at( {col} #>> %(time_path)s ) ) AT TIME ZONE 'UTC',"
+                          f" 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )  AS \"time\"")
+        else:
+            select.append(f'{TIME_FNS[t["fn"]]}( {col} #>> %(time_path)s )  AS "time"')
 
     m = spec.get("measure")
     if m:
@@ -227,7 +238,8 @@ def build(spec: dict, records=None) -> Built:
     where = " WHERE " + records.scope("r", params)
     if spec.get("filter"):
         frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=records.compile_kwargs(spec["source"]))
+                                           compile_kw=builder.instants_kw(records.compile_kwargs(spec["source"]),
+                                                                          spec.get("times")))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f"\n   AND xpr.truthy( {sql} )"
@@ -289,7 +301,8 @@ def build_profile(spec: dict, records=None) -> Built:
     where = "WHERE " + records.scope("r", params)
     if spec.get("filter"):
         frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=records.compile_kwargs(spec["source"]))
+                                           compile_kw=builder.instants_kw(records.compile_kwargs(spec["source"]),
+                                                                          spec.get("times")))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f" AND xpr.truthy( {sql} )"

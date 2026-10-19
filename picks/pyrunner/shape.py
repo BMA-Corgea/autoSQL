@@ -83,6 +83,8 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
     # step 2 (parse once) — evaluation happens per shape below
     parsed = ev.parse_computed(pick.get("computed") or [])
     filter_ast = ev.expr.parse(pick["filter"]) if pick.get("filter") else None
+    # T-114 (the foreman's (A)): the time fields the filter and the sort read as instants
+    instants = ev.instants_of(pick.get("times"))
 
     # T-112: a stored number read as a double must be held, over every source row (the probe's scope), before
     # anything is read from one; refused by name otherwise (exact.NumberRefused)
@@ -92,7 +94,7 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
 
     # step 3 — filter, before anything windowed (B3 detail 4)
     if filter_ast is not None:
-        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast)]
+        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants)]
 
     if shape == "SCALAR":
         return _scalar(rows, pick, parsed)
@@ -154,6 +156,8 @@ def _rows(
             sort_alias = field
         else:
             sort_steps = ev.dollar_path(field)
+            if ev.reads_as_instant(field, pick.get("times")):
+                sort_steps = ev.InstantPath(sort_steps)    # T-114: a time field sorts by its instant
     indices.sort(
         key=lambda i: ev.row_sort_key(
             rows[i], sort_steps, cells[i], sort_alias, direction

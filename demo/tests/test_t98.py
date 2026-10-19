@@ -213,13 +213,20 @@ def _times(n: int) -> list:
     return [(t0 + _dt.timedelta(minutes=i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(n)]
 
 
-def test_a_wide_time_field_with_one_odd_value_late_in_the_order_is_text():
-    """T-88 ruling 1 says a field is a time only when EVERY value is one. The page used to look
-    at the first 2,001 distinct values in sorted order, so an odd value sorting after them was
-    never seen: the field was called a time, and time conditions -- and time of day -- were
-    offered over text."""
-    f = _fields_of(_times(2100) + ["zzz: not a time"])["at"]
+def test_a_wide_time_field_whose_odd_values_sort_late_is_decided_over_every_value():
+    """The kind is decided over EVERY value (T-98): the page used to look at the first 2,001 distinct values in sorted
+    order, so odd values sorting after them were never seen. T-114 (the foreman's must 2): a field is a time when at
+    least one value is readable and MORE than half look like a time -- so here, where most values sort after the first
+    2,001 and are not times, it is text, though those 2,001 alone would make it a time."""
+    f = _fields_of(_times(2100) + [f"zzz: not a time {i}" for i in range(2200)])["at"]
     assert f["kind"] == "text", f["kind"]
+
+
+def test_a_wide_time_field_with_one_odd_value_late_in_the_order_is_still_a_time():
+    """T-114 (the foreman's must 2): one value that is no time never turns a time field into text -- it is left out
+    and counted; the field keeps its charts."""
+    f = _fields_of(_times(2100) + ["zzz: not a time"])["at"]
+    assert f["kind"] == "time", f["kind"]
 
 
 def test_a_wide_time_field_is_still_a_time():
@@ -227,9 +234,12 @@ def test_a_wide_time_field_is_still_a_time():
 
 
 def test_a_time_written_in_other_digits_is_not_a_time():
-    """The fixed-width UTC form is ASCII digits: a full-width-digit value makes the field text,
-    as the statement's own check reads it."""
-    f = _fields_of(_times(5) + ["２０２６-01-01T00:00:00Z"])["at"]
+    """A time is written in ASCII digits (T-114's rule, both engines): a full-width-digit value is no readable time and
+    doesn't look like one -- among times it is left out (the field stays a time, must 2); alone it is text."""
+    from picks import times
+    assert times.instant("２０２６-01-01T00:00:00Z") is None and not times.looks_like("２０２６-01-01T00:00:00Z")
+    assert _fields_of(_times(5) + ["２０２６-01-01T00:00:00Z"])["at"]["kind"] == "time"
+    f = _fields_of(["２０２６-01-01T00:00:00Z"] * 3 + _times(1))["at"]
     assert f["kind"] == "text", f["kind"]
 
 
@@ -356,23 +366,23 @@ def test_any_other_zone_is_refused_in_words(zone):
 
 @pytest.mark.parametrize("cond, zone, expr, words", [
     (c("ts", "on", "2026-08-20"), DEN,
-     '($.ts >= "2026-08-20T06:00:00Z" and $.ts < "2026-08-21T06:00:00Z")', "Time is on Aug 20"),
+     '($.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z")', "Time is on Aug 20"),
     (c("ts", "on", "2026-03-08"), DEN,
-     '($.ts >= "2026-03-08T07:00:00Z" and $.ts < "2026-03-09T06:00:00Z")', "Time is on Mar 8"),
+     '($.ts >= "2026-03-08T07:00:00.000000Z" and $.ts < "2026-03-09T06:00:00.000000Z")', "Time is on Mar 8"),
     (c("ts", "on", "2026-11-01"), DEN,
-     '($.ts >= "2026-11-01T06:00:00Z" and $.ts < "2026-11-02T07:00:00Z")', "Time is on Nov 1"),
+     '($.ts >= "2026-11-01T06:00:00.000000Z" and $.ts < "2026-11-02T07:00:00.000000Z")', "Time is on Nov 1"),
     (c("ts", "on", "2026-08-21"), "Pacific/Kiritimati",
-     '($.ts >= "2026-08-20T10:00:00Z" and $.ts < "2026-08-21T10:00:00Z")', "Time is on Aug 21"),
-    (c("ts", "after", "2026-08-20T17:00"), DEN, '$.ts > "2026-08-20T23:00:00Z"', "Time is after Aug 20, 5:00 PM"),
-    (c("ts", "before", "2026-11-01T01:30"), DEN, '$.ts < "2026-11-01T07:30:00Z"', "Time is before Nov 1, 1:30 AM"),
+     '($.ts >= "2026-08-20T10:00:00.000000Z" and $.ts < "2026-08-21T10:00:00.000000Z")', "Time is on Aug 21"),
+    (c("ts", "after", "2026-08-20T17:00"), DEN, '$.ts > "2026-08-20T23:00:00.000000Z"', "Time is after Aug 20, 5:00 PM"),
+    (c("ts", "before", "2026-11-01T01:30"), DEN, '$.ts < "2026-11-01T07:30:00.000000Z"', "Time is before Nov 1, 1:30 AM"),
     (c("ts", "between", "2026-08-20T17:00", "2026-08-20T09:00"), DEN,
-     '($.ts >= "2026-08-20T15:00:00Z" and $.ts <= "2026-08-20T23:00:00Z")',
+     '($.ts >= "2026-08-20T15:00:00.000000Z" and $.ts <= "2026-08-20T23:00:00.000000Z")',
      "Time is between Aug 20, 9:00 AM and Aug 20, 5:00 PM"),
-    (c("ts", "after", "2026-08-20T23:00:00Z"), DEN, '$.ts > "2026-08-20T23:00:00Z"', "Time is after Aug 20, 5:00 PM"),
+    (c("ts", "after", "2026-08-20T23:00:00Z"), DEN, '$.ts > "2026-08-20T23:00:00.000000Z"', "Time is after Aug 20, 5:00 PM"),
     # no zone: exactly as before T-98
     (c("ts", "on", "2026-08-20"), None,
-     '($.ts >= "2026-08-20T00:00:00Z" and $.ts < "2026-08-21T00:00:00Z")', "Time is on Aug 20"),
-    (c("ts", "after", "2026-08-20T17:00"), None, '$.ts > "2026-08-20T17:00:00Z"', "Time is after Aug 20, 17:00 UTC"),
+     '($.ts >= "2026-08-20T00:00:00.000000Z" and $.ts < "2026-08-21T00:00:00.000000Z")', "Time is on Aug 20"),
+    (c("ts", "after", "2026-08-20T17:00"), None, '$.ts > "2026-08-20T17:00:00.000000Z"', "Time is after Aug 20, 17:00 UTC"),
     # a calendar date is its own day, on any clock
     (c("due_date", "on", "2026-09-03"), DEN, '$.due_date == "2026-09-03"', "Due date is on Sep 3, 2026"),
     # time of day
@@ -415,7 +425,7 @@ def test_the_tree_and_its_count_columns_read_the_questions_zone():
     v = {"zone": DEN, "filter": {"version": 1, "join": "all", "items": [
         c("ts", "on", "2026-08-20"), tod("from", "17:00")]}}
     assert pview.filter_expression(v, fields) == (
-        f'(($.ts >= "2026-08-20T06:00:00Z" and $.ts < "2026-08-21T06:00:00Z")) and ({TOD} >= 61200)')
+        f'(($.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z")) and ({TOD} >= 61200)')
     assert pview.filter_words(v, fields) == "Time is on Aug 20 and Time (time of day) from 5:00 PM"
 
 

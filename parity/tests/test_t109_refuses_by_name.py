@@ -32,11 +32,10 @@ SCRATCH = "t109r_scratch"
 KEY = "hb-zz-t109"
 MISSING = object()
 
-#: a-chk's table: each a series time on Aug 20 by any reading, none in the one fixed form (the demo has 8,400)
+#: a-chk's table: each a series time on Aug 20 by any reading, none a readable time (the demo has 8,400). T-114 made
+#: two of a-chk's forms readable -- a fraction, an offset -- so they moved to READ_NOW: both engines count them
 ODD = {
     "em-spaces": " 2026-08-20 ",
-    "fraction": "2026-08-20T10:00:00.5Z",
-    "offset": "2026-08-20T15:30:00+05:30",
     "bare-date": "2026-08-20",
     "ascii-spaces": " 2026-08-20 ",
     "lowercase": "2026-08-20t10:00:00z",
@@ -137,6 +136,26 @@ def test_with_no_odd_row_the_statement_counts_every_heartbeat(scratch, odd, zone
     got = _statement_alone(scratch, "day", zone)
     assert not isinstance(got, Exception), got
     assert sum(int(r[1]) for r in got) == 8400
+
+
+#: T-114: a series time with a fraction or an offset is a readable time now -- in its bucket on both engines, by its
+#: instant (10:00:00.5Z and 15:30+05:30 are both Aug 20, 10:00 UTC, which is Aug 20, 04:00 in Denver)
+READ_NOW = {"fraction": "2026-08-20T10:00:00.5Z", "offset": "2026-08-20T15:30:00+05:30"}
+
+
+@needs_db
+@pytest.mark.parametrize("zone", ZONES)
+@pytest.mark.parametrize("form", list(READ_NOW))
+def test_a_series_time_with_a_fraction_or_an_offset_is_counted_by_both_engines(scratch, odd, form, zone):
+    import psycopg
+    from demo.server.app import pyshape
+    odd(READ_NOW[form])
+    got = _statement_alone(scratch, "day", zone)
+    assert not isinstance(got, Exception), got
+    assert sum(int(r[1]) for r in got) == 8401
+    with psycopg.connect(scratch["dsn"], options=scratch["opts"], autocommit=True) as conn:
+        py = pyshape.python_pane(conn, _pick("day", zone))
+    assert sorted((r["bucket"], int(r["agg"])) for r in py["rows"]) == sorted((r[0], int(r[1])) for r in got)
 
 
 @needs_db

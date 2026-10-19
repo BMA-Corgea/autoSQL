@@ -135,14 +135,6 @@ _BUCKET_LABEL_UTC = (
     "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )"
 )
 
-#: T-88: a time or date value as both engines read it — a calendar date
-#: ``YYYY-MM-DD`` or the fixed-width UTC time ``YYYY-MM-DDTHH:MM:SSZ``, and a
-#: real one (``pg_input_is_valid``; the pattern itself keeps out 24:00:00,
-#: which Postgres would read as the next day and Python refuses).  Read as
-#: UTC (a date is its midnight).  A
-#: record whose field holds anything else — missing, blank, another form —
-#: is in no bucket, in both engines.
-TIME_VALUE_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}(T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z)?$"
 _DIRECTION_SQL = {"asc": "ASC", "desc": "DESC"}
 
 
@@ -174,37 +166,34 @@ _ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\n"
                 "                'YYYY-MM-DD\"T\"HH24:MI:SS' )")
 
 
-def _zoned_local(value: str, read, dates: bool) -> str:
-    """A stored time (its text) as a wall-clock timestamp, read by ``read`` (_zone_reading); a date
-    (when ``dates``) as its own midnight, never read on any clock."""
-    on_clock = read(value)
+def _zoned_local(value: str, at: str, read, dates: bool) -> str:
+    """A stored time as a wall-clock timestamp: its instant ``at`` (xpr.time_at of its text ``value``) read by
+    ``read`` (_zone_reading); a date (when ``dates``) as its own midnight, never read on any clock."""
+    on_clock = read(at)
     if not dates:
         return on_clock
     return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
 
 
-def _in_years(local: str, value: str) -> str:
+def _in_years(local: str, value: str, at: str | None = None) -> str:
     """A wall-clock reading inside years 1..9999, the second engine's whole range (a-chk's MEDIUM on
     T-100: the zero date read west of UTC is 1 BC; 9999-12-31T23:00Z read at +14 is year 10000).
-    No clock is a day or more from UTC, so the stored text settles every time a day or more from
-    either end with one comparison (C collation: text order is time order); only those near an
-    end are read on the clock here (else every row would be read three times)."""
-    return (f"(({value} COLLATE \"C\" >= '0001-01-02' AND {value} COLLATE \"C\" < '9999-12-31')"
+    No clock is a day or more from UTC, so the instant ``at`` (xpr.time_at of the stored text
+    ``value``, unless given) settles every time a day or more from either end with one comparison
+    (T-114: the instant, never the stored text, whose forms no longer order as time); only those
+    near an end are read on the clock here."""
+    at = at or f"xpr.time_at({value})"
+    return (f"(({at} >= '0001-01-02 00:00:00+00'::timestamptz AND {at} < '9999-12-31 00:00:00+00'::timestamptz)"
             f" OR ({local} >= '0001-01-01 00:00:00'::timestamp AND {local} < '10000-01-01 00:00:00'::timestamp))")
-
-
-#: T-109: the series' one time form (the second engine's bucket_label reads exactly it).
-SERIES_TIME_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
 
 
 def _series_readable(p, time: str) -> str:
     """T-109: the guard date fields have (T-88), for the data set's own time: a string in the one form that Postgres
     reads. Where the unguarded cast answered HTTP 500 for every summary of the data set (a-chk, T-103's check), a row
     outside it now reaches :func:`_series_label`'s refusal."""
-    p.params["srs_re"] = SERIES_TIME_RE
     v = f"(data ->> '{time}')"
-    return (f"(jsonb_typeof(data -> '{time}') = 'string' AND {v} ~ %(srs_re)s "
-            f"AND pg_input_is_valid({v}, 'timestamptz'))")
+    # T-114: the rule (xpr.time_at), with a time of day -- a bare date is no series time
+    return f"(jsonb_typeof(data -> '{time}') = 'string' AND length({v}) > 10 AND xpr.time_at({v}) IS NOT NULL)"
 
 
 def _series_label(p, time: str, label: str) -> str:
@@ -218,13 +207,13 @@ def _series_label(p, time: str, label: str) -> str:
 
 
 def _zone_reading(p, zone: str):
-    """How the bucket reads a stored time (its fixed-width UTC text) on the zone's clock (T-101):
+    """How the bucket reads a stored time's instant ``v`` (xpr.time_at) on the zone's clock (T-101):
     plainly where this database and Python agree on every instant (D empty). Else D is written into
-    the statement: its bounds as the same fixed-width text, so text order is time order (C
-    collation) and the stored text is tested as it is, with the built-in width_bucket -- no second
-    parse and no call of ours for a row outside D; a row inside D reaches xpr.clock_refused, which
-    refuses it by name. D comes from the question's resolver (env.checking_zones); with none,
-    nothing is read on a clock at all."""
+    the statement: its bounds as epoch seconds, tested against the instant with the built-in
+    width_bucket (T-114: never against the stored text, whose forms no longer order as time) -- no
+    call of ours for a row outside D; a row inside D reaches xpr.clock_refused, which refuses it by
+    name. D comes from the question's resolver (env.checking_zones); with none, nothing is read on
+    a clock at all."""
     resolver = env.zone_gaps()
     if resolver is None:
         raise RuntimeError("a summary on a clock needs the question's zone check (picks.env.checking_zones)")
@@ -232,19 +221,12 @@ def _zone_reading(p, zone: str):
     p.params["bkt_zone"] = zone
     if not gaps:
         return lambda v: f"({v}::timestamptz AT TIME ZONE %(bkt_zone)s::text)"
+    # D tested against the instant itself, as epoch seconds (as xpr.time_of_day does)
     bounds, inside = _compile.gap_bounds(gaps)
-    p.params["bkt_bounds"] = [_utc_text(b) for b in bounds]
-    return lambda v: (f"(CASE WHEN mod(width_bucket({v} COLLATE \"C\", %(bkt_bounds)s::text[]), 2) = {inside}"
-                      f" THEN xpr.clock_refused({v}::timestamptz, %(bkt_zone)s::text)"
-                      f" ELSE {v}::timestamptz AT TIME ZONE %(bkt_zone)s::text END)")
-
-
-def _utc_text(sec: float) -> str:
-    """An epoch second as the data's fixed-width UTC text; +Infinity (D everywhere) as a text after
-    every time ("~" sorts after the digits)."""
-    if sec == float("inf"):
-        return "~"
-    return datetime.fromtimestamp(sec, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    p.params["bkt_bounds"] = bounds
+    return lambda v: (f"(CASE WHEN mod(width_bucket(extract(epoch FROM {v})::float8, %(bkt_bounds)s::float8[]), 2)"
+                      f" = {inside} THEN xpr.clock_refused({v}, %(bkt_zone)s::text)"
+                      f" ELSE {v} AT TIME ZONE %(bkt_zone)s::text END)")
 
 
 def code_point_order(value: str, direction: str) -> str:
@@ -451,6 +433,27 @@ def _held_literals(src: str) -> None:
         raise gate.Refused(text, why)
 
 
+def reads_as_instant(field: str, times) -> bool:
+    """T-114: is ``field`` one of the time fields ``times`` names -- compared by path, in any spelling (the app writes a
+    sort as ``$.when``, the view names ``when``)?"""
+    if not times:
+        return False
+    try:
+        steps = paths.steps(field)
+    except ValueError:
+        return False
+    return any(paths.steps(t) == steps for t in times)
+
+
+def instants_kw(compile_kw: dict, times) -> dict:
+    """``compile_kw`` with T-114's instant reading of the time fields ``times`` names (field paths, as the view
+    writes them), for a filter or a count; unchanged -- byte for byte -- when it names none."""
+    if not times:
+        return compile_kw
+    steps = [_expr.parse(paths.dollar(t))[1] for t in times]
+    return dict(compile_kw, instants=steps)
+
+
 def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict | None = None) -> Compiled:
     """parse → gate → compile, in that order, always (§4.5: the gate runs
     before compile_ast, on the parsed tree, every time).  ``compile_kw`` is
@@ -525,6 +528,7 @@ class _Pieces:
         self.q = "" if self.shape == legality.BUCKET else "r."
         self.col = self.q + "data"
         self.compile_kw = self.records.compile_kwargs(self.source)
+        self.times = list(pick.get("times") or ())      # T-114: the time fields the filter and sort read as instants
 
         # Op 2 — parse+gate+compile each computed column ONCE; validate and
         # quote each alias against the vocabulary that existed before it.
@@ -550,7 +554,7 @@ class _Pieces:
         if flt_src:
             frag = _compile_expression(
                 flt_src, ctx_param="flt_ctx", column=self.col,
-                compile_kw=self.compile_kw,
+                compile_kw=instants_kw(self.compile_kw, self.times),
             )
             sql, prm = namespace(frag, PREFIX_FILTER)
             merge_params(self.params, prm)
@@ -639,6 +643,11 @@ class _Pieces:
         else:
             self.params["sort_path"] = _field_path(field, what="the sort")
             value = f"( {q}data #> %(sort_path)s )"
+            if reads_as_instant(field, self.times):
+                # T-114 (ruling 2): a time field sorts by its instant; a value that is no readable time sorts last
+                # either way, with the rows that lack the field (NULLS LAST, then the key); a JSON-null blank keeps
+                # its place
+                value = f"nullif(xpr.time_text({value}), 'false'::jsonb)"
         lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
 
@@ -757,35 +766,35 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     field = pick.get("bucket_field")
     zone = pick.get("bucket_zone")
     g = _GRANULARITY_SQL[pick["bucket"]]
+    lateral = ""
     if field:
-        # T-88: any time or date field, named by the pick — bound, never text
+        # T-88, T-114: any time or date field, named by the pick — bound, never text — read by the rule
+        # (xpr.time_at: every readable form at its UTC instant, a date at its UTC midnight), once a row, in a LATERAL
+        # that the label and the guard both read (T-113's suggestion)
         p.params["bkt_path"] = _field_path(field, what="the time to group by")
-        p.params["bkt_re"] = TIME_VALUE_RE
         value = "(data #>> %(bkt_path)s)"
-        # Read as a timestamp WITHOUT time zone: every value the guard lets in
-        # is UTC (a date is its UTC midnight, the time form ends in Z, which a
-        # timestamp ignores), so the cut is in UTC whatever the session's time
-        # zone (the T-88 check) — a timestamptz would read a date in it.
+        at = "bkt.t"
+        lateral = "\n  CROSS JOIN LATERAL (SELECT xpr.time_at(data #>> %(bkt_path)s) AS t OFFSET 0) AS bkt"
         if zone:
             # T-100: cut on the zone's wall clock; a date is its own local midnight
-            local = _zoned_local(value, _zone_reading(p, zone), True)
+            local = _zoned_local(value, at, _zone_reading(p, zone), True)
             label = _ZONED_LABEL.format(g=g, local=local)
         else:
-            label = (f"to_char( date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp),\n"
+            # the instant cut in UTC, whatever the session's time zone (the T-88 check)
+            label = (f"to_char( date_trunc({g}, {at}, 'UTC') AT TIME ZONE 'UTC',\n"
                      "                'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )")
-        valid = (f"jsonb_typeof(data #> %(bkt_path)s) = 'string'"
-                 f"\n   AND {value} ~ %(bkt_re)s"
-                 f"\n   AND pg_input_is_valid({value}, 'timestamp')")
+        valid = f"jsonb_typeof(data #> %(bkt_path)s) = 'string'\n   AND {at} IS NOT NULL"
         guard = f"\n   AND {valid}"
         if zone:
             # a-chk's MEDIUM: a time whose clock reading leaves years 1..9999 is in no bucket (Python's
             # datetime has no such year); read only once the value is known to be a time (CASE)
-            guard += f"\n   AND CASE WHEN {valid} THEN {_in_years(local, value)} ELSE false END"
+            guard += f"\n   AND CASE WHEN {valid} THEN {_in_years(local, value, at)} ELSE false END"
     elif zone:
-        # T-100: the series' own time, on the zone's wall clock (its values are the full UTC form)
+        # T-100: the series' own time, on the zone's wall clock
         time = (p.records.series or {}).get("time") or "ts"
         value = f"(data ->> '{time}')"
-        local = _zoned_local(value, _zone_reading(p, zone), False)
+        at = f"xpr.time_at({value})"
+        local = _zoned_local(value, at, _zone_reading(p, zone), False)
         label = _series_label(p, time, _ZONED_LABEL.format(g=g, local=local))
         # T-109: read on the clock only once the value is known to be a readable time (CASE); an unreadable one
         # stays in, for the label to refuse
@@ -799,7 +808,7 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     sql = (
         f'SELECT {label}                      AS "bucket",\n'
         f'       {agg}             AS "agg"\n'
-        f"  FROM {p.records.table}\n"
+        f"  FROM {p.records.table}{lateral}\n"
         + where + "\n"
         ' GROUP BY "bucket"\n'
         ' ORDER BY "bucket"'

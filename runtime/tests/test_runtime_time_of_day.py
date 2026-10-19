@@ -157,7 +157,7 @@ def test_a_database_running_this_runtime_is_said_to(conn):
     """this_runtime.install ran in the fixture: every function the file declares is there, as written."""
     import this_runtime
     got = this_runtime.compare(conn, this_runtime.RUNTIME_SQL.read_text())
-    assert got["state"] == "same" and got["functions"] == 27, got     # T-109: xpr.series_time_refused
+    assert got["state"] == "same" and got["functions"] == 29, got     # T-109: series_time_refused; T-114: time_at, time_text
 
 
 @needs_db

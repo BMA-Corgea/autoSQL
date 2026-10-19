@@ -315,13 +315,21 @@ KNOWN_DIVERGENCES = [
 ]
 
 
+def _instant_paths(instants: Any) -> frozenset:
+    """T-114: the field paths read as time instants, each a tuple of (kind, step) pairs."""
+    if not instants:
+        return frozenset()
+    return frozenset(tuple(tuple(step) for step in path) for path in instants)
+
+
 # ---------------------------------------------------------------------------------
 # Compiler
 # ---------------------------------------------------------------------------------
 class _Compiler:
     def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None,
-                 time_zones: Any = None, zone_gaps: Any = None):
+                 time_zones: Any = None, zone_gaps: Any = None, instants: Any = None):
         self.column = column
+        self.instants = _instant_paths(instants)
         self.time_zones = time_zones
         self.zone_gaps = zone_gaps
         self.ctx_param = ctx_param
@@ -408,6 +416,13 @@ class _Compiler:
     # ---- field access -----------------------------------------------------------
     def _t_field(self, node):                                 # expr.py:247, 588-589
         path: List[Tuple[str, Any]] = node[1]
+        if self.instants and tuple(tuple(step) for step in path) in self.instants:
+            # T-114 (the foreman's (A)): a time field a dashboard's filter reads as an instant -- its UTC instant at
+            # one width, false for a value that is no readable time, NULL for a blank (xpr.time_text)
+            return f"xpr.time_text({self._field(path)})"
+        return self._field(path)
+
+    def _field(self, path):
         sql = self.column
         if self.fold == "gims":
             sql, path = self._gims_first_step(path)
@@ -756,7 +771,7 @@ del _name
 
 def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
                 fold: Any = None, noun: Any = None, time_zones: Any = None,
-                zone_gaps: Any = None) -> Compiled:
+                zone_gaps: Any = None, instants: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
 
     Raises Uncompilable for anything this compiler is not sure of.
@@ -772,12 +787,16 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
     row (its key copies and the _noun_type tag; see gims_copy_sources), for a WHERE run
     over the STORED row.  `noun` is required with it.  Without `fold`, the output is
     byte-identical to the compiler before T-48.
+
+    instants (T-114): field paths (each a sequence of ("key"|"index", step) pairs, as the
+    parser writes them) read as time instants -- xpr.time_text of the field.  Without it the
+    output is byte-identical to the compiler before T-114.
     """
     if fold not in (None, "gims"):
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants)
     sql = c.compile(ast)
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.
@@ -787,7 +806,7 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
 
 def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
                       fold: Any = None, noun: Any = None, time_zones: Any = None,
-                      zone_gaps: Any = None) -> Compiled:
+                      zone_gaps: Any = None, instants: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres BOOLEAN: true exactly where expr's
     _truthy(evaluate(ast)) is.  For a WHERE.  Same arguments and refusals as compile_ast.
 
@@ -799,7 +818,7 @@ def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants)
     sql = c.predicate(ast)                   # measured as it is built (T-102)
     return Compiled(sql=sql, params=c.params)
 

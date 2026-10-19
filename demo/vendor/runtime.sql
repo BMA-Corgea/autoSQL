@@ -606,6 +606,51 @@ END
 $$;
 
 -- ----------------------------------------------------------------------------
+-- time_at : T-114's rule, when a stored text is a time (picks/times.py states it again for the second engine).
+--   READABLE: YYYY-MM-DD, T or a space, HH:MM:SS, an optional fraction of 1-6 digits, and Z or +-HH:MM / +-HHMM with
+--   an offset of at most 14:59; on a real day; its UTC instant inside years 1..9999. A bare date is its UTC
+--   midnight (T-88). NULL for anything else: naive, lowercase, 7+ digits, an offset with seconds, hour 24, ...
+--   The pattern decides first (T-103: ~, no captures), so Postgres's own parser only ever sees zoned forms with at
+--   most 6 digits and offsets it reads -- where it and Python agree, and where the session's zone can't matter --
+--   and pg_input_is_valid then refuses a day the calendar lacks. The year range is read on the instant only within
+--   a day of either end: no offset moves an instant a day, so the leading date settles the rest by text.
+--   STABLE (pg_input_is_valid is) and one SQL expression, so the planner inlines it.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.time_at(v text) RETURNS timestamptz
+LANGUAGE sql STABLE PARALLEL SAFE AS $$
+  SELECT CASE
+    WHEN v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN
+      CASE WHEN pg_input_is_valid(v, 'date') THEN (v::date)::timestamp AT TIME ZONE 'UTC' END
+    WHEN v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}[T ]([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\.[0-9]{1,6})?(Z|[+-](0[0-9]|1[0-4]):?[0-5][0-9])$'
+         AND pg_input_is_valid(v, 'timestamptz')
+         AND (v COLLATE "C" >= '0001-01-02' AND v COLLATE "C" < '9999-12-31'
+              OR (v::timestamptz >= '0001-01-01 00:00:00+00' AND v::timestamptz < '10000-01-01 00:00:00+00'))
+      THEN v::timestamptz
+  END
+$$;
+
+-- ----------------------------------------------------------------------------
+-- time_text : a time field's value as a dashboard's filter and sort read it (T-114, the foreman's (A)).
+--   A readable time (xpr.time_at) is its UTC instant at one width, YYYY-MM-DDTHH:MM:SS.ffffffZ, so text order is
+--   time order; JSON null and SQL NULL stay as they are (a blank keeps its place); anything else is false --
+--   present, but no time, so it matches no comparison and "present" / "blank" keep their meaning.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION xpr.time_text(j jsonb) RETURNS jsonb
+LANGUAGE plpgsql STABLE PARALLEL SAFE AS $$
+DECLARE t timestamptz;
+BEGIN
+  IF j IS NULL OR jsonb_typeof(j) = 'null' THEN RETURN j; END IF;
+  IF jsonb_typeof(j) = 'string' THEN
+    t := xpr.time_at(j #>> '{}');
+    IF t IS NOT NULL THEN
+      RETURN to_jsonb(to_char(t AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
+    END IF;
+  END IF;
+  RETURN 'false'::jsonb;
+END
+$$;
+
+-- ----------------------------------------------------------------------------
 -- clock_refused : the refusal of a clock reading where the two clocks disagree (T-101).
 --   The server reads a zone's clock from ITS time-zone data and GIMS's evaluator from Python's,
 --   and the two can disagree (measured 2026-10-14: 109 of 484 zones on this machine, mostly

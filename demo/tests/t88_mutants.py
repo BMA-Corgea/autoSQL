@@ -25,27 +25,26 @@ WEEK_SQL = _M + "test_samples_per_week_of_due_date_equals_hand_sql"
 STATUS_SQL = _M + "test_samples_per_status_equals_hand_sql"
 OWN_KEY = _M + "test_every_offered_name_reads_its_own_key_in_both_engines"
 
-_SQL_WEEK = "date_trunc({_GRANULARITY_SQL[pick['bucket']]}, {value}::timestamp)"
+#: T-114 moved the rule: the named-field bucket reads xpr.time_at's instant (bkt.t), and the rule itself lives in
+#: picks/times.py (the second engine) and runtime/runtime.sql's xpr.time_at (the statement) -- these anchors follow it
+_SQL_WEEK = "date_trunc({g}, {at}, 'UTC')"
 _PY_WEEK = "        trunc = day - timedelta(days=day.weekday())          # Monday is 0"
-_SQL_RE = 'TIME_VALUE_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}(T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z)?$"'
-_PY_RE = r'_TIME_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dZ)?\Z", re.ASCII)'
+_TIMES = "../picks/times.py"
+_RUNTIME = "../runtime/runtime.sql"
+_T114_SQL = "../parity/tests/test_t114_times.py::test_the_rule_in_sql"
 
 T88_MUTANTS = [
     dict(id="V1", defect="BOTH engines start a week on Sunday (they agree)",
          edits=[("../picks/builder.py", _SQL_WEEK,
-                 "(CASE WHEN {_GRANULARITY_SQL[pick['bucket']]} = 'week' THEN date_trunc('week', {value}::timestamp "
-                 "+ interval '1 day') - interval '1 day' ELSE date_trunc({_GRANULARITY_SQL[pick['bucket']]}, "
-                 "{value}::timestamp) END)"),
+                 "(CASE WHEN {g} = 'week' THEN date_trunc('week', {at} + interval '1 day', 'UTC') - interval '1 day' "
+                 "ELSE date_trunc({g}, {at}, 'UTC') END)"),
                 ("../picks/pyrunner/evaluate.py", _PY_WEEK,
                  "        trunc = day - timedelta(days=(day.weekday() + 1) % 7)")],
          selector=[VECTORS, WEEK_SQL], expect="!= [['2025-12-29T00:00:00Z', '2']"),
-    dict(id="V2", defect="BOTH engines take a time without seconds (another form) as a time",
-         edits=[("../picks/builder.py", _SQL_RE,
-                 'TIME_VALUE_RE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}(T([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?Z?)?$"'),
-                ("../picks/pyrunner/evaluate.py", _PY_RE,
-                 r'_TIME_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?Z?)?\Z", re.ASCII)'),
-                ("../picks/pyrunner/evaluate.py", '        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)',
-                 '        return datetime.fromisoformat(value.rstrip("Z")).replace(tzinfo=timezone.utc)')],
+    dict(id="V2", defect="the second engine takes a time without seconds (another form) as a time (T-114: the rule)",
+         edits=[(_TIMES, "    if not _READABLE.fullmatch(value):\n        return None\n",
+                 "    if len(value) > 16 and value[16] in \"Z+-\":\n        value = value[:16] + \":00\" + value[16:]\n"
+                 "    if not _READABLE.fullmatch(value):\n        return None\n")],
          selector=VECTORS, expect="!= [['2025-12-29T00:00:00Z', '2'], ['2026-01-05T00:00:00Z', '3']]"),
     dict(id="V3", defect="BOTH engines read an empty text as blank in a group",
          edits=[("../picks/group.py", "    select = ['nullif( r.data #> %(grp_path)s, \\'null\\'::jsonb )  AS \"grp\"',",
@@ -59,15 +58,14 @@ T88_MUTANTS = [
          edits=[("../picks/view.py", '        pick["bucket"] = "off" if summary["per"] == "all" else summary["per"]',
                  '        pick["bucket"] = "off" if summary["per"] == "all" else ("day" if summary["per"] == "week" else summary["per"])')],
          selector=_M + "test_the_view_asks_for_exactly_the_unit_and_the_field_picked", expect="('day', 'due_date') == ('week', 'due_date')"),
-    dict(id="V5", defect="the statement drops its check for a real day (2026-02-30 reaches the cast)",
-         edits=[("../picks/builder.py", '                 f"\\n   AND pg_input_is_valid({value}, \'timestamp\')")',
-                 '                 "")')],
-         selector=VECTORS, expect="DatetimeFieldOverflow"),
-    dict(id="V6", defect="the second engine takes 24:00:00 as a time",
-         edits=[("../picks/pyrunner/evaluate.py", _PY_RE,
-                 r'_TIME_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-4]):[0-5]\d:[0-5]\dZ)?\Z", re.ASCII)'),
-                ("../picks/pyrunner/evaluate.py", '        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)',
-                 '        return (datetime.strptime(value.replace("T24:", "T00:"), "%Y-%m-%dT%H:%M:%SZ") + timedelta(days=value.count("T24:"))).replace(tzinfo=timezone.utc)')],
+    dict(id="V5", defect="the statement drops its check for a real day (2026-02-29 reaches the cast; T-114: xpr.time_at)",
+         edits=[(_RUNTIME, "         AND pg_input_is_valid(v, 'timestamptz')\n", "")],
+         selector=_T114_SQL + "[2026-02-29T05:03:48Z-None]", expect="DatetimeFieldOverflow"),
+    dict(id="V6", defect="the second engine takes 24:00:00 as a time (T-114: the rule)",
+         edits=[(_TIMES, '[T ](?:[01][0-9]|2[0-3])', '[T ](?:[01][0-9]|2[0-4])'),
+                (_TIMES, "                         int(value[11:13]), int(value[14:16]), int(value[17:19]))\n",
+                 "                         int(value[11:13]) % 24, int(value[14:16]), int(value[17:19]))"
+                 " + timedelta(days=int(value[11:13]) // 24)\n")],
          selector=VECTORS, expect="the second engine:"),
     dict(id="V7", defect="the field reads skip a key that is not an identifier (as before T-88)",
          edits=[("../picks/view.py", "            name = paths.name([key])\n            if name is not None:\n",
@@ -95,8 +93,8 @@ T88_MUTANTS = [
          selector=_M + "test_a_record_with_an_empty_key_does_not_break_its_data_sets_fields",
          expect="a key is non-empty text, not ''"),
     dict(id="Z1", defect="a named time field is cut in the session's time zone",
-         edits=[("../picks/builder.py", "{value}::timestamp),\\n", "{value}::timestamptz) AT TIME ZONE 'UTC',\\n"),
-                ("../picks/builder.py", "pg_input_is_valid({value}, 'timestamp')", "pg_input_is_valid({value}, 'timestamptz')")],
+         edits=[("../picks/builder.py", "date_trunc({g}, {at}, 'UTC') AT TIME ZONE 'UTC'",
+                 "date_trunc({g}, {at}) AT TIME ZONE 'UTC'")],
          selector=_M + "test_the_pick_vectors_hold_whatever_the_sessions_time_zone",
          expect="AssertionError: [('count per week"),
     dict(id="Z2", defect="another host's series is cut in the session's time zone",

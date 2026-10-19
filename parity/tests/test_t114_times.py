@@ -287,6 +287,33 @@ def test_dst_on_the_questions_clock_per_hour():
     assert got == DST_HAND, got
 
 
+#: a board's latest / earliest of a time field (T-114: by instant, in the engine's fixed form to the second), by hand
+BOARD = {"source": T, "group": "s", "filter": None, "counts": [], "time": {"fn": "max", "field": "when"},
+         "measure": None, "sort": None, "cap": None, "count_times": ["when"]}
+BOARD_HAND = {"max": {"x": "2028-02-29T12:00:00Z", "y": "2026-07-10T05:30:00Z"},
+              "min": {"x": "2026-02-01T06:59:59Z", "y": "2026-07-09T05:03:48Z"}}
+
+
+@pytest.mark.parametrize("fn", ["max", "min"])
+def test_the_second_engine_alone_reads_a_boards_latest_and_earliest_by_instant(fn):
+    from picks.pyrunner import group as pygroup
+    rows = [pyrows.source_row(T, k, _gims_text(_doc(k))) for k in sorted(ROWS)]
+    got = {r["grp"]: r["time"] for r in pygroup.answer(rows, dict(BOARD, time={"fn": fn, "field": "when"}), (),
+                                                         _records())["rows"]}
+    assert got == BOARD_HAND[fn], got
+
+
+#: a time whose reading on a clock leaves year 1 is in no bucket, on both engines (Python's datetime holds no year 0)
+YEARS = {"e1": "0001-01-02T00:00:00+14:59", "e2": "0001-01-03T12:00:00Z"}
+YEARS_HAND = {"0001-01-03T00:00:00": 1}
+
+
+def test_the_second_engine_alone_leaves_a_clock_reading_before_year_1_out():
+    src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in YEARS.items()]
+    got = {r["bucket"]: int(r["agg"]) for r in pyshape.answer(src, _bucket_pick("day", "Etc/GMT+12"), _records())["rows"]}
+    assert got == YEARS_HAND, got
+
+
 #: the view's conditions over ROWS, and by hand the keys each keeps
 CONDITIONS = {
     "on Jul 9 (UTC)": ([{"field": "when", "op": "on", "value": "2026-07-09"}], "all", None,
@@ -346,7 +373,7 @@ SORT_ASC = ["b1", "m1", "a4", "a5", "a9", "a6", "a8", "a10", "a7", "a2", "a3", "
 
 @pytest.mark.parametrize("direction, want", [("desc", SORT_DESC), ("asc", SORT_ASC)])
 def test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it(direction, want):
-    pick = _filter_pick([], sort={"field": "when", "dir": direction}, cap=8)
+    pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
     assert [r["key"] for r in _py(pick)] == want[:8]
     pick["cap"] = None
@@ -423,6 +450,31 @@ def test_the_statement_cuts_dst_hours_on_the_questions_clock(conn):
 
 
 @needs_db
+@pytest.mark.parametrize("fn", ["max", "min"])
+def test_the_statement_reads_a_boards_latest_and_earliest_by_instant(conn, fn):
+    from picks import group as sgroup
+    b = sgroup.build(dict(BOARD, time={"fn": fn, "field": "when"}), records=_records())
+    with conn.transaction():
+        cur = conn.execute(b.sql, b.params)
+        names = [d.name for d in cur.description]
+        got = {r["grp"]: r["time"] for r in (dict(zip(names, row)) for row in cur.fetchall())}
+    assert got == BOARD_HAND[fn], got
+
+
+@needs_db
+def test_the_statement_leaves_a_clock_reading_before_year_1_out(conn):
+    with conn.transaction():
+        conn.execute(f"DELETE FROM {TABLE}")
+        for k, v in YEARS.items():
+            conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps({"when": v})))
+        got = {r["bucket"]: int(r["agg"]) for r in _sql(conn, _bucket_pick("day", "Etc/GMT+12"))}
+        conn.execute(f"DELETE FROM {TABLE}")
+        for k in ROWS:
+            conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps(_doc(k))))
+    assert got == YEARS_HAND, got
+
+
+@needs_db
 @pytest.mark.parametrize("case", list(CONDITIONS))
 def test_the_statement_compares_instants_and_an_unreadable_time_matches_nothing(conn, case):
     items, join, zone, want = CONDITIONS[case]
@@ -433,7 +485,7 @@ def test_the_statement_compares_instants_and_an_unreadable_time_matches_nothing(
 @needs_db
 @pytest.mark.parametrize("direction, want", [("desc", SORT_DESC), ("asc", SORT_ASC)])
 def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direction, want):
-    pick = _filter_pick([], sort={"field": "when", "dir": direction}, cap=8)
+    pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
     assert [r["key"] for r in _sql(conn, pick)] == want[:8]
 
@@ -454,34 +506,88 @@ def test_the_setups_sql_counts_what_its_python_counts(conn, case):
     assert pview._kind({"string"}, counts) == want
 
 
+@needs_db
+def test_the_python_reader_answers_the_setup_as_postgres_does(conn):
+    """GIMS's SQLite mode reads its fields with picks' own Python answer (T-114: moved here from GIMS's _RowsConn), and
+    it must answer every reader statement as Postgres does: the kinds, the spans, the values."""
+    docs = [_doc(k) for k in ROWS] + [{"f": v} for vals, _want in KIND_CASES.values() for v in vals] + [
+        {"g": v} for v in KIND_CASES["two readable, one junk: a time field"][0]]
+    with conn.transaction():
+        conn.execute("CREATE TEMPORARY TABLE t114r (collection text, key text, data jsonb) ON COMMIT DROP")
+        for i, d in enumerate(docs):
+            conn.execute("INSERT INTO t114r VALUES (%s, %s, %s::jsonb)", (T, f"r{i:03d}", json.dumps(d)))
+        rec = Records(table="t114r", sources={T: "x"})
+        in_sql = pview._read_fields(conn, T, records=rec)
+        conn.execute("DROP TABLE t114r")
+    reader = pview.PythonReader(rec, [json.loads(json.dumps(d), parse_float=Decimal) for d in docs])
+    in_python = pview._read_fields(reader, T, records=rec)
+    by_path = (lambda fields: {f["path"]: f for f in fields})        # (the order is _TYPES_SQL's rows', unordered)
+    assert by_path(in_python) == by_path(in_sql)
+    kinds = {f["path"]: f["kind"] for f in in_sql}
+    assert kinds["when"] == "time" and kinds["g"] == "time" and kinds["s"] == "text", kinds
+
+
 # ── the two readers, 250,000 generated strings (T-103's way): the same instant, or unreadable on both ──
 
 def _generated(n, seed=114):
+    """Half readable times in every form the rule reads (random days in years 1..9999, offsets to 14:59, 0-6
+    digits), half with ONE thing wrong -- each near miss the spec names -- plus truncations and junk."""
     rnd = random.Random(seed)
+    digits = "0123456789"
     out = []
-    for i in range(n):
+    for _ in range(n):
         y = rnd.choice([rnd.randint(1, 9999), rnd.randint(1960, 2100), 1, 9999, 2000, 2100, 1900, 2028])
-        mo = rnd.choice([rnd.randint(1, 12), 0, 13, 2, 2])
-        d = rnd.choice([rnd.randint(1, 28), 29, 30, 31, 0, 32])
-        hh = rnd.choice([rnd.randint(0, 23), 23, 0, 24])
-        mi, ss = rnd.choice([rnd.randint(0, 59), 59, 60]), rnd.choice([rnd.randint(0, 59), 59, 60])
-        sep = rnd.choice(["T", "T", "T", " ", "t", "_"])
-        frac = rnd.choice(["", "", "." + "".join(rnd.choice("0123456789") for _ in range(rnd.randint(1, 8))), ","
-                           + str(rnd.randint(0, 9))])
-        oh, om = rnd.choice([rnd.randint(0, 14), 14, 15, 23, 0]), rnd.choice([rnd.randint(0, 59), 0, 30, 59])
-        off = rnd.choice(["Z", "Z", "z", f"+{oh:02d}:{om:02d}", f"-{oh:02d}:{om:02d}", f"+{oh:02d}{om:02d}",
-                          f"-{oh:02d}{om:02d}", f"+{oh:02d}", "-00:00", f"+{oh:02d}:{om:02d}:15", ""])
+        mo = rnd.randint(1, 12)
+        d = rnd.randint(1, 31 if mo in (1, 3, 5, 7, 8, 10, 12) else 30 if mo != 2 else 29)
+        hh, mi, ss = rnd.randint(0, 23), rnd.randint(0, 59), rnd.randint(0, 59)
+        sep = rnd.choice("TTT ")
+        frac = rnd.choice(["", "", "." + "".join(rnd.choice(digits) for _ in range(rnd.randint(1, 6)))])
+        oh, om = rnd.randint(0, 14), rnd.choice([rnd.randint(0, 59), 0, 30, 45])
+        off = rnd.choice(["Z", "Z", f"+{oh:02d}:{om:02d}", f"-{oh:02d}:{om:02d}", f"+{oh:02d}{om:02d}",
+                          f"-{oh:02d}{om:02d}", "-00:00", "+00:00"])
+        if rnd.random() < 0.5:
+            miss = rnd.randrange(14)
+            if miss == 0:
+                mo = rnd.choice([0, 13])
+            elif miss == 1:
+                d = rnd.choice([0, 29, 30, 31, 32])
+            elif miss == 2:
+                hh = 24
+            elif miss == 3:
+                mi = 60
+            elif miss == 4:
+                ss = 60
+            elif miss == 5:
+                sep = rnd.choice("t_")
+            elif miss == 6:
+                frac = "." + "".join(rnd.choice(digits) for _ in range(rnd.randint(7, 9)))
+            elif miss == 7:
+                frac = "," + rnd.choice(digits)
+            elif miss == 8:
+                off = rnd.choice(["z", "", ""])
+            elif miss == 9:
+                off = f"{rnd.choice('+-')}{rnd.randint(15, 23):02d}:{om:02d}"
+            elif miss == 10:
+                off = f"+{oh:02d}:{om:02d}:{rnd.randint(0, 59):02d}"
+            elif miss == 11:
+                off = f"{rnd.choice('+-')}{oh:02d}"
+            elif miss == 12:                         # the years' edges, an offset either way
+                y, mo, d = rnd.choice([(1, 1, 1), (9999, 12, 31)])
+                hh = rnd.choice([0, 23])
+                off = rnd.choice(["+14:59", "-14:59", "+00:01", "-00:01", "Z"])
+            else:
+                y = 0
         s = f"{y:04d}-{mo:02d}-{d:02d}{sep}{hh:02d}:{mi:02d}:{ss:02d}{frac}{off}"
         r = rnd.random()
-        if r < 0.04:
-            s = s[:10]                                   # a bare date
+        if r < 0.03:
+            s = s[:10]                               # a bare date
+        elif r < 0.05:
+            s = s[:16]                               # no seconds
+        elif r < 0.06:
+            s = rnd.choice([" ", "\t"]) + s
         elif r < 0.07:
-            s = s[:16]                                   # no seconds
-        elif r < 0.09:
-            s = " " + s
-        elif r < 0.10:
-            s = s.replace("-", "", 2)
-        elif r < 0.11:
+            s = s.replace("-", "", 2)                # the basic format
+        elif r < 0.08:
             s = "".join(rnd.choice("0123456789-:TZ+. ") for _ in range(rnd.randint(0, 30)))
         out.append(s)
     return out
@@ -506,7 +612,7 @@ def test_the_two_readers_agree_on_250000_generated_strings(conn):
                 bad.append((s, got, want))
     readable = sum(1 for s in texts if t.instant(s) is not None)
     assert not bad, bad[:5]
-    assert 30_000 < readable < 220_000, readable      # both sides of the rule are exercised
+    assert 90_000 < readable < 180_000, readable      # both sides of the rule are exercised
 
 
 # ── the dashboard, on a scratch copy of the seed: the setup, the span, a summary, conditions and sort ──
@@ -552,11 +658,13 @@ def demo():
     db.connect = lambda *, application_name=None, autocommit=False: psycopg.connect(dsn, autocommit=autocommit,
                                                                                     options=opts)
     dashboard._CACHE.clear()
+    dashboard._SETUP = None                 # the setup is read once a process: read it again, over this copy
     try:
         yield {"client": TestClient(server_app.app, raise_server_exceptions=False)}
     finally:
         db.connect = real
         dashboard._CACHE.clear()
+        dashboard._SETUP = None
         with psycopg.connect(DSN, autocommit=True) as cx:
             cx.execute(f"DROP DATABASE IF EXISTS {SCRATCH} WITH (FORCE)")
 
@@ -604,9 +712,9 @@ def test_the_dashboard_counts_a_mixed_field_per_day_by_instant(demo):
                                   "all or none (after X, S is y): no unreadable row"])
 def test_the_dashboards_conditions_compare_instants(demo, case):
     items, join, zone, want = CONDITIONS[case]
-    # only the rows this test added (the seed's Edge cases hold no S): the cards as one group, and S is present
+    # only the rows this test added (they alone hold a Rid): the cards as one group, and Rid has a value
     view = {"filter": {"version": pview.FILTER_VERSION, "join": "all",
-                       "items": [{"join": join, "items": items}, {"field": "s", "op": "present"}]}}
+                       "items": [{"join": join, "items": items}, {"field": "rid", "op": "present"}]}}
     if zone:
         view["zone"] = zone
     status, a = _answer(demo, show=None, **view)
@@ -617,8 +725,8 @@ def test_the_dashboards_conditions_compare_instants(demo, case):
 
 @needs_db
 def test_the_dashboard_sorts_a_time_field_by_its_instant_and_shows_the_first_rows(demo):
-    status, a = _answer(demo, sort={"field": "when", "dir": "desc"}, show=5,
+    status, a = _answer(demo, sort={"field": "when", "dir": "desc"}, show=25,
                         filter={"version": pview.FILTER_VERSION, "join": "all",
-                                "items": [{"field": "s", "op": "present"}]})
+                                "items": [{"field": "rid", "op": "present"}]})
     assert status == 200 and a.get("kind") == "table", (status, str(a)[:300])
-    assert [r[0] for r in a["rows"]] == SORT_DESC[:5], a["rows"]
+    assert [r[0] for r in a["rows"]] == SORT_DESC, a["rows"]          # (the cap itself: the engine tests, cap 8)

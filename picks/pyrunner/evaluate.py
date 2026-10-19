@@ -73,6 +73,7 @@ from .rows import SourceRow
 # vendored in this repo at demo/vendor/expr.py.  Its own module object: the
 # statement side's parser is registered separately.
 from .. import env as _env  # noqa: E402
+from .. import paths, times  # noqa: E402  (T-114: the rule, as the second engine reads it)
 
 expr = _env.get("evaluator")
 
@@ -205,9 +206,56 @@ def computed_values(row: SourceRow, parsed: Sequence[Tuple[str, Any]]) -> Dict[s
     return {name: exact_value(expr.evaluate(ast, row.record_f, {})) for name, ast in parsed}
 
 
-def keep_by_filter(row: SourceRow, filter_ast) -> bool:
-    """Operation 3 on one row: expr truthiness of the filter, on record_f."""
-    return expr.truthy(expr.evaluate(filter_ast, row.record_f, {}))
+def keep_by_filter(row: SourceRow, filter_ast, instants: Optional[Sequence] = None) -> bool:
+    """Operation 3 on one row: expr truthiness of the filter, on record_f -- with T-114's instant reading of the
+    time fields ``instants`` names (expr.py path steps; :func:`instant_record`)."""
+    record = instant_record(row.record_f, instants) if instants else row.record_f
+    return expr.truthy(expr.evaluate(filter_ast, record, {}))
+
+
+def reads_as_instant(field: str, named: Optional[Sequence[str]]) -> bool:
+    """T-114: is ``field`` one of the time fields a pick names (``times``) -- by its path, in any spelling?"""
+    if not named:
+        return False
+    try:
+        steps = paths.steps(field)
+    except ValueError:
+        return False
+    return any(paths.steps(t) == steps for t in named)
+
+
+class InstantPath(list):
+    """A sort's field path that names a time field read as an instant (T-114, ruling 2)."""
+
+
+def instants_of(named: Optional[Sequence[str]]) -> list:
+    """The time fields a pick or a board names (``times``), as expr.py path steps."""
+    return [dollar_path(paths.dollar(t)) for t in named or ()]
+
+
+def instant_record(record: Any, instants: Sequence) -> Any:
+    """``record`` with each time field ``instants`` names handed to the filter as the statement hands it (runtime
+    ``xpr.time_text``; T-114, the foreman's (A)): its UTC instant at one width, false when it is no readable time,
+    a blank (JSON null, or no such field) as it is. A copy along each path; the record itself is never changed."""
+    for steps in instants:
+        record = _with_reading(record, list(steps))
+    return record
+
+
+def _with_reading(cur: Any, steps: List[Tuple[str, Any]]) -> Any:
+    if not steps:
+        return times.reading(cur)
+    kind, key = steps[0]
+    if kind == "key":
+        if not isinstance(cur, dict) or key not in cur:
+            return cur
+        out = dict(cur)
+    else:
+        if not isinstance(cur, list) or not -len(cur) <= key < len(cur):
+            return cur
+        out = list(cur)
+    out[key] = _with_reading(cur[key], steps[1:])
+    return out
 
 
 # ── the field an aggregate or window reads ──────────────────────────────
@@ -407,29 +455,11 @@ def aggregate(fn: str, values: Optional[Sequence[Any]], row_count: int) -> Any:
     raise ValueError(f"unknown aggregate {fn!r}")
 
 
-_TS_WIDTH = len("2026-08-14T00:00:00Z")
-
-
-#: T-88: a time or date value, this engine's own statement of the rule (the
-#: statement side writes its own): a calendar date ``YYYY-MM-DD`` or the
-#: fixed-width UTC time ``YYYY-MM-DDTHH:MM:SSZ`` — hours 00-23, minutes and
-#: seconds 00-59 — and a real day of the calendar.  Anything else is no time.
-_TIME_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\dZ)?\Z", re.ASCII)
-
-
 def time_value(value: Any) -> Optional[datetime]:
-    """A stored value as an AWARE UTC datetime when it is a time or a date in
-    one of the two forms (a date is its UTC midnight); ``None`` for anything
-    else — missing, null, a number, another text form, a day the calendar
-    lacks.  Such a record is in no bucket."""
-    if not isinstance(value, str) or not _TIME_VALUE.match(value):
-        return None
-    try:
-        if len(value) == 10:
-            return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
+    """A stored value as an AWARE UTC datetime when it is a readable time (T-114: every form the rule reads, at its
+    UTC instant; ``picks.times``) or a date (its UTC midnight, T-88); ``None`` for anything else — missing, null, a
+    number, a naive or another text form, a day the calendar lacks.  Such a record is in no bucket."""
+    return times.instant(value)
 
 
 def local_time(value: Any, zone: str) -> Optional[datetime]:
@@ -472,39 +502,23 @@ def truncate_label(at: datetime, granularity: str) -> str:
     return f"{trunc.year:04d}-{trunc.month:02d}-{trunc.day:02d}T{trunc.hour:02d}:{trunc.minute:02d}:{trunc.second:02d}Z"
 
 
-#: T-109's round: the series' one time form, the statement's own (builder.SERIES_TIME_RE); strptime then refuses a
-#: day the calendar lacks, as Postgres's pg_input_is_valid does.
-_SERIES_TIME = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z")
-
-
 def bucket_label(ts_text: str, granularity: str) -> str:
     """Operation 7's bucket for one row, as the label BOTH panes key by.
 
-    §7.1's time-bucket rule, Python half, verbatim: parse ``ts`` as an
-    AWARE UTC datetime, truncate to the hour or the day IN UTC, format
-    with the same fixed-width string the SQL side's ``to_char`` pins —
-    ``YYYY-MM-DDTHH:MM:SSZ``.  The machine's local time zone is touched at
-    no step and no naive datetime exists here (a naive datetime is the
+    §7.1's time-bucket rule, Python half: read ``ts`` as an AWARE UTC instant, truncate to the hour, day, week or
+    month IN UTC, and write the same fixed-width string the SQL side's ``to_char`` pins — ``YYYY-MM-DDTHH:MM:SSZ``.
+    The machine's local time zone is touched at no step and no naive datetime exists here (a naive datetime is the
     Python spelling of the ``::timestamp`` mistake).
 
-    The seed writes ``ts`` in exactly this fixed-width form (R17); anything
-    else raises rather than landing in a quietly wrong bucket.
+    T-114: the series' time is read by the rule (``picks.times``: every readable form, with a time of day); anything
+    else raises rather than landing in a quietly wrong bucket (T-109: the statement refuses the same rows, XPR06).
     """
     if granularity not in ("hour", "day", "week", "month"):
         raise ValueError(f"granularity must be hour, day, week or month, got {granularity!r}")
-    if len(ts_text) != _TS_WIDTH or not _SERIES_TIME.fullmatch(ts_text):
-        # T-109's round: exactly the form, in ASCII digits and capital T and Z -- strptime alone matches its
-        # literals ignoring case, so "…t…z" passed here and was then left out on a clock (a-chk's HIGH 2)
-        raise ValueError(f"not fixed-width UTC ISO-8601: {ts_text!r}")
-    parsed = datetime.strptime(ts_text, "%Y-%m-%dT%H:%M:%SZ")
-    aware = parsed.replace(tzinfo=timezone.utc)  # aware, UTC, immediately
-    if granularity in ("week", "month"):
-        return truncate_label(aware, granularity)       # T-88
-    if granularity == "hour":
-        trunc = aware.replace(minute=0, second=0, microsecond=0)
-    else:
-        trunc = aware.replace(hour=0, minute=0, second=0, microsecond=0)
-    return f"{trunc.year:04d}-{trunc.month:02d}-{trunc.day:02d}T{trunc.hour:02d}:{trunc.minute:02d}:{trunc.second:02d}Z"
+    at = times.instant(ts_text) if isinstance(ts_text, str) and len(ts_text) > 10 else None
+    if at is None:
+        raise ValueError(f"not a readable time: {ts_text!r}")
+    return truncate_label(at, granularity)
 
 
 # ── operation 4 (and the order every result carries) ────────────────────
@@ -532,6 +546,12 @@ def row_sort_key(
         value = MISSING if v is None else v
     elif sort_steps is not None:
         value = resolve(row.record_d, sort_steps)
+        if isinstance(sort_steps, InstantPath) and value is not MISSING:
+            # T-114 (ruling 2): a time field by its instant; a value that is no readable time sorts last either way,
+            # with the rows that lack the field (the statement's NULLS LAST, then the key); JSON null keeps its place
+            value = times.reading(value)
+            if value is False:
+                value = MISSING
     else:
         value = MISSING
     return sort_key(value, row.key, direction)

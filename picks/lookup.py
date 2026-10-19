@@ -149,7 +149,8 @@ def build_profile(pick: dict, lk: dict, records=None) -> Built:
     where = "WHERE " + records.scope("r", params)
     if pick.get("filter"):
         frag = builder._compile_expression(pick["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=records.compile_kwargs(pick["source"]))
+                                           compile_kw=builder.instants_kw(records.compile_kwargs(pick["source"]),
+                                                                          pick.get("times")))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f" AND xpr.truthy( {sql} )"

@@ -174,6 +174,8 @@ WHY_BUCKET_NEEDS_AGG = "a bucket has to count or total something; set to count"
 #             the zones both engines read; None cuts in UTC, as before
 #   window    {"field": str} | None                       (op 8)
 #   changed   bool                                        (op 9)
+#   times     [str] | None  the time fields the filter and the sort read as
+#             instants (T-114, the foreman's (A)): a dashboard's pick names them
 
 
 def default_pick(records=None) -> dict:
@@ -376,6 +378,10 @@ def shape_violations(pick: dict) -> list[dict]:
     if bucket is not None and not isinstance(bucket, str):
         bad(7, f"the granularity must be one of the words off, hour, day, week or month, "
                f"and this pick carries {_slot_kind(bucket)}")
+    times_read = pick.get("times")
+    if times_read is not None and not (isinstance(times_read, list)
+                                       and all(isinstance(t, str) and t for t in times_read)):
+        bad(3, "the time fields a filter reads as instants must be a list of field paths")
     bucket_field = pick.get("bucket_field")
     if bucket_field is not None and not isinstance(bucket_field, str):
         bad(7, f"the field to group by time must be a field path — text — and this pick "

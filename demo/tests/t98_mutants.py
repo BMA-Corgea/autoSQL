@@ -97,12 +97,10 @@ T98_MUTANTS = [
          edits=[("../picks/zones.py", "    if back != wall:", "    if False:")],
          selector=_T + "test_a_wall_time_the_clocks_skip_is_refused_in_words", expect="DID NOT RAISE"),
     dict(id="B15", defect="a field's kind is decided from its first 2,001 values again",
+         # T-114: the counts are the rule's (picks.times.kind_counts); the mutant counts the first 2,001 only
          edits=[("../picks/view.py", "        kind = _kind(scalar_types, forms)",
-                 "        kind = _kind(scalar_types, (len(strings), "
-                 "sum(not __import__('re').match(r'\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\Z', x) for x in strings), "
-                 "sum(not __import__('re').match(r'\\d{4}-\\d{2}-\\d{2}\\Z', x) for x in strings)))")],
-         selector=[_T + "test_a_wide_time_field_with_one_odd_value_late_in_the_order_is_text",
-                   _T + "test_a_time_written_in_other_digits_is_not_a_time"],
+                 "        kind = _kind(scalar_types, times.kind_counts(strings))")],
+         selector=_T + "test_a_wide_time_field_whose_odd_values_sort_late_is_decided_over_every_value",
          expect="AssertionError: time"),
     dict(id="B16", defect="the statement alone answers for an instant before year 1",
          edits=[(_RT, "  IF sec < -62135596800::float8 OR sec > 253402300799::float8 THEN RETURN NULL; END IF;\n", "")],
@@ -146,7 +144,7 @@ T98_MUTANTS = [
          selector=OUTCOME, expect="hand-written SQL 50"),
     dict(id="C5", defect="BOTH engines: a picked time is read as UTC, whatever the question's clock",
          edits=[(_V, '    if zone is not None and not value.endswith("Z"):', "    if False:")],
-         selector=_T + "test_a_card_means_this_on_the_questions_clock", expect="2026-08-20T17:00:00Z"),
+         selector=_T + "test_a_card_means_this_on_the_questions_clock", expect="2026-08-20T17:00:00.000000Z"),
     dict(id="C6", defect="the sentence doesn't say which clock its times are on",
          edits=[(_D, '        said += f" ({_zones.label(zone)})"', '        said += ""')],
          selector=_T + "test_aug_20_in_denver_is_denvers_day_and_the_rows_read_on_its_clock",

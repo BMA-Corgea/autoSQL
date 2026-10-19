@@ -237,8 +237,9 @@ def test_the_installed_schema_is_complete(conn):
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
         # T-61 added xpr.eq_deep (Python's _eq for lists and dicts); T-98 added xpr.time_of_day, its
         # zone guard xpr.zone_checked, and the guard's xpr._zone_offset; T-101 swapped those two for
-        # xpr.clock (a reading checked against D): 26. T-109 added xpr.series_time_refused: 27.
-        assert cur.fetchone()[0] == 27
+        # xpr.clock (a reading checked against D): 26. T-109 added xpr.series_time_refused: 27. T-114 added
+        # xpr.time_at (when a stored text is a time) and xpr.time_text (a dashboard's instant reading): 29.
+        assert cur.fetchone()[0] == 29
 
 
 @needs_db
@@ -380,11 +381,12 @@ def test_the_schema_gained_exactly_the_two_new_functions(conn):
     T-101 (2026-10-14) swapped those two for xpr.clock (a clock reading checked against D, the
     instants the two clocks disagree on; xpr.time_of_day reads through it when handed D): 26. T-109
     (2026-10-16) recorded xpr.series_time_refused (a series row whose time the statement can't read,
-    refused by name, XPR06): 27."""
+    refused by name, XPR06): 27. T-114 (2026-10-19) recorded two: xpr.time_at (the rule, when a stored
+    text is a time) and xpr.time_text (a time field as a dashboard's filter and sort read it): 29."""
     with conn.cursor() as cur:
         cur.execute("select count(*) from pg_proc p join pg_namespace n "
                     "on n.oid = p.pronamespace where n.nspname = 'xpr'")
-        assert cur.fetchone()[0] == 27
+        assert cur.fetchone()[0] == 29
 
 
 # ── T-37 M1 (GIMS adapter review, b-check P0) · a number's truthiness goes through xpr.f8 ──

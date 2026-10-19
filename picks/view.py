@@ -27,7 +27,7 @@ from dataclasses import dataclass, field as _dc_field
 from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from typing import Any, Mapping, Optional
 
-from . import doubles, env, group, legality, lookup, paths, zones
+from . import doubles, env, group, legality, lookup, paths, times, zones
 from .records import Records
 
 
@@ -126,17 +126,31 @@ SELECT r.data #>> %(path)s COLLATE "C" AS v, count(*) AS n
 """
 
 
-#: How many of a field's text values are NOT in each time form (T-98): the kind is decided
-#: over every value, never over _VALUES_SQL's first VALUE_LIMIT + 1 (a field wider than that,
-#: with one odd value sorting after them, used to be called a time). ASCII digits only, the
-#: fixed-width form T-88's ruling names.
+#: What decides a field's kind (T-114, spec §2.4), counted over EVERY text value -- never over _VALUES_SQL's first
+#: VALUE_LIMIT + 1 (T-98) -- ``""`` blank and not counted: how many, how many look like a time, how many are readable
+#: times with a time of day (``xpr.time_at``), how many are NOT a date. ``picks.times.kind_counts`` counts the same.
 _FORMS_SQL = """
 SELECT count(*),
-       count(*) FILTER (WHERE NOT (r.data #>> %(path)s) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'),
-       count(*) FILTER (WHERE NOT (r.data #>> %(path)s) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-  FROM {table} r
- WHERE {scope}
-   AND jsonb_typeof(r.data #> %(path)s) = 'string'
+       count(*) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([Tt ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.,][0-9]+)?)?([Zz]|[+-][0-9]{2}(:?[0-9]{2}(:?[0-9]{2})?)?)?)?$'),
+       count(*) FILTER (WHERE length(v) > 10 AND xpr.time_at(v) IS NOT NULL),
+       count(*) FILTER (WHERE v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+  FROM (SELECT r.data #>> %(path)s AS v
+          FROM {table} r
+         WHERE {scope}
+           AND jsonb_typeof(r.data #> %(path)s) = 'string') AS f
+ WHERE v <> ''
+"""
+
+#: A time or date field's span (T-114): the first and last readable instant over EVERY value (the span was the
+#: first and last of _VALUES_SQL's first 2,001 strings, in text order: an axis that ended early, a 500), and the
+#: first and last date-form text (a date field's).
+_SPAN_SQL = """
+SELECT min(xpr.time_at(v)), max(xpr.time_at(v)),
+       min(v) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'), max(v) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+  FROM (SELECT r.data #>> %(path)s AS v
+          FROM {table} r
+         WHERE {scope}
+           AND jsonb_typeof(r.data #> %(path)s) = 'string') AS f
 """
 
 
@@ -149,13 +163,15 @@ SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
 
 
 def _kind(types: set, forms: tuple) -> str:
-    """One field's kind, from the JSON types its values take and ``forms`` --
-    (text values, how many are not the UTC time form, how many not a date),
-    counted over EVERY value by ``_FORMS_SQL``.
+    """One field's kind, from the JSON types its values take and ``forms`` -- (text values, how many look like a
+    time, how many are readable times with a time of day, how many are not a date), counted over EVERY non-blank
+    value by ``_FORMS_SQL`` (``picks.times.kind_counts`` in Python).
 
     * ``number`` — every value is a number;
-    * ``time`` / ``date`` — every value is text in the one fixed-width UTC
-      form (``2026-08-20T23:00:00Z``) or a calendar date (``2026-09-03``);
+    * ``date`` — every value is text in the form ``2026-09-03``;
+    * ``time`` — every value is text, at least one is a readable time and MORE than half look like a time (T-114,
+      spec §2.4): an unreadable value never loses the field -- it is left out and counted -- and one time-looking
+      value never makes free text a time; exactly half is text;
     * ``text`` — every value is text;
     * ``yesno`` — every value is true or false;
     * ``mixed`` — anything else (different types in different rows).
@@ -163,15 +179,21 @@ def _kind(types: set, forms: tuple) -> str:
     if types == {"number"}:
         return "number"
     if types == {"string"}:
-        n, not_time, not_date = forms
-        if n and not not_time:
-            return "time"
+        n, looks, readable, not_date = forms
         if n and not not_date:
             return "date"
+        if readable and 2 * looks > n:
+            return "time"
         return "text"
     if types == {"boolean"}:
         return "yesno"
     return "mixed"
+
+
+def _span_text(at) -> str:
+    """A span's end in the engine's one fixed form, to the second: an instant from _SPAN_SQL (a datetime) or the
+    second engine's (picks.times)."""
+    return times.fixed_text(at.astimezone(_dt.timezone.utc))
 
 
 #: Why a field takes no conditions, in plain words.
@@ -227,6 +249,158 @@ def _read(conn, records, template: str, params: dict):
     return conn.execute(sql, params)
 
 
+class PythonReader:
+    """The field reader (``_read_fields``'s statements), answered over one owner's stored documents in Python -- for
+    a host whose records aren't in Postgres (GIMS's SQLite mode).  T-114 (the foreman's ruling) moved it here from
+    GIMS's ``_RowsConn`` (``api/dashboard/picks_source.py``), so the kind rule and the span have one definition: the
+    host hands its documents (parsed with ``parse_float=Decimal``) and the engine reads them.
+
+    Each statement is recognised by its exact text, rendered as the engine renders it for this description, and
+    answered as Postgres would answer it over these documents; any other statement is refused by name, so an engine
+    that starts asking something new fails here rather than being half-answered."""
+
+    def __init__(self, records: Records, docs: list):
+        scope = records.scope("r", {})
+        self._docs = docs
+        self._known = {}
+        for template, fn in ((_TYPES_SQL, self._types), (_INNER_TYPES_SQL, self._inner),
+                             (_VALUES_SQL, self._values), (_FORMS_SQL, self._forms), (_SPAN_SQL, self._span),
+                             (_RANGE_SQL, self._range), (_DISTINCT_SQL, self._distinct), (_KEYS_SQL, self._keys)):
+            self._known[template.replace("{table}", records.table).replace("{scope}", scope)] = fn
+
+    def execute(self, sql: str, params: Optional[dict] = None) -> "_Answer":
+        fn = self._known.get(sql)
+        if fn is None:
+            raise RuntimeError("the field reader asked a statement its Python answer does not know")
+        return _Answer(fn(params or {}))
+
+    def _types(self, p: dict) -> list:
+        n: dict = {}
+        for d in self._docs:
+            for k, v in d.items():
+                n[(k, _typeof(v))] = n.get((k, _typeof(v)), 0) + 1
+        return [(k, t, c) for (k, t), c in n.items()]
+
+    def _inner(self, p: dict) -> list:
+        n: dict = {}
+        for d in self._docs:
+            inner = d.get(p["key"])
+            if isinstance(inner, dict):
+                for k, v in inner.items():
+                    n[(k, _typeof(v))] = n.get((k, _typeof(v)), 0) + 1
+        return [(k, t, c) for (k, t), c in n.items()]
+
+    def _strings(self, path) -> list:
+        return [v for v in (_at(d, path) for d in self._docs) if isinstance(v, str)]
+
+    def _values(self, p: dict) -> list:
+        n: dict = {}
+        for v in self._strings(p["path"]):
+            n[v] = n.get(v, 0) + 1
+        return sorted(n.items(), key=lambda kv: kv[0].encode("utf-8"))[: p["limit"]]
+
+    def _forms(self, p: dict) -> list:
+        return [times.kind_counts(self._strings(p["path"]))]
+
+    def _span(self, p: dict) -> list:
+        s = self._strings(p["path"])
+        ats = [a for a in (times.instant(v) for v in s) if a is not None]
+        dates = [v for v in s if len(v) == 10 and _DATE_FORM.fullmatch(v)]
+        return [(min(ats) if ats else None, max(ats) if ats else None,
+                 min(dates, key=lambda v: v.encode("utf-8")) if dates else None,
+                 max(dates, key=lambda v: v.encode("utf-8")) if dates else None)]
+
+    def _range(self, p: dict) -> list:
+        nums = [Decimal(v) if not isinstance(v, float) else Decimal(repr(v))
+                for v in (_at(d, p["path"]) for d in self._docs) if _typeof(v) == "number"]
+        return [(min(nums), max(nums))] if nums else [(None, None)]
+
+    def _distinct(self, p: dict) -> list:
+        if not self._docs:
+            return [(None,)]
+        seen, blank = set(), 0
+        for d in self._docs:
+            v = _at(d, p["path"])
+            if v is _ABSENT or v is None:
+                blank = 1
+            else:
+                seen.add(_distinct_key(v))
+        return [(len(seen) + blank,)]
+
+    def _keys(self, p: dict) -> list:
+        return [(k,) for k in sorted({k for d in self._docs for k in d})]
+
+
+class _Answer:
+    def __init__(self, rows: list):
+        self._rows = rows
+
+    def fetchall(self) -> list:
+        return list(self._rows)
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+
+_ABSENT = object()
+_DATE_FORM = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+_INDEX = re.compile(r"-?[0-9]+")
+
+
+def _typeof(v: Any) -> str:
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "boolean"
+    if isinstance(v, (int, float, Decimal)):
+        return "number"
+    if isinstance(v, str):
+        return "string"
+    if isinstance(v, list):
+        return "array"
+    return "object"
+
+
+def _at(doc: Any, steps) -> Any:
+    """``data #> path``: keys into objects, integer text into arrays (negative from the end)."""
+    cur = doc
+    for step in steps:
+        if isinstance(cur, dict):
+            if step not in cur:
+                return _ABSENT
+            cur = cur[step]
+        elif isinstance(cur, list) and _INDEX.fullmatch(step):
+            i = int(step)
+            if not -len(cur) <= i < len(cur):
+                return _ABSENT
+            cur = cur[i]
+        else:
+            return _ABSENT
+    return cur
+
+
+def _exact_dumps(doc: Any) -> str:
+    """JSON text with every Decimal written exactly."""
+    def enc(v):
+        if isinstance(v, dict):
+            return "{" + ",".join(json.dumps(str(k)) + ":" + enc(x) for k, x in v.items()) + "}"
+        if isinstance(v, (list, tuple)):
+            return "[" + ",".join(enc(x) for x in v) + "]"
+        if isinstance(v, Decimal):
+            return str(v) if v.is_finite() else json.dumps(float(v))
+        return json.dumps(v, default=str)
+    return enc(doc)
+
+
+def _distinct_key(v: Any) -> tuple:
+    t = _typeof(v)
+    if t == "number":
+        return (t, Decimal(v) if not isinstance(v, float) else Decimal(repr(v)))
+    if t in ("array", "object"):
+        return (t, _exact_dumps(v) if t == "array" else _exact_dumps(dict(sorted(v.items()))))
+    return (t, v)
+
+
 def _read_fields(conn, collection: str, labels=None, records=None) -> list:
     """Every field of one data set: its path, its JSON types, its kind,
     the conditions it can take and the values found in it."""
@@ -269,7 +443,7 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
                 }).fetchall()
             ]
         scalar_types = ts - {"null"}
-        forms = (0, 0, 0)
+        forms = (0, 0, 0, 0)
         if "string" in ts:
             forms = tuple(_read(conn, records, _FORMS_SQL, {
                 "collection": collection, "path": paths.steps(path)}).fetchone())
@@ -297,8 +471,14 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
             ).fetchone()
             if lo is not None:
                 field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
-        if kind in ("time", "date") and strings:
-            field["range"] = {"min": strings[0], "max": strings[-1]}
+        if kind in ("time", "date"):
+            # T-114: over every value, by instant (a date field: its dates), never _VALUES_SQL's capped text order
+            t_lo, t_hi, d_lo, d_hi = _read(conn, records, _SPAN_SQL, {
+                "collection": collection, "path": paths.steps(path)}).fetchone()
+            if kind == "time" and t_lo is not None:
+                field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}
+            elif kind == "date" and d_lo is not None:
+                field["range"] = {"min": d_lo, "max": d_hi}
         fields.append(field)
     return fields
 
@@ -464,6 +644,12 @@ def to_pick(catalog: "Catalog", setup_payload: dict, view: dict) -> dict:
     if sort:
         pick["sort"] = sort
     pick["cap"] = _show(view)
+    # T-114: the time fields the filter and the sort read as instants (both engines), named in the pick
+    read = time_fields_read(view, fields)
+    if sort and fields[sort["field"]]["kind"] == "time" and sort["field"] not in read:
+        read.append(sort["field"])
+    if read:
+        pick["times"] = read
 
     summary = _summary(view, fields, ds)
     if summary:
@@ -690,7 +876,7 @@ def number_literal(value) -> str:
 _DAY_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})\Z")
 
 
-_MINUTE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z?\Z")
+_MINUTE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?Z?\Z")
 
 
 def _day(value) -> _dt.date:
@@ -703,10 +889,10 @@ def _day(value) -> _dt.date:
 
 
 def _instant(value, zone=None) -> str:
-    """A picked time → the data's own fixed-width UTC text, which orders as
-    time orders (``2026-08-18T06:00:00Z``).  With a zone (T-98) the time is a
-    wall time on that clock — the first of two on a day the clocks go back, a
-    skipped one refused in words — unless it ends in ``Z``, which says UTC."""
+    """A picked time → its UTC instant in the data's fixed form (``2026-08-18T06:00:00Z``), with its fraction when
+    it has one (T-114: GIMS's day end, the day's last microsecond, ``…23:59:59.999999Z``).  With a zone (T-98) the
+    time is a wall time on that clock — the first of two on a day the clocks go back, a skipped one refused in
+    words — unless it ends in ``Z``, which says UTC."""
     m = _MINUTE_RE.match(value) if isinstance(value, str) else None
     if not m:
         raise ViewError("A time must be picked as a date and a time.")
@@ -716,10 +902,20 @@ def _instant(value, zone=None) -> str:
         raise ViewError("A time must be picked as a date and a time.")
     if zone is not None and not value.endswith("Z"):
         try:
-            return zones.wall_instant(day, hh, mm, ss, zone)
+            t = zones.wall_instant(day, hh, mm, ss, zone)
         except zones.ZoneError as exc:
             raise ViewError(str(exc)) from None
-    return f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+    else:
+        t = f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+    if m.group(5):                      # an offset is whole minutes, so the fraction rides on the UTC instant
+        t = f"{t[:-1]}.{m.group(5).ljust(6, '0')}Z"
+    return t
+
+
+def _wide(t: str) -> str:
+    """A UTC instant in the data's fixed form → the one width a time is compared at (T-114): to the microsecond,
+    so text order is time order whatever form each stored time was written in (``picks.times.utc_text``)."""
+    return t if "." in t else f"{t[:-1]}.000000Z"
 
 
 _CLOCK_RE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])(?::([0-5][0-9]))?\Z")
@@ -764,7 +960,7 @@ def _value_for(field: dict, value, zone=None):
         return literal, fmt_number(literal if isinstance(value, str) else str(value))
     if kind == "time":
         t = _instant(value, zone)
-        return string_literal(t), fmt_time(t, zone)
+        return string_literal(_wide(t)), fmt_time(t, zone)
     if kind == "date":
         d = _day(value).isoformat()
         return string_literal(d), fmt_date(d)
@@ -784,7 +980,7 @@ def _order_key(field: dict, value, zone=None):
     if field["kind"] == "number":
         return value
     if field["kind"] == "time":
-        return _instant(value, zone)
+        return times.instant(_instant(value, zone))
     if field["kind"] == "date":
         return _day(value).isoformat()
     return value
@@ -878,12 +1074,12 @@ def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
     if op == "on" and field["kind"] == "time":
         d = _day(cond.get("value"))
         if zone is None:
-            start = string_literal(f"{d.isoformat()}T00:00:00Z")
-            end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00Z")
+            start = string_literal(f"{d.isoformat()}T00:00:00.000000Z")
+            end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00.000000Z")
         else:
             # the day on the question's clock: its first instant to the next day's (DST-correct)
             first, nxt = zones.day_span(d, zone)
-            start, end = string_literal(first), string_literal(nxt)
+            start, end = string_literal(_wide(first)), string_literal(_wide(nxt))
         return (f"({ref} >= {start} and {ref} < {end})",
                 f"{label} {words} {fmt_day(d.isoformat())}")
 
@@ -1067,8 +1263,14 @@ def _deeper_than(items: list, limit: int) -> bool:
 
 def _box(box: dict, fields: dict, where: str, zone=None) -> tuple:
     """One box → (its expression, its words, how many live items).  A box
-    that holds nothing adds nothing; a box of one is that one item."""
+    that holds nothing adds nothing; a box of one is that one item.
+
+    T-114 (the foreman's ruling 3): a time no reading can tell -- present, but no readable time -- holds no condition,
+    negated ones included.  A condition reading a time's instant is then neither true nor definitely false, so a box
+    that negates its items ("exactly one", "all or none") and holds such a condition asks each item both questions
+    (:func:`_kleene`, :func:`_fails`); every other box is written exactly as before."""
     parts = []
+    live = []
     for item in box["items"]:
         if isinstance(item, dict) and "items" in item:
             _refuse_extra(item, BOX_KEYS, "a group")
@@ -1083,6 +1285,7 @@ def _box(box: dict, fields: dict, where: str, zone=None) -> tuple:
             if not isinstance(item, dict) or _name(item.get("field")) not in fields:
                 raise ViewError("A condition names a field this data set doesn't have.")
             parts.append(condition(fields[item["field"]], item, zone))
+        live.append(item)
     logic = _logic(box.get("join"), len(parts), where)
     if not parts:
         return None, None, 0
@@ -1090,7 +1293,68 @@ def _box(box: dict, fields: dict, where: str, zone=None) -> tuple:
     # so no box ever builds a text much longer than the limit allows.
     if composed_length([len(e) for e, _ in parts], logic) > _source_limit():
         raise ViewError(TOO_LONG)
+    if logic in ("one", "allnone") and any(_reads_any_instant(it, fields) for it in live):
+        holds = [e for e, _ in parts]
+        expr = _kleene(holds, [_fails(it, e, fields, zone) for it, e in zip(live, holds)], logic)[0]
+        if _source_limit() < len(expr):
+            raise ViewError(TOO_LONG)
+        return expr, joined_words([w for _, w in parts], logic), len(parts)
     return (compose([e for e, _ in parts], logic), joined_words([w for _, w in parts], logic), len(parts))
+
+
+def _reads_any_instant(item, fields: dict) -> bool:
+    """Does this card, or any card in this group, read a time field's instant (T-114)?"""
+    if isinstance(item, dict) and "items" in item:
+        return any(_reads_any_instant(it, fields) for it in item["items"] if isinstance(it, dict))
+    return isinstance(item, dict) and item.get("field") in fields and _reads_instant(fields[item["field"]], item)
+
+
+def _fails(item, holds: str, fields: dict, zone) -> str:
+    """When an item (whose expression is ``holds``) definitely fails (T-114): a condition reading a time's instant
+    fails when it doesn't hold AND its field is not a present time no reading can tell (the engines hand such a value
+    to the filter as false; a blank stays null, and fails as it always did); a group by Kleene's rules over its own
+    items; anything else simply when it doesn't hold."""
+    if not _reads_any_instant(item, fields):
+        return f"not ({holds})"
+    if "items" not in item:
+        return f"not ({holds}) and {field_ref(fields[item['field']]['path'])} != false"
+    sub_live, sub_holds = [], []
+    for it in item["items"]:
+        if isinstance(it, dict) and "items" in it:
+            e, _w, _n = _box(it, fields, "A group", zone)
+            if e is None:
+                continue
+        else:
+            e, _w = condition(fields[it["field"]], it, zone)
+        sub_live.append(it)
+        sub_holds.append(e)
+    logic = _logic(item.get("join"), len(sub_holds), "A group")
+    return _kleene(sub_holds, [_fails(it, e, fields, zone) for it, e in zip(sub_live, sub_holds)], logic)[1]
+
+
+#: the conditions that read a time field's instant (T-114, spec §4); present and blank read none
+_INSTANT_OPS = ("on", "after", "before", "between")
+
+
+def _reads_instant(field: dict, card: dict) -> bool:
+    return field["kind"] == "time" and (card.get("part") == "time_of_day" or card.get("op") in _INSTANT_OPS)
+
+
+def _kleene(holds: list, fails: list, logic: str) -> tuple:
+    """(the box holds, the box definitely fails), from each item's two answers -- both can be false: Kleene's AND,
+    OR, exactly one, and all or none, in the language both engines share (``if`` reads each by truthiness)."""
+    if len(holds) == 1 and logic in ("all", "any"):
+        return holds[0], fails[0]
+    if logic == "all":
+        return " and ".join(f"({h})" for h in holds), " or ".join(f"({f})" for f in fails)
+    if logic == "any":
+        return " or ".join(f"({h})" for h in holds), " and ".join(f"({f})" for f in fails)
+    n = len(holds)
+    nh = "(" + " + ".join(f"if({h}, 1, 0)" for h in holds) + ")"
+    nf = "(" + " + ".join(f"if({f}, 1, 0)" for f in fails) + ")"
+    if logic == "one":
+        return f"({nh} == 1) and ({nf} == {n - 1})", f"({nh} >= 2) or ({nf} == {n})"
+    return f"({nh} == {n}) or ({nf} == {n})", f"({nh} >= 1) and ({nf} >= 1)"
 
 
 def _source_limit() -> int:
@@ -1152,6 +1416,18 @@ def filter_reads_clock(holder: dict, fields: dict) -> bool:
                                            or c.get("op") not in ("present", "blank")):
             return True
     return False
+
+
+def time_fields_read(holder: dict, fields: dict) -> list:
+    """The time fields a filter's conditions read as instants (T-114, the foreman's (A)): the pick names them
+    (``times``), and both engines hand each to the filter as its UTC instant at one width -- false for a value that
+    is no readable time, null for a blank."""
+    out = []
+    for c in _cards(holder):
+        f = fields.get(c.get("field")) if isinstance(c.get("field"), str) else None
+        if f and _reads_instant(f, c) and f["path"] not in out:
+            out.append(f["path"])
+    return out
 
 
 def _cards(holder: dict) -> list:
@@ -1224,12 +1500,12 @@ def fmt_time(text: str, zone=None) -> str:
     ``Aug 20, 23:00:15 UTC``.  On a question's clock (T-98) the time reads as
     that clock shows it, ``Aug 20, 5:00 PM`` in Denver: the screen names the
     clock once, not in every cell."""
-    try:
-        t = _dt.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
-    except ValueError:
-        return text
+    at = times.instant(text) if isinstance(text, str) and len(text) > 10 else None
+    if at is None:
+        return text                         # T-114: any readable form reads as its instant; anything else as it is
+    t = at.replace(tzinfo=None)
     if zone is not None:
-        local = t.replace(tzinfo=_dt.timezone.utc).astimezone(zones.ZoneInfo(zone))
+        local = at.astimezone(zones.ZoneInfo(zone))
         return (f"{_MONTHS[local.month - 1]} {local.day}, "
                 f"{zones.clock_words(local.hour * 3600 + local.minute * 60 + local.second)}")
     seconds = f":{t.second:02d}" if t.second else ""      # shown when not zero (T-75)
@@ -1544,7 +1820,7 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         raise ViewError("Count columns must be a list.")
     if len(counts_in) > group.MAX_COUNTS:
         raise ViewError(f"A scoreboard has at most {group.MAX_COUNTS} count columns.")
-    counts, labels = [], []
+    counts, labels, count_times = [], [], []
     for i, c in enumerate(counts_in, start=1):
         if not isinstance(c, dict):
             raise ViewError("A count column must be a set of choices.")
@@ -1563,6 +1839,7 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
             raise ViewError("Two count columns share one id.")
         expr, said = _count_conditions(c, counted_fields, f"“{label}”", view_zone(view))
         counts.append({"expr": expr, "pct": bool(c.get("pct"))})
+        count_times += [t for t in time_fields_read(c, counted_fields) if t not in count_times]
         labels.append({"id": cid, "label": label, "said": said, "pct": bool(c.get("pct"))})
 
     time = sb.get("time")
@@ -1577,6 +1854,8 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         if not f or f["kind"] not in ("time", "date"):
             raise ViewError("Latest and earliest read a time or a date field.")
         time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
+        if f["kind"] == "time" and f["path"] not in count_times:
+            count_times.append(f["path"])       # T-114: latest / earliest by instant
 
     measure = sb.get("measure")
     measure_spec = None
@@ -1615,6 +1894,12 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         "sort": None,
         "cap": _show(view),
     }
+    # T-114: the time fields read as instants -- the page filter's (the parents'), and the counts' and latest /
+    # earliest's (the counted rows')
+    if time_fields_read(view, fields):
+        spec["times"] = time_fields_read(view, fields)
+    if count_times:
+        spec["count_times"] = count_times
     if relation:
         spec["related"] = {
             "source": catalog.sources[relation["to"]],
@@ -1742,4 +2027,6 @@ def to_category_spec(catalog: "Catalog", setup_payload: dict, view: dict) -> tup
         "sort": None,
         "cap": _show(view),
     }
+    if time_fields_read(view, fields):
+        spec["times"] = time_fields_read(view, fields)       # T-114
     return spec, {"ds": ds, "fields": fields, "summary": summary, "by": fields[summary["by"]]}

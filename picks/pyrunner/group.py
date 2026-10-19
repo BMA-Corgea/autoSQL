@@ -17,8 +17,10 @@ What it computes, per the spec ``demo/group.py`` documents:
 * each count-if — how many of them the condition holds for, by the same
   truthiness; and its % of rows, 100·k/n rounded half-up to one place
   (Postgres rounds numeric half away from zero; every value here is ≥ 0);
-* latest / earliest — the largest / smallest TEXT of the field, by code
-  point (the database's C collation compares UTF-8 bytes, the same order);
+* latest / earliest — of a date field, the largest / smallest TEXT, by code
+  point (the database's C collation compares UTF-8 bytes, the same order); of a
+  time field (T-114), the largest / smallest instant (``picks.times``), in the
+  engine's one fixed form to the second;
 * the measure — ``evaluate.aggregate``, the exact-decimal rule shape C uses;
 * the order — the chosen column with blanks last, then the group value
   ascending (jsonb's own ordering, ``order.compare_jsonb``), blanks last.
@@ -30,7 +32,7 @@ from decimal import Context, Decimal, ROUND_HALF_UP
 from functools import cmp_to_key
 from typing import Any, Dict, List, Sequence
 
-from .. import paths
+from .. import paths, times
 from . import evaluate as ev
 from . import exact
 from .order import MISSING, compare_jsonb
@@ -170,7 +172,8 @@ def _check_page(rows: Sequence[SourceRow], spec: dict, alone: bool) -> None:
 def _kept(rows: Sequence[SourceRow], spec: dict) -> List[SourceRow]:
     if spec.get("filter"):
         flt = ev.expr.parse(spec["filter"])
-        return [r for r in rows if ev.keep_by_filter(r, flt)]
+        instants = ev.instants_of(spec.get("times"))       # T-114: the page filter's time fields, as instants
+        return [r for r in rows if ev.keep_by_filter(r, flt, instants)]
     return list(rows)
 
 
@@ -234,8 +237,10 @@ def answer(rows: Sequence[SourceRow], spec: dict,
 
     steps = ev.dollar_path(paths.dollar(spec["group"]))
     counts = [ev.expr.parse(c["expr"]) for c in spec.get("counts") or []]
+    count_instants = ev.instants_of(spec.get("count_times"))   # T-114: the counts' time fields, as instants
     time = spec.get("time")
     time_steps = ev.dollar_path(paths.dollar(time["field"])) if time else None
+    time_instant = bool(time) and ev.reads_as_instant(time["field"], spec.get("count_times"))
     measure = spec.get("measure")
     msr_steps = ev.dollar_path(paths.dollar(measure["field"])) if measure else None
 
@@ -255,11 +260,18 @@ def answer(rows: Sequence[SourceRow], spec: dict,
         row: Dict[str, Any] = {"grp": g["value"], "rows": n}
         for i, ast in enumerate(counts, start=1):
             k = sum(1 for r in members
-                    if ev.expr.truthy(ev.expr.evaluate(ast, r.record_f, {})))
+                    if ev.expr.truthy(ev.expr.evaluate(
+                        ast, ev.instant_record(r.record_f, count_instants) if count_instants else r.record_f, {})))
             row[f"c{i}"] = k
             if (spec["counts"][i - 1]).get("pct"):
                 row[f"c{i}_pct"] = _pct(k, n)
-        if time:
+        if time and time_instant:
+            # T-114: a time field's latest / earliest by instant, in the engine's one fixed form to the second (the
+            # statement's to_char of max(xpr.time_at(...))); a value that is no readable time is not read
+            ats = [a for a in (times.instant(ev.resolve(r.record_d, time_steps)) for r in members) if a is not None]
+            pick = max if time["fn"] == "max" else min
+            row["time"] = times.fixed_text(pick(ats)) if ats else None
+        elif time:
             texts = [t for t in (_text(ev.resolve(r.record_d, time_steps)) for r in members)
                      if t is not None]
             if not texts:
