@@ -43,6 +43,8 @@ class ExactFloat(float):
     """A JSON number literal as the float parse reads it -- a plain double to the evaluator -- with its stored text
     kept, so a value passed through untouched can be answered exactly. Arithmetic on it makes plain floats."""
 
+    __slots__ = ("text",)
+
     def __new__(cls, text: str):
         self = super().__new__(cls, text)
         self.text = text
@@ -230,7 +232,14 @@ def check(rows: Iterable, asts: Sequence[Tuple[Any, str]], *, alone: bool = Fals
     for r in rows:
         if first is not None and r.key.encode("utf-8") >= first[0].encode("utf-8"):
             continue
-        found = [f for f in (_value_kind(_resolve(r.record_d, steps), pos, alone) for steps, pos in wanted) if f]
+        found = []
+        for steps, pos in wanted:
+            v = _resolve(r.record_d, steps)
+            if v.__class__ in _INERT:
+                continue                       # nothing a double reads (the common case, cheaply)
+            f = _value_kind(v, pos, alone)
+            if f:
+                found.append(f)
         if found:
             # one row, several numbers: the same precedence as the probe's words (large, small, digits)
             first = (r.key, min(found, key=lambda f: _PRECEDENCE[f[0]]))
@@ -240,3 +249,5 @@ def check(rows: Iterable, asts: Sequence[Tuple[Any, str]], *, alone: bool = Fals
 
 
 _PRECEDENCE = {LARGE: 0, SMALL: 1, DIGITS: 2}
+#: values no position reads as a double (a missing field included)
+_INERT = frozenset({type(None), bool, dict, type(MISSING)})

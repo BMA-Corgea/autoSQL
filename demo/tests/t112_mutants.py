@@ -135,8 +135,7 @@ T112_MUTANTS = [
                  "        candidates = [n for n in (n_down, n_down + 1) if m_lo <= n * q <= m_hi]\n")],
          selector=_P + "test_the_printer_emulation_is_postgres_own", expect="AssertionError: [("),
     dict(id="E16", defect="1e309 == 1e310 alone: the host's option ignored, so two such numbers compare as one infinity",
-         edits=[(_X, "(_value_kind(_resolve(r.record_d, steps), pos, alone) for steps, pos in wanted)",
-                 "(_value_kind(_resolve(r.record_d, steps), pos, False) for steps, pos in wanted)")],
+         edits=[(_X, "            f = _value_kind(v, pos, alone)\n", "            f = _value_kind(v, pos, False)\n")],
          selector=_P + "test_alone_a_number_past_the_largest_double_is_never_a_wrong_answer[1e309 == 1e310]",
          expect="AssertionError: ('1e309 == 1e310', ['a'])"),
 ]

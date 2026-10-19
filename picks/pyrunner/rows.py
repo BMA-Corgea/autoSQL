@@ -44,6 +44,9 @@ from typing import Any, List, NamedTuple
 
 from .exact import ExactFloat
 
+#: the float parse's decoder, made once (``json.loads`` with a hook makes a decoder per call: T-112's cost)
+_DECODE_F = json.JSONDecoder(parse_float=ExactFloat).decode
+
 __all__ = ["SourceRow", "source_row", "read_rows"]
 
 
@@ -102,7 +105,7 @@ def source_row(collection: str, key: str, raw: str) -> SourceRow:
         collection=collection,
         key=key,
         raw=raw,
-        record_f=json.loads(raw, parse_float=ExactFloat),   # T-112: a double that remembers its digits
+        record_f=_DECODE_F(raw),   # T-112: each float a double that remembers its digits
         record_d=json.loads(raw, parse_float=Decimal),
     )
 
