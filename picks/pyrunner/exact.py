@@ -9,17 +9,23 @@ Three things, each the statement's twin:
   (``picks.doubles.pg_shortest``), so ``1e22 * 10`` reads the same on both engines.
 
 * HELD, OR REFUSED. Where the evaluator reads a stored number AS A DOUBLE -- a comparison, arithmetic, ``abs``,
-  ``min``/``max`` (and a list's elements there), truthiness -- a number it would misread silently is refused: one a
-  double holds only as 0 (small), one with more digits than a double holds (digits). A number stored as text is
-  read as one only where arithmetic reads it, and text compared as text is never read. :func:`check` asks it of
-  every source row BEFORE the filter (the statement's probe member d reads the same scope) and raises
-  :class:`NumberRefused`, naming the first offending row in key order.
+  ``min``/``max`` (and a sole list's elements there), truthiness -- a number it would misread silently is refused:
+  one a double holds only as 0 (small), one with more digits than a double holds (digits). A number stored as text
+  is read as one only where arithmetic reads it -- as the language reads it, inside any of Python's 29 spaces and
+  in any script's digits -- and text compared as text is never read. :func:`check` asks it of every source row
+  BEFORE the filter (the statement's probe member d reads the same scope) and raises :class:`NumberRefused`,
+  naming the first offending row in key order.
 
 * PAST THE LARGEST DOUBLE. Beside the statement (the demo's two-pane screen) such a number is left as it was: the
   statement refuses it first (member (a), or XPR01 while running) and the language declines it in arithmetic (no
   value). When the host says this engine answers ALONE (``Records.alone``: GIMS's SQLite mode, nothing beside it
   to refuse), it is refused too ("large") wherever it is read as above, or sorted by: the language would compare
   two such numbers as the same infinity.
+
+* A LIST OR A GROUP COMPARED, ALONE. The language compares two lists or two groups with ``==`` / ``!=`` element by
+  element, their numbers as doubles (a-chk's H3). Beside the statement its member b refuses any such operand
+  first; alone, this engine refuses it as member b does (:class:`ContainerRefused`). Alone, the refusals come in the
+  probes' order: past the largest double (member a's), then a compared container (b's), then small or digits (d's).
 
 * ITS OWN WALK. The statement side states the rule in SQL (probe member d); this file states it again for this
   engine, importing nothing from ``builder``/``probes`` (W12's independence), so the two can disagree and be caught.
@@ -35,8 +41,8 @@ from .. import env
 from ..doubles import DIGITS, LARGE, SMALL, kind, numeric_text, pg_shortest
 from .order import MISSING
 
-__all__ = ["ExactFloat", "exact_value", "NumberRefused", "readings", "check", "answers_alone", "SHOWN", "NUMBER",
-           "COERCED", "ELEMENTS", "SORTED"]
+__all__ = ["ExactFloat", "exact_value", "NumberRefused", "ContainerRefused", "readings", "compared", "check",
+           "answers_alone", "SHOWN", "NUMBER", "COERCED", "ELEMENTS", "SORTED", "CONTAINER"]
 
 
 class ExactFloat(float):
@@ -105,6 +111,27 @@ class NumberRefused(ValueError):
         super().__init__(self.cause)
 
 
+CONTAINER = "container"
+
+
+class ContainerRefused(ValueError):
+    """The second engine's refusal when it answers ALONE (a-chk's H3): an ``==`` / ``!=`` operand that is a list or
+    an object, which the language would compare element by element, its numbers as doubles.
+
+    kind    -- CONTAINER
+    row_key -- the first such row, in key order
+    cause   -- member b's sentence, naming it
+    """
+
+    kind = CONTAINER
+
+    def __init__(self, row_key: str):
+        self.row_key = row_key
+        self.cause = ("container operand: an == or != operand resolved to an object or an array, which the safe "
+                      f'subset does not compare (first such row, by key: "{row_key}")')
+        super().__init__(self.cause)
+
+
 def readings(ast, root: str = SHOWN) -> List[Tuple[list, str]]:
     """``[(field path steps, position)]``: every field ``ast`` reads as a double, and how (SHOWN fields omitted).
     ``root`` is how the whole expression is used: SHOWN for a computed column, NUMBER for a filter or a count,
@@ -139,7 +166,7 @@ def readings(ast, root: str = SHOWN) -> List[Tuple[list, str]]:
             elif name == "if":
                 for i, a in enumerate(args):
                     walk(a, NUMBER if i == 0 else pos)
-            elif name in ("min", "max"):
+            elif name in ("min", "max") and len(args) == 1:      # among several, a list is skipped (M2)
                 for a in args:
                     walk(a, ELEMENTS)
             elif name in ("count", "length", "time_of_day"):
@@ -158,6 +185,29 @@ def readings(ast, root: str = SHOWN) -> List[Tuple[list, str]]:
             seen.add(key)
             unique.append((steps, pos))
     return unique
+
+
+def compared(ast) -> List[Any]:
+    """Every operand of an ``==`` / ``!=`` in ``ast``, at any depth, that could be a list or an object -- member b's
+    operands, stated again for this engine alone (a literal, or a time of day, never is one)."""
+    out: List[Any] = []
+
+    def walk(node) -> None:
+        if not isinstance(node, tuple) or not node:
+            return
+        if node[0] == "cmp" and node[1] in ("==", "!="):
+            for op in node[2:4]:
+                if op[0] not in ("num", "str", "bool", "null") and not (op[0] == "call" and op[1] == "time_of_day"):
+                    out.append(op)
+        for child in node[1:]:
+            if isinstance(child, tuple):
+                walk(child)
+            elif isinstance(child, list):                  # a call's arguments
+                for c in child:
+                    walk(c)
+
+    walk(ast)
+    return out
 
 
 def _number(v: Any) -> Optional[Decimal]:
@@ -207,6 +257,16 @@ def _resolve(record: Any, steps: Sequence[Tuple[str, Any]]) -> Any:
     return cur
 
 
+def _holds_container(row, operands) -> bool:
+    """Whether any of ``operands`` is a list or an object in ``row`` (as the evaluator reads it)."""
+    evaluate = env.get("evaluator").evaluate
+    for op in operands:
+        v = _resolve(row.record_d, op[1]) if op[0] == "field" else evaluate(op, row.record_f, {})
+        if isinstance(v, (list, tuple, dict)):
+            return True
+    return False
+
+
 def answers_alone(records=None) -> bool:
     """Whether the host says this engine answers by itself (``Records.alone``): the records handed in, else the
     process default's; off when there is no description at all."""
@@ -220,32 +280,44 @@ def answers_alone(records=None) -> bool:
 
 def check(rows: Iterable, asts: Sequence[Tuple[Any, str]], *, alone: bool = False) -> None:
     """Raise :class:`NumberRefused` if any row holds, where one of ``asts`` (``(ast, root)`` pairs) reads it as a
-    double, a number it would misread (``alone``: or one past the largest double). Every row is read (the
-    statement's probe reads the whole collection), and the refusal names the first such row in key order
-    (``record_d``, the exact parse)."""
+    double, a number it would misread; ``alone``, also one past the largest double, and :class:`ContainerRefused`
+    for a list or group compared. Every row is read (the statement's probes read the whole collection). Each
+    refusal names its first row in key order (``record_d``, the exact parse), and they come in the probes' order:
+    member a's (past the largest double), b's (a container), then d's (small or digits)."""
     wanted: List[Tuple[list, str]] = []
     for ast, root in asts:
         wanted.extend(w for w in readings(ast, root) if alone or w[1] != SORTED)
-    if not wanted:
+    operands = list({repr(op): op for ast, _root in asts for op in compared(ast)}.values()) if alone else []
+    if not wanted and not operands:
         return
-    first = None
+    first: dict = {}                       # member -> (key as UTF-8, key, what): its first row in key order
     for r in rows:
-        if first is not None and r.key.encode("utf-8") >= first[0].encode("utf-8"):
-            continue
-        found = []
+        k = r.key.encode("utf-8")
+        if "a" in first and k >= first["a"][0]:
+            continue                       # nothing in a later row comes before member a's
+        if not alone and "d" in first and k >= first["d"][0]:
+            continue                       # beside the statement, d's is the only refusal this engine makes
+        large, misread = [], []
         for steps, pos in wanted:
             v = _resolve(r.record_d, steps)
             if v.__class__ in _INERT:
-                continue                       # nothing a double reads (the common case, cheaply)
+                continue                   # nothing a double reads (the common case, cheaply)
             f = _value_kind(v, pos, alone)
             if f:
-                found.append(f)
-        if found:
-            # one row, several numbers: the same precedence as the probe's words (large, small, digits)
-            first = (r.key, min(found, key=lambda f: _PRECEDENCE[f[0]]))
-    if first is not None:
-        key, (k, value) = first
-        raise NumberRefused(k, key, value)
+                (large if f[0] == LARGE else misread).append(f)
+        if large:
+            first["a"] = (k, r.key, large[0])
+        if misread and ("d" not in first or k < first["d"][0]):
+            # one row, several numbers: the probe's precedence (small, then digits)
+            first["d"] = (k, r.key, min(misread, key=lambda f: _PRECEDENCE[f[0]]))
+        if operands and ("b" not in first or k < first["b"][0]) and _holds_container(r, operands):
+            first["b"] = (k, r.key, None)
+    for member in ("a", "b", "d"):
+        if member in first:
+            _k, key, found = first[member]
+            if member == "b":
+                raise ContainerRefused(key)
+            raise NumberRefused(found[0], key, found[1])
 
 
 _PRECEDENCE = {LARGE: 0, SMALL: 1, DIGITS: 2}

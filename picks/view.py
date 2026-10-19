@@ -1233,7 +1233,7 @@ def _number_text(value) -> str:
     """A number read from the database, as plain text: ``100``, ``-523.1234``,
     and an exponent only past fifteen digits (``1e+300``)."""
     d = Decimal(value) if not isinstance(value, Decimal) else value
-    if abs(d) >= Decimal("1e15"):
+    if d.copy_abs() >= Decimal("1e15"):              # exact: abs() rounds to the default context's 28 digits
         return format(_normal(d), "e").replace("E", "e")
     return format(_normal(d), "f")
 

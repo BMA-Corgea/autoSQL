@@ -68,7 +68,7 @@ import importlib.util
 import json
 import re
 import sys
-from decimal import Decimal
+from decimal import Context, Decimal
 from pathlib import Path
 from typing import Any
 
@@ -211,7 +211,8 @@ _PLAIN_LOW, _PLAIN_HIGH = -5, 20
 
 def _number_text(d: Decimal) -> str:
     """A jsonb number's text — one text per value, whatever produced it."""
-    d = d.normalize()               # unique representation per value
+    # unique representation per value, every digit kept: the default context's 28 would round a longer number
+    d = d.normalize(Context(prec=max(28, len(d.as_tuple().digits))))
     where = d.adjusted()            # exponent of the leading digit
     if _PLAIN_LOW <= where <= _PLAIN_HIGH:
         if d.as_tuple().exponent > 0:

@@ -72,7 +72,9 @@ is dead code to be deleted).
 
 from __future__ import annotations
 
+import functools
 import re
+import unicodedata
 import weakref
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -330,15 +332,59 @@ def _term_b(op_sql: str) -> str:
 # Where a stored value is read as a double (this side's statement of the positions; pyrunner states them again):
 #   NUMBER    a comparison operand (< <= > >= == !=), truthiness (a filter's root, not / and / or, if's condition):
 #             a JSON number is read as a double; text compares as text and is never read
-#   COERCED   unary minus, + - * /, abs: a JSON number, or a number written as ASCII text, is read as a double
-#   ELEMENTS  min / max arguments: as COERCED, and a list's elements too
+#   COERCED   unary minus, + - * /, abs, min / max of several: a JSON number, or a number written as text (as the
+#             language reads one: inside Python's 29 spaces, in any script's digits -- xpr.num's reading since T-6
+#             variant C), is read as a double
+#   ELEMENTS  min / max of one argument: as COERCED, and a list's elements too (among several, a list is skipped)
 # A field passed through (a computed column's value, coalesce's arguments, if's branches) takes the place of the
 # call around it; count / length / time_of_day read no number.
 # ---------------------------------------------------------------------------------
 _D_SHOWN, _D_NUMBER, _D_COERCED, _D_ELEMENTS = "shown", "number", "coerced", "elements"
 _TEXT_NUMBER_RE = r"^[+-]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][+-]?[0-9]+)?$"
 _ASCII_WS_SQL = r"E' \t\n\r\f\x0b'"
+#: a number's text whose digits before the exponent are all zero: zero, whatever the exponent (a-chk's M3)
+_ZERO_RE = r"^[+-]?[0.]*([eE]|$)"
 _D_SMALL, _D_DIGITS = "small", "digits"
+
+
+@functools.lru_cache(maxsize=1)
+def _text_code_points() -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    """What the runtime's ``xpr.num`` reads text with beyond ASCII (T-6 variant C), from this Python's Unicode data
+    as ``runtime/generate.py`` derives it: the 29 code points ``str.strip()`` removes, and the zero of each script's
+    decimal digits (every one of them a run of ten, 0 to 9: 67 runs, 670 digits)."""
+    ws = tuple(cp for cp in range(0x110000) if chr(cp).isspace())
+    zeros = tuple(cp for cp in range(0x80, 0x110000)
+                  if unicodedata.category(chr(cp)) == "Nd" and unicodedata.decimal(chr(cp)) == 0)
+    return ws, zeros
+
+
+def text_tables() -> Tuple[str, str, str]:
+    """``xpr.num``'s three tables as probe d builds them: the spaces, every non-ASCII digit, the digit each is."""
+    ws, zeros = _text_code_points()
+    return ("".join(map(chr, ws)), "".join(chr(z + d) for z in zeros for d in range(10)), "0123456789" * len(zeros))
+
+
+def _d_text_tables_sql() -> Tuple[str, str, str]:
+    """:func:`text_tables` as SQL: built once a statement from the code points (an InitPlan), never shipped whole."""
+    ws, zeros = _text_code_points()
+    return (f"(SELECT string_agg(chr(c), '') FROM unnest('{{{','.join(map(str, ws))}}}'::int[]) AS s(c))",
+            f"(SELECT string_agg(chr(z + d), '' ORDER BY z, d) FROM unnest('{{{','.join(map(str, zeros))}}}'::int[])"
+            f" AS s(z), generate_series(0, 9) AS g(d))",
+            f"repeat('0123456789', {len(zeros)})")
+
+
+def _d_unicode_text(op: str, txt: str, test) -> str:
+    """The condition *test* over a number written as text that isn't one in ASCII as it stands (a-chk's H2): read
+    as ``xpr.num`` reads it, trimmed of the 29 spaces with every script's digits mapped onto 0-9. Plain ASCII is
+    left out first (that reading can't change it), so ordinary text pays one pattern; the translate is nested, as
+    in ``xpr.num``, and the reading made once, in a subquery."""
+    ws, nd_from, nd_to = _d_text_tables_sql()
+    x = "rd.x"
+    fast = f"({x} !~ '[eE]' AND length({x}) <= 15)"
+    return (f"(jsonb_typeof({op}) = 'string' AND {txt} !~ '{_TEXT_NUMBER_RE}'"
+            f" AND ({op} #>> '{{}}') !~ '^[\\x01-\\x1b\\x20-\\x7f]*$'"
+            f" AND EXISTS (SELECT 1 FROM (SELECT translate(btrim({op} #>> '{{}}', {ws}), {nd_from}, {nd_to}) AS x)"
+            f" AS rd WHERE {x} ~ '{_TEXT_NUMBER_RE}' AND {test(x, fast)}))")
 
 
 def exact_reading_operands(ast, root: str = _D_SHOWN) -> List[Tuple[Any, str]]:
@@ -376,7 +422,7 @@ def exact_reading_operands(ast, root: str = _D_SHOWN) -> List[Tuple[Any, str]]:
             elif name == "if":
                 for i, a in enumerate(args):
                     walk(a, _D_NUMBER if i == 0 else pos)
-            elif name in ("min", "max"):
+            elif name in ("min", "max") and len(args) == 1:      # among several, a list is skipped (M2)
                 for a in args:
                     walk(a, _D_ELEMENTS)
             elif name in ("count", "length", "time_of_day"):
@@ -393,7 +439,7 @@ def exact_reading_operands(ast, root: str = _D_SHOWN) -> List[Tuple[Any, str]]:
 def _held_sql(t: str, fast: str) -> str:
     """True when the text *t* (a number's digits) is held: the CASE guards every cast, so no input can raise."""
     return (f"(CASE WHEN {fast} THEN true"
-            f" WHEN NOT pg_input_is_valid({t}, 'numeric') THEN false"
+            f" WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) ~ '{_ZERO_RE}'"
             f" WHEN abs(({t})::numeric) >= {DBL_MAX_LITERAL}::numeric THEN false"
             f" WHEN NOT pg_input_is_valid({t}, 'float8') THEN false"
             f" ELSE ({t})::numeric = (xpr.j(({t})::float8) #>> '{{}}')::numeric END)")
@@ -410,7 +456,7 @@ def _large_sql(t: str) -> str:
 
 
 def _small_sql(t: str) -> str:
-    return (f"(CASE WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) ~ '[eE]-'"
+    return (f"(CASE WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) ~ '[eE]-' AND ({t}) !~ '{_ZERO_RE}'"
             f" WHEN abs(({t})::numeric) >= {DBL_MAX_LITERAL}::numeric THEN false"
             f" WHEN ({t})::numeric = 0 THEN false"
             f" ELSE NOT pg_input_is_valid({t}, 'float8') END)")
@@ -425,6 +471,7 @@ def _d_forms(op: str, pos: str, test) -> str:
         txt = f"btrim({op} #>> '{{}}', {_ASCII_WS_SQL})"
         fast_txt = f"({txt} !~ '[eE]' AND length({txt}) <= 15)"
         parts.append(f"(jsonb_typeof({op}) = 'string' AND {txt} ~ '{_TEXT_NUMBER_RE}' AND {test(txt, fast_txt)})")
+        parts.append(_d_unicode_text(op, txt, test))
     if pos == _D_ELEMENTS:
         inner = _d_forms("e.v", _D_COERCED, test)
         parts.append(f"(jsonb_typeof({op}) = 'array' AND EXISTS (SELECT 1 FROM jsonb_array_elements({op}) AS e(v)"

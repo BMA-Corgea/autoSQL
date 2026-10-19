@@ -35,10 +35,10 @@ _TWO_53 = 2 ** 53
 
 LARGE, SMALL, DIGITS = "large", "small", "digits"
 
-#: A number written as text, as the inline coercion reads one: ASCII digits, an optional sign, point and exponent,
-#: inside ASCII whitespace. (Unicode digits and spaces are T-6's gap, not this rule's.)
-_TEXT_NUMBER = re.compile(r"[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
-_ASCII_WS = " \t\n\r\f\v"
+#: A number written as text, as the language reads one (``expr._to_num``): inside Python's ``strip()`` spaces (29 of
+#: them, not only ASCII's six), digits of any script (``\d``, as ``float()`` and ``Decimal()`` read them), an
+#: optional sign, point and exponent. The runtime's ``xpr.num`` reads the same since T-6 variant C (a-chk's H2).
+_TEXT_NUMBER = re.compile(r"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?")
 
 
 def _bits(d: float) -> int:
@@ -110,7 +110,7 @@ def kind(v) -> Optional[str]:
             significant -= 1
         if significant <= 15 and -307 <= d.adjusted() <= 14:
             return None
-    if abs(d) >= _DBL_MAX:
+    if d.copy_abs() >= _DBL_MAX:                    # exact: abs() rounds to the default context's 28 digits (M1)
         return LARGE
     f = float(d)                                    # correctly rounded, half to even, as Postgres reads it
     if f == 0.0:
@@ -119,9 +119,9 @@ def kind(v) -> Optional[str]:
 
 
 def numeric_text(s: str) -> Optional[Decimal]:
-    """The number a text value reads as where the language coerces text to a number, or ``None`` when it isn't
-    one this rule reads (it reads ASCII numbers only)."""
-    t = s.strip(_ASCII_WS)
+    """The number a text value reads as where the language coerces text to a number (Python's ``strip()``, then
+    its pattern), or ``None`` when the language reads none there."""
+    t = s.strip()
     if not _TEXT_NUMBER.fullmatch(t):
         return None
     return Decimal(t)

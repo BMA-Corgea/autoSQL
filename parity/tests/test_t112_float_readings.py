@@ -778,14 +778,11 @@ def test_the_probe_and_the_second_engine_agree_on_text_and_the_largest_doubles_n
     texts = list(UNICODE_TEXTS.values()) + [t for t, _ in UNICODE_HELD.values()] + ZEROS
     texts += [" 1e-400", " ١e5", "1e٥", "\x1f12.5\x1c", "  ", "1 2", "0e+20000"]
     numbers = M1_VALUES + ["1.7976931348623156e308", "1.7976931348623157e308"]
-    tables = getattr(probes, "text_tables", None)                # 4d93236's probe read ASCII text, with no tables
-    kw = dict(zip(("prbD_ws", "prbD_nd_from", "prbD_nd_to"), tables())) if tables else {}
     for pos in ("number", "coerced", "elements"):
         fire = probes._d_forms("v.j", pos, probes._fires_sql)
         vals = [json.dumps(t) for t in texts] + numbers
         vals += ["[" + json.dumps(t) + "]" for t in texts] + ["[" + n + "]" for n in numbers]
-        cur = conn.execute(f"SELECT {fire} FROM unnest(%(vals)s::jsonb[]) WITH ORDINALITY AS v(j, o) ORDER BY o",
-                           {"vals": vals, **kw})
+        cur = conn.execute(f"SELECT {fire} FROM unnest(%s::jsonb[]) WITH ORDINALITY AS v(j, o) ORDER BY o", (vals,))
         for v, (said,) in zip(vals, cur.fetchall()):
             stored = json.loads(v, parse_float=Decimal)
             py = exact._value_kind(stored, pos)
