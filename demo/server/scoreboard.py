@@ -101,11 +101,12 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
             # T-74: what is counted is the related rows, so their
             # expressions are probed over THAT collection; the page filter
             # reads the parents and is probed over them.
-            outcomes = probes.check(conn, rel["source"], counted, numeric_roots=roots)
+            # T-112: every count and the page filter is a truth: its root is read as a double (member d)
+            outcomes = probes.check(conn, rel["source"], (), truth_roots=counted, numeric_roots=roots)
             if page:
-                outcomes = outcomes + probes.check(conn, spec["source"], page)
+                outcomes = outcomes + probes.check(conn, spec["source"], (), truth_roots=page)
         else:
-            outcomes = probes.check(conn, spec["source"], counted + page, numeric_roots=roots)
+            outcomes = probes.check(conn, spec["source"], (), truth_roots=counted + page, numeric_roots=roots)
     except gate.Refused as exc:
         # T-102: a probe's operand too big to check refuses the board, as the build stage does
         return _refused(errors.layer_1(exc, kind="expression"), spec)

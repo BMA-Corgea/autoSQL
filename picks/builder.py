@@ -63,7 +63,9 @@ import json
 import re
 from typing import Any, NamedTuple
 
-from . import env, gate, legality, paths
+from decimal import Decimal
+
+from . import doubles, env, gate, legality, paths
 
 
 #: The SHIPPING compiler (``compiler/compile.py`` in this repo) and the
@@ -430,6 +432,25 @@ def _field_path(field: str, *, what: str) -> list[str]:
         ) from None
 
 
+def _held_literals(src: str) -> None:
+    """T-112: a number written in the expression is read as a double by both engines; one no double holds would be
+    read as another number, so it is refused here, before any SQL exists. The parser keeps only the double, so the
+    literals are read from the source by the parser's own tokeniser. (One at or past the largest double is the
+    gate's, as before: it refuses what reads as infinity.)"""
+    for kind_, text in _expr._tokenize(src):
+        if kind_ != "num":
+            continue
+        k = doubles.kind(Decimal(text))
+        if k is None or k == doubles.LARGE:
+            continue
+        if k == doubles.SMALL:
+            why = f"the number {text} is too small for a double: both engines would read it as 0"
+        else:
+            why = (f"the number {text} has more digits than a double holds: both engines would read it as "
+                   f"{doubles.pg_shortest(float(text))}, so it can't be compared exactly")
+        raise gate.Refused(text, why)
+
+
 def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict | None = None) -> Compiled:
     """parse → gate → compile, in that order, always (§4.5: the gate runs
     before compile_ast, on the parsed tree, every time).  ``compile_kw`` is
@@ -443,6 +464,7 @@ def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict 
         raise gate.Refused(src, f"the expression does not parse: {exc}") from exc
     zones = env.time_zones()
     gate.gate(ast, zones=zones)  # Refused propagates with the construct named
+    _held_literals(src)
     try:
         frag = compile_ast(ast, column=column, ctx_param=ctx_param, time_zones=zones,
                            zone_gaps=env.zone_gaps(), **(compile_kw or {}))

@@ -22,7 +22,12 @@ that touches SQL or rows:
 * ``rows`` — an optional row provider ``rows(conn, collection, owner) ->
   [(key, raw_json_text)]`` for the second engine, handed the description's
   owner (the partition value, or ``None``) and bound to read that owner's
-  records only; without one the engine reads the table (T-87).
+  records only; without one the engine reads the table (T-87);
+* ``alone`` — the second engine answers by itself, with no statement beside
+  it to refuse first (GIMS's SQLite mode).  Then a stored number past the
+  largest double, which the language would read as an infinity, is refused
+  by the second engine too (T-112, ``picks/pyrunner/exact.py``).  The demo's
+  two-pane screen leaves it off.
 
 Identifiers are spliced into statement text, so each is checked against a
 plain identifier pattern when the description is made; values never are
@@ -55,6 +60,7 @@ class Records:
     series: Optional[Mapping[str, str]] = None
     sources_note: str = ""
     rows: Optional[Callable[[Any, str], list]] = field(default=None, compare=False)
+    alone: bool = False
 
     def __post_init__(self):
         _check(self.table, _TABLE, "the table")

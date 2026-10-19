@@ -27,7 +27,7 @@ from dataclasses import dataclass, field as _dc_field
 from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
 from typing import Any, Mapping, Optional
 
-from . import env, group, legality, lookup, paths, zones
+from . import doubles, env, group, legality, lookup, paths, zones
 from .records import Records
 
 
@@ -655,8 +655,14 @@ def number_literal(value) -> str:
         raise ViewError("That number is too large to compare with.") from None
     if not math.isfinite(as_double):
         raise ViewError("That number is too large to compare with.")
-    text = str(value) if isinstance(value, int) else repr(float(value))
-    return text
+    if isinstance(value, int):
+        # T-112: an integer with more digits than a double holds would be compared as a different number
+        if doubles.kind(value) == doubles.DIGITS:
+            raise ViewError("That number has more digits than can be compared exactly.")
+        return str(value)
+    # a float is already a double (the request's own reading): written as Postgres writes it, so the literal is
+    # held and means exactly that double (``repr`` except on a midpoint, T-112)
+    return doubles.pg_shortest(float(value))
 
 
 _DAY_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})\Z")

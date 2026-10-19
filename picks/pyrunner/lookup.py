@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Sequence
 
 from .. import paths
 from . import evaluate as ev
+from . import exact
 from . import shape
 from .group import _match_key
 from .rows import SourceRow, read_rows
@@ -59,8 +60,10 @@ def _kept(rows: Sequence[SourceRow], pick: dict) -> List[SourceRow]:
 
 
 def profile(rows: Sequence[SourceRow], pick: dict, related_rows: Sequence[SourceRow],
-            lk: dict) -> Dict[str, Any]:
+            lk: dict, records=None) -> Dict[str, Any]:
     """What the match does over the kept rows, from the rows."""
+    if pick.get("filter"):                 # T-112: as the statement's probes read the filter
+        exact.check(rows, [(ev.expr.parse(pick["filter"]), exact.NUMBER)], alone=exact.answers_alone(records))
     matched = _matcher(related_rows, lk)
     per_row = [len(matched(r.record_d)) for r in _kept(rows, pick)]
     some = [n for n in per_row if n > 0]
@@ -107,4 +110,5 @@ def python_pane(conn, pick: dict, lk: dict, records=None) -> Dict[str, Any]:
 
 
 def python_profile(conn, pick: dict, lk: dict, records=None) -> Dict[str, Any]:
-    return profile(read_rows(conn, pick["source"], records), pick, read_rows(conn, lk["source"], records), lk)
+    extra = {"records": records} if records is not None else {}
+    return profile(read_rows(conn, pick["source"], records), pick, read_rows(conn, lk["source"], records), lk, **extra)

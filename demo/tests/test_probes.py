@@ -155,7 +155,7 @@ class TestAC17:
         """The one named wrong way: xpr.f8 / xpr.num return NULL for exactly
         the values that are too big, and NULL >= x is never true.  The probe
         must read the raw jsonb and cast through numeric."""
-        (probe,) = build_probes([_gated(STEP_13)])
+        (probe,) = [p for p in build_probes([_gated(STEP_13)]) if p.member == "a"]
         assert "xpr.f8" not in probe.sql
         assert "xpr.num" not in probe.sql
         assert "::numeric" in probe.sql
@@ -175,7 +175,8 @@ class TestAC17:
         ([1e300, 1] — both panes now agree on it) both have to run."""
         for src in (STEP_11, "max($.l)"):
             outcomes = check(db, EDGE, [_gated(src)])
-            assert [(o.probe.member, o.fired) for o in outcomes] == [("a", False)], src
+            # (T-112's member d reads them too: 1e300 and 1 are held, the fullwidth text isn't a number it reads)
+            assert [(o.probe.member, o.fired) for o in outcomes] == [("a", False), ("d", False)], src
 
 
 # =================================================================================
@@ -232,7 +233,7 @@ class TestMechanics:
     def test_probe_sql_is_the_plan_shape(self):
         """Plan §4.3's statement, shape for shape: EXISTS over demo.records
         AS r, the collection as a bind parameter, terms OR-ed."""
-        (probe,) = build_probes([_gated(STEP_13)])
+        (probe,) = [p for p in build_probes([_gated(STEP_13)]) if p.member == "a"]
         assert probe.sql.startswith("SELECT EXISTS (")
         assert "SELECT 1 FROM demo.records AS r" in probe.sql
         assert "WHERE r.collection = %(collection)s" in probe.sql
@@ -243,9 +244,9 @@ class TestMechanics:
 
     def test_member_a_precedes_member_b(self):
         """When a pick carries both kinds of operand, the (a) probe is built
-        and answered first — the refusal precedence check() relies on."""
+        and answered first — the refusal precedence check() relies on (T-112's d after both)."""
         built = build_probes([_gated("$.n * 1 == $.m")])
-        assert [p.member for p in built] == ["a", "b"]
+        assert [p.member for p in built] == ["a", "b", "d"]
 
     def test_b11_namespacing_keeps_three_literals_distinct(self):
         """The probe compiles operand sub-ASTs separately and ORs them into
@@ -254,7 +255,7 @@ class TestMechanics:
         placeholder must carry its own fragment's prefix."""
         import re
 
-        (probe,) = build_probes([_gated("$.d * 2 + $.z * 3")])
+        (probe,) = [p for p in build_probes([_gated("$.d * 2 + $.z * 3")]) if p.member == "a"]
         values = list(probe.params.values())
         assert 2.0 in values and 3.0 in values
         # No unprefixed p0 survives, and nothing but prbA*/collection binds:

@@ -64,6 +64,7 @@ from decimal import Context, Decimal, ROUND_HALF_UP, localcontext
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .decimals import is_jsonb_number, q6
+from .exact import exact_value
 from .order import MISSING, sort_key
 from .rows import SourceRow
 
@@ -196,8 +197,12 @@ def computed_values(row: SourceRow, parsed: Sequence[Tuple[str, Any]]) -> Dict[s
     the compiled SQL stays in float8 for the same reason (R7), and §5's
     defect has to stay visible.  The exact-decimal rule does NOT extend to
     these values (§7.2, last paragraph).
+
+    T-112: a value the evaluator hands back untouched (a field, ``coalesce``,
+    an ``if`` branch) is answered with its stored digits, as the statement
+    answers jsonb's; a computed double in Postgres's digits (``exact.py``).
     """
-    return {name: expr.evaluate(ast, row.record_f, {}) for name, ast in parsed}
+    return {name: exact_value(expr.evaluate(ast, row.record_f, {})) for name, ast in parsed}
 
 
 def keep_by_filter(row: SourceRow, filter_ast) -> bool:
@@ -216,10 +221,11 @@ def field_reader(
       the compiled expression inline (B2) and that expression computes in
       float8, so the Python twin evaluates the same AST on ``record_f`` and
       classifies the result with the same jsonb_typeof test.  A finite
-      float crosses into Decimal via ``repr`` — the shortest round-trip
-      digits, which are exactly the text Postgres renders a float8 into
-      jsonb with and then casts to numeric.  A non-finite float is returned
-      as itself (see the module docstring).
+      computed float crosses into Decimal in the digits Postgres renders a
+      float8 into jsonb with (T-112: Postgres's printer, not ``repr``, which
+      differs on midpoints), and a value passed through untouched keeps its
+      stored digits (``exact.py``).  A non-finite float is returned as itself
+      (see the module docstring).
     * otherwise a ``$.path`` — §7.2 item 5's numeric read over the exact
       parse (B7).
 
@@ -231,11 +237,7 @@ def field_reader(
                 v = expr.evaluate(_ast, row.record_f, {})
                 if not is_jsonb_number(v):
                     return None
-                if isinstance(v, float):
-                    if v != v or v in (float("inf"), float("-inf")):
-                        return v  # non-finite: carried as-is for display
-                    return Decimal(repr(v))
-                return v  # int — exact
+                return exact_value(v)  # int exact; a stored number exactly; a computed double in Postgres's digits
             return read_computed
     steps = dollar_path(field)
     return lambda row: numeric_value(row.record_d, steps)

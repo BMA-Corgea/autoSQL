@@ -807,9 +807,7 @@ class TestTheEnginesOwnRefusalIsSaidPlainly:
     The engine is not changed; the dashboard answers it in plain words
     rather than failing as though the demo were down."""
 
-    @pytest.mark.parametrize("c", [
-        cond("huge", "eq", value=0), cond("g", "eq", value=1), cond("g", "ne", value=1),
-    ])
+    @pytest.mark.parametrize("c", [cond("huge", "eq", value=0)])
     def test_refused_in_plain_words(self, client, setup, c):
         status, a = ask(client, view(setup, "edge", columns=["a"], conditions=[c]))
         assert status == 200 and a["kind"] == "refused"
@@ -819,6 +817,19 @@ class TestTheEnginesOwnRefusalIsSaidPlainly:
         # Admin still reads the statement the database refused
         assert a["admin"]["statement"].startswith("SELECT ") and a["admin"]["sent"] is True
         assert '"A"' in a["admin"]["statement"] and a["admin"]["parameters"]
+
+    @pytest.mark.parametrize("c", [cond("g", "eq", value=1), cond("g", "ne", value=1)])
+    def test_a_g_with_more_digits_than_a_double_holds_is_refused_first(self, client, setup, c):
+        """T-112: edge-04's g (1.7976931348623156e308) has more digits than a double holds, so the probe refuses
+        (member d) before the statement can meet edge-05's g, past the largest double (XPR01)."""
+        status, a = ask(client, view(setup, "edge", columns=["a"], conditions=[c]))
+        assert status == 200 and a["kind"] == "refused"
+        assert a["message"] == ("One of these values has more digits than can be compared exactly, so this can't "
+                                "be answered honestly.")
+        why = a["admin"]["refusal"]["why"]
+        assert why.startswith("number with more digits than a double holds") and '"edge-04"' in why
+        assert a["admin"]["sent"] is False and a["admin"]["notes"] == ["Store long numbers such as IDs as text."]
+        assert a["sentence"].startswith("Edge cases where ")
 
     def test_after_the_refusal_the_connection_is_read_only_and_pinned_again(self, setup):
         """The rollback after XPR01 reverts SET; the guard and the two pinned

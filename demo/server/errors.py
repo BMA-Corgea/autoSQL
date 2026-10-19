@@ -135,9 +135,24 @@ def sort_order_words(field: str) -> str:
             "Sort by another field.")
 
 
+#: T-112: a stored number read as a double that no double holds, in the words everyone sees, and the builder's
+#: hint, shown only where the detail is (the two-pane payload; the dashboard's Admin)
+TOO_SMALL_WORDS = "One of these values is too small to compute with, so this can't be answered honestly."
+TOO_MANY_DIGITS_WORDS = ("One of these values has more digits than can be compared exactly, so this can't be "
+                         "answered honestly.")
+DIGITS_HINT = "Store long numbers such as IDs as text."
+
+
+def number_words(kind: str, *, hint: bool = False) -> str:
+    """T-112: what a number no double holds stops, by its kind (picks.doubles: small, digits)."""
+    if kind == "small":
+        return TOO_SMALL_WORDS
+    return TOO_MANY_DIGITS_WORDS + (" " + DIGITS_HINT if hint else "")
+
+
 def layer_2(exc) -> dict:
     """The JSON for a :class:`demo.probes.RuntimeRefusal`."""
-    return {
+    out = {
         "layer": 2,
         "kind": "probe",
         "headline": LAYER_2_HEADLINE,
@@ -152,6 +167,10 @@ def layer_2(exc) -> dict:
         "sql_existed": True,
         "statement_sent": False,
     }
+    if exc.member == "d":
+        # T-112: a stored number no double holds, by its kind, with the builder's hint on this screen
+        out["body"] = number_words(exc.kind, hint=True)
+    return out
 
 
 def illegal_pick(violations) -> dict:

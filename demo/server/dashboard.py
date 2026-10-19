@@ -762,6 +762,12 @@ def _run(conn, pick: dict) -> dict:
 #: What a refusal says to a person, by what the engine found.  The engine's
 #: own words go to the admin panel unchanged.
 _PLAIN_REFUSAL = (
+    # T-112: a stored number read as a double that no double holds (probe member d; "large" reads member a's
+    # words below); the builder's hint goes to Admin only (plain_refusal)
+    ("number too small for a double", "One of these values is too small to compute with, so this can't be "
+                                      "answered honestly."),
+    ("more digits than a double holds", "One of these values has more digits than can be compared exactly, so "
+                                        "this can't be answered honestly."),
     # T-110: a sort over text nested in jsonb, on a database that orders that text its own way
     ("nested text order", "These rows can't be sorted by this field on this database: some of its values hold "
                           "text inside a list or a group, and this database orders that text differently. "
@@ -793,6 +799,9 @@ def plain_refusal(refusal: dict | None) -> str:
     text = json.dumps(refusal or {}).lower()
     for needle, plain in _PLAIN_REFUSAL:
         if needle in text:
+            if needle == "more digits than a double holds":
+                from . import errors
+                _note(errors.DIGITS_HINT)      # T-112: the hint is for Admin, never the person's sentence
             return plain
     return _PLAIN_REFUSAL_DEFAULT
 

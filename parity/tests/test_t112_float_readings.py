@@ -8,10 +8,13 @@ silently -- ``1e-400`` as ``0.0`` (b-check, T-93 step 0), ``12345678901234567890
 (``1e22 * 10``). Now, on both engines and in GIMS's one-engine shape (the second engine alone):
 
 * a stored value only SHOWN is shown exactly (-0 as 0), and a computed double in Postgres's digits;
-* a stored value READ AS A DOUBLE (compared, computed with, taken as true) must be held, or the pick is refused in
-  words naming its kind (large, small, digits) and its first row: the statement's probe member d (member a first,
-  past DBL_MAX), the second engine's own check;
-* a number written in the expression that no double holds is refused before any SQL exists.
+* a stored value READ AS A DOUBLE (compared, computed with, taken as true) that a double would misread -- held only
+  as 0 (small), or with more digits than a double holds (digits) -- refuses the pick in words naming its kind and
+  its first row: the statement's probe member d, the second engine's own check;
+* a number written in the expression that no double holds is refused before any SQL exists;
+* a number at or past the largest double is left as it was beside the statement (member a or XPR01 refuses it, the
+  language declines it in arithmetic: walkthrough step 13), and refused by the second engine too when the host says
+  it answers alone (``Records.alone``, GIMS's SQLite mode), where two such numbers would compare as one infinity.
 
 The tests without a database run the second engine alone on GIMS's text (its SQLite mode); the rest need a throwaway
 Postgres (AUTOSQL_PARITY_DSN) and SKIP without one. The printer differential reads 200,000 random doubles and the
@@ -43,20 +46,31 @@ from picks.records import Records  # noqa: E402
 DSN = os.environ.get("AUTOSQL_PARITY_DSN")
 needs_db = pytest.mark.skipif(not DSN, reason="set AUTOSQL_PARITY_DSN to a throwaway Postgres")
 T, TABLE = "noun:T", "t112v"
-KEYS = ["l", "n", "o", "s"]
+KEYS = ["l", "n", "o", "s", "x", "y"]
 
 HELD = ["9007199254740991", "9007199254740992", "1e308", "5e-324", "0.30000000000000004", "44319635693286576",
         "9.999999999999999e22", "0.1", "12.5", "-0", "-0.0"]
 NOT_HELD = {
-    "9007199254740993": "digits", "1e309": "large", "1.7976931348623157e308": "large", "1e-400": "small",
+    "9007199254740993": "digits", "1e-400": "small",
     "2.4703282292062328e-324": "digits", "0.12345678901234567": "digits", "0.123456789012345678": "digits",
     "12345678901234567890.123456789": "digits", "1.7976931348623156e+308": "digits", "1e23": "digits",
     "44319635693286580": "digits",
 }
+#: at or past the largest double ("large"): the statement's member a / XPR01 beside it; refused alone
+PAST = ["1e309", "1.7976931348623157e308"]
 
 
 def _records():
     return Records(table=TABLE, sources={T: ", ".join(KEYS)})
+
+
+def _alone():
+    """GIMS's SQLite mode: the second engine answers by itself (``Records.alone``). 6dd0eb8 had no such option: its
+    engine always answered as if beside a statement, so there the plain description stands in."""
+    try:
+        return Records(table=TABLE, sources={T: ", ".join(KEYS)}, alone=True)
+    except TypeError:
+        return _records()
 
 
 def _gims_text(stored: str) -> str:
@@ -79,11 +93,11 @@ def _pick(**kw):
     return p
 
 
-def _py(stored: dict, pick: dict, text=_gims_text):
-    """The second engine alone over GIMS's text (its SQLite shape): its rows, or the refusal it raised."""
+def _py(stored: dict, pick: dict, text=_gims_text, records=None):
+    """The second engine by itself over GIMS's text (its SQLite shape): its rows, or the refusal it raised."""
     rows = [pyrows.source_row(T, k, text(s)) for k, s in sorted(stored.items())]
     try:
-        return pyshape.answer(rows, pick, _records())["rows"]
+        return pyshape.answer(rows, pick, records or _records())["rows"]
     except ValueError as e:
         return e
 
@@ -99,7 +113,7 @@ def _exact(text: str) -> Decimal:
 
 # ── the second engine alone (GIMS's SQLite mode), no database ───────────
 
-@pytest.mark.parametrize("lit", HELD + list(NOT_HELD))
+@pytest.mark.parametrize("lit", HELD + list(NOT_HELD) + PAST)
 def test_a_stored_number_only_shown_is_shown_exactly(lit):
     got = _py({"a": '{"n": ' + lit + '}'}, _pick(computed=[{"name": "v", "expr": "$.n"}]))
     assert not isinstance(got, Exception), got
@@ -133,12 +147,13 @@ def test_the_refusal_reads_every_row_not_only_the_filters():
 
 
 def test_one_row_with_two_kinds_names_the_larger_first():
-    # the probe's words take the same precedence: large, then small, then digits
-    got = _py({"a": '{"n": 1e-400, "s": "1e309"}'}, _pick(filter="$.n > 0", computed=[{"name": "w", "expr": "$.s * 2"}]))
-    assert _kind(got) == "large"
+    # the probe's words take the same precedence: small, then digits (alone: large first)
     got = _py({"a": '{"n": 1e-400, "s": "9007199254740993"}'},
               _pick(filter="$.n > 0", computed=[{"name": "w", "expr": "$.s * 2"}]))
     assert _kind(got) == "small"
+    pick = _pick(filter="$.n > 0", computed=[{"name": "w", "expr": "$.s * 2"}])
+    assert _kind(_py({"a": '{"n": 1e-400, "s": "1e309"}'}, pick)) == "small"
+    assert _kind(_py({"a": '{"n": 1e-400, "s": "1e309"}'}, pick, records=_alone())) == "large"
 
 
 def test_a_computed_double_is_written_as_postgres_writes_it():
@@ -155,7 +170,7 @@ def test_numbers_stored_as_text():
     # an ID stored as text, compared as text, is never read as a number
     got = _py({"a": '{"s": "9007199254740993"}', "b": '{"s": "9007199254740992"}'},
               _pick(filter='$.s == "9007199254740993"'))
-    assert [r["key"] for r in got] == ["a"]
+    assert not isinstance(got, Exception) and [r["key"] for r in got] == ["a"], got
 
 
 def test_numbers_nested_in_lists_and_objects():
@@ -171,9 +186,9 @@ def test_numbers_nested_in_lists_and_objects():
 
 
 def test_a_sort_and_a_summary_by_the_column_read_the_exact_value():
-    stored = {"a": '{"n": 0.12345678901234567}', "b": '{"n": 0.12345678901234566}', "c": '{"n": 1}'}
+    stored = {"a": '{"n": 0.12345678901234566}', "b": '{"n": 0.12345678901234567}', "c": '{"n": 1}'}
     got = _py(stored, _pick(computed=[{"name": "v", "expr": "$.n"}], sort={"field": "v", "dir": "desc"}))
-    assert [r["key"] for r in got] == ["c", "a", "b"]             # the double ties a and b
+    assert [r["key"] for r in got] == ["c", "b", "a"]             # the double ties a and b (and the key puts a first)
     got = _py({"a": '{"n": 12345678901234567890.123456789}', "b": '{"n": 1}'},
               _pick(computed=[{"name": "v", "expr": "$.n"}], aggregate={"fn": "sum", "field": "v"}))
     assert got[0]["agg"] == Decimal("12345678901234567891.123457")
@@ -181,10 +196,63 @@ def test_a_sort_and_a_summary_by_the_column_read_the_exact_value():
 
 def test_the_demos_text_reads_the_same_as_gims():
     # jsonb writes every digit: the demo hands 1e309 as a 310-digit integer, 1e-400 as a 401-digit fraction
-    for lit, k in (("1e309", "large"), ("1e-400", "small"), ("12345678901234567890.123456789", "digits")):
+    for lit, k, rec in (("1e309", "large", _alone()), ("1e-400", "small", None),
+                        ("12345678901234567890.123456789", "digits", None)):
         positional = {"a": '{"n": ' + format(Decimal(lit), "f") + '}'}
-        assert _kind(_py(positional, _pick(filter="$.n > 0"), text=lambda s: s)) == k
+        assert _kind(_py(positional, _pick(filter="$.n > 0"), text=lambda s: s, records=rec)) == k
         assert _py(positional, _pick(computed=[{"name": "v", "expr": "$.n"}]), text=lambda s: s)[0]["v"] == Decimal(lit)
+
+
+# ── at or past the largest double ───────────────────────────────────────
+
+@pytest.mark.parametrize("lit", PAST)
+def test_beside_the_statement_a_number_past_the_largest_double_is_left_to_the_language(lit):
+    # the demo's two-pane pane (no option): as before T-112 -- the statement refuses first (member a, XPR01) and the
+    # language declines the number in arithmetic (walkthrough step 13: no value), so this engine answers
+    stored = {"a": '{"n": ' + lit + '}', "b": '{"n": 2}'}
+    for pick in (_pick(filter="$.n > 0"), _pick(filter="$.n == 1"), _pick(filter="$.n"),
+                 _pick(computed=[{"name": "w", "expr": "$.n * 1"}])):
+        got = _py(stored, pick)
+        assert not isinstance(got, Exception), (lit, pick, got)
+    if lit == "1e309":
+        assert _py(stored, _pick(computed=[{"name": "w", "expr": "$.n * 1"}]))[0]["w"] is None
+
+
+#: the foreman's vectors (GIMS's SQLite mode, the engine by itself): stored rows, the pick, the exact answer's keys
+ALONE = {
+    "1e309 == 1e310": ({"a": '{"x": 1e309, "y": 1e310}'}, _pick(filter="$.x == $.y"), []),
+    "1e309 < 1e310": ({"a": '{"x": 1e309, "y": 1e310}'}, _pick(filter="$.x < $.y"), ["a"]),
+    "sort by a column holding 1e309 and 1e310": (
+        {"c": '{"n": 1e309}', "d": '{"n": 1e310}'},
+        _pick(computed=[{"name": "v", "expr": "$.n"}], sort={"field": "v", "dir": "desc"}), ["d", "c"]),
+    "-1e309 < 1e309 (the control)": ({"a": '{"x": -1e309, "y": 1e309}'}, _pick(filter="$.x < $.y"), ["a"]),
+}
+
+
+@pytest.mark.parametrize("vector", list(ALONE))
+def test_alone_a_number_past_the_largest_double_is_never_a_wrong_answer(vector):
+    # by itself, the engine reads exactly or refuses in words: the control's infinities happen to answer right
+    stored, pick, truth = ALONE[vector]
+    got = _py(stored, pick, records=_alone())
+    if isinstance(got, Exception):
+        assert _kind(got) == "large", (vector, got)
+    else:
+        assert [r["key"] for r in got] == truth, (vector, [r["key"] for r in got])
+
+
+@pytest.mark.parametrize("vector", list(ALONE))
+def test_alone_such_a_number_is_refused_by_the_rule_not_by_the_outcome(vector):
+    stored, pick, _truth = ALONE[vector]
+    got = _py(stored, pick, records=_alone())
+    assert isinstance(got, ValueError) and _kind(got) == "large", (vector, got)
+    assert got.row_key == sorted(stored)[0] and "out-of-range magnitude" in str(got)
+
+
+@pytest.mark.parametrize("vector", list(ALONE))
+def test_beside_the_statement_the_same_vectors_are_not_refused(vector):
+    stored, pick, _truth = ALONE[vector]
+    got = _py(stored, pick)
+    assert not isinstance(got, Exception), (vector, got)
 
 
 # ── a number written in the expression ──────────────────────────────────
@@ -290,6 +358,21 @@ def test_held_numbers_answer_on_both_engines_alike(conn, lit):
 
 
 @needs_db
+@pytest.mark.parametrize("lit", PAST)
+def test_the_statement_leaves_a_number_past_the_largest_double_to_member_a(conn, lit):
+    _put(conn, {"a": '{"n": ' + lit + '}', "b": '{"n": 2}'})
+    from picks import env
+    parse = env.get("parser").parse
+    for exprs, truths in (([], [parse("$.n > 0")]), ([parse("$.n * 1")], []), ([], [parse("$.n == 1")])):
+        with conn.transaction():
+            out = probes.run_probes(conn, T, probes.build_probes(exprs, truth_roots=truths, records=_records()))
+        fired = {o.probe.member: o.fired for o in out}
+        assert fired.get("d") is False, (lit, fired)
+        if "a" in fired:
+            assert fired["a"] is True and [o.row_key for o in out if o.probe.member == "a"] == ["a"], (lit, fired)
+
+
+@needs_db
 def test_the_probes_held_test_and_the_second_engines_agree_on_every_value(conn):
     """One rule, two statements of it: the probe's own SQL predicate against pyrunner's check, value for value."""
     from picks.pyrunner import exact
@@ -302,7 +385,7 @@ def test_the_probes_held_test_and_the_second_engines_agree_on_every_value(conn):
     corpus += [f"{rnd.randrange(10**15, 10**18)}e{rnd.randrange(-340, 300)}" for _ in range(800)]
     corpus += [str(rnd.randrange(2**53 - 50, 2**60)) for _ in range(200)]
     texts = [json.dumps(c) for c in corpus]
-    fire = probes._d_forms("v.j", "coerced", lambda t, fast: f"NOT {probes._held_sql(t, fast)}")
+    fire = probes._d_forms("v.j", "coerced", probes._fires_sql)
     for form in ("number", "text"):
         vals = corpus if form == "number" else texts
         cur = conn.execute(f"SELECT {fire} FROM unnest(%s::jsonb[]) WITH ORDINALITY AS v(j, o) ORDER BY o", (vals,))

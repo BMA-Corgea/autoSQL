@@ -42,6 +42,8 @@ import json
 from decimal import Decimal
 from typing import Any, List, NamedTuple
 
+from .exact import ExactFloat
+
 __all__ = ["SourceRow", "source_row", "read_rows"]
 
 
@@ -51,7 +53,7 @@ class SourceRow(NamedTuple):
     collection: str
     key: str
     raw: str          # data::text, exactly as jsonb rendered it
-    record_f: Any     # json.loads(raw) — the float world, for expr.py only
+    record_f: Any     # json.loads(raw) — the float world, for expr.py only (each float keeps its text: T-112)
     record_d: Any     # json.loads(raw, parse_float=Decimal) — exact
 
 
@@ -100,7 +102,7 @@ def source_row(collection: str, key: str, raw: str) -> SourceRow:
         collection=collection,
         key=key,
         raw=raw,
-        record_f=json.loads(raw),
+        record_f=json.loads(raw, parse_float=ExactFloat),   # T-112: a double that remembers its digits
         record_d=json.loads(raw, parse_float=Decimal),
     )
 

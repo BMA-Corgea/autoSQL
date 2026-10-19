@@ -66,8 +66,9 @@ def test_a_probe_asks_about_each_operand_exactly_as_the_statement_computes_it(sr
     ast = env.get("parser").parse(src)
     for probe in probes.build_probes([ast]):
         ops = (probes.numeric_context_operands(ast) if probe.member == "a"
-               else probes.container_check_operands(ast))
-        stem = "prbA" if probe.member == "a" else "prbB"
+               else probes.container_check_operands(ast) if probe.member == "b"
+               else [op for op, _pos in probes.exact_reading_operands(ast)])    # T-112's d: the fields it reads
+        stem = "prb" + probe.member.upper()
         want = []
         for i, op in enumerate(ops):
             frag = builder._compile.compile_ast(op, ctx_param=f"{stem}{i}_ctx")

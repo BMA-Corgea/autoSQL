@@ -94,10 +94,9 @@ def run_lookup(conn, pick: dict, lk: dict) -> dict:
     display = server_app.render_display_sql(built)
 
     exprs = [server_app.expr.parse(cc["expr"]) for cc in pick.get("computed") or []]
-    if pick.get("filter"):
-        exprs.append(server_app.expr.parse(pick["filter"]))
+    truths = [server_app.expr.parse(pick["filter"])] if pick.get("filter") else []   # T-112: a truth is read
     try:
-        outcomes = probes.check(conn, source, exprs)
+        outcomes = probes.check(conn, source, exprs, truth_roots=truths)
     except gate.Refused as exc:
         # T-102: a probe's operand too big to check refuses the pick, as the build stage does
         return _refused(errors.layer_1(exc, kind="expression"), pick, lk)

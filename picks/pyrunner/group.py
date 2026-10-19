@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Sequence
 
 from .. import paths
 from . import evaluate as ev
+from . import exact
 from .order import MISSING, compare_jsonb
 from .rows import SourceRow, read_rows
 
@@ -160,6 +161,12 @@ def _matches(rows: Sequence[SourceRow], related_rows: Sequence[SourceRow], rel: 
     return matched
 
 
+def _check_page(rows: Sequence[SourceRow], spec: dict, alone: bool) -> None:
+    """T-112: the page filter reads the parents; a stored number it reads as a double must be held."""
+    if spec.get("filter"):
+        exact.check(rows, [(ev.expr.parse(spec["filter"]), exact.NUMBER)], alone=alone)
+
+
 def _kept(rows: Sequence[SourceRow], spec: dict) -> List[SourceRow]:
     if spec.get("filter"):
         flt = ev.expr.parse(spec["filter"])
@@ -168,10 +175,11 @@ def _kept(rows: Sequence[SourceRow], spec: dict) -> List[SourceRow]:
 
 
 def profile(rows: Sequence[SourceRow], spec: dict,
-            related_rows: Sequence[SourceRow]) -> Dict[str, Any]:
+            related_rows: Sequence[SourceRow], records=None) -> Dict[str, Any]:
     """The match profile (T-76) — what the chosen match does over the KEPT
     parents, computed here from the rows: the columns demo/group.py's
     ``build_profile`` documents, in its order."""
+    _check_page(rows, spec, exact.answers_alone(records))
     parents = _kept(rows, spec)
     matched = _matches(parents, related_rows, spec["related"])
     per_parent = [len(matched(p)) for p in parents]
@@ -195,7 +203,7 @@ def profile(rows: Sequence[SourceRow], spec: dict,
 
 
 def answer(rows: Sequence[SourceRow], spec: dict,
-           related_rows: Sequence[SourceRow] = ()) -> Dict[str, Any]:
+           related_rows: Sequence[SourceRow] = (), records=None) -> Dict[str, Any]:
     """The scoreboard for *spec* over one collection's source rows.
 
     With ``spec["related"]`` (T-74), *rows* are the PARENTS — the page
@@ -205,6 +213,16 @@ def answer(rows: Sequence[SourceRow], spec: dict,
     database lookup).  A parent with no
     related rows is still a group, holding none: Rows 0, every count 0,
     every % 0, latest and measure blank — a LEFT JOIN, done by hand."""
+    # T-112: as the statement's own checks read a board (demo/server/scoreboard.py): what is counted over the
+    # counted collection, then the page filter over the parents -- a stored number read as a double must be held
+    counts_read = [(ev.expr.parse(c["expr"]), exact.NUMBER) for c in spec.get("counts") or []]
+    alone = exact.answers_alone(records)
+    if spec.get("related"):
+        exact.check(related_rows, counts_read, alone=alone)
+        _check_page(rows, spec, alone)
+    else:
+        exact.check(rows, counts_read + ([(ev.expr.parse(spec["filter"]), exact.NUMBER)] if spec.get("filter") else []),
+                    alone=alone)
     rows = _kept(rows, spec)
 
     rel = spec.get("related")
@@ -270,10 +288,12 @@ def python_pane(conn, spec: dict, records=None) -> Dict[str, Any]:
     relation, both collections' source rows are read, and joined here."""
     rel = spec.get("related")
     related = read_rows(conn, rel["source"], records) if rel else ()
-    return answer(read_rows(conn, spec["source"], records), spec, related)
+    extra = {"records": records} if records is not None else {}
+    return answer(read_rows(conn, spec["source"], records), spec, related, **extra)
 
 
 def python_profile(conn, spec: dict, records=None) -> Dict[str, Any]:
     """Read both collections' source rows and profile the match — end to end."""
     rel = spec["related"]
-    return profile(read_rows(conn, spec["source"], records), spec, read_rows(conn, rel["source"], records))
+    extra = {"records": records} if records is not None else {}
+    return profile(read_rows(conn, spec["source"], records), spec, read_rows(conn, rel["source"], records), **extra)

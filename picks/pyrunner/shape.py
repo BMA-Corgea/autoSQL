@@ -42,6 +42,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .. import env, legality, paths
 from . import evaluate as ev
+from . import exact
 from .rows import SourceRow, read_rows
 
 __all__ = ["answer", "python_pane"]
@@ -51,6 +52,17 @@ __all__ = ["answer", "python_pane"]
 AGG, BUCKET_COL, ROLLING_AVG = "agg", "bucket", "rolling_avg"
 # ("changed" is the fourth; it is computed and filtered on, never emitted —
 # B3 detail 3.)
+
+
+def _sorted_by(pick: dict, parsed) -> list:
+    """What a sort orders by, for T-112's check: the computed column's expression, or the path."""
+    field = (pick.get("sort") or {}).get("field")
+    if not field:
+        return []
+    for name, ast in parsed:
+        if name == field:
+            return [(ast, exact.SORTED)]
+    return [(("field", ev.dollar_path(field)), exact.SORTED)]
 
 
 def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any]:
@@ -70,10 +82,16 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
 
     # step 2 (parse once) — evaluation happens per shape below
     parsed = ev.parse_computed(pick.get("computed") or [])
+    filter_ast = ev.expr.parse(pick["filter"]) if pick.get("filter") else None
+
+    # T-112: a stored number read as a double must be held, over every source row (the probe's scope), before
+    # anything is read from one; refused by name otherwise (exact.NumberRefused)
+    exact.check(rows, [(ast, exact.SHOWN) for _n, ast in parsed]
+                + ([(filter_ast, exact.NUMBER)] if filter_ast is not None else [])
+                + _sorted_by(pick, parsed), alone=records.alone)
 
     # step 3 — filter, before anything windowed (B3 detail 4)
-    if pick.get("filter"):
-        filter_ast = ev.expr.parse(pick["filter"])
+    if filter_ast is not None:
         rows = [r for r in rows if ev.keep_by_filter(r, filter_ast)]
 
     if shape == "SCALAR":

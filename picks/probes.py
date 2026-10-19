@@ -148,6 +148,7 @@ class ProbeOutcome:
     probe: Probe
     fired: bool
     row_key: Optional[str] = None
+    detail: Optional[str] = None     # member d: the first row's kind (large, small, digits) -- T-112
 
 
 # ---------------------------------------------------------------------------------
@@ -313,6 +314,155 @@ def _term_b(op_sql: str) -> str:
     return "( jsonb_typeof( " + op_sql + " ) IN ('object','array') )"
 
 
+# ---------------------------------------------------------------------------------
+# Member (d) -- T-112: a stored number this pick reads AS A DOUBLE, which no double holds.
+#
+# GIMS's language computes and compares in doubles on both engines; a stored number no double holds has no honest
+# reading there (``picks/doubles.py`` states the rule: held when the double nearest to it, written as Postgres writes
+# a double, is the same number). The statement rounds most such numbers silently, so this probe asks first, over the
+# same scope as member (a), with the database's own printer (``xpr.j``: float8out at extra_float_digits = 1). The
+# second engine asks the same question its own way (``picks/pyrunner/exact.py``).
+#
+# It fires on the two silent misreadings: a number a double holds only as 0 (small) and one with more digits than a
+# double holds (digits). A number at or past the largest double is not its business: the statement already refuses
+# one (member (a), or XPR01 while running), and the language declines one in arithmetic (the foreman's ruling (A)).
+#
+# Where a stored value is read as a double (this side's statement of the positions; pyrunner states them again):
+#   NUMBER    a comparison operand (< <= > >= == !=), truthiness (a filter's root, not / and / or, if's condition):
+#             a JSON number is read as a double; text compares as text and is never read
+#   COERCED   unary minus, + - * /, abs: a JSON number, or a number written as ASCII text, is read as a double
+#   ELEMENTS  min / max arguments: as COERCED, and a list's elements too
+# A field passed through (a computed column's value, coalesce's arguments, if's branches) takes the place of the
+# call around it; count / length / time_of_day read no number.
+# ---------------------------------------------------------------------------------
+_D_SHOWN, _D_NUMBER, _D_COERCED, _D_ELEMENTS = "shown", "number", "coerced", "elements"
+_TEXT_NUMBER_RE = r"^[+-]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][+-]?[0-9]+)?$"
+_ASCII_WS_SQL = r"E' \t\n\r\f\x0b'"
+_D_SMALL, _D_DIGITS = "small", "digits"
+
+
+def exact_reading_operands(ast, root: str = _D_SHOWN) -> List[Tuple[Any, str]]:
+    """``[(field AST, position)]``: every field *ast* reads as a double (member d's operands), deduplicated."""
+    out: List[Tuple[Any, str]] = []
+    seen: set = set()
+
+    def walk(node, pos: str) -> None:
+        if not isinstance(node, tuple) or not node:
+            return
+        tag = node[0]
+        if tag == "field":
+            key = (repr(node), pos)
+            if pos != _D_SHOWN and key not in seen:
+                seen.add(key)
+                out.append((node, pos))
+        elif tag == "neg":
+            walk(node[1], _D_COERCED)
+        elif tag == "bin":
+            walk(node[2], _D_COERCED)
+            walk(node[3], _D_COERCED)
+        elif tag == "cmp":
+            walk(node[2], _D_NUMBER)
+            walk(node[3], _D_NUMBER)
+        elif tag == "not":
+            walk(node[1], _D_NUMBER)
+        elif tag in ("and", "or"):
+            walk(node[1], _D_NUMBER)
+            walk(node[2], _D_NUMBER)
+        elif tag == "call":
+            name, args = node[1], node[2]
+            if name == "coalesce":
+                for a in args:
+                    walk(a, pos)
+            elif name == "if":
+                for i, a in enumerate(args):
+                    walk(a, _D_NUMBER if i == 0 else pos)
+            elif name in ("min", "max"):
+                for a in args:
+                    walk(a, _D_ELEMENTS)
+            elif name in ("count", "length", "time_of_day"):
+                for a in args:
+                    walk(a, _D_SHOWN)
+            else:
+                for a in args:
+                    walk(a, _D_COERCED)
+
+    walk(ast, root)
+    return out
+
+
+def _held_sql(t: str, fast: str) -> str:
+    """True when the text *t* (a number's digits) is held: the CASE guards every cast, so no input can raise."""
+    return (f"(CASE WHEN {fast} THEN true"
+            f" WHEN NOT pg_input_is_valid({t}, 'numeric') THEN false"
+            f" WHEN abs(({t})::numeric) >= {DBL_MAX_LITERAL}::numeric THEN false"
+            f" WHEN NOT pg_input_is_valid({t}, 'float8') THEN false"
+            f" ELSE ({t})::numeric = (xpr.j(({t})::float8) #>> '{{}}')::numeric END)")
+
+
+def _fires_sql(t: str, fast: str) -> str:
+    """True when the text *t* fires member d: not held, and not at or past the largest double (member (a)'s)."""
+    return f"(NOT {_held_sql(t, fast)} AND NOT {_large_sql(t)})"
+
+
+def _large_sql(t: str) -> str:
+    return (f"(CASE WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) !~ '[eE]-'"
+            f" ELSE abs(({t})::numeric) >= {DBL_MAX_LITERAL}::numeric END)")
+
+
+def _small_sql(t: str) -> str:
+    return (f"(CASE WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) ~ '[eE]-'"
+            f" WHEN abs(({t})::numeric) >= {DBL_MAX_LITERAL}::numeric THEN false"
+            f" WHEN ({t})::numeric = 0 THEN false"
+            f" ELSE NOT pg_input_is_valid({t}, 'float8') END)")
+
+
+def _d_forms(op: str, pos: str, test) -> str:
+    """The condition *test* (a function of a text SQL expression and its fast-path SQL) over the value *op* (jsonb)
+    takes at *pos*: a JSON number; at COERCED/ELEMENTS a number written as text; at ELEMENTS a list's elements."""
+    num_t = f"({op} #>> '{{}}')"
+    parts = [f"(jsonb_typeof({op}) = 'number' AND {test(num_t, f'length({num_t}) <= 15')})"]
+    if pos in (_D_COERCED, _D_ELEMENTS):
+        txt = f"btrim({op} #>> '{{}}', {_ASCII_WS_SQL})"
+        fast_txt = f"({txt} !~ '[eE]' AND length({txt}) <= 15)"
+        parts.append(f"(jsonb_typeof({op}) = 'string' AND {txt} ~ '{_TEXT_NUMBER_RE}' AND {test(txt, fast_txt)})")
+    if pos == _D_ELEMENTS:
+        inner = _d_forms("e.v", _D_COERCED, test)
+        parts.append(f"(jsonb_typeof({op}) = 'array' AND EXISTS (SELECT 1 FROM jsonb_array_elements({op}) AS e(v)"
+                     f" WHERE {inner}))")
+    return "(" + " OR ".join(parts) + ")"
+
+
+def _build_probe_d(operands: Sequence[Tuple[Any, str]], records, compile_kw: dict) -> Probe:
+    from .builder import build_statement   # T-102: a probe is a statement too
+    return build_statement(_build_probe_d_unbudgeted)(operands, records, compile_kw)
+
+
+def _build_probe_d_unbudgeted(operands: Sequence[Tuple[Any, str]], records, compile_kw: dict) -> Probe:
+    compile_ast = _compile_module().compile_ast
+    merged: Dict[str, Any] = {}
+    ctx_names: List[str] = []
+    fires, small, operand_sqls = [], [], []
+    for i, (op_ast, pos) in enumerate(operands):
+        prefix = f"prbD{i}"
+        ctx_name = f"{prefix}_ctx"
+        frag = compile_ast(op_ast, ctx_param=ctx_name, **compile_kw)
+        sql, params = _namespace(frag, prefix)
+        merged.update(params)
+        if f"%({ctx_name})s" in sql:
+            ctx_names.append(ctx_name)
+        operand_sqls.append(sql)
+        fires.append(_d_forms(sql, pos, _fires_sql))
+        small.append(_d_forms(sql, pos, lambda t, fast: _small_sql(t)))
+    where = ("   WHERE " + records.scope("r", merged) + "\n"
+             "     AND ( " + "\n        OR ".join(fires) + " )")
+    sql = "SELECT EXISTS (\n" f"  SELECT 1 FROM {records.table} AS r\n" + where + "\n);"
+    row_sql = (f"SELECT r.key, CASE WHEN ({' OR '.join(small)}) THEN '{_D_SMALL}' ELSE '{_D_DIGITS}' END\n"
+               f"  FROM {records.table} AS r\n" + where + "\n"
+               ' ORDER BY r.key COLLATE "C"\n LIMIT 1;')
+    return Probe(member="d", sql=sql, row_sql=row_sql, params=merged, ctx_params=tuple(ctx_names),
+                 operands=tuple(operand_sqls))
+
+
 def _build_probe(member: str, operand_asts: Sequence, records, compile_kw: dict) -> Probe:
     from .builder import build_statement   # T-102: a probe is a statement too
     return build_statement(_build_probe_unbudgeted)(member, operand_asts, records, compile_kw)
@@ -375,7 +525,7 @@ def _build_probe_unbudgeted(member: str, operand_asts: Sequence, records, compil
     )
 
 
-def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), records=None,
+def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), truth_roots: Sequence = (), records=None,
                  collection: Optional[str] = None) -> List[Probe]:
     """Build the (at most two) probes for one pick.
 
@@ -385,8 +535,12 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), records=None,
                      numeric_read() — the aggregate's field expression and
                      the window field's (ops 6, 7, 8)
 
+    truth_roots   -- expression ASTs whose truth is taken: the filter, a board's counts (T-112: their root is read
+                     as a double, where a computed column's root is only shown). Probed as ``exprs`` are by (a)
+                     and (b).
+
     A member with no operands builds no probe: the returned list holds only
-    probes with something to ask, member (a) first.
+    probes with something to ask, member (a) first, then (b), then (d).
 
     records       -- the records description (default: the process's); its
                      table and partition scope each probe, and with a fold
@@ -408,18 +562,36 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), records=None,
                 seen.add(key)
                 target.append(n)
 
-    for e in exprs:
+    ops_d: List[Tuple[Any, str]] = []
+    seen_d: set = set()
+
+    def extend_d(nodes: Sequence[Tuple[Any, str]]) -> None:
+        for n, pos in nodes:
+            key = (repr(n), pos)
+            if key not in seen_d:
+                seen_d.add(key)
+                ops_d.append((n, pos))
+
+    for e in list(exprs) + list(truth_roots):
         extend(ops_a, seen_a, numeric_context_operands(e))
         extend(ops_b, seen_b, container_check_operands(e))
     for r in numeric_roots:
         extend(ops_a, seen_a, numeric_context_operands(r, root_is_numeric=True))
         extend(ops_b, seen_b, container_check_operands(r))
+    for e in exprs:
+        extend_d(exact_reading_operands(e, _D_SHOWN))
+    for e in truth_roots:
+        extend_d(exact_reading_operands(e, _D_NUMBER))
+    for r in numeric_roots:
+        extend_d(exact_reading_operands(r, _D_SHOWN))   # an aggregate's field is read as numeric, exactly
 
     probes: List[Probe] = []
     if ops_a:
         probes.append(_build_probe("a", ops_a, records, compile_kw))
     if ops_b:
         probes.append(_build_probe("b", ops_b, records, compile_kw))
+    if ops_d:
+        probes.append(_build_probe_d(ops_d, records, compile_kw))
     return probes
 
 
@@ -441,8 +613,8 @@ def run_probes(conn, collection: str, probes: Sequence[Probe], *,
         params["collection"] = collection
         for name in p.ctx_params:
             params[name] = ctx
-        fired, row_key = _ask(conn, p, params)
-        outcomes.append(ProbeOutcome(probe=p, fired=fired, row_key=row_key))
+        fired, row_key, detail = _ask(conn, p, params)
+        outcomes.append(ProbeOutcome(probe=p, fired=fired, row_key=row_key, detail=detail))
     return outcomes
 
 
@@ -451,8 +623,8 @@ def run_probes(conn, collection: str, probes: Sequence[Probe], *,
 _OUT_OF_RANGE = ("XPR01", "22003")
 
 
-def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-    """One probe's answer — fired, and the first offending key.
+def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str]]:
+    """One probe's answer — fired, the first offending key, and (member d) that row's kind.
 
     The magnitude probe reads its operands; an operand that itself computes
     with an out-of-range number (``abs($.huge)``, ``$.g * 3``) makes the PROBE
@@ -467,17 +639,19 @@ def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
     except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
         if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
             raise
-        return True, None
+        return True, None, None
     if not fired:
-        return False, None
+        return False, None, None
     try:
         with conn.transaction():
             row = conn.execute(p.row_sql, params).fetchone()
     except Exception as exc:  # noqa: BLE001
         if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
             raise
-        return True, None
-    return True, (row[0] if row is not None else None)
+        return True, None, None
+    if row is None:
+        return True, None, None
+    return True, row[0], (row[1] if len(row) > 1 else None)
 
 
 def _cause(member: str, row_key: Optional[str]) -> str:
@@ -589,8 +763,29 @@ def check_sort(conn, pick: dict, collection_keys, *, records=None, ctx: Optional
     return ProbeOutcome(probe=probe, fired=False)
 
 
+class NumberRefusal(RuntimeRefusal):
+    """Member "d" (T-112): a stored number this pick reads as a double, which no double holds. ``kind`` is
+    ``small`` or ``digits`` (``picks.doubles``), the first offending row's."""
+
+    def __init__(self, kind: str, row_key: Optional[str], probe: "Probe"):
+        self.kind = kind
+        super().__init__(member="d", cause=_cause_d(kind, row_key), row_key=row_key, probe=probe)
+
+
+_D_WORDS = {
+    _D_SMALL: "number too small for a double: this pick reads a number a double holds only as 0",
+    _D_DIGITS: "number with more digits than a double holds: this pick reads a number no double holds exactly",
+}
+
+
+def _cause_d(kind: str, row_key: Optional[str]) -> str:
+    where = f' (first such row, by key: "{row_key}")' if row_key else ""
+    return _D_WORDS.get(kind, _D_WORDS[_D_DIGITS]) + where
+
+
 def check(conn, collection: str, exprs: Sequence, *,
-          numeric_roots: Sequence = (), ctx: str = "{}", records=None) -> List[ProbeOutcome]:
+          numeric_roots: Sequence = (), truth_roots: Sequence = (), ctx: str = "{}",
+          records=None) -> List[ProbeOutcome]:
     """Layer 2, in one call: build both probes, run both, and raise the named
     RuntimeRefusal if either fired — member (a) taking precedence.  Returns
     every outcome (for the pane) when nothing fired.
@@ -600,10 +795,12 @@ def check(conn, collection: str, exprs: Sequence, *,
     once this has raised.
     """
     outcomes = run_probes(conn, collection,
-                          build_probes(exprs, numeric_roots=numeric_roots, records=records,
-                                       collection=collection),
+                          build_probes(exprs, numeric_roots=numeric_roots, truth_roots=truth_roots,
+                                       records=records, collection=collection),
                           ctx=ctx)
-    for outcome in outcomes:  # member "a" precedes "b" by construction
+    for outcome in outcomes:  # member "a" precedes "b", and "b" precedes "d", by construction
+        if outcome.fired and outcome.probe.member == "d":
+            raise NumberRefusal(outcome.detail or _D_DIGITS, outcome.row_key, outcome.probe)
         if outcome.fired:
             raise RuntimeRefusal(
                 member=outcome.probe.member,

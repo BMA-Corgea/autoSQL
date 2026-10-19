@@ -1295,8 +1295,9 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
     cc_asts = {cc["name"]: expr.parse(cc["expr"])
                for cc in (pick.get("computed") or [])}
     exprs = list(cc_asts.values())
-    if pick.get("filter"):
-        exprs.append(expr.parse(pick["filter"]))
+    # T-112: the filter's truth is taken, so its root is read as a double (probe member d); a computed column's
+    # root is only shown
+    truths = [expr.parse(pick["filter"])] if pick.get("filter") else []
     roots = []
     agg_field = (pick.get("aggregate") or {}).get("field")
     if agg_field:
@@ -1306,7 +1307,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         roots.append(_field_ast(win_field, cc_asts))
 
     try:
-        outcomes = probes.check(conn, source, exprs, numeric_roots=roots)
+        outcomes = probes.check(conn, source, exprs, numeric_roots=roots, truth_roots=truths)
         # T-110: a sort over text nested in jsonb, on a database that orders it its own way, is refused here
         sort_outcome = probes.check_sort(conn, pick, keys)
         if sort_outcome is not None:
@@ -1333,7 +1334,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         # decision stays its, and this is display.
         outcomes = probes.run_probes(
             conn, source,
-            probes.build_probes(exprs, numeric_roots=roots),
+            probes.build_probes(exprs, numeric_roots=roots, truth_roots=truths),
         )
         if isinstance(exc, probes.SortRefusal):          # T-110: the sort's own probe, shown as fired
             outcomes = outcomes + [probes.ProbeOutcome(probe=exc.probe, fired=True, row_key=exc.row_key)]
