@@ -501,7 +501,8 @@ def test_the_two_pane_screen_refuses_on_both_panes_in_its_own_words(demo, beat, 
     assert r.status_code == 422, (r.status_code, r.text[:200])
     body = r.json()
     rf = body["refusal"]
-    assert (rf["layer"], rf["member"], rf["row_key"]) == (2, "d", "hb-zz-t112") and rf["body"] == words
+    assert (rf["layer"], rf.get("member"), rf.get("row_key")) == (2, "d", "hb-zz-t112") and rf["body"] == words, \
+        (rf.get("construct"), rf.get("why"))
     assert "could not read the value either" in json.dumps(body["panes"]["python"])
 
 
