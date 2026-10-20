@@ -72,6 +72,7 @@ is dead code to be deleted).
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import re
 import unicodedata
@@ -670,6 +671,20 @@ def run_probes(conn, collection: str, probes: Sequence[Probe], *,
 _OUT_OF_RANGE = ("XPR01", "22003")
 
 
+@contextlib.contextmanager
+def _without_jit(conn):
+    """One probe query under its own savepoint, with Postgres's JIT off (run 11, a-chk's pre-check of the round: probe
+    d's text reading made its statement big enough for the LLVM JIT to compile it on every run, about 1.5 s, for a
+    scan that answers in milliseconds). The setting is the transaction's own and is put back as it was before the
+    savepoint is released, so the pick's statement after the probes plans exactly as it did; a probe that raises
+    rolls the savepoint back, and the setting with it."""
+    with conn.transaction():
+        was = conn.execute("SELECT current_setting('jit')").fetchone()[0]
+        conn.execute("SET LOCAL jit = off")
+        yield
+        conn.execute("SELECT set_config('jit', %s, true)", (was,))
+
+
 def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str]]:
     """One probe's answer — fired, the first offending key, and (member d) that row's kind.
 
@@ -679,9 +694,9 @@ def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str], O
     the answer: the data holds a number the statement could not use.  So
     that refusal counts as FIRED, the first offending key unknown (T-87;
     until then the pick answered 500).  Each query runs under a savepoint, so
-    the caller's transaction stays usable; any other error still raises."""
+    the caller's transaction stays usable, and with the JIT off (``_without_jit``); any other error still raises."""
     try:
-        with conn.transaction():
+        with _without_jit(conn):
             fired = bool(conn.execute(p.sql, params).fetchone()[0])
     except Exception as exc:  # noqa: BLE001 — two SQLSTATEs, re-raised otherwise
         if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
@@ -690,7 +705,7 @@ def _ask(conn, p: Probe, params: Dict[str, Any]) -> Tuple[bool, Optional[str], O
     if not fired:
         return False, None, None
     try:
-        with conn.transaction():
+        with _without_jit(conn):
             row = conn.execute(p.row_sql, params).fetchone()
     except Exception as exc:  # noqa: BLE001
         if getattr(exc, "sqlstate", None) not in _OUT_OF_RANGE or p.member != "a":
@@ -802,7 +817,7 @@ def check_sort(conn, pick: dict, collection_keys, *, records=None, ctx: Optional
         return None
     probe = Probe(member="c", sql=built.sql, row_sql=built.sql, params=dict(built.params), ctx_params=(),
                   operands=())
-    with conn.transaction():
+    with _without_jit(conn):
         fired, first_key = conn.execute(built.sql, built.params).fetchone()
     SORT_PROBES_RUN += 1
     if fired:

@@ -8,7 +8,8 @@ engine at one edge each. The parity tests run on an alpine throwaway (AUTOSQL_PA
 The round after a-chk's check (H1-H3, M1-M3, LOW 8) adds BE6-BE8, both engines alike again (text read as ASCII
 only, min/max of several read as a list's elements, a zero with a huge exponent called small), and E17-E33, one edge
 each. a-chk's own BM1-BM10 (the two walks broken alike) run on its lean runner, ``chk_my_mutants.py``. E34-E35 are
-run 11's fold-in: a number condition's value may be the text a person typed.
+run 11's fold-in: a number condition's value may be the text a person typed. E36-E37 are its second: a probe
+never pays the JIT.
 
 E2 and E16 are the foreman's ruling (A): a number past the largest double is left as it was beside the statement
 (E2 refuses it anyway, and the demo's step 13 would move), and refused when the engine answers alone (E16, the
@@ -254,6 +255,15 @@ T112_MUTANTS = [
                  "        if False:\n")],
          selector=_P + "test_fold_in_a_typed_number_a_double_holds_is_written_as_postgres_writes_it[-5]",
          expect="assert '-5.0' == '-5'"),
+    # ── run 11's second fold-in: a probe never pays the JIT ──
+    dict(id="E36", defect="fold-in 2: a probe runs with the caller's JIT on again (probe d compiled on every run)",
+         edits=[(_PR, '        conn.execute("SET LOCAL jit = off")\n', "        pass\n")],
+         selector=_P + "test_fold_in_2_a_probe_never_pays_the_jit_and_the_statement_plans_as_before",
+         expect="AssertionError: ['on'"),
+    dict(id="E37", defect="fold-in 2: the probe's jit off is left on the transaction, for the statement after it",
+         edits=[(_PR, "        conn.execute(\"SELECT set_config('jit', %s, true)\", (was,))\n", "        pass\n")],
+         selector=_P + "test_fold_in_2_a_probe_never_pays_the_jit_and_the_statement_plans_as_before",
+         expect="AssertionError: ('off', '0')"),
 ]
 
 
