@@ -718,6 +718,64 @@ def test_alone_the_refusal_follows_the_probes_order_a_b_then_d():
     rows = {"a": '{"n": 9007199254740993}', "b": '{"n": 2, "l": [2]}'}
     got = _py(rows, _pick(filter="$.n > 0 and $.l == $.l"), records=_alone())
     assert (_kind(got), got.row_key) == ("container", "b"), got
+    rows = {"a": '{"n": 2, "l": [1]}', "b": '{"n": 1e309}'}
+    got = _py(rows, _pick(filter="$.n > 0 and $.l == $.l"), records=_alone())
+    assert (_kind(got), got.row_key) == ("large", "b"), got
+
+
+#: two rows each refused by one member, the later key arriving first: the earlier key is named, as the probes'
+#: ORDER BY key COLLATE "C" names it (member d beside the statement and alone; a and b alone)
+ROW_ORDER = {
+    "d: digits then small": ({"a": '{"n": 9007199254740993}', "b": '{"n": 1e-400}'}, "$.n > 0", "digits", None),
+    "a: two numbers past the largest double": ({"a": '{"n": 1e310}', "b": '{"n": 1e309}'}, "$.n > 0", "large",
+                                               True),
+    "b: two lists compared": ({"a": '{"l": [1]}', "b": '{"l": [2]}'}, "$.l == $.l", "container", True),
+}
+
+
+@pytest.mark.parametrize("case", list(ROW_ORDER))
+def test_the_first_row_in_key_order_is_named_whatever_order_the_rows_arrive_in(case):
+    stored, flt, kind, alone_only = ROW_ORDER[case]
+    for order in (sorted(stored), sorted(stored, reverse=True)):
+        rows = [pyrows.source_row(T, k, _gims_text(stored[k])) for k in order]
+        for records in ([_alone()] if alone_only else [_records(), _alone()]):
+            try:
+                pyshape.answer(rows, _pick(filter=flt), records)
+                got = None
+            except ValueError as e:
+                got = e
+            assert (_kind(got), getattr(got, "row_key", None)) == (kind, "a"), (case, order, got)
+
+
+@needs_db
+def test_the_statement_names_the_first_row_in_key_order_too(conn):
+    _put(conn, {"b": '{"n": 1e-400}', "a": '{"n": 9007199254740993}'})
+    got = _sql(conn, _pick(filter="$.n > 0"))
+    assert _member_kind(got) == ("d", "digits") and got.row_key == "a", got
+
+
+def test_low8_a_number_just_under_1e15_with_29_digits_is_written_plainly():
+    """LOW 8: abs() rounded 999999999999999.99999999999999 to 28 digits, onto 1e15, so the plain number came out
+    as an exponent (every digit kept either way; the form is the screen's rule: plain below 1e15)."""
+    assert view._number_text(Decimal("999999999999999.99999999999999")) == "999999999999999.99999999999999"
+    assert view._number_text(Decimal("1000000000000000.0000000000001")) == "1.0000000000000000000000000001e+15"
+
+
+def test_m3_a_zero_beside_a_number_with_too_many_digits_leaves_the_rows_kind_digits():
+    """M3: a zero written with an exponent numeric can't take is no small number, so beside a number with too
+    many digits in the same row the row is refused as digits."""
+    stored = {"a": '{"n": 9007199254740993, "s": "0e-20000"}', "b": '{"n": 2, "s": "1"}'}
+    pick = _pick(filter="$.n > 0", computed=[{"name": "w", "expr": "$.s * 1"}])
+    for records in (_records(), _alone()):
+        got = _py(stored, pick, records=records)
+        assert (_kind(got), getattr(got, "row_key", None)) == ("digits", "a"), got
+
+
+@needs_db
+def test_m3_the_statement_names_that_row_digits_too(conn):
+    _put(conn, {"a": '{"n": 9007199254740993, "s": "0e-20000"}', "b": '{"n": 2, "s": "1"}'})
+    got = _sql(conn, _pick(filter="$.n > 0", computed=[{"name": "w", "expr": "$.s * 1"}]))
+    assert _member_kind(got) == ("d", "digits") and got.row_key == "a", got
 
 
 # ── M1, M2, M3 ──

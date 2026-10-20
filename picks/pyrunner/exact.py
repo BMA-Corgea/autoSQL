@@ -257,6 +257,12 @@ def _resolve(record: Any, steps: Sequence[Tuple[str, Any]]) -> Any:
     return cur
 
 
+def _before(k: bytes, held: Optional[tuple]) -> bool:
+    """Whether a row keyed ``k`` (UTF-8) comes before the row ``held`` names, in key order -- the probes' ``ORDER BY
+    key COLLATE "C"``; with none held, it does."""
+    return held is None or k < held[0]
+
+
 def _holds_container(row, operands) -> bool:
     """Whether any of ``operands`` is a list or an object in ``row`` (as the evaluator reads it)."""
     evaluate = env.get("evaluator").evaluate
@@ -293,9 +299,9 @@ def check(rows: Iterable, asts: Sequence[Tuple[Any, str]], *, alone: bool = Fals
     first: dict = {}                       # member -> (key as UTF-8, key, what): its first row in key order
     for r in rows:
         k = r.key.encode("utf-8")
-        if "a" in first and k >= first["a"][0]:
+        if not _before(k, first.get("a")):
             continue                       # nothing in a later row comes before member a's
-        if not alone and "d" in first and k >= first["d"][0]:
+        if not alone and not _before(k, first.get("d")):
             continue                       # beside the statement, d's is the only refusal this engine makes
         large, misread = [], []
         for steps, pos in wanted:
@@ -307,10 +313,10 @@ def check(rows: Iterable, asts: Sequence[Tuple[Any, str]], *, alone: bool = Fals
                 (large if f[0] == LARGE else misread).append(f)
         if large:
             first["a"] = (k, r.key, large[0])
-        if misread and ("d" not in first or k < first["d"][0]):
+        if misread and _before(k, first.get("d")):
             # one row, several numbers: the probe's precedence (small, then digits)
             first["d"] = (k, r.key, min(misread, key=lambda f: _PRECEDENCE[f[0]]))
-        if operands and ("b" not in first or k < first["b"][0]) and _holds_container(r, operands):
+        if operands and _before(k, first.get("b")) and _holds_container(r, operands):
             first["b"] = (k, r.key, None)
     for member in ("a", "b", "d"):
         if member in first:
