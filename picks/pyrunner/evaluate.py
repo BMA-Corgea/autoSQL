@@ -225,7 +225,12 @@ def reads_as_instant(field: str, named: Optional[Sequence[str]]) -> bool:
 
 
 class InstantPath(list):
-    """A sort's field path that names a time field read as an instant (T-114, ruling 2)."""
+    """A sort's field path that names a time field read as an instant (T-114, ruling 2), and the question's clock a
+    bare date there sorts on, at its midnight (``None``: UTC midnight, as before)."""
+
+    def __init__(self, steps, zone: Optional[str] = None):
+        super().__init__(steps)
+        self.zone = zone
 
 
 def instants_of(named: Optional[Sequence[str]]) -> list:
@@ -548,8 +553,9 @@ def row_sort_key(
         value = resolve(row.record_d, sort_steps)
         if isinstance(sort_steps, InstantPath) and value is not MISSING:
             # T-114 (ruling 2): a time field by its instant; a value that is no readable time sorts last either way,
-            # with the rows that lack the field (the statement's NULLS LAST, then the key); JSON null keeps its place
-            value = times.reading(value)
+            # with the rows that lack the field (the statement's NULLS LAST, then the key); JSON null keeps its place.
+            # On a question's clock a bare date sorts at its midnight there (the class)
+            value = times.sort_reading(value, sort_steps.zone)
             if value is False:
                 value = MISSING
     else:

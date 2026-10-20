@@ -229,6 +229,43 @@ def _zone_reading(p, zone: str):
                       f" ELSE {v} AT TIME ZONE %(bkt_zone)s::text END)")
 
 
+def date_midnight(date: str, zone: str) -> str:
+    """T-114 (the class): a bare date's midnight on the clock ``zone`` (SQL text naming the zone), as
+    ``picks.times.midnight`` reads it in Python: the first instant of that day there. ``AT TIME ZONE`` reads a
+    wall midnight the clock repeats as the later of the two, so the earlier is taken when the offset a day before
+    reads that midnight too; one the clock skips reads as the instant the day begins, on both. A midnight before
+    year 1 in UTC is year 1's first instant."""
+    wall = f"({date})::timestamp"
+    late = f"({wall} AT TIME ZONE {zone})"
+    before = f"({late} - interval '1 day')"
+    early = f"(({wall} - ({before} AT TIME ZONE {zone} - {before} AT TIME ZONE 'UTC')) AT TIME ZONE 'UTC')"
+    return (f"GREATEST(CASE WHEN {early} < {late} AND ({early} AT TIME ZONE {zone}) = {wall} THEN {early}"
+            f" ELSE {late} END, '0001-01-01 00:00:00+00'::timestamptz)")
+
+
+def midnight_reading(params: dict, zone: str, name: str):
+    """How a sort or a board's latest / earliest reads a bare date's text ``d`` on the question's clock (T-114):
+    its midnight there (``date_midnight``), checked against D as every clock reading is (T-101) -- plainly where
+    this database and Python agree on every instant; inside D, xpr.clock_refused refuses the row by name. The
+    zone and D's bounds are bound as ``{name}_zone`` and ``{name}_bounds``."""
+    resolver = env.zone_gaps()
+    if resolver is None:
+        raise RuntimeError("a bare date read on a clock needs the question's zone check (picks.env.checking_zones)")
+    gaps = tuple(resolver(zone))
+    params[f"{name}_zone"] = zone
+    z = f"%({name}_zone)s::text"
+    if not gaps:
+        return lambda d: date_midnight(d, z)
+    bounds, inside = _compile.gap_bounds(gaps)
+    params[f"{name}_bounds"] = bounds
+
+    def read(d):
+        at = date_midnight(d, z)
+        return (f"(CASE WHEN mod(width_bucket(extract(epoch FROM {at})::float8, %({name}_bounds)s::float8[]), 2)"
+                f" = {inside} THEN xpr.clock_refused({at}, {z}) AT TIME ZONE {z} ELSE {at} END)")
+    return read
+
+
 def code_point_order(value: str, direction: str) -> str:
     """T-106: ``ORDER BY`` keys for a jsonb value in §7.4's order with its strings in code points.
     Postgres orders jsonb by type, then strings by the DATABASE's collation (glibc or ICU ``en_US``
@@ -647,7 +684,17 @@ class _Pieces:
                 # T-114 (ruling 2): a time field sorts by its instant; a value that is no readable time sorts last
                 # either way, with the rows that lack the field (NULLS LAST, then the key); a JSON-null blank keeps
                 # its place
-                value = f"nullif(xpr.time_text({value}), 'false'::jsonb)"
+                stored = value
+                value = f"nullif(xpr.time_text({stored}), 'false'::jsonb)"
+                if pick.get("sort_zone"):
+                    # the class: on a question's clock a bare date sorts at its midnight there, at the one width,
+                    # among the times (picks.times.sort_reading)
+                    d = f"({stored} #>> '{{}}')"
+                    at = midnight_reading(self.params, pick["sort_zone"], "srt")(d)
+                    value = (f"(CASE WHEN jsonb_typeof({stored}) = 'string' AND length({d}) = 10"
+                             f" AND xpr.time_at({d}) IS NOT NULL"
+                             f" THEN to_jsonb(to_char({at} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'))"
+                             f" ELSE {value} END)")
         lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
 

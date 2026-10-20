@@ -24,9 +24,10 @@ from __future__ import annotations
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 __all__ = ["READABLE", "LOOKS", "instant", "utc_text", "fixed_text", "has_time", "looks_like", "reading",
-           "kind_counts"]
+           "midnight", "instant_on", "sort_reading", "kind_counts"]
 
 #: a readable time (fullmatch; ASCII digits)
 READABLE = (r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,6})?"
@@ -109,6 +110,39 @@ def reading(value: Any):
     if at is None:
         return False
     return value if len(value) == 10 else utc_text(at)
+
+
+def midnight(date_text: str, zone: Optional[str] = None) -> datetime:
+    """A bare date's midnight on a question's clock (T-114, the class): the first instant of that day there -- the
+    first of the two where the clock repeats midnight, the instant the day begins where the clock skips it (a wall
+    time read with fold=0) -- or its UTC midnight with no clock. A midnight before year 1 in UTC (year 1 on a clock
+    east of it) is year 1's first instant: no readable time is earlier. ``picks.builder.date_midnight`` is the same
+    reading in SQL."""
+    wall = datetime(int(date_text[0:4]), int(date_text[5:7]), int(date_text[8:10]))
+    if zone is None:
+        return wall.replace(tzinfo=timezone.utc)
+    try:
+        return (wall - ZoneInfo(zone).utcoffset(wall)).replace(tzinfo=timezone.utc)
+    except OverflowError:
+        return datetime(1, 1, 1, tzinfo=timezone.utc)
+
+
+def instant_on(value: Any, zone: Optional[str] = None) -> Optional[datetime]:
+    """``instant``, with a bare date at its midnight on the question's clock (``midnight``): what a board's latest /
+    earliest compares. With no clock, ``instant`` itself (a bare date at its UTC midnight)."""
+    at = instant(value)
+    if at is None or zone is None or len(value) != 10:
+        return at
+    return midnight(value, zone)
+
+
+def sort_reading(value: Any, zone: Optional[str] = None):
+    """``reading`` as a sort orders it: on a question's clock a bare date sorts at its midnight there, at the one
+    width, among the times. With no clock, ``reading`` itself (a bare date as itself, before its UTC day's times)."""
+    r = reading(value)
+    if zone is not None and isinstance(r, str) and len(r) == 10:
+        return utc_text(midnight(r, zone))
+    return r
 
 
 def kind_counts(values: Iterable[Any]) -> Tuple[int, int, int, int]:

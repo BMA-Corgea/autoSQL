@@ -267,8 +267,10 @@ def answer(rows: Sequence[SourceRow], spec: dict,
                 row[f"c{i}_pct"] = _pct(k, n)
         if time and time_instant:
             # T-114: a time field's latest / earliest by instant, in the engine's one fixed form to the second (the
-            # statement's to_char of max(xpr.time_at(...))); a value that is no readable time is not read
-            ats = [a for a in (times.instant(ev.resolve(r.record_d, time_steps)) for r in members) if a is not None]
+            # statement's to_char of max(xpr.time_at(...))); a value that is no readable time is not read; on a
+            # question's clock a bare date at its midnight there (the class)
+            ats = [a for a in (times.instant_on(ev.resolve(r.record_d, time_steps), time.get("zone"))
+                               for r in members) if a is not None]
             pick = max if time["fn"] == "max" else min
             row["time"] = times.fixed_text(pick(ats)) if ats else None
         elif time:

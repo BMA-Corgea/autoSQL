@@ -655,6 +655,8 @@ def to_pick(catalog: "Catalog", setup_payload: dict, view: dict) -> dict:
         read.append(sort["field"])
     if read:
         pick["times"] = read
+    if sort and fields[sort["field"]]["kind"] == "time" and view_zone(view) is not None:
+        pick["sort_zone"] = view_zone(view)      # T-114: a bare date sorts at its midnight on the question's clock
 
     summary = _summary(view, fields, ds)
     if summary:
@@ -1908,6 +1910,8 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
         if f["kind"] == "time" and f["path"] not in count_times:
             count_times.append(f["path"])       # T-114: latest / earliest by instant
+        if f["kind"] == "time" and view_zone(view) is not None:
+            time_spec["zone"] = view_zone(view)  # T-114: a bare date at its midnight on the question's clock
 
     measure = sb.get("measure")
     measure_spec = None

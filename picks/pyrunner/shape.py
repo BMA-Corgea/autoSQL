@@ -157,7 +157,8 @@ def _rows(
         else:
             sort_steps = ev.dollar_path(field)
             if ev.reads_as_instant(field, pick.get("times")):
-                sort_steps = ev.InstantPath(sort_steps)    # T-114: a time field sorts by its instant
+                # T-114: a time field sorts by its instant, a bare date at its midnight on the question's clock
+                sort_steps = ev.InstantPath(sort_steps, pick.get("sort_zone"))
     indices.sort(
         key=lambda i: ev.row_sort_key(
             rows[i], sort_steps, cells[i], sort_alias, direction

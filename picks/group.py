@@ -136,6 +136,12 @@ def check(spec: dict, records=None) -> None:
         if t.get("fn") not in TIME_FNS:
             raise ValueError(f"unknown time function {t.get('fn')!r}")
         _path(t.get("field"), "the time field")
+        if t.get("zone") is not None:
+            # T-114: the clock a bare date's midnight is read on, for a time field read as an instant
+            if not isinstance(t["zone"], str) or t["zone"] not in env.time_zones():
+                raise ValueError("the clock for latest or earliest must be one of the zone names both engines read")
+            if t["field"] not in (spec.get("count_times") or ()):
+                raise ValueError("a clock for latest or earliest goes with a time field read as an instant")
     m = spec.get("measure")
     if m is not None:
         if m.get("fn") not in MEASURE_FNS:
@@ -215,7 +221,13 @@ def build(spec: dict, records=None) -> Built:
         if t["field"] in (spec.get("count_times") or ()):
             # T-114: a time field's latest / earliest by instant (xpr.time_at), in the engine's one fixed form to the
             # second -- fixed width, so the column sorts as time; a value that is no readable time is not read
-            select.append(f"to_char( {TIME_FNS[t['fn']]}( xpr.time_at( {col} #>> %(time_path)s ) ) AT TIME ZONE 'UTC',"
+            at = f"xpr.time_at( {col} #>> %(time_path)s )"
+            if t.get("zone"):
+                # the class: on a question's clock a bare date at its midnight there (picks.times.instant_on)
+                d = f"({col} #>> %(time_path)s)"
+                at = (f"(CASE WHEN length({d}) = 10 AND {at} IS NOT NULL"
+                      f" THEN {builder.midnight_reading(params, t['zone'], 'tim')(d)} ELSE {at} END)")
+            select.append(f"to_char( {TIME_FNS[t['fn']]}( {at} ) AT TIME ZONE 'UTC',"
                           f" 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )  AS \"time\"")
         else:
             select.append(f'{TIME_FNS[t["fn"]]}( {col} #>> %(time_path)s )  AS "time"')
