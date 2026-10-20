@@ -166,13 +166,17 @@ _ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\n"
                 "                'YYYY-MM-DD\"T\"HH24:MI:SS' )")
 
 
-def _zoned_local(value: str, at: str, read, dates: bool) -> str:
+def _zoned_local(value: str, at: str, read, dates: bool, hourly: bool = False) -> str:
     """A stored time as a wall-clock timestamp: its instant ``at`` (xpr.time_at of its text ``value``) read by
-    ``read`` (_zone_reading); a date (when ``dates``) as its own midnight, never read on any clock."""
+    ``read`` (_zone_reading); a date (when ``dates``) at the first instant of its day on the clock (T-114, the
+    class): per day, week or month simply its own day, read on no clock; per hour (``hourly``) the hour that
+    instant falls in, read on the clock (and through D) as a time is -- 00:00, or where the clock skips midnight
+    the first hour it shows."""
     on_clock = read(at)
     if not dates:
         return on_clock
-    return f"(CASE WHEN length({value}) = 10 THEN {value}::timestamp ELSE {on_clock} END)"
+    day_start = read(date_midnight(value, "%(bkt_zone)s::text")) if hourly else f"{value}::timestamp"
+    return f"(CASE WHEN length({value}) = 10 THEN {day_start} ELSE {on_clock} END)"
 
 
 def _in_years(local: str, value: str, at: str | None = None) -> str:
@@ -688,12 +692,12 @@ class _Pieces:
                 value = f"nullif(xpr.time_text({stored}), 'false'::jsonb)"
                 if pick.get("sort_zone"):
                     # the class: on a question's clock a bare date sorts at its midnight there, at the one width,
-                    # among the times (picks.times.sort_reading)
+                    # among the times, ahead of a time at that very instant (picks.times.sort_reading)
                     d = f"({stored} #>> '{{}}')"
                     at = midnight_reading(self.params, pick["sort_zone"], "srt")(d)
                     value = (f"(CASE WHEN jsonb_typeof({stored}) = 'string' AND length({d}) = 10"
                              f" AND xpr.time_at({d}) IS NOT NULL"
-                             f" THEN to_jsonb(to_char({at} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'))"
+                             f" THEN to_jsonb(to_char({at} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US') || ' ')"
                              f" ELSE {value} END)")
         lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
@@ -823,8 +827,8 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
         at = "bkt.t"
         lateral = "\n  CROSS JOIN LATERAL (SELECT xpr.time_at(data #>> %(bkt_path)s) AS t OFFSET 0) AS bkt"
         if zone:
-            # T-100: cut on the zone's wall clock; a date is its own local midnight
-            local = _zoned_local(value, at, _zone_reading(p, zone), True)
+            # T-100: cut on the zone's wall clock; a date at the first instant of its day there (T-114)
+            local = _zoned_local(value, at, _zone_reading(p, zone), True, hourly=pick["bucket"] == "hour")
             label = _ZONED_LABEL.format(g=g, local=local)
         else:
             # the instant cut in UTC, whatever the session's time zone (the T-88 check)

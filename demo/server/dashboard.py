@@ -57,6 +57,7 @@ import lookup  # noqa: E402
 from . import db, settings  # noqa: E402
 
 from picks import env as _penv  # noqa: E402
+from picks import times as _times  # noqa: E402
 from picks import view as _pv  # noqa: E402
 from picks import zones as _zones  # noqa: E402
 from picks.view import (  # noqa: E402  (T-86: the view layer moved to picks/view.py)
@@ -586,6 +587,7 @@ def agreed_count(conn, pick: dict) -> int | None:
     it cannot stand behind (T-72 AC2)."""
     count_pick = dict(pick, aggregate={"fn": "count", "field": None},
                       bucket="off", computed=[], sort=None, cap=None)
+    count_pick.pop("sort_zone", None)       # T-114: the clock a bare date sorts on goes with the sort
     result = _run(conn, count_pick)
     if not result.get("accepted"):
         return None
@@ -985,20 +987,25 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | 
     years 1..9999 there) is no edge: ``None``, and the axis ends at the answer's
     own first or last bucket instead (T-104; it used to be 0001-01-01, an axis
     from year 1).  A field with no range (T-109: a series time outside the one form makes it text) has no
-    edge at either end.  A time field's bare dates (its range's ``dates``, T-114) are each their own midnight on
-    the clock, as the buckets place them, so the span reaches them there (a-chk's preview: read at UTC midnight
-    the span ended before the chart's last bucket, a 500)."""
+    edge at either end.  A time field's bare dates (its range's ``dates``, T-114) are each at the first instant of
+    their day on the clock, as every reader reads them (00:00, but where the clock skips midnight the hour it shows
+    first), so the span reaches them there (a-chk's preview: read at UTC midnight the span ended before the chart's
+    last bucket, a 500)."""
     r = fields[time].get("range")
     if not r:
         return None, None
-    midnight = (lambda v: v + "T00:00:00" + ("" if zone else "Z"))
+
+    def day_start(v):
+        if zone is None:
+            return v + "T00:00:00Z"
+        return _iso(_times.midnight(v, zone).astimezone(_zones.ZoneInfo(zone)))
     if zone is None:
-        as_time = (lambda v: midnight(v) if len(v) == 10 else v)
+        as_time = (lambda v: day_start(v) if len(v) == 10 else v)
         lo, hi = as_time(r["min"]), as_time(r["max"])
     else:
         def on_clock(v):
             if len(v) == 10:
-                return midnight(v)
+                return day_start(v)
             t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
             try:
                 return _iso(t.astimezone(_zones.ZoneInfo(zone)))
@@ -1007,14 +1014,21 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | 
         lo, hi = on_clock(r["min"]), on_clock(r["max"])
     dates = r.get("dates")
     if dates:
-        lo = None if lo is None else min(lo, midnight(dates["min"]))
-        hi = None if hi is None else max(hi, midnight(dates["max"]))
+        lo = None if lo is None else min(lo, day_start(dates["min"]))
+        hi = None if hi is None else max(hi, day_start(dates["max"]))
     return lo, hi
 
 
 def _iso(t, z: str = "") -> str:
     """The engines' fixed-width form, years in four digits (strftime writes year 1 as "1")."""
     return (f"{t.year:04d}-{t.month:02d}-{t.day:02d}T{t.hour:02d}:{t.minute:02d}:{t.second:02d}{z}")
+
+
+def _axis_slots(unit: str, lo: str, hi: str, zone, starts) -> list:
+    """The axis: the slots from ``lo`` to ``hi`` (``_slots``) and every bucket an engine returned (``starts``), in
+    time order (the labels are fixed width, so text order is time order). No bucket with rows falls off the axis,
+    whatever it is labelled -- even an hour the clock never shows (T-114: that was a-chk's 500)."""
+    return sorted(set(_slots(unit, lo, hi, zone)) | set(starts))
 
 
 def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
@@ -1226,13 +1240,11 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
             # Too wide to draw, even from the first bucket with rows to the last: said in words, never laid
             # (drawing only the buckets with rows would put 1900 beside 2026 as if adjacent; T-88).
             raise ViewError(_TOO_WIDE[unit])
-        # every bucket with rows is a slot too (T-114): a bare date sits at its wall midnight (never read on a
-        # clock), and a clock that skips midnight that day shows no such hour, so per hour the axis lays it for the
-        # date. The labels are fixed width, so their text order is their time order.
-        slots = sorted(set(_slots(unit, lo, hi, zone)) | set(by_start))
+        # every bucket with rows is a slot too (T-114): no reader labels one off the clock's own hours now (a bare
+        # date per hour is in the hour its day begins in), and should one ever, it is laid rather than dropped
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
-                for t in slots]
+                for t in _axis_slots(unit, lo, hi, zone, by_start)]
         placed = {b["start"] for b in bars}
         if any(b["start"] not in placed for b in got):
             # A bucket with rows outside the axis would vanish from the

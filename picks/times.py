@@ -138,10 +138,12 @@ def instant_on(value: Any, zone: Optional[str] = None) -> Optional[datetime]:
 
 def sort_reading(value: Any, zone: Optional[str] = None):
     """``reading`` as a sort orders it: on a question's clock a bare date sorts at its midnight there, at the one
-    width, among the times. With no clock, ``reading`` itself (a bare date as itself, before its UTC day's times)."""
+    width, among the times, and ahead of a time at that very instant (its key ends in a space, which sorts before
+    ``Z``), as with no clock, where ``reading`` itself is the key: a bare date's own text, before its UTC day's
+    times."""
     r = reading(value)
     if zone is not None and isinstance(r, str) and len(r) == 10:
-        return utc_text(midnight(r, zone))
+        return utc_text(midnight(r, zone))[:-1] + " "
     return r
 
 

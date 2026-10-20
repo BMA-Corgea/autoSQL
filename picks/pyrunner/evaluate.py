@@ -467,15 +467,18 @@ def time_value(value: Any) -> Optional[datetime]:
     return times.instant(value)
 
 
-def local_time(value: Any, zone: str) -> Optional[datetime]:
+def local_time(value: Any, zone: str, hourly: bool = False) -> Optional[datetime]:
     """T-100: a stored time or date as a NAIVE wall-clock time on ``zone`` -- a time read on that
-    clock, a calendar date as its own midnight (never shifted) -- or ``None`` when it is neither
-    (the same values time_value refuses)."""
+    clock, a calendar date at the first instant of its day there (T-114: per day, week or month simply
+    its day; per hour, ``hourly``, that instant read on the clock: 00:00, or where the clock skips
+    midnight the first hour it shows) -- or ``None`` when it is neither (the values time_value refuses)."""
     at = time_value(value)
     if at is None:
         return None
     if len(value) == 10:
-        return at.replace(tzinfo=None)
+        if not hourly:
+            return at.replace(tzinfo=None)
+        at = times.midnight(value, zone)
     try:
         return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)
     except OverflowError:

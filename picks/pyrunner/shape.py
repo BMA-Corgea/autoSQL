@@ -245,7 +245,7 @@ def _bucket(
         steps = ev.dollar_path(paths.dollar(named))
         for r in rows:
             v = ev.resolve(r.record_d, steps)
-            at = ev.local_time(v, zone) if isinstance(v, str) else None
+            at = ev.local_time(v, zone, granularity == "hour") if isinstance(v, str) else None
             if at is not None:
                 groups.setdefault(ev.truncate_wall(at, granularity), []).append(r)
     elif named:

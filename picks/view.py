@@ -938,11 +938,18 @@ def _wall(value: str, zone=None) -> _dt.datetime:
     return wall
 
 
+def _past_midnight(value: str, zone=None) -> bool:
+    """Is a picked time past its day's midnight on the question's clock -- the first instant of that day there, where
+    every reader puts a bare date (picks.times.midnight; T-114) -- rather than merely off the wall's 00:00, which a
+    clock that skips midnight never shows and one that repeats it shows twice?"""
+    return times.instant(_instant(value, zone)) > times.midnight(_wall(value, zone).date().isoformat(), zone)
+
+
 def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str) -> tuple[str, str]:
-    """after / before / between on a time field: a time against the picked instants; a bare date, at its midnight
-    on the question's clock, against the picked days -- after T: a later day than T's; before T: T's day or earlier
-    (earlier only when T is that day's midnight); between A and B: from A's day (the next, unless A is midnight)
-    to B's day."""
+    """after / before / between on a time field: a time against the picked instants; a bare date, at the first
+    instant of its day on the question's clock, against the picked days -- after T: a later day than T's; before T:
+    T's day or earlier (earlier only when T is that day's first instant); between A and B: from A's day (the next,
+    unless A is that day's first instant) to B's day."""
     if op == "between":
         lo, hi = cond.get("value"), cond.get("value2")
         a, said_a = _value_for(field, lo, zone)
@@ -950,7 +957,7 @@ def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str)
         if _order_key(field, lo, zone) > _order_key(field, hi, zone):      # "between 5 PM and 9 AM", in order
             (a, said_a, lo), (b, said_b, hi) = (b, said_b, hi), (a, said_a, lo)
         first, last = _wall(lo, zone), _wall(hi, zone)
-        start = first.date() + _dt.timedelta(days=0 if first.time() == _dt.time(0) else 1)
+        start = first.date() + _dt.timedelta(days=1 if _past_midnight(lo, zone) else 0)
         dated = f"{ref} >= {string_literal(start.isoformat())} and {ref} <= {string_literal(last.date().isoformat())}"
         return _dated(ref, f"{ref} >= {a} and {ref} <= {b}", dated), f"{said} {said_a} and {said_b}"
     lit, said_t = _value_for(field, cond.get("value"), zone)
@@ -959,7 +966,7 @@ def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str)
     if op == "after":
         timed, dated = f"{ref} > {lit}", f"{ref} > {day}"
     else:
-        timed, dated = f"{ref} < {lit}", f"{ref} {'<=' if t.time() > _dt.time(0) else '<'} {day}"
+        timed, dated = f"{ref} < {lit}", f"{ref} {'<=' if _past_midnight(cond.get('value'), zone) else '<'} {day}"
     return _dated(ref, timed, dated), f"{said} {said_t}"
 
 
