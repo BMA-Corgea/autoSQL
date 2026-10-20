@@ -713,6 +713,9 @@ def demo():
                     t.strftime("%Y-%m-%dT%H:%M:%S+00:00") if i % 3 == 1 else t.strftime("%Y-%m-%dT%H:%M:%S.%f+00:00"))
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
                        (f"zy-{i:05d}", json.dumps({"t2500": form})))
+        for k, v in BARE.items():                    # a-chk's preview: bare dates beside times, in a field of their own
+            cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
+                       (f"zx-{k}", json.dumps({"bd": v, "batch": "bare"})))
         cx.commit()
     opts = f"-c timezone={settings.TIME_ZONE} -c extra_float_digits={settings.EXTRA_FLOAT_DIGITS}"
     real = db.connect
@@ -740,7 +743,10 @@ def _answer(demo, **view):
     v = {"dataset": "edge", "columns": ["rid"], "conditions": [], "sort": None, "show": None, "summary": None}
     v.update(view)
     r = demo["client"].post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": True})
-    return r.status_code, r.json()
+    try:
+        return r.status_code, r.json()
+    except ValueError:                             # a 500's body is no JSON: say what it was
+        return r.status_code, {"message": r.text[:200]}
 
 
 @needs_db
@@ -791,3 +797,157 @@ def test_the_dashboard_sorts_a_time_field_by_its_instant_and_shows_the_first_row
                                 "items": [{"field": "rid", "op": "present"}]})
     assert status == 200 and a.get("kind") == "table", (status, str(a)[:300])
     assert [r[0] for r in a["rows"]] == SORT_DESC, a["rows"]          # (the cap itself: the engine tests, cap 8)
+
+
+
+# ── a-chk's preview of 113a9d1: on a question's clock EVERY reader reads a bare date as that clock's midnight ──
+# (spec §2.1, T-100). Its data set: one time field holding bare dates beside times, asked on four clocks.
+
+BARE = {"b0": "2026-07-09", "b1": "2026-07-10", "b2": "2026-07-09T12:00:00Z", "b3": "2026-07-09T23:30:00-06:00",
+        "b4": "2026-07-09T02:00:00+05:30", "b5": "2026-10-20", "b6": "2026-10-20T03:00:00Z",
+        "b7": "2026-07-09T05:03", "b8": "lunch", "b9": None}
+#: by hand: each time's UTC instant, and each bare date; b7 (naive), b8 (words) and b9 (null) read as no time
+BARE_TIMES = {"b2": datetime(2026, 7, 9, 12, tzinfo=timezone.utc), "b3": datetime(2026, 7, 10, 5, 30, tzinfo=timezone.utc),
+              "b4": datetime(2026, 7, 8, 20, 30, tzinfo=timezone.utc), "b6": datetime(2026, 10, 20, 3, tzinfo=timezone.utc)}
+BARE_DATES = {"b0": (2026, 7, 9), "b1": (2026, 7, 10), "b5": (2026, 10, 20)}
+CLOCKS = [None, "America/Denver", "Asia/Kolkata", "Pacific/Kiritimati"]
+
+
+def _tz(zone):
+    from zoneinfo import ZoneInfo
+    return ZoneInfo(zone) if zone else timezone.utc
+
+
+def _bare_at(key, zone):
+    """The instant a row reads as on the clock: a time is itself, a bare date its own midnight there."""
+    if key in BARE_TIMES:
+        return BARE_TIMES[key]
+    if key in BARE_DATES:
+        return datetime(*BARE_DATES[key], tzinfo=_tz(zone))
+    return None
+
+
+def _bare_buckets(per, zone, keys=BARE):
+    out = {}
+    for k in keys:
+        at = _bare_at(k, zone)
+        if at is not None:
+            local = at.astimezone(_tz(zone))
+            start = local.replace(minute=0, second=0) if per == "hour" else local.replace(hour=0, minute=0, second=0)
+            label = start.replace(tzinfo=None).isoformat(timespec="seconds") + ("" if zone else "Z")
+            out[label] = out.get(label, 0) + 1
+    return out
+
+
+def _wall(zone, *ymdhm):
+    return datetime(*ymdhm, tzinfo=_tz(zone))
+
+
+#: the conditions a person picks on the question's clock, and by hand whether an instant on that clock holds them
+BARE_CONDS = {
+    "on Jul 9": ({"field": "when", "op": "on", "value": "2026-07-09"},
+                 lambda at, z: _wall(z, 2026, 7, 9) <= at < _wall(z, 2026, 7, 10)),
+    "on Oct 20 (today)": ({"field": "when", "op": "on", "value": "2026-10-20"},
+                          lambda at, z: _wall(z, 2026, 10, 20) <= at < _wall(z, 2026, 10, 21)),
+    "after Jul 8, 8:00 PM": ({"field": "when", "op": "after", "value": "2026-07-08T20:00"},
+                             lambda at, z: at > _wall(z, 2026, 7, 8, 20, 0)),
+    "before Jul 9, 12:30 AM": ({"field": "when", "op": "before", "value": "2026-07-09T00:30"},
+                               lambda at, z: at < _wall(z, 2026, 7, 9, 0, 30)),
+    "between Jul 9, 12:00 AM and 11:59 PM": (
+        {"field": "when", "op": "between", "value": "2026-07-09T00:00", "value2": "2026-07-09T23:59"},
+        lambda at, z: _wall(z, 2026, 7, 9, 0, 0) <= at <= _wall(z, 2026, 7, 9, 23, 59)),
+}
+
+
+def _bare_kept(holds, zone):
+    return {k for k in BARE if _bare_at(k, zone) is not None and holds(_bare_at(k, zone), zone)}
+
+
+def _with_rows(conn, rows, fn):
+    """Run fn with the temporary table holding ``rows`` (key -> stored when), then put ROWS back."""
+    with conn.transaction():
+        conn.execute(f"DELETE FROM {TABLE}")
+        for k, v in rows.items():
+            conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps({"when": v})))
+        try:
+            return fn()
+        finally:
+            conn.execute(f"DELETE FROM {TABLE}")
+            for k in ROWS:
+                conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps(_doc(k))))
+
+
+def _py_rows(rows, pick):
+    src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in sorted(rows.items())]
+    return pyshape.answer(src, pick, _records())["rows"]
+
+
+@needs_db
+@pytest.mark.parametrize("zone", CLOCKS)
+def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone):
+    """One bare date, every reader, both engines: buckets per day and per hour and their left-out count, the
+    conditions on / after / before / between / today, time of day (a bare date has none), the chart's span and axis
+    (where the 500 was), the statement's zone-disagreement check and its years shortcut."""
+    import psycopg
+    bad = []                                       # every reader that reads it otherwise, named, asserted once
+
+    def check(ok, *what):
+        if not ok:
+            bad.append(what)
+    for per in ("day", "hour"):
+        want = _bare_buckets(per, zone)
+        pick = _bucket_pick(per, zone)
+        sql = _with_rows(conn, BARE, lambda: {r["bucket"]: int(r["agg"]) for r in _sql(conn, pick)})
+        py = {r["bucket"]: int(r["agg"]) for r in _py_rows(BARE, pick)}
+        check(sql == want and py == want, "buckets", per, sql, py, want)
+        kept = _with_rows(conn, BARE, lambda: int(_sql(conn, _pick(aggregate={"fn": "count", "field": None}))[0]["agg"]))
+        check(kept - sum(want.values()) == 3, "left out", per, kept)                  # b7, b8, b9
+    for name, (card, holds) in BARE_CONDS.items():
+        want = _bare_kept(holds, zone)
+        pick = _filter_pick([card], "all", zone)
+        sql = _with_rows(conn, BARE, lambda: {r["key"] for r in _sql(conn, pick)})
+        py = {r["key"] for r in _py_rows(BARE, pick)}
+        check(sql == want and py == want, name, sorted(sql), sorted(py), sorted(want))
+    tod = _filter_pick([{"field": "when", "part": "time_of_day", "op": "from", "value": "05:00"}], "all", zone)
+    want = {k for k, at in BARE_TIMES.items() if at.astimezone(_tz(zone)).hour >= 5}     # a bare date has no time of day
+    sql = _with_rows(conn, BARE, lambda: {r["key"] for r in _sql(conn, tod)})
+    py = {r["key"] for r in _py_rows(BARE, tod)}
+    check(sql == want and py == want, "time of day from 05:00", sorted(sql), sorted(py), sorted(want))
+    for per in ("day", "hour"):
+        status, a = _answer(demo, columns=[], conditions=[{"field": "batch", "op": "eq", "value": "bare"}],
+                            summary={"fn": "count", "field": None, "per": per, "time": "bd"},
+                            **({"zone": zone} if zone else {}))
+        if status != 200 or a.get("kind") != "chart":
+            check(False, "chart", per, status, str(a.get("message") or a)[:120])
+            continue
+        bars = {b["start"]: int(b["value"]) for b in a["bars"] if not b.get("empty")}
+        want = _bare_buckets(per, zone)
+        check(bars == want, "chart", per, bars, want)
+        check((a["bars"][0]["start"], a["bars"][-1]["start"]) == (min(want), max(want)), "axis", per,
+              (a["bars"][0]["start"], a["bars"][-1]["start"]))
+    f = _setup_fields(demo)
+    check(f["bd"]["kind"] == "time" and f["bd"]["range"] == {
+        "min": "2026-07-08T20:30:00Z", "max": "2026-10-20T03:00:00Z",
+        "dates": {"min": "2026-07-09", "max": "2026-10-20"}}, "the span", f["bd"].get("range"))
+    if zone:
+        # the zone-disagreement check: a window of disagreement around b0's midnight on this clock refuses no bare
+        # date (a date is its own midnight, never read on a clock); the window holds no time
+        mid = _bare_at("b0", zone).timestamp()
+
+        def with_d():
+            with conn.transaction():
+                with env.checking_zones(lambda z: ((mid - 1800, mid + 1800),) if z == zone else ()):
+                    b = builder.build(_bucket_pick("hour", zone), KEYS, records=_records())
+                return {r[0]: int(r[1]) for r in conn.execute(b.sql, b.params).fetchall()}
+        try:
+            got = _with_rows(conn, BARE, with_d)
+        except psycopg.Error as e:
+            got = e.sqlstate
+        check(got == _bare_buckets("hour", zone), "zone check", got)
+    # the years shortcut: a bare date at either end of years 1..9999 is its own day on every clock
+    ends = {"y1": "0001-01-01", "y9": "9999-12-31"}
+    want = {"0001-01-01T00:00:00" + ("" if zone else "Z"): 1, "9999-12-31T00:00:00" + ("" if zone else "Z"): 1}
+    sql = _with_rows(conn, ends, lambda: {r["bucket"]: int(r["agg"]) for r in _sql(conn, _bucket_pick("day", zone))})
+    py = {r["bucket"]: int(r["agg"]) for r in _py_rows(ends, _bucket_pick("day", zone))}
+    check(sql == want and py == want, "years", sql, py)
+    assert not bad, (zone, bad)
