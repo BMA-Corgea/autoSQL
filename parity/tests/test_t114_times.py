@@ -373,10 +373,13 @@ SORT_ASC = ["b1", "m1", "a4", "a5", "a9", "a6", "a8", "a10", "a7", "a2", "a3", "
             "b2", "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8"]
 
 
+@pytest.mark.parametrize("zone", [None, DENVER])            # no bare date here: a clock changes nothing
 @pytest.mark.parametrize("direction, want", [("desc", SORT_DESC), ("asc", SORT_ASC)])
-def test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it(direction, want):
+def test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it(direction, want, zone):
     pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
+    if zone:
+        pick["sort_zone"] = zone
     assert [r["key"] for r in _py(pick)] == want[:8]
     pick["cap"] = None
     assert [r["key"] for r in _py(pick)] == want
@@ -544,10 +547,13 @@ def test_the_statement_compares_instants_and_an_unreadable_time_matches_nothing(
 
 
 @needs_db
+@pytest.mark.parametrize("zone", [None, DENVER])            # no bare date here: a clock changes nothing
 @pytest.mark.parametrize("direction, want", [("desc", SORT_DESC), ("asc", SORT_ASC)])
-def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direction, want):
+def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direction, want, zone):
     pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
+    if zone:
+        pick["sort_zone"] = zone
     assert [r["key"] for r in _sql(conn, pick)] == want[:8]
 
 
@@ -1083,6 +1089,11 @@ DST_EDGE_CONDS = {
     "after Oct 31, 11:00 PM": ({"field": "when", "op": "after", "value": "2026-10-31T23:00"},
                                {HAVANA: {"h2", "h3", "h4"}, DENVER: {"h2", "h4"}}),
 }
+#: by hand, ascending: a bare date at its midnight on the clock -- in Havana Mar 8's begins at 05:00Z (01:00 CDT) and
+#: Nov 1's first midnight is 04:00Z (CDT), before both 00:30s; in Denver Mar 8's is 07:00Z (MST), Nov 1's 06:00Z (MDT)
+DST_EDGE_SORT = {HAVANA: ["h0", "h1", "h2", "h3", "h4"], DENVER: ["h1", "h0", "h3", "h4", "h2"]}
+DST_EDGE_BOARD = {(HAVANA, "max"): "2026-11-01T05:30:00Z", (HAVANA, "min"): "2026-03-08T05:00:00Z",
+                  (DENVER, "max"): "2026-11-01T06:00:00Z", (DENVER, "min"): "2026-03-08T06:30:00Z"}
 
 
 @needs_db
@@ -1115,4 +1126,92 @@ def test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_w
         sql = _with_rows(conn, DST_EDGE, lambda: {r["key"] for r in _sql(conn, pick)})
         py = {r["key"] for r in _py_rows(DST_EDGE, pick)}
         check(sql == kept[zone] and py == kept[zone], name, sorted(sql), sorted(py))
+    # the sort and a board's latest / earliest: the first of two midnights, the instant a skipped one's day begins
+    from picks.pyrunner import group as pygroup
+    for direction in ("asc", "desc"):
+        want = DST_EDGE_SORT[zone] if direction == "asc" else DST_EDGE_SORT[zone][::-1]
+        pick = _pick(sort={"field": "$.when", "dir": direction}, times=["when"], sort_zone=zone)
+        sql = _with_rows(conn, DST_EDGE, lambda: [r["key"] for r in _sql(conn, pick)])
+        py = [r["key"] for r in _py_rows(DST_EDGE, pick)]
+        check(sql == want and py == want, "sort", direction, sql, py)
+    for fn in ("max", "min"):
+        spec = dict(BOARD, time={"fn": fn, "field": "when", "zone": zone})
+        want = {None: DST_EDGE_BOARD[(zone, fn)]}
+        sql = _with_rows(conn, DST_EDGE, lambda: _sql_board(conn, spec))
+        src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in sorted(DST_EDGE.items())]
+        py = {r["grp"]: r["time"] for r in pygroup.answer(src, spec, (), _records())["rows"]}
+        check(sql == want and py == want, "board", fn, sql, py)
     assert not bad, (zone, bad)
+
+
+@needs_db
+def test_the_sort_reads_only_a_bare_date_on_the_clock_and_refuses_one_inside_d_by_name(conn):
+    """T-101 on the sort: a bare date whose midnight on the clock lies where this database's clock and Python's
+    disagree is refused by name (XPR05); a time there is read on no clock to sort, so it sorts as before."""
+    import psycopg
+    pick = _pick(sort={"field": "$.when", "dir": "asc"}, times=["when"], sort_zone=DENVER)
+
+    def sorted_with(window):
+        with conn.transaction():
+            with env.checking_zones(lambda z: (window,) if z == DENVER else ()):
+                b = builder.build(pick, KEYS, records=_records())
+            return [r[1] for r in conn.execute(b.sql, b.params).fetchall()]
+    mid = _bare_at("b0", DENVER).timestamp()
+    with pytest.raises(psycopg.Error) as e:
+        _with_rows(conn, BARE, lambda: sorted_with((mid - 1800, mid + 1800)))
+    assert e.value.sqlstate == "XPR05", e.value
+    at = BARE_TIMES["b2"].timestamp()
+    got = _with_rows(conn, BARE, lambda: sorted_with((at - 1800, at + 1800)))
+    assert got == _bare_sorted("asc", DENVER), got
+
+
+def test_a_clock_for_bare_dates_is_refused_unless_a_listed_zone_beside_a_time_read_as_an_instant():
+    from picks import group as sgroup, legality
+    sort = {"field": "$.when", "dir": "asc"}
+    assert legality.shape_violations(_pick(sort=sort, times=["when"], sort_zone=DENVER)) == []
+    for pick, why in ((_pick(sort=sort, times=["when"], sort_zone="Mars/Olympus"), "must be one of the zone names"),
+                      (_pick(sort={"field": "$.s", "dir": "asc"}, times=["when"], sort_zone=DENVER), "goes with a sort"),
+                      (_pick(times=["when"], sort_zone=DENVER), "goes with a sort")):
+        found = legality.shape_violations(pick)
+        assert [v["operation"] for v in found] == [4] and why in found[0]["why"], (pick, found)
+    for spec, why in ((dict(BOARD, time={"fn": "max", "field": "when", "zone": "Mars/Olympus"}), "must be one of"),
+                      (dict(BOARD, time={"fn": "max", "field": "when", "zone": DENVER}, count_times=[]), "goes with")):
+        with pytest.raises(ValueError, match=why):
+            sgroup.build(spec, records=_records())
+
+
+@needs_db
+def test_the_statement_and_the_second_engine_read_a_bare_dates_midnight_alike_on_every_zone(conn):
+    """``picks.builder.date_midnight`` (SQL) against ``picks.times.midnight`` (Python) on every listed zone, over the
+    days around each change of its offset in 1970-2037 (a midnight repeated or skipped, the day after a change), and
+    years 1 and 9999 on clocks either side of UTC: alike, or inside the zone's D (T-101), where the statement refuses
+    the row by name rather than read it."""
+    from datetime import date
+    from zoneinfo import ZoneInfo
+    t = _times()
+    pairs = set()
+    for z in sorted(env.time_zones()):
+        tz, prev, d = ZoneInfo(z), None, date(1970, 1, 1)
+        noon = (lambda day: tz.utcoffset(datetime(day.year, day.month, day.day, 12)))
+        while d < date(2038, 1, 1):
+            off = noon(d)
+            if prev is not None and off != prev[1]:
+                day = prev[0]                        # the first day at noon on the new offset, then a day either side
+                while noon(day) == prev[1]:
+                    day += timedelta(days=1)
+                pairs.update(((day + timedelta(days=i)).isoformat(), z) for i in (-1, 0, 1))
+            prev, d = (d, off), d + timedelta(days=15)
+    for z in ("UTC", DENVER, "Asia/Kolkata", "Pacific/Kiritimati", "Etc/GMT+12", "Etc/GMT-14"):
+        pairs.update((edge, z) for edge in ("0001-01-01", "0001-01-02", "9999-12-30", "9999-12-31"))
+    pairs = sorted(pairs)
+    with conn.transaction():
+        got = conn.execute(f"SELECT extract(epoch FROM {builder.date_midnight('u.d', 'u.z')}) "
+                           "FROM unnest(%s::text[], %s::text[]) WITH ORDINALITY AS u(d, z, o) ORDER BY o",
+                           ([d for d, _ in pairs], [z for _, z in pairs])).fetchall()
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    differ = [(d, z, float(g)) for (d, z), (g,) in zip(pairs, got)
+              if float(g) != (t.midnight(d, z) - epoch).total_seconds()]
+    gaps = {z: zones.disagreements(conn, z) for z in {z for _, z, _ in differ}}
+    outside = [x for x in differ if not any(lo <= x[2] < hi for lo, hi in gaps[x[1]])]
+    assert not outside, outside[:5]
+    assert len(pairs) > 50_000, len(pairs)
