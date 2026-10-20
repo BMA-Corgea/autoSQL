@@ -183,7 +183,7 @@ T112_MUTANTS = [
     dict(id="E18", defect="LOW 8: the plain-or-exponent choice made with abs() (28 digits) again",
          edits=[(_V, '    if d.copy_abs() >= Decimal("1e15"):', '    if abs(d) >= Decimal("1e15"):')],
          selector=_P + "test_low8_a_number_just_under_1e15_with_29_digits_is_written_plainly",
-         expect="assert '9.9999999999999999999999999999e+14' == "),
+         expect="AssertionError: assert '9.9999999999...999999999e+14' == "),      # pytest abbreviates the digits
     dict(id="E19", defect="H2: the second engine trims ASCII spaces only",
          edits=[(_D, _STRIP, '    t = s.strip(" \\t\\n\\r\\f\\v")\n')],
          selector=_H2_PY + "[a no-break space before-$.s * 1]",
@@ -233,7 +233,8 @@ T112_MUTANTS = [
     dict(id="E31", defect="M3: probe d no longer holds a zero written with an exponent numeric can't take",
          edits=[(_PR, _ZERO_HELD, _ZERO_HELD.replace("({t}) ~ '{_ZERO_RE}'", "false"))],
          selector=_P + "test_m3_the_statement_holds_it_too[0e-20000]",
-         expect="AssertionError: ('0e-20000', NumberRefusal('number too small for a double"),
+         # not held, the zero fires; and, M3's other half, it is not "small": the row is named digits
+         expect="AssertionError: ('0e-20000', NumberRefusal('number with more digits than a double holds"),
     dict(id="E32", defect="M3: probe d calls such a zero small, so a digits row beside it is named small",
          edits=[(_PR, "THEN ({t}) ~ '[eE]-' AND ({t}) !~ '{_ZERO_RE}'\"", "THEN ({t}) ~ '[eE]-'\"")],
          selector=_P + "test_m3_the_statement_names_that_row_digits_too",
