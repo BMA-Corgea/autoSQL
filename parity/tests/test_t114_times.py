@@ -721,7 +721,7 @@ def demo():
                        (f"zy-{i:05d}", json.dumps({"t2500": form})))
         for k, v in BARE.items():                    # a-chk's preview: bare dates beside times, in a field of their own
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
-                       (f"zx-{k}", json.dumps({"bd": v, "batch": "bare"})))
+                       (f"zx-{k}", json.dumps({"bd": v, "batch": "bare", "bk": k})))
         for k, v in DST_EDGE.items():                # bare dates on days a clock skips or repeats midnight
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
                        (f"zw-{k}", json.dumps({"dz": v, "batch": "dst"})))
@@ -875,6 +875,33 @@ def _bare_kept(holds, zone):
     return {k for k in BARE if _bare_at(k, zone) is not None and holds(_bare_at(k, zone), zone)}
 
 
+def _bare_sorted(direction, zone):
+    """By hand (ruling 2): the readable values by their instant on the clock (a bare date at its midnight there), ties
+    by key; the JSON-null blank first ascending and after the times descending; the unreadable ones last either way,
+    by key."""
+    readable = sorted(k for k in BARE if _bare_at(k, zone) is not None)
+    readable.sort(key=lambda k: _bare_at(k, zone), reverse=direction == "desc")
+    blank = [k for k, v in BARE.items() if v is None]
+    unread = sorted(k for k, v in BARE.items() if v is not None and _bare_at(k, zone) is None)
+    return blank + readable + unread if direction == "asc" else readable + blank + unread
+
+
+def _bare_board(fn, zone):
+    """By hand: the latest (max) or earliest (min) instant on the clock, a bare date at its midnight there, in the
+    engine's fixed form to the second -- one group, as BARE holds no S."""
+    at = (max if fn == "max" else min)(_bare_at(k, zone) for k in BARE if _bare_at(k, zone) is not None)
+    return {None: at.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
+
+def _sql_board(conn, spec):
+    from picks import group as sgroup
+    with env.checking_zones(zones.clock_check(conn)):
+        b = sgroup.build(spec, records=_records())
+    cur = conn.execute(b.sql, b.params)
+    names = [d.name for d in cur.description]
+    return {r["grp"]: r["time"] for r in (dict(zip(names, row)) for row in cur.fetchall())}
+
+
 def _with_rows(conn, rows, fn):
     """Run fn with the temporary table holding ``rows`` (key -> stored when), then put ROWS back."""
     with conn.transaction():
@@ -920,6 +947,24 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
         sql = _with_rows(conn, BARE, lambda: {r["key"] for r in _sql(conn, pick)})
         py = {r["key"] for r in _py_rows(BARE, pick)}
         check(sql == want and py == want, name, sorted(sql), sorted(py), sorted(want))
+    # the sort, both ways, whole and capped where a bare date read at UTC midnight would cut the wrong rows; a board's
+    # latest and earliest (the foreman's NOW: both can show a wrong answer)
+    from picks.pyrunner import group as pygroup
+    for direction in ("asc", "desc"):
+        want = _bare_sorted(direction, zone)
+        for cap in (None, 5):
+            pick = _pick(sort={"field": "$.when", "dir": direction}, cap=cap, times=["when"],
+                         **({"sort_zone": zone} if zone else {}))
+            sql = _with_rows(conn, BARE, lambda: [r["key"] for r in _sql(conn, pick)])
+            py = [r["key"] for r in _py_rows(BARE, pick)]
+            check(sql == want[:cap] and py == want[:cap], "sort", direction, cap, sql, py, want[:cap])
+    for fn in ("max", "min"):
+        spec = dict(BOARD, time={"fn": fn, "field": "when", **({"zone": zone} if zone else {})})
+        want = _bare_board(fn, zone)
+        sql = _with_rows(conn, BARE, lambda: _sql_board(conn, spec))
+        src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in sorted(BARE.items())]
+        py = {r["grp"]: r["time"] for r in pygroup.answer(src, spec, (), _records())["rows"]}
+        check(sql == want and py == want, "board", fn, sql, py, want)
     tod = _filter_pick([{"field": "when", "part": "time_of_day", "op": "from", "value": "05:00"}], "all", zone)
     want = {k for k, at in BARE_TIMES.items() if at.astimezone(_tz(zone)).hour >= 5}     # a bare date has no time of day
     sql = _with_rows(conn, BARE, lambda: {r["key"] for r in _sql(conn, tod)})
@@ -948,6 +993,18 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
             continue
         check((a["bars"][0]["start"], a["bars"][-1]["start"]) == (min(want), max(want)), "span", per,
               (a["bars"][0]["start"], a["bars"][-1]["start"]))
+    # the page's table sorted by the field and its board's latest / earliest, as the view asks the engines
+    on_clock = {"zone": zone} if zone else {}
+    for direction in ("asc", "desc"):
+        status, a = _answer(demo, columns=["bk"], conditions=[{"field": "batch", "op": "eq", "value": "bare"}],
+                            sort={"field": "bd", "dir": direction}, show=25, **on_clock)
+        got = [r[0] for r in a["rows"]] if status == 200 and a.get("kind") == "table" else (status, str(a)[:120])
+        check(got == _bare_sorted(direction, zone), "the table's sort", direction, got)
+    for fn, word in (("max", "latest"), ("min", "earliest")):
+        status, a = _answer(demo, columns=[], conditions=[{"field": "batch", "op": "eq", "value": "bare"}],
+                            scoreboard={"by": "batch", "counts": [], "time": {"fn": word, "field": "bd"}}, **on_clock)
+        got = a["rows"][0][-1] if status == 200 and a.get("rows") else (status, str(a)[:120])
+        check(got == pview.fmt_time(_bare_board(fn, zone)[None], zone), "the board's " + word, got)
     f = _setup_fields(demo)
     check(f["bd"]["kind"] == "time" and f["bd"]["range"] == {
         "min": "2026-07-08T20:30:00Z", "max": "2026-10-20T03:00:00Z",
@@ -997,6 +1054,8 @@ def test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500(demo):
         dashboard._CACHE.clear()
     assert status == 200 and a.get("kind") == "chart", (status, str(a.get("message") or a)[:200])
     assert a["bars"][-1]["start"] == "2026-12-01T00:00:00Z" and a["bars"][-1]["value"] == 1, a["bars"][-1]
+    # and the axis stays whole up to it: every day in between is laid, empty, never skipped (T-88)
+    assert a["bars"][-2]["start"] == "2026-11-30T00:00:00Z" and a["bars"][-2].get("empty"), a["bars"][-2]
 
 
 #: a bare date on a day its clock skips or repeats midnight (the foreman: mind them). Havana skips 00:00 on Mar 8,
