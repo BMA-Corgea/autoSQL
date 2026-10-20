@@ -1093,3 +1093,49 @@ def test_fold_in_the_dashboard_refuses_typed_text_before_any_sql(demo, typed):
     status, a = _ask(demo, typed)
     want = TYPED_UNHELD.get(typed, "A number value must be a number.")
     assert (status, a.get("kind"), a.get("message")) == (422, "invalid", want), (typed, status, a)
+
+
+# ── run 11's second fold-in (a-chk's pre-check of the round, a MEDIUM for cost): a probe never pays the JIT ──
+# Probe d's text reading made its statement big enough for Postgres's LLVM JIT to compile it on every run (about 1.5 s
+# on postgres:16-alpine at its default jit = on, for a scan that answers in milliseconds).
+
+class _Watch:
+    """The caller's connection, noting the jit setting each query in ``sqls`` runs under."""
+
+    def __init__(self, conn, sqls):
+        self._c, self._sqls, self.seen = conn, sqls, []
+
+    @property
+    def info(self):
+        return self._c.info
+
+    def transaction(self):
+        return self._c.transaction()
+
+    def execute(self, sql, params=None):
+        if sql in self._sqls:
+            self.seen.append(self._c.execute("SELECT current_setting('jit')").fetchone()[0])
+        return self._c.execute(sql, params)
+
+
+@needs_db
+def test_fold_in_2_a_probe_never_pays_the_jit_and_the_statement_plans_as_before(conn):
+    """With the JIT made to fire on anything, probe d's statement is JIT-compiled outside a probe (the control); run
+    as a probe, each of its queries runs with the JIT off, it still answers, and afterwards the caller's settings are
+    what they were, for the statement that follows."""
+    from picks import env
+    _put(conn, {"a": json.dumps({"s": " " + _N}), "b": '{"s": "2"}'})
+    built = probes.build_probes([env.get("parser").parse("$.s * 1")], records=_records())
+    d = [p for p in built if p.member == "d"][0]
+    with conn.transaction():
+        conn.execute("SET LOCAL jit = on")
+        conn.execute("SET LOCAL jit_above_cost = 0")
+        plan = conn.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + d.sql, dict(d.params, collection=T)).fetchone()[0]
+        watch = _Watch(conn, {p.sql for p in built} | {p.row_sql for p in built})
+        out = probes.run_probes(watch, T, built)
+        after = conn.execute("SELECT current_setting('jit'), current_setting('jit_above_cost')").fetchone()
+    assert "JIT" in plan[0], "this database does not JIT probe d's statement: nothing to test"
+    fired = [o for o in out if o.probe.member == "d"]
+    assert fired and fired[0].fired and fired[0].row_key == "a", out
+    assert watch.seen and set(watch.seen) == {"off"}, watch.seen
+    assert after == ("on", "0"), after
