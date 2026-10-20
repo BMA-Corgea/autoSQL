@@ -45,6 +45,7 @@ _KLEENE = '    if logic in ("one", "allnone") and any(_reads_any_instant(it, fie
 _SECOND = "_the_second_engine_alone_compares_instants_and_an_unreadable_time_matches_nothing"
 _BARE = _P + "test_every_reader_reads_a_bare_date_as_its_clocks_midnight"
 _STATEMENT = "_the_statement_compares_instants_and_an_unreadable_time_matches_nothing"
+_EDGE = _P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_reads_as_its_first_instant"
 
 
 def _pair(text, want):
@@ -198,8 +199,8 @@ T114_MUTANTS = [
     dict(id="BD1", defect="the span: the axis no longer reaches the bare dates at the clock's midnight",
          edits=[("../demo/server/dashboard.py", '''    dates = r.get("dates")
     if dates:
-        lo = None if lo is None else min(lo, midnight(dates["min"]))
-        hi = None if hi is None else max(hi, midnight(dates["max"]))
+        lo = None if lo is None else min(lo, day_start(dates["min"]))
+        hi = None if hi is None else max(hi, day_start(dates["max"]))
 ''', "")],
          selector=_BARE + "[America/Denver]", expect="('span', 'day'"),
     dict(id="BD3", defect="the statement alone reads a bare date at UTC midnight again (its conditions, time of day)",
@@ -220,16 +221,16 @@ T114_MUTANTS = [
          selector=_P + "test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500",
          expect="AssertionError: {'label'"),
     dict(id="BD8", defect="before T: a bare date on T's own day is left out (its midnight is before T)",
-         edits=[(_V, "{'<=' if t.time() > _dt.time(0) else '<'}", "<")],
+         edits=[(_V, "{'<=' if _past_midnight(cond.get('value'), zone) else '<'}", "<")],
          selector=_BARE + "[Asia/Kolkata]", expect="('before Jul 9, 12:30 AM'"),
     dict(id="BD9", defect="between A and B: A's own day kept though its midnight is before A",
-         edits=[(_V, "days=0 if first.time() == _dt.time(0) else 1", "days=0")],
+         edits=[(_V, "days=1 if _past_midnight(lo, zone) else 0", "days=0")],
          selector=_BARE + "[None]", expect="('between Jul 9, 1:00 AM and Jul 10, 11:00 PM'"),
-    dict(id="BD10", defect="the axis lays only the hours the clock shows: a bare date on a day it skips midnight is a 500",
-         edits=[("../demo/server/dashboard.py", "        slots = sorted(set(_slots(unit, lo, hi, zone)) | set(by_start))\n",
-                 "        slots = _slots(unit, lo, hi, zone)\n")],
-         selector=_P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight[America/Havana]",
-         expect="('chart', 'hour', 500"),
+    dict(id="BD10", defect="the axis lays only the hours the clock shows: a bucket an engine labels off them is dropped",
+         edits=[("../demo/server/dashboard.py", "    return sorted(set(_slots(unit, lo, hi, zone)) | set(starts))\n",
+                 "    return _slots(unit, lo, hi, zone)\n")],
+         selector=_P + "test_the_axis_lays_every_bucket_an_engine_returns_even_an_hour_the_clock_never_shows",
+         expect="AssertionError: assert ["),
     dict(id="BD11", defect="the table's sort reads a bare date at UTC midnight again (the view names no clock; both engines)",
          edits=[(_V, "        pick[\"sort_zone\"] = view_zone(view)      # T-114: a bare date sorts at its midnight on the "
                      "question's clock\n", "        pass\n")],
@@ -242,13 +243,34 @@ T114_MUTANTS = [
          edits=[(_B, "    return (f\"GREATEST(CASE WHEN {early} < {late} AND ({early} AT TIME ZONE {zone}) = {wall} THEN {early}\"\n"
                      "            f\" ELSE {late} END, '0001-01-01 00:00:00+00'::timestamptz)\")\n",
                  "    return f\"GREATEST({late}, '0001-01-01 00:00:00+00'::timestamptz)\"\n")],
-         selector=_P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight[America/Havana]",
-         expect="('sort', 'asc'"),
+         selector=_EDGE + "[America/Havana]", expect="('sort', 'asc'"),
     dict(id="BD14", defect="a bare date's midnight is read on the clock without D: inside it the sort reads on, unrefused",
          edits=[(_B, "    if not gaps:\n        return lambda d: date_midnight(d, z)\n",
                  "    if True:\n        return lambda d: date_midnight(d, z)\n")],
          selector=_P + "test_the_sort_reads_only_a_bare_date_on_the_clock_and_refuses_one_inside_d_by_name",
          expect="DID NOT RAISE"),
+    dict(id="BD15", defect="the statement puts a bare date per hour at its wall midnight again (Havana's Mar 8: 12 AM)",
+         edits=[(_B, "    day_start = read(date_midnight(value, \"%(bkt_zone)s::text\")) if hourly else f\"{value}::timestamp\"\n",
+                 "    day_start = f\"{value}::timestamp\"\n")],
+         selector=_EDGE + "[America/Havana]", expect="('buckets', 'hour'"),
+    dict(id="BD16", defect="the conditions' boundary is the wall's 00:00 again, not the day's first instant on the clock",
+         edits=[(_V, "    return times.instant(_instant(value, zone)) > times.midnight(_wall(value, zone).date().isoformat(), zone)\n",
+                 "    return _wall(value, zone).time() > _dt.time(0)\n")],
+         selector=_EDGE + "[America/Havana]", expect="('before Mar 8, 1:00 AM'"),
+    dict(id="BD17", defect="the count behind a capped table keeps the sort's clock without the sort: the total is lost",
+         edits=[("../demo/server/dashboard.py",
+                 "    count_pick.pop(\"sort_zone\", None)       # T-114: the clock a bare date sorts on goes with the sort\n", "")],
+         selector=_P + "test_a_capped_table_sorted_by_a_time_field_on_a_clock_states_its_total",
+         expect="the first 25 rows'"),
+    dict(id="BD18", defect="the statement sorts a bare date level with a time at its very midnight (the key decides)",
+         edits=[(_B, "'YYYY-MM-DD\\\"T\\\"HH24:MI:SS.US') || ' ')", "'YYYY-MM-DD\\\"T\\\"HH24:MI:SS.US\\\"Z\\\"'))")],
+         selector=_P + "test_a_bare_date_sorts_ahead_of_a_time_at_its_very_midnight[America/Denver]",
+         expect="('America/Denver', 'asc'"),
+    dict(id="BD19", defect="per hour a bare date is read on the clock without D: inside it the bucket reads on, unrefused",
+         edits=[(_B, "    day_start = read(date_midnight(value, \"%(bkt_zone)s::text\")) if hourly else f\"{value}::timestamp\"\n",
+                 "    day_start = (f\"({date_midnight(value, '%(bkt_zone)s::text')} AT TIME ZONE %(bkt_zone)s::text)\" if hourly\n"
+                 "                 else f\"{value}::timestamp\")\n")],
+         selector=_BARE + "[America/Denver]", expect="('zone check', 'hour'"),
 ]
 
 

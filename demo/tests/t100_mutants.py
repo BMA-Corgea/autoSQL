@@ -30,7 +30,9 @@ _D = "server/dashboard.py"
 
 _SQL_ON_CLOCK = '        return lambda v: f"({v}::timestamptz AT TIME ZONE %(bkt_zone)s::text)"'   # the plain reading (D empty)
 _PY_ON_CLOCK = "    return at.astimezone(ZoneInfo(zone)).replace(tzinfo=None)"
-_PY_DATE = "    if len(value) == 10:\n        return at.replace(tzinfo=None)\n"
+#: T-114: the second engine's calendar date -- its own day, or per hour the first instant of its day on the clock
+_PY_DATE = ("    if len(value) == 10:\n        if not hourly:\n            return at.replace(tzinfo=None)\n"
+            "        at = times.midnight(value, zone)\n")
 _PY_WALL = "    return truncate_label(at.replace(tzinfo=timezone.utc), granularity)[:-1]"
 _SQL_LABEL = ('_ZONED_LABEL = ("to_char( date_trunc({g}, {local}),\\n"\n'
               '                "                \'YYYY-MM-DD\\"T\\"HH24:MI:SS\' )")')
