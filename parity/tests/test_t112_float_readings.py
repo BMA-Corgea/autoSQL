@@ -1004,3 +1004,92 @@ def test_h1_the_dashboard_shows_every_digit_in_cells_groups_and_matched_columns(
                                 "columns": ["name", "capacity"]}))
     assert matched["kind"] == "table" and matched["rows"][0][2] == "H1 site", matched.get("rows")
     assert _shown(matched["rows"][0][1]) == _shown(matched["rows"][0][3]) == Decimal(lit), matched["rows"]
+
+
+# ── run 11's fold-in (the foreman, under GA-85): a number condition's value may be the text a person typed ──
+# The number box sent Number(typed): 9007199254740993 left the browser as ...992, and the engine never saw what was
+# typed. Now the box sends the text, and the engine reads it by T-112's rule: strict ASCII (the language's own
+# number grammar), held or refused in words before any SQL.
+
+TYPED_UNHELD = {
+    "9007199254740993": "That number has more digits than can be compared exactly.",
+    "0.12345678901234567": "That number has more digits than can be compared exactly.",
+    "1e309": "That number is too large to compare with.",
+    "-1e309": "That number is too large to compare with.",
+    "1e-400": "That number is too small to compare with.",
+}
+#: typed text a double holds -> the literal, as Postgres writes the double (what a JSON number gives today)
+TYPED_HELD = {"12.5": "12.5", "12.50": "12.5", "-5": "-5", "9007199254740992": "9007199254740992", "0.1": "0.1",
+              "1e22": "1e+22", "1.0E2": "100", "+7": "7", ".5": "0.5", "5.": "5", "0e-20000": "0"}
+TYPED_JUNK = ["", " 12.5", "12.5 ", "12,5", "1e", "e5", "+", "-", ".", "abc", "１２", "0x10", "inf", "NaN",
+              "1_000", "1 2", "--5", "5e+", " 12.5"]
+
+
+@pytest.mark.parametrize("text", list(TYPED_UNHELD))
+def test_fold_in_a_typed_number_no_double_holds_is_refused_in_words_before_any_sql(text):
+    with pytest.raises(view.ViewError) as e:
+        view.number_literal(text)
+    assert str(e.value) == TYPED_UNHELD[text], text
+
+
+@pytest.mark.parametrize("text", list(TYPED_HELD))
+def test_fold_in_a_typed_number_a_double_holds_is_written_as_postgres_writes_it(text):
+    assert view.number_literal(text) == TYPED_HELD[text]
+
+
+@pytest.mark.parametrize("text", TYPED_JUNK)
+def test_fold_in_typed_text_that_is_no_number_keeps_its_words(text):
+    with pytest.raises(view.ViewError) as e:
+        view.number_literal(text)
+    assert str(e.value) == "A number value must be a number.", text
+
+
+def test_fold_in_json_numbers_are_read_as_before():
+    assert [view.number_literal(v) for v in (9007199254740992, 0.1, 1e23, -5, 12.5)] == \
+        ["9007199254740992", "0.1", "9.999999999999999e+22", "-5", "12.5"]
+    for v in (True, None, [1], 9007199254740993):
+        with pytest.raises(view.ViewError):
+            view.number_literal(v)
+
+
+NUM_FIELD = {"path": "n", "label": "N", "kind": "number", "ops": ["eq", "ne", "gt", "lt", "ge", "le", "between", "in"]}
+
+
+def _words(cond):
+    holder = {"filter": {"version": view.FILTER_VERSION, "join": "all", "items": [cond]}}
+    return view.filter_parts(holder, {"n": NUM_FIELD})
+
+
+@pytest.mark.parametrize("typed, number", [({"op": "gt", "value": "12.50"}, {"op": "gt", "value": 12.5}),
+                                           ({"op": "between", "value": "10", "value2": "9.5"},
+                                            {"op": "between", "value": 10, "value2": 9.5}),
+                                           ({"op": "in", "values": ["12.5", "12.50", "7"]},
+                                            {"op": "in", "values": [12.5, 7]})])
+def test_fold_in_the_view_writes_typed_text_as_it_writes_the_json_number(typed, number):
+    """The expression and the sentence: "12.50" is compared, and said, as 12.5; "between 10 and 9.5" is put in
+    order by value, not as text; two spellings of one number in "is one of" are one value."""
+    assert _words(dict(field="n", **typed)) == _words(dict(field="n", **number))
+
+
+def _ask(demo, value, op="gt", **more):
+    v = {"dataset": "heartbeats", "columns": ["sender_id", "payload.load"], "sort": {"field": "payload.load",
+         "dir": "desc"}, "show": None, "summary": None,
+         "conditions": [dict({"field": "payload.load", "op": op, "value": value}, **more)]}
+    r = demo["client"].post("/api/dashboard/answer", json={"view": v, "page": 0, "admin": True})
+    return r.status_code, r.json()
+
+
+@needs_db
+@pytest.mark.parametrize("typed, number", [("12.50", 12.5), ("50", 50), ("-5", -5), ("1e2", 100)])
+def test_fold_in_the_dashboard_answers_typed_text_exactly_as_the_json_number(demo, typed, number):
+    (s1, a), (s2, b) = _ask(demo, typed), _ask(demo, number)
+    assert s1 == s2 == 200 and a["kind"] == "table", (s1, a.get("message"))
+    assert (a["total"], a["rows"], a["sentence"]) == (b["total"], b["rows"], b["sentence"]), (typed, a["sentence"])
+
+
+@needs_db
+@pytest.mark.parametrize("typed", ["9007199254740993", "0.12345678901234567", "1e-400", "twelve"])
+def test_fold_in_the_dashboard_refuses_typed_text_before_any_sql(demo, typed):
+    status, a = _ask(demo, typed)
+    want = TYPED_UNHELD.get(typed, "A number value must be a number.")
+    assert (status, a.get("kind"), a.get("message")) == (422, "invalid", want), (typed, status, a)
