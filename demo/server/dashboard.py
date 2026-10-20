@@ -1226,9 +1226,13 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
             # Too wide to draw, even from the first bucket with rows to the last: said in words, never laid
             # (drawing only the buckets with rows would put 1900 beside 2026 as if adjacent; T-88).
             raise ViewError(_TOO_WIDE[unit])
+        # every bucket with rows is a slot too (T-114): a bare date sits at its wall midnight (never read on a
+        # clock), and a clock that skips midnight that day shows no such hour, so per hour the axis lays it for the
+        # date. The labels are fixed width, so their text order is their time order.
+        slots = sorted(set(_slots(unit, lo, hi, zone)) | set(by_start))
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
-                for t in _slots(unit, lo, hi, zone)]
+                for t in slots]
         placed = {b["start"] for b in bars}
         if any(b["start"] not in placed for b in got):
             # A bucket with rows outside the axis would vanish from the

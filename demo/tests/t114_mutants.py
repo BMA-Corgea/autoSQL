@@ -3,7 +3,8 @@
 BE1–BE9 break both engines ALIKE -- the rule's two statements (``picks/times.py`` and ``runtime/runtime.sql``'s
 ``xpr.time_at``) or the one expression both evaluate -- so the engines agree, the differential passes, and only the
 hand truth can catch them. E1–E21 break one engine at one edge each. BD1–BD9 put one reader of a bare date back
-at UTC midnight (a-chk's preview: on a question's clock every reader reads it as the clock's midnight). A runtime mutant edits ``runtime/runtime.sql``,
+at UTC midnight (a-chk's preview: on a question's clock every reader reads it as the clock's midnight); BD10 drops
+the hour a clock skips that a bare date's midnight sits in. A runtime mutant edits ``runtime/runtime.sql``,
 which the parity tests install fresh (``this_runtime.install``) into the throwaway. Run on ``t78_mutants.py``'s
 runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres (the dashboard cases build their
 own scratch copy of the seed there).
@@ -221,6 +222,11 @@ T114_MUTANTS = [
     dict(id="BD9", defect="between A and B: A's own day kept though its midnight is before A",
          edits=[(_V, "days=0 if first.time() == _dt.time(0) else 1", "days=0")],
          selector=_BARE + "[None]", expect="('between Jul 9, 1:00 AM and Jul 10, 11:00 PM'"),
+    dict(id="BD10", defect="the axis lays only the hours the clock shows: a bare date on a day it skips midnight is a 500",
+         edits=[("../demo/server/dashboard.py", "        slots = sorted(set(_slots(unit, lo, hi, zone)) | set(by_start))\n",
+                 "        slots = _slots(unit, lo, hi, zone)\n")],
+         selector=_P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight[America/Havana]",
+         expect="('chart', 'hour', 500"),
 ]
 
 
