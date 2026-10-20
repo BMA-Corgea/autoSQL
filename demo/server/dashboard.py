@@ -1241,15 +1241,11 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
             # (drawing only the buckets with rows would put 1900 beside 2026 as if adjacent; T-88).
             raise ViewError(_TOO_WIDE[unit])
         # every bucket with rows is a slot too (T-114): no reader labels one off the clock's own hours now (a bare
-        # date per hour is in the hour its day begins in), and should one ever, it is laid rather than dropped
+        # date per hour is in the hour its day begins in), and should one ever, it is laid rather than dropped -- so
+        # a picture missing data, which a check here once refused with a 500, can't be drawn
         bars = [by_start.get(t) or {"label": label_of(t), "start": t, "value": None,
                                     "text": None, "exact": None, "empty": True}
                 for t in _axis_slots(unit, lo, hi, zone, by_start)]
-        placed = {b["start"] for b in bars}
-        if any(b["start"] not in placed for b in got):
-            # A bucket with rows outside the axis would vanish from the
-            # chart: fail loudly rather than draw a picture missing data.
-            raise RuntimeError("a bucket with rows fell outside the time axis")
     total = len(bars)
     if with_rows == 0:
         tail = "no rows match"

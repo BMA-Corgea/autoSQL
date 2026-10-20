@@ -236,12 +236,12 @@ def _zone_reading(p, zone: str):
 def date_midnight(date: str, zone: str) -> str:
     """T-114 (the class): a bare date's midnight on the clock ``zone`` (SQL text naming the zone), as
     ``picks.times.midnight`` reads it in Python: the first instant of that day there. ``AT TIME ZONE`` reads a
-    wall midnight the clock repeats as the later of the two, so the earlier is taken when the offset a day before
-    reads that midnight too; one the clock skips reads as the instant the day begins, on both. A midnight before
-    year 1 in UTC is year 1's first instant."""
+    wall midnight the clock repeats as the later of the two, so the earlier is taken when the offset 24 hours
+    before reads that midnight too; one the clock skips reads as the instant the day begins, on both. A midnight
+    before year 1 in UTC is year 1's first instant. Nothing here reads the session's own clock."""
     wall = f"({date})::timestamp"
     late = f"({wall} AT TIME ZONE {zone})"
-    before = f"({late} - interval '1 day')"
+    before = f"({late} - interval '24 hours')"         # hours, not a day: a day follows the session's clock
     early = f"(({wall} - ({before} AT TIME ZONE {zone} - {before} AT TIME ZONE 'UTC')) AT TIME ZONE 'UTC')"
     return (f"GREATEST(CASE WHEN {early} < {late} AND ({early} AT TIME ZONE {zone}) = {wall} THEN {early}"
             f" ELSE {late} END, '0001-01-01 00:00:00+00'::timestamptz)")
