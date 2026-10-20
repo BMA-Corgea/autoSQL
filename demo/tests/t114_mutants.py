@@ -4,7 +4,9 @@ BE1–BE9 break both engines ALIKE -- the rule's two statements (``picks/times.p
 ``xpr.time_at``) or the one expression both evaluate -- so the engines agree, the differential passes, and only the
 hand truth can catch them. E1–E21 break one engine at one edge each. BD1–BD9 put one reader of a bare date back
 at UTC midnight (a-chk's preview: on a question's clock every reader reads it as the clock's midnight); BD10 drops
-the hour a clock skips that a bare date's midnight sits in. A runtime mutant edits ``runtime/runtime.sql``,
+the hour a clock skips that a bare date's midnight sits in; BD11 and BD12 put the sort and a board's latest /
+earliest back at UTC midnight; BD13 and BD14 break the clock reading they share (a repeated midnight; D). A runtime
+mutant edits ``runtime/runtime.sql``,
 which the parity tests install fresh (``this_runtime.install``) into the throwaway. Run on ``t78_mutants.py``'s
 runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres (the dashboard cases build their
 own scratch copy of the seed there).
@@ -91,8 +93,8 @@ T114_MUTANTS = [
     dict(id="BE8", defect="BOTH engines sort a time field by its text again",
          edits=[(_B, "            if reads_as_instant(field, self.times):\n", "            if False:\n"),
                 (_SH, '            if ev.reads_as_instant(field, pick.get("times")):\n', "            if False:\n")],
-         selector=[_P + "test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0]",
-                   _P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0]"],
+         selector=[_P + "test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0-None]",
+                   _P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0-None]"],
          expect="AssertionError: assert ["),
     dict(id="BE9", defect="BOTH engines ignore the offset (they agree)",
          edits=[(_T, _SHIFT, "        shift = timedelta(0)\n"),
@@ -156,9 +158,9 @@ T114_MUTANTS = [
          selector=_P + f"test{_STATEMENT}[a day's last microsecond, inclusive (GIMS's day end)]",
          expect="AssertionError: (\"a day's last microsecond"),
     dict(id="E15", defect="the statement sorts an unreadable time as a boolean (not pinned last)",
-         edits=[(_B, "                value = f\"nullif(xpr.time_text({value}), 'false'::jsonb)\"\n",
-                 "                value = f\"xpr.time_text({value})\"\n")],
-         selector=_P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0]",
+         edits=[(_B, "                value = f\"nullif(xpr.time_text({stored}), 'false'::jsonb)\"\n",
+                 "                value = f\"xpr.time_text({stored})\"\n")],
+         selector=_P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0-None]",
          expect="AssertionError: assert ["),
     dict(id="E16", defect="the statement's board reads a time field's latest by text again",
          edits=[(_G, '        if t["field"] in (spec.get("count_times") or ()):\n', "        if False:\n")],
@@ -212,10 +214,11 @@ T114_MUTANTS = [
          edits=[(_V, '    return f"((length({ref}) > 10 and {timed}) or (length({ref}) == 10 and {dated}))"\n',
                  '    return f"(length({ref}) > 10 and {timed})"\n')],
          selector=_BARE + "[None]", expect="('on Jul 9'"),
-    dict(id="BD6", defect="the axis no longer reaches the answer's own buckets: a bucket past the setup's span is a 500",
+    dict(id="BD6", defect="the axis no longer reaches the answer's own buckets: a bucket past the setup's span sits "
+                          "after a gap (a 500 before every bucket with rows was laid)",
          edits=[("../demo/server/dashboard.py", "            lo, hi = min(lo, first), max(hi, last)\n", "")],
          selector=_P + "test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500",
-         expect="AssertionError: (500"),
+         expect="AssertionError: {'label'"),
     dict(id="BD8", defect="before T: a bare date on T's own day is left out (its midnight is before T)",
          edits=[(_V, "{'<=' if t.time() > _dt.time(0) else '<'}", "<")],
          selector=_BARE + "[Asia/Kolkata]", expect="('before Jul 9, 12:30 AM'"),
@@ -227,6 +230,25 @@ T114_MUTANTS = [
                  "        slots = _slots(unit, lo, hi, zone)\n")],
          selector=_P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight[America/Havana]",
          expect="('chart', 'hour', 500"),
+    dict(id="BD11", defect="the table's sort reads a bare date at UTC midnight again (the view names no clock; both engines)",
+         edits=[(_V, "        pick[\"sort_zone\"] = view_zone(view)      # T-114: a bare date sorts at its midnight on the "
+                     "question's clock\n", "        pass\n")],
+         selector=_BARE + "[America/Denver]", expect="(\"the table's sort\", 'asc'"),
+    dict(id="BD12", defect="a board's latest / earliest reads a bare date at UTC midnight again (the view names no clock)",
+         edits=[(_V, "            time_spec[\"zone\"] = view_zone(view)  # T-114: a bare date at its midnight on the "
+                     "question's clock\n", "            pass\n")],
+         selector=_BARE + "[America/Denver]", expect="(\"the board's latest\""),
+    dict(id="BD13", defect="the statement reads a midnight the clock repeats as the later of the two (AT TIME ZONE's own)",
+         edits=[(_B, "    return (f\"GREATEST(CASE WHEN {early} < {late} AND ({early} AT TIME ZONE {zone}) = {wall} THEN {early}\"\n"
+                     "            f\" ELSE {late} END, '0001-01-01 00:00:00+00'::timestamptz)\")\n",
+                 "    return f\"GREATEST({late}, '0001-01-01 00:00:00+00'::timestamptz)\"\n")],
+         selector=_P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight[America/Havana]",
+         expect="('sort', 'asc'"),
+    dict(id="BD14", defect="a bare date's midnight is read on the clock without D: inside it the sort reads on, unrefused",
+         edits=[(_B, "    if not gaps:\n        return lambda d: date_midnight(d, z)\n",
+                 "    if True:\n        return lambda d: date_midnight(d, z)\n")],
+         selector=_P + "test_the_sort_reads_only_a_bare_date_on_the_clock_and_refuses_one_inside_d_by_name",
+         expect="DID NOT RAISE"),
 ]
 
 
