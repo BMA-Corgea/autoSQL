@@ -5,6 +5,10 @@ hand-truth vector (a refusal the rule demands, a value the exact answer demands)
 engine at one edge each. The parity tests run on an alpine throwaway (AUTOSQL_PARITY_DSN). Run on
 ``t78_mutants.py``'s runner. RUN ON A SCRATCH COPY.
 
+The round after a-chk's check (H1-H3, M1-M3, LOW 8) adds BE6-BE8, both engines alike again (text read as ASCII
+only, min/max of several read as a list's elements, a zero with a huge exponent called small), and E17-E33, one edge
+each. a-chk's own BM1-BM10 (the two walks broken alike) run on its lean runner, ``chk_my_mutants.py``.
+
 E2 and E16 are the foreman's ruling (A): a number past the largest double is left as it was beside the statement
 (E2 refuses it anyway, and the demo's step 13 would move), and refused when the engine answers alone (E16, the
 option ignored). E15 breaks the printer's midpoint rule (an edge of the interval counted as inside); the spec's "a
@@ -45,6 +49,19 @@ _FLOAT8_VALID = """f" WHEN NOT pg_input_is_valid({t}, 'float8') THEN false\""""
 _TEXT_FORM = """        parts.append(f"(jsonb_typeof({op}) = 'string' AND {txt} ~ '{_TEXT_NUMBER_RE}' AND {test(txt, fast_txt)})")\n"""
 _TEXT_POS = "    if pos in (COERCED, ELEMENTS) and isinstance(v, str):\n"
 _INT_FAST = "        if -_TWO_53 <= v <= _TWO_53:\n"
+_APP = "server/app.py"
+
+# ── the round ──
+_H2_PY = _P + "test_h2_text_in_unicode_digits_or_spaces_is_checked_as_both_engines_read_it"
+_H2_SQL = _P + "test_h2_the_statement_alone_checks_unicode_text_as_it_reads_it"
+_STRIP = "    t = s.strip()\n"
+_DIGITS_RE = '_TEXT_NUMBER = re.compile(r"[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?")'
+_UNICODE_PART = "        parts.append(_d_unicode_text(op, txt, test))\n"
+_SOLE_X = '            elif name in ("min", "max") and len(args) == 1:      # among several, a list is skipped (M2)\n'
+_M2_PY = _P + "test_m2_min_or_max_of_a_list_among_several_arguments_answers"
+_M2_SQL = _P + "test_m2_the_statement_answers_min_of_a_list_among_several_arguments"
+_ZERO_HELD = "f\" WHEN NOT pg_input_is_valid({t}, 'numeric') THEN ({t}) ~ '{_ZERO_RE}'\""
+_REFUSED_D = "AssertionError: NumberRefused('number with more digits than a double holds"
 
 T112_MUTANTS = [
     # ── both engines broken alike: only the hand-truth vectors can catch these ──
@@ -138,6 +155,92 @@ T112_MUTANTS = [
          edits=[(_X, "            f = _value_kind(v, pos, alone)\n", "            f = _value_kind(v, pos, False)\n")],
          selector=_P + "test_alone_a_number_past_the_largest_double_is_never_a_wrong_answer[1e309 == 1e310]",
          expect="AssertionError: ('1e309 == 1e310', ['a'])"),
+    # ── the round: both engines broken alike again ──
+    dict(id="BE6", defect="H2 alike: both checks read text in ASCII only (they agree, and 2^53 is answered)",
+         edits=[(_D, _STRIP, '    t = s.strip(" \\t\\n\\r\\f\\v")\n'),
+                (_D, _DIGITS_RE, _DIGITS_RE.replace("\\d", "[0-9]")),
+                (_PR, _UNICODE_PART, "")],
+         selector=[_H2_PY + "[a no-break space before-$.s * 1]", _H2_SQL + "[a no-break space before]"],
+         expect="AssertionError: ('a no-break space before', '$.s * 1'"),
+    dict(id="BE7", defect="M2 alike: both walks read a list among several min/max arguments (both refuse min($.l, 5))",
+         edits=[(_X, _SOLE_X, '            elif name in ("min", "max"):\n'),
+                (_PR, _SOLE_X, '            elif name in ("min", "max"):\n')],
+         selector=[_M2_PY, _M2_SQL], expect=_REFUSED_D),
+    dict(id="BE8", defect="M3 alike: both checks call a zero written with a huge exponent small",
+         edits=[(_D, "        if d.is_zero():\n            return None\n", ""),
+                (_PR, _ZERO_HELD, _ZERO_HELD.replace("({t}) ~ '{_ZERO_RE}'", "false"))],
+         selector=[_P + "test_m3_a_zero_written_with_an_exponent_numeric_cannot_take_is_held[0e-20000]",
+                   _P + "test_m3_the_statement_holds_it_too[0e-20000]"],
+         expect="AssertionError: ('0e-20000', "),
+    # ── the round: one edge each ──
+    dict(id="E17", defect="H1: a shown number normalized in the default 28-digit context again",
+         edits=[(_APP, "    d = d.normalize(Context(prec=max(28, len(d.as_tuple().digits))))\n",
+                 "    d = d.normalize()\n")],
+         selector=_P + "test_the_two_pane_screen_shows_a_stored_value_exactly_on_both_panes"
+                       "[1234567890123456789012345678901234567890]",
+         expect="AssertionError: ('sql', '1.234567890123456789012345679e+39')"),
+    dict(id="E18", defect="LOW 8: the plain-or-exponent choice made with abs() (28 digits) again",
+         edits=[(_V, '    if d.copy_abs() >= Decimal("1e15"):', '    if abs(d) >= Decimal("1e15"):')],
+         selector=_P + "test_low8_a_number_just_under_1e15_with_29_digits_is_written_plainly",
+         expect="assert '9.9999999999999999999999999999e+14' == "),
+    dict(id="E19", defect="H2: the second engine trims ASCII spaces only",
+         edits=[(_D, _STRIP, '    t = s.strip(" \\t\\n\\r\\f\\v")\n')],
+         selector=_H2_PY + "[a no-break space before-$.s * 1]",
+         expect="AssertionError: ('a no-break space before', '$.s * 1'"),
+    dict(id="E20", defect="H2: the second engine reads ASCII digits only",
+         edits=[(_D, _DIGITS_RE, _DIGITS_RE.replace("\\d", "[0-9]"))],
+         selector=_H2_PY + "[fullwidth digits-$.s * 1]", expect="AssertionError: ('fullwidth digits', '$.s * 1'"),
+    dict(id="E21", defect="H2: probe d reads text in ASCII only (its Unicode reading dropped)",
+         edits=[(_PR, _UNICODE_PART, "")],
+         selector=_H2_SQL + "[a no-break space before]", expect="AssertionError: ('a no-break space before', '$.s * 1'"),
+    dict(id="E22", defect="H2: probe d takes text holding U+001C-U+001F for plain ASCII (skips its reading)",
+         edits=[(_PR, "!~ '^[\\\\x01-\\\\x1b\\\\x20-\\\\x7f]*$'", "!~ '^[\\\\x01-\\\\x7f]*$'")],
+         selector=_H2_SQL + "[U+001C before]", expect="AssertionError: ('U+001C before', '$.s * 1'"),
+    dict(id="E23", defect="H2: probe d's spaces lack the no-break space (not xpr.num's 29)",
+         edits=[(_PR, "    ws = tuple(cp for cp in range(0x110000) if chr(cp).isspace())\n",
+                 "    ws = tuple(cp for cp in range(0x110000) if chr(cp).isspace() and cp != 0xA0)\n")],
+         selector=[_P + "test_h2_probe_d_reads_text_with_the_runtimes_own_tables", _H2_SQL + "[a no-break space before]"],
+         expect="AssertionError: ('a no-break space before', '$.s * 1'"),
+    dict(id="E24", defect="H3: alone, a compared list or group goes unchecked",
+         edits=[(_X, "    operands = list({repr(op): op for ast, _root in asts for op in compared(ast)}.values()) if alone else []\n",
+                 "    operands = []\n")],
+         selector=_P + "test_h3_alone_a_list_or_group_compared_is_refused_as_member_b_refuses_it[lists, 2^53+1 and 2^53-==]",
+         expect="AssertionError: ('lists, 2^53+1 and 2^53', '=='"),
+    dict(id="E25", defect="H3: alone, only a field compared is checked (an if or a coalesce that yields a list is not)",
+         edits=[(_X, '        v = _resolve(row.record_d, op[1]) if op[0] == "field" else evaluate(op, row.record_f, {})\n',
+                 '        v = _resolve(row.record_d, op[1]) if op[0] == "field" else None\n')],
+         selector=_P + "test_h3_alone_a_container_is_refused_wherever_it_is_compared",
+         expect="AssertionError: ('if($.n > 1, $.l, 0) == 0'"),
+    dict(id="E26", defect="order: alone, member b's container before member a's large",
+         edits=[(_X, '    for member in ("a", "b", "d"):\n', '    for member in ("b", "a", "d"):\n')],
+         selector=_P + "test_alone_the_refusal_follows_the_probes_order_a_b_then_d",
+         expect="AssertionError: ContainerRefused('container operand"),
+    dict(id="E27", defect="order: alone, member d's digits before member b's container",
+         edits=[(_X, '    for member in ("a", "b", "d"):\n', '    for member in ("a", "d", "b"):\n')],
+         selector=_P + "test_alone_the_refusal_follows_the_probes_order_a_b_then_d", expect=_REFUSED_D),
+    dict(id="E28", defect="M1: kind() decides large with abs() (28 digits) again",
+         edits=[(_D, "    if d.copy_abs() >= _DBL_MAX:", "    if abs(d) >= _DBL_MAX:")],
+         selector=_P + "test_m1_29_to_35_digits_just_below_the_largest_double_have_too_many_digits"
+                       "[1.7976931348623156999999999999e308]",
+         expect="assert 'large' == 'digits'"),
+    dict(id="E29", defect="M2: the second engine's walk reads a list among several min/max arguments",
+         edits=[(_X, _SOLE_X, '            elif name in ("min", "max"):\n')],
+         selector=_M2_PY, expect=_REFUSED_D),
+    dict(id="E30", defect="M2: probe d's walk reads a list among several min/max arguments",
+         edits=[(_PR, _SOLE_X, '            elif name in ("min", "max"):\n')],
+         selector=_M2_SQL, expect="AssertionError: NumberRefusal('number with more digits than a double holds"),
+    dict(id="E31", defect="M3: probe d no longer holds a zero written with an exponent numeric can't take",
+         edits=[(_PR, _ZERO_HELD, _ZERO_HELD.replace("({t}) ~ '{_ZERO_RE}'", "false"))],
+         selector=_P + "test_m3_the_statement_holds_it_too[0e-20000]",
+         expect="AssertionError: ('0e-20000', NumberRefusal('number too small for a double"),
+    dict(id="E32", defect="M3: probe d calls such a zero small, so a digits row beside it is named small",
+         edits=[(_PR, "THEN ({t}) ~ '[eE]-' AND ({t}) !~ '{_ZERO_RE}'\"", "THEN ({t}) ~ '[eE]-'\"")],
+         selector=_P + "test_m3_the_statement_names_that_row_digits_too",
+         expect="AssertionError: NumberRefusal('number too small for a double"),
+    dict(id="E33", defect="row order: the last row in key order named, not the first",
+         edits=[(_X, "    return held is None or k < held[0]\n", "    return held is None or k > held[0]\n")],
+         selector=_P + "test_the_first_row_in_key_order_is_named_whatever_order_the_rows_arrive_in[d: digits then small]",
+         expect="AssertionError: ('d: digits then small'"),
 ]
 
 
