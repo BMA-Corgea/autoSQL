@@ -95,6 +95,7 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
     if spec.get("measure"):
         roots.append(server_app.expr.parse(paths.dollar(spec["measure"]["field"])))
     page = [server_app.expr.parse(spec["filter"])] if spec.get("filter") else []
+    count_times, page_times = spec.get("count_times") or (), spec.get("times") or ()
     rel = spec.get("related")
     try:
         if rel:
@@ -102,11 +103,21 @@ def run_group(conn, spec: dict, *, whole: bool = True) -> dict:
             # expressions are probed over THAT collection; the page filter
             # reads the parents and is probed over them.
             # T-112: every count and the page filter is a truth: its root is read as a double (member d)
-            outcomes = probes.check(conn, rel["source"], (), truth_roots=counted, numeric_roots=roots)
+            # T-114: each reads its own time fields as instants (count_times, times), never probed raw
+            outcomes = probes.check(conn, rel["source"], (), truth_roots=counted, numeric_roots=roots,
+                                    times=count_times)
             if page:
-                outcomes = outcomes + probes.check(conn, spec["source"], (), truth_roots=page)
+                outcomes = outcomes + probes.check(conn, spec["source"], (), truth_roots=page,
+                                                   times=page_times)
+        elif set(count_times) == set(page_times):
+            outcomes = probes.check(conn, spec["source"], (), truth_roots=counted + page, numeric_roots=roots,
+                                    times=page_times)
         else:
-            outcomes = probes.check(conn, spec["source"], (), truth_roots=counted + page, numeric_roots=roots)
+            # T-114: the counts and the page filter read different time fields as instants: probed apart
+            outcomes = probes.check(conn, spec["source"], (), truth_roots=counted, numeric_roots=roots,
+                                    times=count_times)
+            if page:
+                outcomes += probes.check(conn, spec["source"], (), truth_roots=page, times=page_times)
     except gate.Refused as exc:
         # T-102: a probe's operand too big to check refuses the board, as the build stage does
         return _refused(errors.layer_1(exc, kind="expression"), spec)

@@ -54,6 +54,8 @@ HAND = [
     ("2026-07-09T05:03:48Z", "2026-07-09T05:03:48.000000Z"),
     ("2026-07-09T05:03:48+00:00", "2026-07-09T05:03:48.000000Z"),
     ("2026-07-09T05:03:48.123456+00:00", "2026-07-09T05:03:48.123456Z"),
+    ("2026-07-09T05:03:48.5+00:00", "2026-07-09T05:03:48.500000Z"),              # +00:00 with 1 and 3 digits
+    ("2026-07-09T05:03:48.123+00:00", "2026-07-09T05:03:48.123000Z"),
     ("2026-07-09T05:03:48.123Z", "2026-07-09T05:03:48.123000Z"),
     ("2026-07-09T05:03:48.1Z", "2026-07-09T05:03:48.100000Z"),
     ("2026-07-09T05:03:48.000000Z", "2026-07-09T05:03:48.000000Z"),
@@ -447,6 +449,65 @@ def test_the_statement_cuts_dst_hours_on_the_questions_clock(conn):
         for k in ROWS:
             conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps(_doc(k))))
     assert got == DST_HAND, got
+
+
+#: D by hand (T-101: the instants where this database's clock and Python's disagree), one hour on Denver's clock. A time
+#: written with an offset is tested against D by its instant, never by its text, whose forms no longer order as time.
+D_HOUR = ((datetime(2026, 7, 9, 12, tzinfo=timezone.utc).timestamp(),
+           datetime(2026, 7, 9, 13, tzinfo=timezone.utc).timestamp()),)
+D_CASES = {
+    "inside D by its instant, before it as text": ("2026-07-09T06:30:00-06:00", "refused"),
+    "outside D by its instant, inside it as text": ("2026-07-09T12:30:00+02:00", {"2026-07-09T04:00:00": 1}),
+}
+
+
+@needs_db
+@pytest.mark.parametrize("case", list(D_CASES))
+def test_the_statement_tests_D_against_a_times_instant_never_its_text(conn, case):
+    import psycopg
+    stored, want = D_CASES[case]
+    with conn.transaction():
+        conn.execute(f"DELETE FROM {TABLE}")
+        conn.execute(f"INSERT INTO {TABLE} VALUES (%s, 'd1', %s::jsonb)", (T, json.dumps({"when": stored})))
+        try:
+            with conn.transaction():
+                with env.checking_zones(lambda z: D_HOUR if z == DENVER else ()):
+                    b = builder.build(_bucket_pick("hour", DENVER), KEYS, records=_records())
+                got = {r[0]: int(r[1]) for r in conn.execute(b.sql, b.params).fetchall()}
+        except psycopg.Error as e:
+            got = "refused" if e.sqlstate == "XPR05" else e
+        conn.execute(f"DELETE FROM {TABLE}")
+        for k in ROWS:
+            conn.execute(f"INSERT INTO {TABLE} VALUES (%s, %s, %s::jsonb)", (T, k, json.dumps(_doc(k))))
+    assert got == want, (case, got)
+
+
+@needs_db
+def test_a_probe_never_asks_about_a_time_field_its_truth_reads_as_an_instant(conn):
+    """Spec §3's probe row: read as an instant, a time field is text, null or false in both engines, so no member
+    can fire on it. Probed raw, a number past a double stored there refused the question; a computed column still
+    reads the field raw, and is probed."""
+    from picks import probes
+    parse = env.get("parser").parse
+    pick = _filter_pick([{"field": "when", "op": "after", "value": "2026-07-09T05:00"}])
+    truth = parse(pick["filter"])
+
+    def refused(**kw):
+        try:
+            with conn.transaction():
+                probes.check(conn, T, kw.pop("exprs", []), truth_roots=[truth], records=_records(), **kw)
+            return None
+        except probes.RuntimeRefusal as e:
+            return e
+
+    with conn.transaction():
+        conn.execute(f"INSERT INTO {TABLE} VALUES (%s, 'zz-big', '{{\"when\": 1e400}}'::jsonb)", (T,))
+        raw, read, computed = refused(), refused(times=pick["times"]), refused(times=pick["times"],
+                                                                             exprs=[parse("$.when * 1")])
+        conn.execute(f"DELETE FROM {TABLE} WHERE key = 'zz-big'")
+    assert pick["times"] == ["when"] and getattr(raw, "member", None) == "a", raw
+    assert read is None, read
+    assert getattr(computed, "member", None) == "a", computed
 
 
 @needs_db

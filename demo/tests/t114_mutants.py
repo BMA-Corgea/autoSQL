@@ -1,8 +1,8 @@
 """demo/tests/t114_mutants.py — T-114's mutants: the times GIMS writes read as times, one rule for both engines.
 
-BE1–BE8 break both engines ALIKE -- the rule's two statements (``picks/times.py`` and ``runtime/runtime.sql``'s
+BE1–BE9 break both engines ALIKE -- the rule's two statements (``picks/times.py`` and ``runtime/runtime.sql``'s
 ``xpr.time_at``) or the one expression both evaluate -- so the engines agree, the differential passes, and only the
-hand truth can catch them. E1–E19 break one engine at one edge each. A runtime mutant edits ``runtime/runtime.sql``,
+hand truth can catch them. E1–E21 break one engine at one edge each. A runtime mutant edits ``runtime/runtime.sql``,
 which the parity tests install fresh (``this_runtime.install``) into the throwaway. Run on ``t78_mutants.py``'s
 runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres (the dashboard cases build their
 own scratch copy of the seed there).
@@ -49,9 +49,9 @@ def _pair(text, want):
 
 T114_MUTANTS = [
     # ── both engines broken alike: only the hand truth catches these ──
-    dict(id="BE1", defect="BOTH engines ignore the offset (they agree)",
-         edits=[(_T, _SHIFT, "        shift = timedelta(0)\n"),
-                (_R, _CAST, "      THEN v::timestamp AT TIME ZONE 'UTC'\n")],
+    dict(id="BE1", defect="BOTH engines flip the offset's sign (they agree)",
+         edits=[(_T, _SHIFT, _SHIFT.replace("shift = sign", "shift = -sign")),
+                (_R, _CAST, "      THEN (v::timestamp AT TIME ZONE 'UTC') + ((v::timestamp AT TIME ZONE 'UTC') - v::timestamptz)\n")],
          selector=_pair("2026-07-09T05:03:48-0600", "2026-07-09T11:03:48.000000Z"),
          expect="AssertionError: ('2026-07-09T05:03:48-0600',"),
     dict(id="BE2", defect="BOTH engines drop the fraction",
@@ -91,6 +91,11 @@ T114_MUTANTS = [
          selector=[_P + "test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0]",
                    _P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0]"],
          expect="AssertionError: assert ["),
+    dict(id="BE9", defect="BOTH engines ignore the offset (they agree)",
+         edits=[(_T, _SHIFT, "        shift = timedelta(0)\n"),
+                (_R, _CAST, "      THEN v::timestamp AT TIME ZONE 'UTC'\n")],
+         selector=_pair("2026-07-09T05:03:48-0600", "2026-07-09T11:03:48.000000Z"),
+         expect="AssertionError: ('2026-07-09T05:03:48-0600',"),
     # ── one edge, one engine each ──
     dict(id="E1", defect="the statement's offset cap widened to 15",
          edits=[(_R, _ZONE_SQL, _ZONE_SQL.replace("1[0-4]", "1[0-5]"))],
@@ -171,6 +176,19 @@ T114_MUTANTS = [
          edits=[(_V, '    if read:\n        pick["times"] = read\n', "")],
          selector=_P + "test_the_dashboards_conditions_compare_instants[on Jul 9 (UTC)]",
          expect="AssertionError: ('on Jul 9 (UTC)'"),
+    dict(id="E20", defect="D compared as text again: its bounds as UTC text, tested against the stored text",
+         edits=[(_B, '    p.params["bkt_bounds"] = bounds\n',
+                 '    p.params["bkt_bounds"] = [__import__("time").strftime("%Y-%m-%dT%H:%M:%SZ", __import__("time").gmtime(b))'
+                 ' for b in bounds]\n'),
+                (_B, "width_bucket(extract(epoch FROM {v})::float8, %(bkt_bounds)s::float8[])",
+                 'width_bucket((data #>> %(bkt_path)s) COLLATE \\"C\\", %(bkt_bounds)s::text[])')],
+         selector=_P + "test_the_statement_tests_D_against_a_times_instant_never_its_text"
+                       "[inside D by its instant, before it as text]",
+         expect="AssertionError: ('inside D by its instant, before it as text'"),
+    dict(id="E21", defect="the probes ask about a time field raw again, though its truth reads it as an instant",
+         edits=[("../picks/probes.py", "    return {repr(parse(paths.dollar(t))) for t in times}\n", "    return set()\n")],
+         selector=_P + "test_a_probe_never_asks_about_a_time_field_its_truth_reads_as_an_instant",
+         expect="AssertionError: RuntimeRefusal('out-of-range magnitude"),
 ]
 
 

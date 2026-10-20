@@ -1308,7 +1308,8 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         roots.append(_field_ast(win_field, cc_asts))
 
     try:
-        outcomes = probes.check(conn, source, exprs, numeric_roots=roots, truth_roots=truths)
+        outcomes = probes.check(conn, source, exprs, numeric_roots=roots, truth_roots=truths,
+                                times=pick.get("times") or ())          # T-114: read as the statement reads them
         # T-110: a sort over text nested in jsonb, on a database that orders it its own way, is refused here
         sort_outcome = probes.check_sort(conn, pick, keys)
         if sort_outcome is not None:
@@ -1335,7 +1336,7 @@ def _run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool 
         # decision stays its, and this is display.
         outcomes = probes.run_probes(
             conn, source,
-            probes.build_probes(exprs, numeric_roots=roots, truth_roots=truths),
+            probes.build_probes(exprs, numeric_roots=roots, truth_roots=truths, times=pick.get("times") or ()),
         )
         if isinstance(exc, probes.SortRefusal):          # T-110: the sort's own probe, shown as fired
             outcomes = outcomes + [probes.ProbeOutcome(probe=exc.probe, fired=True, row_key=exc.row_key)]

@@ -96,7 +96,7 @@ def run_lookup(conn, pick: dict, lk: dict) -> dict:
     exprs = [server_app.expr.parse(cc["expr"]) for cc in pick.get("computed") or []]
     truths = [server_app.expr.parse(pick["filter"])] if pick.get("filter") else []   # T-112: a truth is read
     try:
-        outcomes = probes.check(conn, source, exprs, truth_roots=truths)
+        outcomes = probes.check(conn, source, exprs, truth_roots=truths, times=pick.get("times") or ())  # T-114
     except gate.Refused as exc:
         # T-102: a probe's operand too big to check refuses the pick, as the build stage does
         return _refused(errors.layer_1(exc, kind="expression"), pick, lk)

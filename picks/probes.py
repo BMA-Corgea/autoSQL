@@ -80,7 +80,7 @@ import weakref
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from . import env, gate
+from . import env, gate, paths
 
 #: The real float8 limit, rendered at 17 significant digits (B15).  Since
 #: the 2026-08-23 adoption (q4/GA-7) the vendored runtime's own guard sits
@@ -573,8 +573,19 @@ def _build_probe_unbudgeted(member: str, operand_asts: Sequence, records, compil
     )
 
 
+def _instant_fields(times: Sequence) -> set:
+    """T-114: the fields a pick's truths read as instants (its ``times``, as field ASTs). Read so, a field is text,
+    null or false in both engines -- never a number past a double, an object or a list, or a number a double
+    misreads -- so no member could fire on it (T-98's reason for a time_of_day): a truth's such field is not
+    probed. A computed column or a measure reads the field raw, and is probed as before."""
+    if not times:
+        return set()
+    parse = env.get("parser").parse
+    return {repr(parse(paths.dollar(t))) for t in times}
+
+
 def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), truth_roots: Sequence = (), records=None,
-                 collection: Optional[str] = None) -> List[Probe]:
+                 collection: Optional[str] = None, times: Sequence = ()) -> List[Probe]:
     """Build the (at most two) probes for one pick.
 
     exprs         -- every expression AST the pick carries: each computed
@@ -590,6 +601,9 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), truth_roots: 
     A member with no operands builds no probe: the returned list holds only
     probes with something to ask, member (a) first, then (b), then (d).
 
+    times         -- T-114: the fields the truths read as instants (the pick's ``times``, a board's
+                     ``count_times`` / ``times``): a truth's such field is never probed (``_instant_fields``)
+
     records       -- the records description (default: the process's); its
                      table and partition scope each probe, and with a fold
                      the compiler needs ``collection``
@@ -602,11 +616,12 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), truth_roots: 
     seen_a: set = set()
     ops_b: List = []
     seen_b: set = set()
+    skip: set = set()                  # T-114: filled while the truths are walked (_instant_fields)
 
     def extend(target: List, seen: set, nodes: Sequence) -> None:
         for n in nodes:
             key = repr(n)
-            if key not in seen:
+            if key not in seen and key not in skip:
                 seen.add(key)
                 target.append(n)
 
@@ -616,20 +631,28 @@ def build_probes(exprs: Sequence, *, numeric_roots: Sequence = (), truth_roots: 
     def extend_d(nodes: Sequence[Tuple[Any, str]]) -> None:
         for n, pos in nodes:
             key = (repr(n), pos)
-            if key not in seen_d:
+            if key not in seen_d and repr(n) not in skip:
                 seen_d.add(key)
                 ops_d.append((n, pos))
 
-    for e in list(exprs) + list(truth_roots):
+    instant = _instant_fields(times)
+    for e in exprs:
         extend(ops_a, seen_a, numeric_context_operands(e))
         extend(ops_b, seen_b, container_check_operands(e))
+    skip.update(instant)
+    for e in truth_roots:
+        extend(ops_a, seen_a, numeric_context_operands(e))
+        extend(ops_b, seen_b, container_check_operands(e))
+    skip.clear()
     for r in numeric_roots:
         extend(ops_a, seen_a, numeric_context_operands(r, root_is_numeric=True))
         extend(ops_b, seen_b, container_check_operands(r))
     for e in exprs:
         extend_d(exact_reading_operands(e, _D_SHOWN))
+    skip.update(instant)
     for e in truth_roots:
         extend_d(exact_reading_operands(e, _D_NUMBER))
+    skip.clear()
     for r in numeric_roots:
         extend_d(exact_reading_operands(r, _D_SHOWN))   # an aggregate's field is read as numeric, exactly
 
@@ -847,7 +870,7 @@ def _cause_d(kind: str, row_key: Optional[str]) -> str:
 
 def check(conn, collection: str, exprs: Sequence, *,
           numeric_roots: Sequence = (), truth_roots: Sequence = (), ctx: str = "{}",
-          records=None) -> List[ProbeOutcome]:
+          records=None, times: Sequence = ()) -> List[ProbeOutcome]:
     """Layer 2, in one call: build both probes, run both, and raise the named
     RuntimeRefusal if either fired — member (a) taking precedence.  Returns
     every outcome (for the pane) when nothing fired.
@@ -858,7 +881,7 @@ def check(conn, collection: str, exprs: Sequence, *,
     """
     outcomes = run_probes(conn, collection,
                           build_probes(exprs, numeric_roots=numeric_roots, truth_roots=truth_roots,
-                                       records=records, collection=collection),
+                                       records=records, collection=collection, times=times),
                           ctx=ctx)
     for outcome in outcomes:  # member "a" precedes "b", and "b" precedes "d", by construction
         if outcome.fired and outcome.probe.member == "d":
