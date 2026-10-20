@@ -722,6 +722,9 @@ def demo():
         for k, v in BARE.items():                    # a-chk's preview: bare dates beside times, in a field of their own
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
                        (f"zx-{k}", json.dumps({"bd": v, "batch": "bare"})))
+        for k, v in DST_EDGE.items():                # bare dates on days a clock skips or repeats midnight
+            cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
+                       (f"zw-{k}", json.dumps({"dz": v, "batch": "dst"})))
         cx.commit()
     opts = f"-c timezone={settings.TIME_ZONE} -c extra_float_digits={settings.EXTRA_FLOAT_DIGITS}"
     real = db.connect
@@ -994,3 +997,63 @@ def test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500(demo):
         dashboard._CACHE.clear()
     assert status == 200 and a.get("kind") == "chart", (status, str(a.get("message") or a)[:200])
     assert a["bars"][-1]["start"] == "2026-12-01T00:00:00Z" and a["bars"][-1]["value"] == 1, a["bars"][-1]
+
+
+#: a bare date on a day its clock skips or repeats midnight (the foreman: mind them). Havana skips 00:00 on Mar 8,
+#: 2026 (00:00 CST becomes 01:00 CDT) and repeats it on Nov 1 (01:00 CDT becomes 00:00 CST); Nov 1 is Denver's
+#: fall-back day. A bare date stays at its wall midnight, 00:00 (a date is never read on a clock; the conditions read
+#: it there too), so per hour on Havana's clock Mar 8's bare date is in the hour the clock skips.
+HAVANA = "America/Havana"
+DST_EDGE = {"h0": "2026-03-08", "h1": "2026-03-08T06:30:00Z", "h2": "2026-11-01", "h3": "2026-11-01T04:30:00Z",
+            "h4": "2026-11-01T05:30:00Z"}
+#: by hand. Havana: h1 is 02:30 CDT; h3 and h4 are Nov 1's two 00:30s, CDT then CST. Denver: h1 is Mar 7, 23:30 MST;
+#: h3 and h4 are Oct 31, 22:30 and 23:30 MDT.
+DST_EDGE_HAND = {
+    (HAVANA, "hour"): {"2026-03-08T00:00:00": 1, "2026-03-08T02:00:00": 1, "2026-11-01T00:00:00": 3},
+    (HAVANA, "day"): {"2026-03-08T00:00:00": 2, "2026-11-01T00:00:00": 3},
+    (DENVER, "hour"): {"2026-03-07T23:00:00": 1, "2026-03-08T00:00:00": 1, "2026-10-31T22:00:00": 1,
+                       "2026-10-31T23:00:00": 1, "2026-11-01T00:00:00": 1},
+    (DENVER, "day"): {"2026-03-07T00:00:00": 1, "2026-03-08T00:00:00": 1, "2026-10-31T00:00:00": 2,
+                      "2026-11-01T00:00:00": 1},
+}
+DST_EDGE_CONDS = {
+    "on Mar 8": ({"field": "when", "op": "on", "value": "2026-03-08"}, {HAVANA: {"h0", "h1"}, DENVER: {"h0"}}),
+    "on Nov 1": ({"field": "when", "op": "on", "value": "2026-11-01"}, {HAVANA: {"h2", "h3", "h4"}, DENVER: {"h2"}}),
+    "before Mar 8, 1:30 AM": ({"field": "when", "op": "before", "value": "2026-03-08T01:30"},
+                              {HAVANA: {"h0"}, DENVER: {"h0", "h1"}}),
+    "after Oct 31, 11:00 PM": ({"field": "when", "op": "after", "value": "2026-10-31T23:00"},
+                               {HAVANA: {"h2", "h3", "h4"}, DENVER: {"h2", "h4"}}),
+}
+
+
+@needs_db
+@pytest.mark.parametrize("zone", [HAVANA, DENVER])
+def test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight(conn, demo, zone):
+    """Both engines' buckets per hour and per day and their conditions, against hand truth, and the dashboard's
+    chart: per hour on Havana's clock the axis lays the hour the clock skips for Mar 8's bare date (it was a 500)."""
+    bad = []
+
+    def check(ok, *what):
+        if not ok:
+            bad.append(what)
+    for per in ("hour", "day"):
+        want = DST_EDGE_HAND[(zone, per)]
+        pick = _bucket_pick(per, zone)
+        sql = _with_rows(conn, DST_EDGE, lambda: {r["bucket"]: int(r["agg"]) for r in _sql(conn, pick)})
+        py = {r["bucket"]: int(r["agg"]) for r in _py_rows(DST_EDGE, pick)}
+        check(sql == want and py == want, "buckets", per, sql, py)
+        status, a = _answer(demo, columns=[], conditions=[{"field": "batch", "op": "eq", "value": "dst"}],
+                            summary={"fn": "count", "field": None, "per": per, "time": "dz"}, zone=zone)
+        if status != 200 or a.get("kind") != "chart":
+            check(False, "chart", per, status, str(a.get("message") or a)[:120])
+            continue
+        bars = {b["start"]: int(b["value"]) for b in a["bars"] if not b.get("empty")}
+        check(bars == want, "chart", per, bars)
+        check((a["bars"][0]["start"], a["bars"][-1]["start"]) == (min(want), max(want)), "axis", per,
+              (a["bars"][0]["start"], a["bars"][-1]["start"]))
+    for name, (card, kept) in DST_EDGE_CONDS.items():
+        pick = _filter_pick([card], "all", zone)
+        sql = _with_rows(conn, DST_EDGE, lambda: {r["key"] for r in _sql(conn, pick)})
+        py = {r["key"] for r in _py_rows(DST_EDGE, pick)}
+        check(sql == kept[zone] and py == kept[zone], name, sorted(sql), sorted(py))
+    assert not bad, (zone, bad)
