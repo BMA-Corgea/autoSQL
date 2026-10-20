@@ -32,6 +32,7 @@ _PY_WEEK = "        trunc = day - timedelta(days=day.weekday())          # Monda
 _TIMES = "../picks/times.py"
 _RUNTIME = "../runtime/runtime.sql"
 _T114_SQL = "../parity/tests/test_t114_times.py::test_the_rule_in_sql"
+_T114_PY = "../parity/tests/test_t114_times.py::test_the_rule_in_python"
 
 T88_MUTANTS = [
     dict(id="V1", defect="BOTH engines start a week on Sunday (they agree)",
@@ -45,7 +46,7 @@ T88_MUTANTS = [
          edits=[(_TIMES, "    if not _READABLE.fullmatch(value):\n        return None\n",
                  "    if len(value) > 16 and value[16] in \"Z+-\":\n        value = value[:16] + \":00\" + value[16:]\n"
                  "    if not _READABLE.fullmatch(value):\n        return None\n")],
-         selector=VECTORS, expect="!= [['2025-12-29T00:00:00Z', '2'], ['2026-01-05T00:00:00Z', '3']]"),
+         selector=_T114_PY + "[2026-07-09T05:03Z-None]", expect="AssertionError: ('2026-07-09T05:03Z',"),
     dict(id="V3", defect="BOTH engines read an empty text as blank in a group",
          edits=[("../picks/group.py", "    select = ['nullif( r.data #> %(grp_path)s, \\'null\\'::jsonb )  AS \"grp\"',",
                  "    select = ['nullif( nullif( r.data #> %(grp_path)s, \\'null\\'::jsonb ), \\'\"\"\\'::jsonb )  AS \"grp\"',"),

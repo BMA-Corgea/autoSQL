@@ -650,6 +650,12 @@ def _generated(n, seed=114):
             s = s.replace("-", "", 2)                # the basic format
         elif r < 0.08:
             s = "".join(rnd.choice("0123456789-:TZ+. ") for _ in range(rnd.randint(0, 30)))
+        elif r < 0.09:
+            s = s[:16] + off                         # no seconds, the zone kept (…T05:03Z)
+        elif r < 0.095:
+            s = s + " "                              # a trailing space
+        elif r < 0.1:
+            s = s.replace("0", "٠", 1)          # a Unicode digit (ARABIC-INDIC ZERO)
         out.append(s)
     return out
 
