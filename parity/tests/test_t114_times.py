@@ -1016,20 +1016,21 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
         "min": "2026-07-08T20:30:00Z", "max": "2026-10-20T03:00:00Z",
         "dates": {"min": "2026-07-09", "max": "2026-10-20"}}, "the span", f["bd"].get("range"))
     if zone:
-        # the zone-disagreement check: a window of disagreement around b0's midnight on this clock refuses no bare
-        # date (a date is its own midnight, never read on a clock); the window holds no time
+        # the zone-disagreement check, a window of disagreement around b0's midnight on this clock (it holds no
+        # time): per hour the bare date is read on the clock, for the hour its day begins in, and refused by name as a
+        # time there is; per day its day is its own on every clock, so nothing is read on one
         mid = _bare_at("b0", zone).timestamp()
-
-        def with_d():
-            with conn.transaction():
-                with env.checking_zones(lambda z: ((mid - 1800, mid + 1800),) if z == zone else ()):
-                    b = builder.build(_bucket_pick("hour", zone), KEYS, records=_records())
-                return {r[0]: int(r[1]) for r in conn.execute(b.sql, b.params).fetchall()}
-        try:
-            got = _with_rows(conn, BARE, with_d)
-        except psycopg.Error as e:
-            got = e.sqlstate
-        check(got == _bare_buckets("hour", zone), "zone check", got)
+        for per, want in (("hour", "XPR05"), ("day", _bare_buckets("day", zone))):
+            def with_d():
+                with conn.transaction():
+                    with env.checking_zones(lambda z: ((mid - 1800, mid + 1800),) if z == zone else ()):
+                        b = builder.build(_bucket_pick(per, zone), KEYS, records=_records())
+                    return {r[0]: int(r[1]) for r in conn.execute(b.sql, b.params).fetchall()}
+            try:
+                got = _with_rows(conn, BARE, with_d)
+            except psycopg.Error as e:
+                got = e.sqlstate
+            check(got == want, "zone check", per, got)
     # the years shortcut: a bare date at either end of years 1..9999 is its own day on every clock
     ends = {"y1": "0001-01-01", "y9": "9999-12-31"}
     want = {"0001-01-01T00:00:00" + ("" if zone else "Z"): 1, "9999-12-31T00:00:00" + ("" if zone else "Z"): 1}
@@ -1066,15 +1067,16 @@ def test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500(demo):
 
 #: a bare date on a day its clock skips or repeats midnight (the foreman: mind them). Havana skips 00:00 on Mar 8,
 #: 2026 (00:00 CST becomes 01:00 CDT) and repeats it on Nov 1 (01:00 CDT becomes 00:00 CST); Nov 1 is Denver's
-#: fall-back day. A bare date stays at its wall midnight, 00:00 (a date is never read on a clock; the conditions read
-#: it there too), so per hour on Havana's clock Mar 8's bare date is in the hour the clock skips.
+#: fall-back day. Every reader reads a bare date at one instant: the first of its day on the clock -- Mar 8's in
+#: Havana is 01:00 CDT (05:00Z), Nov 1's the first of its two midnights (04:00Z) -- so per hour Mar 8's bare date is
+#: in the 01:00 hour, the first the clock shows that day.
 HAVANA = "America/Havana"
 DST_EDGE = {"h0": "2026-03-08", "h1": "2026-03-08T06:30:00Z", "h2": "2026-11-01", "h3": "2026-11-01T04:30:00Z",
             "h4": "2026-11-01T05:30:00Z"}
 #: by hand. Havana: h1 is 02:30 CDT; h3 and h4 are Nov 1's two 00:30s, CDT then CST. Denver: h1 is Mar 7, 23:30 MST;
 #: h3 and h4 are Oct 31, 22:30 and 23:30 MDT.
 DST_EDGE_HAND = {
-    (HAVANA, "hour"): {"2026-03-08T00:00:00": 1, "2026-03-08T02:00:00": 1, "2026-11-01T00:00:00": 3},
+    (HAVANA, "hour"): {"2026-03-08T01:00:00": 1, "2026-03-08T02:00:00": 1, "2026-11-01T00:00:00": 3},
     (HAVANA, "day"): {"2026-03-08T00:00:00": 2, "2026-11-01T00:00:00": 3},
     (DENVER, "hour"): {"2026-03-07T23:00:00": 1, "2026-03-08T00:00:00": 1, "2026-10-31T22:00:00": 1,
                        "2026-10-31T23:00:00": 1, "2026-11-01T00:00:00": 1},
@@ -1088,6 +1090,15 @@ DST_EDGE_CONDS = {
                               {HAVANA: {"h0"}, DENVER: {"h0", "h1"}}),
     "after Oct 31, 11:00 PM": ({"field": "when", "op": "after", "value": "2026-10-31T23:00"},
                                {HAVANA: {"h2", "h3", "h4"}, DENVER: {"h2", "h4"}}),
+    # at the first instant itself: in Havana Mar 8 begins at 1:00 AM, so its bare date is not before it, and is
+    # between it and 11:00 PM; in Denver Mar 8 began an hour earlier
+    "before Mar 8, 1:00 AM": ({"field": "when", "op": "before", "value": "2026-03-08T01:00"},
+                              {HAVANA: set(), DENVER: {"h0", "h1"}}),
+    "between Mar 8, 1:00 AM and 11:00 PM": ({"field": "when", "op": "between", "value": "2026-03-08T01:00",
+                                             "value2": "2026-03-08T23:00"}, {HAVANA: {"h0", "h1"}, DENVER: set()}),
+    # Havana's second midnight on Nov 1 (00:00 CST), picked as UTC: Nov 1 began an hour before it, at the first
+    "before 05:00 UTC on Nov 1": ({"field": "when", "op": "before", "value": "2026-11-01T05:00:00Z"},
+                                  {HAVANA: {"h0", "h1", "h2", "h3"}, DENVER: {"h0", "h1", "h3"}}),
 }
 #: by hand, ascending: a bare date at its midnight on the clock -- in Havana Mar 8's begins at 05:00Z (01:00 CDT) and
 #: Nov 1's first midnight is 04:00Z (CDT), before both 00:30s; in Denver Mar 8's is 07:00Z (MST), Nov 1's 06:00Z (MDT)
@@ -1098,9 +1109,10 @@ DST_EDGE_BOARD = {(HAVANA, "max"): "2026-11-01T05:30:00Z", (HAVANA, "min"): "202
 
 @needs_db
 @pytest.mark.parametrize("zone", [HAVANA, DENVER])
-def test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_stays_at_its_wall_midnight(conn, demo, zone):
-    """Both engines' buckets per hour and per day and their conditions, against hand truth, and the dashboard's
-    chart: per hour on Havana's clock the axis lays the hour the clock skips for Mar 8's bare date (it was a 500)."""
+def test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_reads_as_its_first_instant(conn, demo, zone):
+    """Both engines' buckets per hour and per day, their conditions, sort and board, against hand truth, and the
+    dashboard's chart: per hour on Havana's clock Mar 8's bare date is in the hour that day begins in, 01:00 (at its
+    wall midnight it fell in an hour the clock never shows: a 500, then a phantom 12 AM)."""
     bad = []
 
     def check(ok, *what):
@@ -1163,6 +1175,45 @@ def test_the_sort_reads_only_a_bare_date_on_the_clock_and_refuses_one_inside_d_b
     at = BARE_TIMES["b2"].timestamp()
     got = _with_rows(conn, BARE, lambda: sorted_with((at - 1800, at + 1800)))
     assert got == _bare_sorted("asc", DENVER), got
+
+
+@needs_db
+@pytest.mark.parametrize("zone", [None, DENVER])
+def test_a_bare_date_sorts_ahead_of_a_time_at_its_very_midnight(conn, zone):
+    """A tie, on a clock as without one: a bare date and a time at exactly its midnight there sort the date first
+    either way round, both engines (with no clock its own text always sorted it so)."""
+    rows = {"a": "2026-07-09T06:00:00Z" if zone else "2026-07-09T00:00:00Z", "z": "2026-07-09"}   # by key: a, z
+    for direction, want in (("asc", ["z", "a"]), ("desc", ["a", "z"])):
+        pick = _pick(sort={"field": "$.when", "dir": direction}, times=["when"],
+                     **({"sort_zone": zone} if zone else {}))
+        sql = _with_rows(conn, rows, lambda: [r["key"] for r in _sql(conn, pick)])
+        py = [r["key"] for r in _py_rows(rows, pick)]
+        assert sql == want and py == want, (zone, direction, sql, py)
+
+
+@needs_db
+def test_a_capped_table_sorted_by_a_time_field_on_a_clock_states_its_total(demo):
+    """The page always sends its clock. A table sorted by a time field, capped by Show, still says how many rows the
+    choices match: the count reads the pick without its sort, and so without the sort's clock."""
+    import re
+    totals = []
+    for on_clock in ({}, {"zone": DENVER}):
+        status, a = _answer(demo, columns=["t2500"], sort={"field": "t2500", "dir": "desc"}, show=25, **on_clock)
+        assert status == 200 and a.get("kind") == "table", (status, str(a)[:200])
+        m = re.search(r"the first 25 of ([\d,]+)", a["sentence"])
+        totals.append(m.group(1) if m else a["sentence"])
+    assert totals[0] == totals[1] and totals[0][0].isdigit(), totals
+
+
+def test_the_axis_lays_every_bucket_an_engine_returns_even_an_hour_the_clock_never_shows():
+    """No bucket with rows falls off the axis, whatever an engine labels it (the 500 a-chk found): per hour on
+    Havana's clock Mar 8 shows no 00:00, so the axis lays none of its own, and a bucket there is laid all the same."""
+    from demo.server import dashboard
+    lo, hi = "2026-03-07T23:00:00", "2026-03-08T02:00:00"
+    shown = ["2026-03-07T23:00:00", "2026-03-08T01:00:00", "2026-03-08T02:00:00"]
+    assert dashboard._axis_slots("hour", lo, hi, HAVANA, []) == shown
+    assert dashboard._axis_slots("hour", lo, hi, HAVANA, ["2026-03-08T00:00:00", "2026-03-08T01:00:00"]) == [
+        "2026-03-07T23:00:00", "2026-03-08T00:00:00", "2026-03-08T01:00:00", "2026-03-08T02:00:00"]
 
 
 def test_a_clock_for_bare_dates_is_refused_unless_a_listed_zone_beside_a_time_read_as_an_instant():
