@@ -644,9 +644,31 @@ def string_literal(value: str) -> str:
     return '"' + "".join(out) + '"'
 
 
+#: A number typed as text (T-112, run 11's fold-in): the language's own number grammar in ASCII -- an optional sign,
+#: digits with an optional point, an optional exponent. Nothing else is read as a number here.
+_TYPED_NUMBER = re.compile(r"[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
+_JS_PLAIN = Decimal("1e21")         # below it JSON.stringify writes an integer's digits, as a JSON number reached here
+_TYPED_WORDS = {doubles.LARGE: "That number is too large to compare with.",
+                doubles.SMALL: "That number is too small to compare with.",
+                doubles.DIGITS: "That number has more digits than can be compared exactly."}
+
+
 def number_literal(value) -> str:
-    """A number as a literal of the expression language.  Only a finite
-    JSON number is accepted; ``-5`` is the language's own unary minus."""
+    """A number as a literal of the expression language: a finite JSON number, or the text a person typed (the
+    number box sends what was typed, so the engine reads exactly that). Typed text is read by T-112's rule: held,
+    it is written as the JSON number for it is (an integer below 1e21 in its digits, as ``JSON.stringify`` writes
+    one; anything else as Postgres writes its double); not held, it is refused in words before any SQL. ``-5`` is
+    the language's own unary minus."""
+    if isinstance(value, str):
+        if not _TYPED_NUMBER.fullmatch(value):
+            raise ViewError("A number value must be a number.")
+        exact = Decimal(value)
+        kind = doubles.kind(exact)
+        if kind is not None:
+            raise ViewError(_TYPED_WORDS[kind])
+        if exact == exact.to_integral_value() and exact.copy_abs() < _JS_PLAIN:
+            return str(int(exact))
+        return doubles.pg_shortest(float(exact))
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ViewError("A number value must be a number.")
     try:
@@ -737,7 +759,9 @@ def _value_for(field: dict, value, zone=None):
     """One picked value → (its literal, how the sentence reads it)."""
     kind = field["kind"]
     if kind == "number":
-        return number_literal(value), fmt_number(str(value))
+        literal = number_literal(value)
+        # typed text is said as it is compared ("12.50" as 12.5); a JSON number as it always was
+        return literal, fmt_number(literal if isinstance(value, str) else str(value))
     if kind == "time":
         t = _instant(value, zone)
         return string_literal(t), fmt_time(t, zone)
@@ -842,7 +866,8 @@ def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
         if not all(isinstance(v, (str, int, float)) and not isinstance(v, bool) for v in values):
             raise ViewError(f"Each value for {label} must be one value.")
         unique = list(dict.fromkeys(values))
-        pairs = [_value_for(field, v, zone) for v in unique]
+        # one value however it was written (typed "12.50" and 12.5 are one number): one per literal
+        pairs = list({lit: (lit, said) for lit, said in (_value_for(field, v, zone) for v in unique)}.values())
         if len(pairs) == 1:
             lit, said = pairs[0]
             return f"{ref} == {lit}", f"{label} is {said}"

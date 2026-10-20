@@ -211,8 +211,10 @@ function NumberInput({ value, onChange, field, label }) {
       onChange={(e) => {
         const t = e.target.value;
         setText(t);
-        const n = t.trim() === "" ? "" : Number(t);
-        onChange(n === "" || Number.isFinite(n) ? n : "");
+        // T-112: the typed text itself, only when it is a finite number, so the engine reads exactly what was
+        // typed (Number("9007199254740993") is ...992, a neighbour of it)
+        const s = t.trim();
+        onChange(s !== "" && Number.isFinite(Number(s)) ? s : "");
       }}
     />
   );

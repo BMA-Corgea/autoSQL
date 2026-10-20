@@ -484,7 +484,8 @@ class TestConditions:
 
     @pytest.mark.parametrize("c, says", [
         (cond("status", "eq", value=7), "A text value must be text."),
-        (cond("payload.load", "gt", value="50"), "A number value must be a number."),
+        # T-112, run 11: typed text is read now ("50" answers as 50); text that is no number keeps the words
+        (cond("payload.load", "gt", value="fifty"), "A number value must be a number."),
         (cond("payload.load", "gt", value=True), "A number value must be a number."),
         (cond("ts", "on", value="Aug 18"), "A day must be picked as a date."),
         (cond("ts", "after", value="2026-08-18T25:00"), "A time must be picked as a date and a time."),

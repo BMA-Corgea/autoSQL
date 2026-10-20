@@ -7,7 +7,8 @@ engine at one edge each. The parity tests run on an alpine throwaway (AUTOSQL_PA
 
 The round after a-chk's check (H1-H3, M1-M3, LOW 8) adds BE6-BE8, both engines alike again (text read as ASCII
 only, min/max of several read as a list's elements, a zero with a huge exponent called small), and E17-E33, one edge
-each. a-chk's own BM1-BM10 (the two walks broken alike) run on its lean runner, ``chk_my_mutants.py``.
+each. a-chk's own BM1-BM10 (the two walks broken alike) run on its lean runner, ``chk_my_mutants.py``. E34-E35 are
+run 11's fold-in: a number condition's value may be the text a person typed.
 
 E2 and E16 are the foreman's ruling (A): a number past the largest double is left as it was beside the statement
 (E2 refuses it anyway, and the demo's step 13 would move), and refused when the engine answers alone (E16, the
@@ -241,6 +242,17 @@ T112_MUTANTS = [
          edits=[(_X, "    return held is None or k < held[0]\n", "    return held is None or k > held[0]\n")],
          selector=_P + "test_the_first_row_in_key_order_is_named_whatever_order_the_rows_arrive_in[d: digits then small]",
          expect="AssertionError: ('d: digits then small'"),
+    # ── run 11's fold-in: the number a person typed ──
+    dict(id="E34", defect="fold-in: the view reads typed text through float(), so 2^53+1 is held as 2^53",
+         edits=[(_V, "        exact = Decimal(value)\n", "        exact = Decimal(repr(float(value)))\n")],
+         selector=_P + "test_fold_in_a_typed_number_no_double_holds_is_refused_in_words_before_any_sql"
+                       "[9007199254740993]",
+         expect="DID NOT RAISE"),
+    dict(id="E35", defect="fold-in: a typed integer written in Python's float spelling (-5.0), not as its JSON number",
+         edits=[(_V, "        if exact == exact.to_integral_value() and exact.copy_abs() < _JS_PLAIN:\n",
+                 "        if False:\n")],
+         selector=_P + "test_fold_in_a_typed_number_a_double_holds_is_written_as_postgres_writes_it[-5]",
+         expect="assert '-5.0' == '-5'"),
 ]
 
 
