@@ -630,8 +630,10 @@ $$;
 -- ----------------------------------------------------------------------------
 -- time_text : a time field's value as a dashboard's filter and sort read it (T-114, the foreman's (A)).
 --   A readable time (xpr.time_at) is its UTC instant at one width, YYYY-MM-DDTHH:MM:SS.ffffffZ, so text order is
---   time order; JSON null and SQL NULL stay as they are (a blank keeps its place); anything else is false --
---   present, but no time, so it matches no comparison and "present" / "blank" keep their meaning.
+--   time order; a bare date is itself, YYYY-MM-DD, whose midnight is the question's clock's (the view compares it
+--   as a date; to the language it has no time of day); JSON null and SQL NULL stay as they are (a blank keeps its
+--   place); anything else is false -- present, but no time, so it matches no comparison and "present" / "blank"
+--   keep their meaning.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION xpr.time_text(j jsonb) RETURNS jsonb
 LANGUAGE plpgsql STABLE PARALLEL SAFE AS $$
@@ -640,7 +642,9 @@ BEGIN
   IF j IS NULL OR jsonb_typeof(j) = 'null' THEN RETURN j; END IF;
   IF jsonb_typeof(j) = 'string' THEN
     t := xpr.time_at(j #>> '{}');
-    IF t IS NOT NULL THEN
+    IF t IS NOT NULL AND length(j #>> '{}') = 10 THEN
+      RETURN j;                          -- a bare date reads as itself: its midnight is the question's clock's
+    ELSIF t IS NOT NULL THEN
       RETURN to_jsonb(to_char(t AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'));
     END IF;
   END IF;

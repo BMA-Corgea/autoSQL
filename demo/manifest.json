@@ -9,5 +9,5 @@
   "spikes/T-1/proto/compile.py": "b71b153802d0df9479141ac02b662ca94d86268a940f66f1fb7a9782c8d0f3e2",
   "seed:demo.records:md5": "376496194db0a83b46963341710dba82",
   "ui:frontend-sources:sha256": "dc8cd0c9a396845a4d2fc48a5779dfd0dcf9a329df26fe45a84ab86869b6b7e4",
-  "demo/vendor/runtime.sql": "a1cbf9aab029bf08a92531e5d5b0c7fbef0723beee45a7f8db1d5afb0891b917"
+  "demo/vendor/runtime.sql": "3b66a95bfa3858ae11eb827b4b95b63043304ef4e54427fb217093c1ff21b81d"
 }

@@ -366,23 +366,25 @@ def test_any_other_zone_is_refused_in_words(zone):
 
 @pytest.mark.parametrize("cond, zone, expr, words", [
     (c("ts", "on", "2026-08-20"), DEN,
-     '($.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z")', "Time is on Aug 20"),
+     '((length($.ts) > 10 and $.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-08-20"))', "Time is on Aug 20"),
     (c("ts", "on", "2026-03-08"), DEN,
-     '($.ts >= "2026-03-08T07:00:00.000000Z" and $.ts < "2026-03-09T06:00:00.000000Z")', "Time is on Mar 8"),
+     '((length($.ts) > 10 and $.ts >= "2026-03-08T07:00:00.000000Z" and $.ts < "2026-03-09T06:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-03-08"))', "Time is on Mar 8"),
     (c("ts", "on", "2026-11-01"), DEN,
-     '($.ts >= "2026-11-01T06:00:00.000000Z" and $.ts < "2026-11-02T07:00:00.000000Z")', "Time is on Nov 1"),
+     '((length($.ts) > 10 and $.ts >= "2026-11-01T06:00:00.000000Z" and $.ts < "2026-11-02T07:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-11-01"))', "Time is on Nov 1"),
     (c("ts", "on", "2026-08-21"), "Pacific/Kiritimati",
-     '($.ts >= "2026-08-20T10:00:00.000000Z" and $.ts < "2026-08-21T10:00:00.000000Z")', "Time is on Aug 21"),
-    (c("ts", "after", "2026-08-20T17:00"), DEN, '$.ts > "2026-08-20T23:00:00.000000Z"', "Time is after Aug 20, 5:00 PM"),
-    (c("ts", "before", "2026-11-01T01:30"), DEN, '$.ts < "2026-11-01T07:30:00.000000Z"', "Time is before Nov 1, 1:30 AM"),
+     '((length($.ts) > 10 and $.ts >= "2026-08-20T10:00:00.000000Z" and $.ts < "2026-08-21T10:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-08-21"))', "Time is on Aug 21"),
+    (c("ts", "after", "2026-08-20T17:00"), DEN, '((length($.ts) > 10 and $.ts > "2026-08-20T23:00:00.000000Z") or (length($.ts) == 10 and $.ts > "2026-08-20"))', "Time is after Aug 20, 5:00 PM"),
+    (c("ts", "before", "2026-11-01T01:30"), DEN, '((length($.ts) > 10 and $.ts < "2026-11-01T07:30:00.000000Z") or (length($.ts) == 10 and $.ts <= "2026-11-01"))', "Time is before Nov 1, 1:30 AM"),
     (c("ts", "between", "2026-08-20T17:00", "2026-08-20T09:00"), DEN,
-     '($.ts >= "2026-08-20T15:00:00.000000Z" and $.ts <= "2026-08-20T23:00:00.000000Z")',
+     '((length($.ts) > 10 and $.ts >= "2026-08-20T15:00:00.000000Z" and $.ts <= "2026-08-20T23:00:00.000000Z") or (length($.ts) == 10 and $.ts >= "2026-08-21" and $.ts <= "2026-08-20"))',
      "Time is between Aug 20, 9:00 AM and Aug 20, 5:00 PM"),
-    (c("ts", "after", "2026-08-20T23:00:00Z"), DEN, '$.ts > "2026-08-20T23:00:00.000000Z"', "Time is after Aug 20, 5:00 PM"),
+    (c("ts", "after", "2026-08-20T23:00:00Z"), DEN,
+     '((length($.ts) > 10 and $.ts > "2026-08-20T23:00:00.000000Z") or (length($.ts) == 10 and $.ts > "2026-08-20"))',
+     "Time is after Aug 20, 5:00 PM"),
     # no zone: exactly as before T-98
     (c("ts", "on", "2026-08-20"), None,
-     '($.ts >= "2026-08-20T00:00:00.000000Z" and $.ts < "2026-08-21T00:00:00.000000Z")', "Time is on Aug 20"),
-    (c("ts", "after", "2026-08-20T17:00"), None, '$.ts > "2026-08-20T17:00:00.000000Z"', "Time is after Aug 20, 17:00 UTC"),
+     '((length($.ts) > 10 and $.ts >= "2026-08-20T00:00:00.000000Z" and $.ts < "2026-08-21T00:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-08-20"))', "Time is on Aug 20"),
+    (c("ts", "after", "2026-08-20T17:00"), None, '((length($.ts) > 10 and $.ts > "2026-08-20T17:00:00.000000Z") or (length($.ts) == 10 and $.ts > "2026-08-20"))', "Time is after Aug 20, 17:00 UTC"),
     # a calendar date is its own day, on any clock
     (c("due_date", "on", "2026-09-03"), DEN, '$.due_date == "2026-09-03"', "Due date is on Sep 3, 2026"),
     # time of day
@@ -425,7 +427,7 @@ def test_the_tree_and_its_count_columns_read_the_questions_zone():
     v = {"zone": DEN, "filter": {"version": 1, "join": "all", "items": [
         c("ts", "on", "2026-08-20"), tod("from", "17:00")]}}
     assert pview.filter_expression(v, fields) == (
-        f'(($.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z")) and ({TOD} >= 61200)')
+        f'(((length($.ts) > 10 and $.ts >= "2026-08-20T06:00:00.000000Z" and $.ts < "2026-08-21T06:00:00.000000Z") or (length($.ts) == 10 and $.ts == "2026-08-20"))) and ({TOD} >= 61200)')
     assert pview.filter_words(v, fields) == "Time is on Aug 20 and Time (time of day) from 5:00 PM"
 
 

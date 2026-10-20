@@ -724,7 +724,7 @@ def demo():
     dashboard._CACHE.clear()
     dashboard._SETUP = None                 # the setup is read once a process: read it again, over this copy
     try:
-        yield {"client": TestClient(server_app.app, raise_server_exceptions=False)}
+        yield {"client": TestClient(server_app.app, raise_server_exceptions=False), "dsn": dsn}
     finally:
         db.connect = real
         dashboard._CACHE.clear()
@@ -856,6 +856,9 @@ BARE_CONDS = {
     "between Jul 9, 12:00 AM and 11:59 PM": (
         {"field": "when", "op": "between", "value": "2026-07-09T00:00", "value2": "2026-07-09T23:59"},
         lambda at, z: _wall(z, 2026, 7, 9, 0, 0) <= at <= _wall(z, 2026, 7, 9, 23, 59)),
+    "between Jul 9, 1:00 AM and Jul 10, 11:00 PM": (
+        {"field": "when", "op": "between", "value": "2026-07-09T01:00", "value2": "2026-07-10T23:00"},
+        lambda at, z: _wall(z, 2026, 7, 9, 1, 0) <= at <= _wall(z, 2026, 7, 10, 23, 0)),
 }
 
 
@@ -925,6 +928,17 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
         check(bars == want, "chart", per, bars, want)
         check((a["bars"][0]["start"], a["bars"][-1]["start"]) == (min(want), max(want)), "axis", per,
               (a["bars"][0]["start"], a["bars"][-1]["start"]))
+        # the times alone (a bare date has no time of day): the axis still spans the data set, its dates included
+        status, a = _answer(demo, columns=[], conditions=[{"field": "batch", "op": "eq", "value": "bare"},
+                                                          {"field": "bd", "part": "time_of_day", "op": "from",
+                                                           "value": "00:00"}],
+                            summary={"fn": "count", "field": None, "per": per, "time": "bd"},
+                            **({"zone": zone} if zone else {}))
+        if status != 200 or a.get("kind") != "chart":
+            check(False, "chart of the times", per, status, str(a.get("message") or a)[:120])
+            continue
+        check((a["bars"][0]["start"], a["bars"][-1]["start"]) == (min(want), max(want)), "span", per,
+              (a["bars"][0]["start"], a["bars"][-1]["start"]))
     f = _setup_fields(demo)
     check(f["bd"]["kind"] == "time" and f["bd"]["range"] == {
         "min": "2026-07-08T20:30:00Z", "max": "2026-10-20T03:00:00Z",
@@ -951,3 +965,26 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
     py = {r["bucket"]: int(r["agg"]) for r in _py_rows(ends, _bucket_pick("day", zone))}
     check(sql == want and py == want, "years", sql, py)
     assert not bad, (zone, bad)
+
+
+
+@needs_db
+def test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500(demo):
+    """The setup's span is read once; a row written after it can hold a later time. Its bucket widens the axis (the
+    answer's own first and last buckets are always on it), so no bucket with rows falls outside: no 500."""
+    import psycopg
+    from demo.server import dashboard
+    _setup_fields(demo)                                       # the setup (and so the span) read before the row
+    with psycopg.connect(demo["dsn"], autocommit=True) as cx:
+        cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', 'zx-late', "
+                   "'{\"bd\": \"2026-12-01T12:00:00Z\", \"batch\": \"bare\"}'::jsonb)")
+    dashboard._CACHE.clear()
+    try:
+        status, a = _answer(demo, columns=[], conditions=[{"field": "batch", "op": "eq", "value": "bare"}],
+                            summary={"fn": "count", "field": None, "per": "day", "time": "bd"})
+    finally:
+        with psycopg.connect(demo["dsn"], autocommit=True) as cx:
+            cx.execute("DELETE FROM demo.records WHERE key = 'zx-late'")
+        dashboard._CACHE.clear()
+    assert status == 200 and a.get("kind") == "chart", (status, str(a.get("message") or a)[:200])
+    assert a["bars"][-1]["start"] == "2026-12-01T00:00:00Z" and a["bars"][-1]["value"] == 1, a["bars"][-1]

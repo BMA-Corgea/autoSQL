@@ -4,7 +4,7 @@
  "source": {
   "autosql": "737f095 (T-112 round) + T-114 (fix/T-114-gims-times): the runtime and the compiler re-measured, every status unchanged",
   "compiler_sha256": "df30a390075c435cc90c9a17d2d52a1a6fe2c654f173cb338ae3f85d3d3a2e0a",
-  "runtime_sha256": "a1cbf9aab029bf08a92531e5d5b0c7fbef0723beee45a7f8db1d5afb0891b917",
+  "runtime_sha256": "3b66a95bfa3858ae11eb827b4b95b63043304ef4e54427fb217093c1ff21b81d",
   "gims": "344d7b5 (t-98/time-of-day, on autosql/integration 7000bc2)"
  },
  "noun": "parity_case",

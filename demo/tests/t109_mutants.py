@@ -55,7 +55,7 @@ T109_MUTANTS = [
          selector=_R + "test_the_page_says_which_heartbeat_and_why[em-spaces-None]",
          expect="assert 500 == 200"),
     dict(id="G8", defect="_span reads a field with no range (a-chk's MEDIUM: the 500 moved, not closed)",
-         edits=[(_D, "    if not r:\n        return None, None\n    if zone is None:", "    if zone is None:")],
+         edits=[(_D, "    if not r:\n        return None, None\n", "")],
          selector=_R + "test_a_field_with_no_range_is_no_edge[None]",
          expect="TypeError"),
     dict(id="G9", defect="the two-pane screen doesn't word XPR06 from the statement: /api/pick answers 500 again",

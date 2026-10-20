@@ -99,13 +99,16 @@ def looks_like(value: Any) -> bool:
 
 
 def reading(value: Any):
-    """A time field's value as a filter or a sort reads it (spec §4, (A)): its instant at the one width when it is
-    readable, ``None`` when it is JSON null, and ``False`` for anything else -- present, but no time: it then matches
-    no comparison, and ``present`` / ``blank`` keep their meaning."""
+    """A time field's value as a filter or a sort reads it (spec §4, (A)): a time's instant at the one width; a bare
+    date as itself, ``YYYY-MM-DD``, whose midnight is the question's clock's (spec §2.1: the view compares it as a
+    date, and to the language it has no time of day); ``None`` when it is JSON null; ``False`` for anything else --
+    present, but no time: it then matches no comparison, and ``present`` / ``blank`` keep their meaning."""
     if value is None:
         return None
     at = instant(value)
-    return utc_text(at) if at is not None else False
+    if at is None:
+        return False
+    return value if len(value) == 10 else utc_text(at)
 
 
 def kind_counts(values: Iterable[Any]) -> Tuple[int, int, int, int]:

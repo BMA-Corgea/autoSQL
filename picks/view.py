@@ -141,12 +141,14 @@ SELECT count(*),
  WHERE v <> ''
 """
 
-#: A time or date field's span (T-114): the first and last readable instant over EVERY value (the span was the
-#: first and last of _VALUES_SQL's first 2,001 strings, in text order: an axis that ended early, a 500), and the
-#: first and last date-form text (a date field's).
+#: A time or date field's span (T-114), over EVERY value (it was the first and last of _VALUES_SQL's first 2,001
+#: strings, in text order: an axis that ended early, a 500): the first and last readable time with a time of day,
+#: and apart from them the first and last real date (a date field's span; beside a time field's, the bare dates,
+#: whose midnight is each question's clock's -- a-chk's preview). A date the calendar lacks is no edge.
 _SPAN_SQL = """
-SELECT min(xpr.time_at(v)), max(xpr.time_at(v)),
-       min(v) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'), max(v) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+SELECT min(xpr.time_at(v)) FILTER (WHERE length(v) > 10), max(xpr.time_at(v)) FILTER (WHERE length(v) > 10),
+       min(v) FILTER (WHERE length(v) = 10 AND xpr.time_at(v) IS NOT NULL),
+       max(v) FILTER (WHERE length(v) = 10 AND xpr.time_at(v) IS NOT NULL)
   FROM (SELECT r.data #>> %(path)s AS v
           FROM {table} r
          WHERE {scope}
@@ -304,8 +306,8 @@ class PythonReader:
 
     def _span(self, p: dict) -> list:
         s = self._strings(p["path"])
-        ats = [a for a in (times.instant(v) for v in s) if a is not None]
-        dates = [v for v in s if len(v) == 10 and _DATE_FORM.fullmatch(v)]
+        ats = [a for a in (times.instant(v) for v in s if len(v) > 10) if a is not None]
+        dates = [v for v in s if len(v) == 10 and times.instant(v) is not None]
         return [(min(ats) if ats else None, max(ats) if ats else None,
                  min(dates, key=lambda v: v.encode("utf-8")) if dates else None,
                  max(dates, key=lambda v: v.encode("utf-8")) if dates else None)]
@@ -343,7 +345,6 @@ class _Answer:
 
 
 _ABSENT = object()
-_DATE_FORM = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _INDEX = re.compile(r"-?[0-9]+")
 
 
@@ -476,7 +477,11 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
             t_lo, t_hi, d_lo, d_hi = _read(conn, records, _SPAN_SQL, {
                 "collection": collection, "path": paths.steps(path)}).fetchone()
             if kind == "time" and t_lo is not None:
+                # the times' span, and the bare dates' beside it: a date's midnight is each question's clock's
+                # (spec §2.1), so the axis places it there (dashboard._span), never at a UTC instant (a-chk's 500)
                 field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}
+                if d_lo is not None:
+                    field["range"]["dates"] = {"min": d_lo, "max": d_hi}
             elif kind == "date" and d_lo is not None:
                 field["range"] = {"min": d_lo, "max": d_hi}
         fields.append(field)
@@ -912,6 +917,50 @@ def _instant(value, zone=None) -> str:
     return t
 
 
+def _dated(ref: str, timed: str, dated: str) -> str:
+    """A time field's condition on its reading (xpr.time_text / picks.times.reading): a time is compared as an
+    instant (``timed``), a bare date as a date (``dated``) -- its midnight is the question's clock's, as the buckets
+    read it (spec §2.1; T-114, a-chk's preview). Dates compare as text, so no clock is read in the statement."""
+    return f"((length({ref}) > 10 and {timed}) or (length({ref}) == 10 and {dated}))"
+
+
+def _wall(value: str, zone=None) -> _dt.datetime:
+    """A picked time (``_instant`` has checked it) as the question's clock shows it: the wall time picked, or one
+    ending in Z read onto that clock; with no clock, UTC's."""
+    m = _MINUTE_RE.match(value)
+    day = _day(m.group(1))
+    wall = _dt.datetime(day.year, day.month, day.day, int(m.group(2)), int(m.group(3)), int(m.group(4) or 0),
+                        int((m.group(5) or "0").ljust(6, "0")))
+    if zone is not None and value.endswith("Z"):
+        wall = wall.replace(tzinfo=_dt.timezone.utc).astimezone(zones.ZoneInfo(zone)).replace(tzinfo=None)
+    return wall
+
+
+def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str) -> tuple[str, str]:
+    """after / before / between on a time field: a time against the picked instants; a bare date, at its midnight
+    on the question's clock, against the picked days -- after T: a later day than T's; before T: T's day or earlier
+    (earlier only when T is that day's midnight); between A and B: from A's day (the next, unless A is midnight)
+    to B's day."""
+    if op == "between":
+        lo, hi = cond.get("value"), cond.get("value2")
+        a, said_a = _value_for(field, lo, zone)
+        b, said_b = _value_for(field, hi, zone)
+        if _order_key(field, lo, zone) > _order_key(field, hi, zone):      # "between 5 PM and 9 AM", in order
+            (a, said_a, lo), (b, said_b, hi) = (b, said_b, hi), (a, said_a, lo)
+        first, last = _wall(lo, zone), _wall(hi, zone)
+        start = first.date() + _dt.timedelta(days=0 if first.time() == _dt.time(0) else 1)
+        dated = f"{ref} >= {string_literal(start.isoformat())} and {ref} <= {string_literal(last.date().isoformat())}"
+        return _dated(ref, f"{ref} >= {a} and {ref} <= {b}", dated), f"{said} {said_a} and {said_b}"
+    lit, said_t = _value_for(field, cond.get("value"), zone)
+    t = _wall(cond.get("value"), zone)
+    day = string_literal(t.date().isoformat())
+    if op == "after":
+        timed, dated = f"{ref} > {lit}", f"{ref} > {day}"
+    else:
+        timed, dated = f"{ref} < {lit}", f"{ref} {'<=' if t.time() > _dt.time(0) else '<'} {day}"
+    return _dated(ref, timed, dated), f"{said} {said_t}"
+
+
 def _wide(t: str) -> str:
     """A UTC instant in the data's fixed form → the one width a time is compared at (T-114): to the microsecond,
     so text order is time order whatever form each stored time was written in (``picks.times.utc_text``)."""
@@ -1080,8 +1129,11 @@ def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
             # the day on the question's clock: its first instant to the next day's (DST-correct)
             first, nxt = zones.day_span(d, zone)
             start, end = string_literal(_wide(first)), string_literal(_wide(nxt))
-        return (f"({ref} >= {start} and {ref} < {end})",
+        return (_dated(ref, f"{ref} >= {start} and {ref} < {end}", f"{ref} == {string_literal(d.isoformat())}"),
                 f"{label} {words} {fmt_day(d.isoformat())}")
+
+    if field["kind"] == "time" and op in ("after", "before", "between"):
+        return _time_condition(field, ref, op, cond, zone, f"{label} {words}")
 
     if op == "between":
         lo, hi = cond.get("value"), cond.get("value2")

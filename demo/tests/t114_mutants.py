@@ -2,7 +2,8 @@
 
 BE1–BE9 break both engines ALIKE -- the rule's two statements (``picks/times.py`` and ``runtime/runtime.sql``'s
 ``xpr.time_at``) or the one expression both evaluate -- so the engines agree, the differential passes, and only the
-hand truth can catch them. E1–E21 break one engine at one edge each. A runtime mutant edits ``runtime/runtime.sql``,
+hand truth can catch them. E1–E21 break one engine at one edge each. BD1–BD9 put one reader of a bare date back
+at UTC midnight (a-chk's preview: on a question's clock every reader reads it as the clock's midnight). A runtime mutant edits ``runtime/runtime.sql``,
 which the parity tests install fresh (``this_runtime.install``) into the throwaway. Run on ``t78_mutants.py``'s
 runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres (the dashboard cases build their
 own scratch copy of the seed there).
@@ -39,6 +40,7 @@ _MICRO = '        micro = int(rest[1:k].ljust(6, "0"))\n'
 _SHIFT = "        shift = sign * timedelta(hours=int(rest[1:3]), minutes=int(rest[-2:]))\n"
 _KLEENE = '    if logic in ("one", "allnone") and any(_reads_any_instant(it, fields) for it in live):\n'
 _SECOND = "_the_second_engine_alone_compares_instants_and_an_unreadable_time_matches_nothing"
+_BARE = _P + "test_every_reader_reads_a_bare_date_as_its_clocks_midnight"
 _STATEMENT = "_the_statement_compares_instants_and_an_unreadable_time_matches_nothing"
 
 
@@ -113,9 +115,8 @@ T114_MUTANTS = [
          edits=[(_R, "[0-9]{2}[T ]([01]", "[0-9]{2}[Tt ]([01]"), (_R, r"(\.[0-9]{1,6})?(Z|", r"(\.[0-9]{1,6})?([Zz]|")],
          selector=f"{_SQL}[2026-07-09t05:03:48z-None]", expect="AssertionError: ('2026-07-09t05:03:48z',"),
     dict(id="E5", defect="a time field's span back to the first and last of 2,001 texts",
-         edits=[(_V, '            if kind == "time" and t_lo is not None:\n'
-                     '                field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}\n',
-                 '            if kind == "time" and strings:\n'
+         edits=[(_V, '            if kind == "time" and t_lo is not None:\n', '            if kind == "time" and strings:\n'),
+                (_V, '                field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}\n',
                  '                field["range"] = {"min": strings[0], "max": strings[-1]}\n')],
          selector=_P + "test_the_dashboards_setup_calls_a_mixed_field_a_time_and_free_text_text",
          expect="AssertionError: {'min'"),
@@ -130,8 +131,7 @@ T114_MUTANTS = [
                  "    record = row.record_f\n")],
          selector=_P + f"test{_SECOND}[on Jul 9 (UTC)]", expect="AssertionError: ('on Jul 9 (UTC)'"),
     dict(id="E9", defect="the second engine reads an unreadable value as null (it turns blank)",
-         edits=[(_T, "    return utc_text(at) if at is not None else False\n",
-                 "    return utc_text(at) if at is not None else None\n")],
+         edits=[(_T, "    if at is None:\n        return False\n", "    if at is None:\n        return None\n")],
          selector=_P + f"test{_SECOND}[present: an unreadable value is present]", expect="AssertionError: ('present"),
     dict(id="E10", defect="the statement reads an unreadable value as null (it turns blank)",
          edits=[(_R, "  RETURN 'false'::jsonb;\n", "  RETURN NULL;\n")],
@@ -189,6 +189,36 @@ T114_MUTANTS = [
          edits=[("../picks/probes.py", "    return {repr(parse(paths.dollar(t))) for t in times}\n", "    return set()\n")],
          selector=_P + "test_a_probe_never_asks_about_a_time_field_its_truth_reads_as_an_instant",
          expect="AssertionError: RuntimeRefusal('out-of-range magnitude"),
+    # ── a-chk's preview: on a question's clock every reader reads a bare date as that clock's midnight ──
+    dict(id="BD1", defect="the span: the axis no longer reaches the bare dates at the clock's midnight",
+         edits=[("../demo/server/dashboard.py", '''    dates = r.get("dates")
+    if dates:
+        lo = None if lo is None else min(lo, midnight(dates["min"]))
+        hi = None if hi is None else max(hi, midnight(dates["max"]))
+''', "")],
+         selector=_BARE + "[America/Denver]", expect="('span', 'day'"),
+    dict(id="BD3", defect="the statement alone reads a bare date at UTC midnight again (its conditions, time of day)",
+         edits=[(_R, "    IF t IS NOT NULL AND length(j #>> '{}') = 10 THEN\n"
+                     "      RETURN j;                          -- a bare date reads as itself: its midnight is the question's clock's\n"
+                     "    ELSIF t IS NOT NULL THEN\n", "    IF t IS NOT NULL THEN\n")],
+         selector=_BARE + "[America/Denver]", expect="('on Jul 9'"),
+    dict(id="BD4", defect="the second engine alone reads a bare date at UTC midnight again",
+         edits=[(_T, "    return value if len(value) == 10 else utc_text(at)\n", "    return utc_text(at)\n")],
+         selector=_BARE + "[America/Denver]", expect="('on Jul 9'"),
+    dict(id="BD5", defect="the view's conditions compare a bare date as nothing (the date branch dropped; both engines)",
+         edits=[(_V, '    return f"((length({ref}) > 10 and {timed}) or (length({ref}) == 10 and {dated}))"\n',
+                 '    return f"(length({ref}) > 10 and {timed})"\n')],
+         selector=_BARE + "[None]", expect="('on Jul 9'"),
+    dict(id="BD6", defect="the axis no longer reaches the answer's own buckets: a bucket past the setup's span is a 500",
+         edits=[("../demo/server/dashboard.py", "            lo, hi = min(lo, first), max(hi, last)\n", "")],
+         selector=_P + "test_a_bucket_newer_than_the_setups_span_widens_the_axis_never_a_500",
+         expect="AssertionError: (500"),
+    dict(id="BD8", defect="before T: a bare date on T's own day is left out (its midnight is before T)",
+         edits=[(_V, "{'<=' if t.time() > _dt.time(0) else '<'}", "<")],
+         selector=_BARE + "[Asia/Kolkata]", expect="('before Jul 9, 12:30 AM'"),
+    dict(id="BD9", defect="between A and B: A's own day kept though its midnight is before A",
+         edits=[(_V, "days=0 if first.time() == _dt.time(0) else 1", "days=0")],
+         selector=_BARE + "[None]", expect="('between Jul 9, 1:00 AM and Jul 10, 11:00 PM'"),
 ]
 
 

@@ -985,23 +985,31 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | 
     years 1..9999 there) is no edge: ``None``, and the axis ends at the answer's
     own first or last bucket instead (T-104; it used to be 0001-01-01, an axis
     from year 1).  A field with no range (T-109: a series time outside the one form makes it text) has no
-    edge at either end."""
+    edge at either end.  A time field's bare dates (its range's ``dates``, T-114) are each their own midnight on
+    the clock, as the buckets place them, so the span reaches them there (a-chk's preview: read at UTC midnight
+    the span ended before the chart's last bucket, a 500)."""
     r = fields[time].get("range")
     if not r:
         return None, None
+    midnight = (lambda v: v + "T00:00:00" + ("" if zone else "Z"))
     if zone is None:
-        as_time = (lambda v: v + "T00:00:00Z" if len(v) == 10 else v)
-        return as_time(r["min"]), as_time(r["max"])
-
-    def on_clock(v):
-        if len(v) == 10:
-            return v + "T00:00:00"
-        t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
-        try:
-            return _iso(t.astimezone(_zones.ZoneInfo(zone)))
-        except OverflowError:
-            return None      # read on this clock it leaves years 1..9999: that time is in no bucket
-    return on_clock(r["min"]), on_clock(r["max"])
+        as_time = (lambda v: midnight(v) if len(v) == 10 else v)
+        lo, hi = as_time(r["min"]), as_time(r["max"])
+    else:
+        def on_clock(v):
+            if len(v) == 10:
+                return midnight(v)
+            t = _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
+            try:
+                return _iso(t.astimezone(_zones.ZoneInfo(zone)))
+            except OverflowError:
+                return None      # read on this clock it leaves years 1..9999: that time is in no bucket
+        lo, hi = on_clock(r["min"]), on_clock(r["max"])
+    dates = r.get("dates")
+    if dates:
+        lo = None if lo is None else min(lo, midnight(dates["min"]))
+        hi = None if hi is None else max(hi, midnight(dates["max"]))
+    return lo, hi
 
 
 def _iso(t, z: str = "") -> str:
@@ -1207,6 +1215,9 @@ def _summary_answer(conn, ds, view, fields, summary, pick, pane, page, admin) ->
         else:
             lo, hi = _span(fields, summary.get("time") or "ts", zone)
             lo, hi = lo or first, hi or last        # an edge this clock can't show is no edge (T-104)
+            # the axis also reaches the answer's own first and last buckets (T-114): one outside the span (data
+            # newer than the setup's read of it) widens the axis, so no bucket with rows can fall outside it
+            lo, hi = min(lo, first), max(hi, last)
             if _slot_count(unit, lo, hi, zone) > AXIS_SLOTS:
                 # Past the limit the axis is the answer's own span, so a filter to a shorter time answers again:
                 # the data set's span, which no filter changes, would refuse every one (T-104).
