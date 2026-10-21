@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -589,6 +590,25 @@ def _reads(conn, run) -> int:
         before = conn.execute(count).fetchone()[0]
         run()
         return conn.execute(count).fetchone()[0] - before
+
+
+#: ... and the condition itself is one window over that reading -- e00a5d8's own shape, so it costs what e00a5d8's
+#: did: at most two comparisons, never the language's length() or its == ladder (a bare date reads at the first
+#: instant of its day on the clock, so no date branch is needed)
+WINDOW_CARDS = {
+    "on a day": {"field": "when", "op": "on", "value": "2026-07-09"},
+    "after": {"field": "when", "op": "after", "value": "2026-07-09T05:03"},
+    "before": {"field": "when", "op": "before", "value": "2026-07-09T00:00"},
+    "between": {"field": "when", "op": "between", "value": "2026-07-09T01:00", "value2": "2026-07-10T23:00"},
+}
+
+
+@pytest.mark.parametrize("zone", [None, DENVER, "Asia/Kolkata", "America/Havana"])
+@pytest.mark.parametrize("card", list(WINDOW_CARDS))
+def test_a_time_condition_is_one_window_over_the_reading(card, zone):
+    expr = _filter_pick([WINDOW_CARDS[card]], "all", zone)["filter"]
+    comparisons = len(re.findall(r"(?:>=|<=|>|<)", expr))
+    assert "length(" not in expr and "==" not in expr and comparisons <= 2, (card, zone, expr)
 
 
 @needs_db
