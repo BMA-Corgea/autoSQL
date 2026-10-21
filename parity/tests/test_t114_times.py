@@ -557,6 +557,49 @@ def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direc
     assert [r["key"] for r in _sql(conn, pick)] == want[:8]
 
 
+#: a-chk's cost MEDIUM on d437b20: a condition read its time field ten to seventeen times a row (each a plpgsql call,
+#: xpr.time_text; the language's == ladder re-reads its operand), so "on a day" took 3.1 s at GIMS's scale. The bar:
+#: each time field's instant is read once a row, wherever a filter, a count-if, a sort or a latest / earliest reads it
+def _once_cases():
+    on = _filter_pick([{"field": "when", "op": "on", "value": "2026-07-09"}], "all", DENVER)
+    after = _filter_pick([{"field": "when", "op": "after", "value": "2026-07-09T05:03:48Z"}], "all")
+    sort = {"sort": {"field": "$.when", "dir": "desc"}, "cap": 5, "sort_zone": DENVER}
+    return {
+        "on a day (Denver)": ("pick", on),
+        "between (Denver)": ("pick", _filter_pick([{"field": "when", "op": "between", "value": "2026-07-09T01:00",
+                                                     "value2": "2026-07-10T23:00"}], "all", DENVER)),
+        "after": ("pick", after),
+        "before (Kolkata)": ("pick", _filter_pick([{"field": "when", "op": "before", "value": "2026-07-09T00:30"}],
+                                                  "all", "Asia/Kolkata")),
+        "a capped sort (Denver)": ("pick", _pick(times=["when"], **sort)),
+        "on a day and a sort (Denver)": ("pick", dict(on, **sort)),
+        "a board: a time count-if with its %, and latest (Denver)": ("board", dict(
+            BOARD, counts=[{"expr": after["filter"], "pct": True}],
+            time={"fn": "max", "field": "when", "zone": DENVER}, count_times=["when"])),
+    }
+
+
+def _reads(conn, run) -> int:
+    """How many times running a statement read a time field (xpr.time_text and xpr.time_at calls), counted by the
+    server itself in this transaction."""
+    count = ("SELECT coalesce(sum(pg_stat_get_xact_function_calls(f::regprocedure)), 0) "
+             "FROM unnest(ARRAY['xpr.time_text(jsonb)', 'xpr.time_at(text)']) f")
+    with conn.transaction():
+        conn.execute("SET LOCAL track_functions = 'all'")
+        before = conn.execute(count).fetchone()[0]
+        run()
+        return conn.execute(count).fetchone()[0] - before
+
+
+@needs_db
+@pytest.mark.parametrize("case", list(_once_cases()))
+def test_a_time_field_is_read_once_a_row(conn, case):
+    kind, spec = _once_cases()[case]
+    run = (lambda: _sql(conn, spec)) if kind == "pick" else (lambda: _sql_board(conn, spec))
+    reads = _reads(conn, run)
+    assert reads <= len(ROWS), (case, reads, len(ROWS))       # one time field, read once for each of its rows
+
+
 @needs_db
 @pytest.mark.parametrize("case", list(KIND_CASES))
 def test_the_setups_sql_counts_what_its_python_counts(conn, case):
