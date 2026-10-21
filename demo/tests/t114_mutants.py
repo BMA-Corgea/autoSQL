@@ -5,7 +5,8 @@ BE1–BE9 break both engines ALIKE -- the rule's two statements (``picks/times.p
 hand truth can catch them. E1–E21 break one engine at one edge each. BD1–BD9 put one reader of a bare date back
 at UTC midnight (a-chk's preview: on a question's clock every reader reads it as the clock's midnight); BD10 drops
 the hour a clock skips that a bare date's midnight sits in; BD11 and BD12 put the sort and a board's latest /
-earliest back at UTC midnight; BD13 and BD14 break the clock reading they share (a repeated midnight; D). A runtime
+earliest back at UTC midnight; BD13 and BD14 break the clock reading they share (a repeated midnight; D); BD15-BD19
+the one instant. RO1-RO4 read a time field more than once a row again (a-chk's cost MEDIUM). A runtime
 mutant edits ``runtime/runtime.sql``,
 which the parity tests install fresh (``this_runtime.install``) into the throwaway. Run on ``t78_mutants.py``'s
 runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres (the dashboard cases build their
@@ -46,6 +47,8 @@ _SECOND = "_the_second_engine_alone_compares_instants_and_an_unreadable_time_mat
 _BARE = _P + "test_every_reader_reads_a_bare_date_as_its_clocks_midnight"
 _STATEMENT = "_the_statement_compares_instants_and_an_unreadable_time_matches_nothing"
 _EDGE = _P + "test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_reads_as_its_first_instant"
+_ONCE = _P + "test_a_time_field_is_read_once_a_row"
+_C = "../compiler/compile.py"
 
 
 def _pair(text, want):
@@ -159,8 +162,8 @@ T114_MUTANTS = [
          selector=_P + f"test{_STATEMENT}[a day's last microsecond, inclusive (GIMS's day end)]",
          expect="AssertionError: (\"a day's last microsecond"),
     dict(id="E15", defect="the statement sorts an unreadable time as a boolean (not pinned last)",
-         edits=[(_B, "                value = f\"nullif(xpr.time_text({stored}), 'false'::jsonb)\"\n",
-                 "                value = f\"xpr.time_text({stored})\"\n")],
+         edits=[(_B, "                value = f\"nullif({reading}, 'false'::jsonb)\"\n",
+                 "                value = f\"{reading}\"\n")],
          selector=_P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[desc-want0-None]",
          expect="AssertionError: assert ["),
     dict(id="E16", defect="the statement's board reads a time field's latest by text again",
@@ -271,6 +274,24 @@ T114_MUTANTS = [
                  "    day_start = (f\"({date_midnight(value, '%(bkt_zone)s::text')} AT TIME ZONE %(bkt_zone)s::text)\" if hourly\n"
                  "                 else f\"{value}::timestamp\")\n")],
          selector=_BARE + "[America/Denver]", expect="('zone check', 'hour'"),
+    # a-chk's cost MEDIUM: a time field read once a row
+    dict(id="RO1", defect="the compiler ignores the statement's once-a-row readings: a condition reads its field again",
+         edits=[(_C, "        if self.instant_refs and tuple(tuple(step) for step in path) in self.instant_refs:\n",
+                 "        if False:\n")],
+         selector=_ONCE + "[on a day (Denver)]", expect="AssertionError: ('on a day (Denver)'"),
+    dict(id="RO2", defect="the sort reads its time field again instead of the statement's reading",
+         edits=[(_B, "                ref = self.time_ref(field, q)\n", "                ref = None\n")],
+         selector=_ONCE + "[a capped sort (Denver)]", expect="AssertionError: ('a capped sort (Denver)'"),
+    dict(id="RO3", defect="a board's count-ifs read their time field again instead of the board's reading",
+         edits=[(_G, "            compile_kw=builder.reads_kw(compile_c, count_times, counted_refs))\n",
+                 "            compile_kw=builder.instants_kw(compile_c, count_times))\n")],
+         selector=_ONCE + "[a board: a time count-if with its %, and latest (Denver)]",
+         expect="AssertionError: ('a board"),
+    dict(id="RO4", defect="the sort takes the language's reading, which has no JSON null: a blank leaves its place",
+         edits=[(_B, "                reading = (f\"(CASE WHEN {value} = 'null'::jsonb THEN 'null'::jsonb ELSE {ref} END)\" if ref\n",
+                 "                reading = (ref if ref\n")],
+         selector=_P + "test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it[asc-want1-None]",
+         expect="AssertionError: assert ["),
 ]
 
 
