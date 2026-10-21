@@ -27,7 +27,7 @@ from typing import Any, Iterable, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 __all__ = ["READABLE", "LOOKS", "instant", "utc_text", "fixed_text", "has_time", "looks_like", "reading",
-           "midnight", "instant_on", "sort_reading", "kind_counts"]
+           "midnight", "instant_on", "DATE_MARK", "reading_on", "kind_counts"]
 
 #: a readable time (fullmatch; ASCII digits)
 READABLE = (r"[0-9]{4}-[0-9]{2}-[0-9]{2}[T ](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,6})?"
@@ -136,14 +136,20 @@ def instant_on(value: Any, zone: Optional[str] = None) -> Optional[datetime]:
     return midnight(value, zone)
 
 
-def sort_reading(value: Any, zone: Optional[str] = None):
-    """``reading`` as a sort orders it: on a question's clock a bare date sorts at its midnight there, at the one
-    width, among the times, and ahead of a time at that very instant (its key ends in a space, which sorts before
-    ``Z``), as with no clock, where ``reading`` itself is the key: a bare date's own text, before its UTC day's
-    times."""
+#: What ends a bare date's reading on a clock where a time's ends in Z (T-114, a-chk's cost MEDIUM): it sorts the date
+#: just ahead of a time at its very instant, and neither engine's time parser reads it as a time, so a bare date still
+#: has no time of day.
+DATE_MARK = "!"
+
+
+def reading_on(value: Any, zone: Optional[str] = None):
+    """A time field's value as a dashboard's filter, sort and board read it on a question's clock (UTC's with none):
+    a time's instant at the one width; a bare date the first instant of its day there (``midnight``) at that width,
+    its Z replaced by ``DATE_MARK``; ``None`` for JSON null; ``False`` for anything else. A window of comparisons over
+    it -- e00a5d8's own shape -- then reads a bare date at its midnight on the clock, as every reader does."""
     r = reading(value)
-    if zone is not None and isinstance(r, str) and len(r) == 10:
-        return utc_text(midnight(r, zone))[:-1] + " "
+    if isinstance(r, str) and len(r) == 10:
+        return utc_text(midnight(r, zone))[:-1] + DATE_MARK
     return r
 
 

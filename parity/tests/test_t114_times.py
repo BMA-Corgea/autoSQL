@@ -234,7 +234,10 @@ def _filter_pick(items, join="all", zone=None, **kw):
     expr, _words = pview.filter_parts(holder, FIELDS, zone=zone)
     # 6dd0eb8 -- 4d93236 had no such reading: there the view's text comparison stands, as it did
     read = getattr(pview, "time_fields_read", lambda _h, _f: [])
-    return _pick(filter=expr, times=read(holder, FIELDS), **kw)
+    pick = _pick(filter=expr, times=read(holder, FIELDS), **kw)
+    if zone and pick["times"]:
+        pick["times_zone"] = zone                  # T-114: read on the question's clock, as the view's pick is
+    return pick
 
 
 def _gims_text(doc) -> str:
@@ -380,7 +383,7 @@ def test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it(d
     pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
     if zone:
-        pick["sort_zone"] = zone
+        pick["times_zone"] = zone
     assert [r["key"] for r in _py(pick)] == want[:8]
     pick["cap"] = None
     assert [r["key"] for r in _py(pick)] == want
@@ -389,7 +392,8 @@ def test_the_second_engine_alone_sorts_a_time_field_by_its_instant_and_caps_it(d
 def test_the_view_writes_bounds_at_one_width_and_names_the_fields_it_reads():
     pick = _filter_pick([{"field": "when", "op": "on", "value": "2026-07-09"}])
     assert pick["times"] == ["when"]
-    assert '"2026-07-09T00:00:00.000000Z"' in pick["filter"] and '"2026-07-10T00:00:00.000000Z"' in pick["filter"]
+    # the day's first instants, each as that day's bare date reads (marked): one window, at one width
+    assert pick["filter"] == '$.when >= "2026-07-09T00:00:00.000000!" and $.when < "2026-07-10T00:00:00.000000!"'
     assert pview.time_fields_read({"filter": {"version": pview.FILTER_VERSION, "join": "all", "items": [
         {"field": "when", "op": "present"}]}}, FIELDS) == []        # present/blank read no instant
 
@@ -554,7 +558,7 @@ def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direc
     pick = _filter_pick([], sort={"field": "$.when", "dir": direction}, cap=8)
     pick["times"] = ["when"]
     if zone:
-        pick["sort_zone"] = zone
+        pick["times_zone"] = zone
     assert [r["key"] for r in _sql(conn, pick)] == want[:8]
 
 
@@ -564,7 +568,7 @@ def test_the_statement_sorts_a_time_field_by_its_instant_and_caps_it(conn, direc
 def _once_cases():
     on = _filter_pick([{"field": "when", "op": "on", "value": "2026-07-09"}], "all", DENVER)
     after = _filter_pick([{"field": "when", "op": "after", "value": "2026-07-09T05:03:48Z"}], "all")
-    sort = {"sort": {"field": "$.when", "dir": "desc"}, "cap": 5, "sort_zone": DENVER}
+    sort = {"sort": {"field": "$.when", "dir": "desc"}, "cap": 5, "times_zone": DENVER}
     return {
         "on a day (Denver)": ("pick", on),
         "between (Denver)": ("pick", _filter_pick([{"field": "when", "op": "between", "value": "2026-07-09T01:00",
@@ -576,7 +580,7 @@ def _once_cases():
         "on a day and a sort (Denver)": ("pick", dict(on, **sort)),
         "a board: a time count-if with its %, and latest (Denver)": ("board", dict(
             BOARD, counts=[{"expr": after["filter"], "pct": True}],
-            time={"fn": "max", "field": "when", "zone": DENVER}, count_times=["when"])),
+            time={"fn": "max", "field": "when"}, count_times=["when"], times_zone=DENVER)),
     }
 
 
@@ -1023,12 +1027,12 @@ def test_every_reader_reads_a_bare_date_as_its_clocks_midnight(conn, demo, zone)
         want = _bare_sorted(direction, zone)
         for cap in (None, 5):
             pick = _pick(sort={"field": "$.when", "dir": direction}, cap=cap, times=["when"],
-                         **({"sort_zone": zone} if zone else {}))
+                         **({"times_zone": zone} if zone else {}))
             sql = _with_rows(conn, BARE, lambda: [r["key"] for r in _sql(conn, pick)])
             py = [r["key"] for r in _py_rows(BARE, pick)]
             check(sql == want[:cap] and py == want[:cap], "sort", direction, cap, sql, py, want[:cap])
     for fn in ("max", "min"):
-        spec = dict(BOARD, time={"fn": fn, "field": "when", **({"zone": zone} if zone else {})})
+        spec = dict(BOARD, time={"fn": fn, "field": "when"}, **({"times_zone": zone} if zone else {}))
         want = _bare_board(fn, zone)
         sql = _with_rows(conn, BARE, lambda: _sql_board(conn, spec))
         src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in sorted(BARE.items())]
@@ -1205,12 +1209,12 @@ def test_a_bare_date_on_a_day_its_clock_skips_or_repeats_midnight_reads_as_its_f
     from picks.pyrunner import group as pygroup
     for direction in ("asc", "desc"):
         want = DST_EDGE_SORT[zone] if direction == "asc" else DST_EDGE_SORT[zone][::-1]
-        pick = _pick(sort={"field": "$.when", "dir": direction}, times=["when"], sort_zone=zone)
+        pick = _pick(sort={"field": "$.when", "dir": direction}, times=["when"], times_zone=zone)
         sql = _with_rows(conn, DST_EDGE, lambda: [r["key"] for r in _sql(conn, pick)])
         py = [r["key"] for r in _py_rows(DST_EDGE, pick)]
         check(sql == want and py == want, "sort", direction, sql, py)
     for fn in ("max", "min"):
-        spec = dict(BOARD, time={"fn": fn, "field": "when", "zone": zone})
+        spec = dict(BOARD, time={"fn": fn, "field": "when"}, times_zone=zone)
         want = {None: DST_EDGE_BOARD[(zone, fn)]}
         sql = _with_rows(conn, DST_EDGE, lambda: _sql_board(conn, spec))
         src = [pyrows.source_row(T, k, json.dumps({"when": v})) for k, v in sorted(DST_EDGE.items())]
@@ -1224,7 +1228,7 @@ def test_the_sort_reads_only_a_bare_date_on_the_clock_and_refuses_one_inside_d_b
     """T-101 on the sort: a bare date whose midnight on the clock lies where this database's clock and Python's
     disagree is refused by name (XPR05); a time there is read on no clock to sort, so it sorts as before."""
     import psycopg
-    pick = _pick(sort={"field": "$.when", "dir": "asc"}, times=["when"], sort_zone=DENVER)
+    pick = _pick(sort={"field": "$.when", "dir": "asc"}, times=["when"], times_zone=DENVER)
 
     def sorted_with(window):
         with conn.transaction():
@@ -1248,7 +1252,7 @@ def test_a_bare_date_sorts_ahead_of_a_time_at_its_very_midnight(conn, zone):
     rows = {"a": "2026-07-09T06:00:00Z" if zone else "2026-07-09T00:00:00Z", "z": "2026-07-09"}   # by key: a, z
     for direction, want in (("asc", ["z", "a"]), ("desc", ["a", "z"])):
         pick = _pick(sort={"field": "$.when", "dir": direction}, times=["when"],
-                     **({"sort_zone": zone} if zone else {}))
+                     **({"times_zone": zone} if zone else {}))
         sql = _with_rows(conn, rows, lambda: [r["key"] for r in _sql(conn, pick)])
         py = [r["key"] for r in _py_rows(rows, pick)]
         assert sql == want and py == want, (zone, direction, sql, py)
@@ -1282,14 +1286,13 @@ def test_the_axis_lays_every_bucket_an_engine_returns_even_an_hour_the_clock_nev
 def test_a_clock_for_bare_dates_is_refused_unless_a_listed_zone_beside_a_time_read_as_an_instant():
     from picks import group as sgroup, legality
     sort = {"field": "$.when", "dir": "asc"}
-    assert legality.shape_violations(_pick(sort=sort, times=["when"], sort_zone=DENVER)) == []
-    for pick, why in ((_pick(sort=sort, times=["when"], sort_zone="Mars/Olympus"), "must be one of the zone names"),
-                      (_pick(sort={"field": "$.s", "dir": "asc"}, times=["when"], sort_zone=DENVER), "goes with a sort"),
-                      (_pick(times=["when"], sort_zone=DENVER), "goes with a sort")):
+    assert legality.shape_violations(_pick(sort=sort, times=["when"], times_zone=DENVER)) == []
+    for pick, why in ((_pick(sort=sort, times=["when"], times_zone="Mars/Olympus"), "must be one of the zone names"),
+                      (_pick(times_zone=DENVER), "goes with the time fields")):
         found = legality.shape_violations(pick)
-        assert [v["operation"] for v in found] == [4] and why in found[0]["why"], (pick, found)
-    for spec, why in ((dict(BOARD, time={"fn": "max", "field": "when", "zone": "Mars/Olympus"}), "must be one of"),
-                      (dict(BOARD, time={"fn": "max", "field": "when", "zone": DENVER}, count_times=[]), "goes with")):
+        assert [v["operation"] for v in found] == [3] and why in found[0]["why"], (pick, found)
+    for spec, why in ((dict(BOARD, times_zone="Mars/Olympus"), "must be one of"),
+                      (dict(BOARD, times_zone=DENVER, count_times=[]), "goes with")):
         with pytest.raises(ValueError, match=why):
             sgroup.build(spec, records=_records())
 

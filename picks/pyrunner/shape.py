@@ -94,7 +94,7 @@ def answer(rows: Sequence[SourceRow], pick: dict, records=None) -> Dict[str, Any
 
     # step 3 — filter, before anything windowed (B3 detail 4)
     if filter_ast is not None:
-        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants)]
+        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants, pick.get("times_zone"))]
 
     if shape == "SCALAR":
         return _scalar(rows, pick, parsed)
@@ -158,7 +158,7 @@ def _rows(
             sort_steps = ev.dollar_path(field)
             if ev.reads_as_instant(field, pick.get("times")):
                 # T-114: a time field sorts by its instant, a bare date at its midnight on the question's clock
-                sort_steps = ev.InstantPath(sort_steps, pick.get("sort_zone"))
+                sort_steps = ev.InstantPath(sort_steps, pick.get("times_zone"))
     indices.sort(
         key=lambda i: ev.row_sort_key(
             rows[i], sort_steps, cells[i], sort_alias, direction

@@ -655,8 +655,8 @@ def to_pick(catalog: "Catalog", setup_payload: dict, view: dict) -> dict:
         read.append(sort["field"])
     if read:
         pick["times"] = read
-    if sort and fields[sort["field"]]["kind"] == "time" and view_zone(view) is not None:
-        pick["sort_zone"] = view_zone(view)      # T-114: a bare date sorts at its midnight on the question's clock
+    if read and view_zone(view) is not None:
+        pick["times_zone"] = view_zone(view)     # T-114: they are read on the question's clock (a bare date at its midnight)
 
     summary = _summary(view, fields, ds)
     if summary:
@@ -919,55 +919,35 @@ def _instant(value, zone=None) -> str:
     return t
 
 
-def _dated(ref: str, timed: str, dated: str) -> str:
-    """A time field's condition on its reading (xpr.time_text / picks.times.reading): a time is compared as an
-    instant (``timed``), a bare date as a date (``dated``) -- its midnight is the question's clock's, as the buckets
-    read it (spec §2.1; T-114, a-chk's preview). Dates compare as text, so no clock is read in the statement."""
-    return f"((length({ref}) > 10 and {timed}) or (length({ref}) == 10 and {dated}))"
+def _marked(t: str) -> str:
+    """An instant at the one width (``_wide``) as a bare date of that instant reads (``picks.times.reading_on``): its Z
+    replaced by the date mark, which sorts it just ahead of a time at that very instant."""
+    return _wide(t)[:-1] + times.DATE_MARK
 
 
-def _wall(value: str, zone=None) -> _dt.datetime:
-    """A picked time (``_instant`` has checked it) as the question's clock shows it: the wall time picked, or one
-    ending in Z read onto that clock; with no clock, UTC's."""
-    m = _MINUTE_RE.match(value)
-    day = _day(m.group(1))
-    wall = _dt.datetime(day.year, day.month, day.day, int(m.group(2)), int(m.group(3)), int(m.group(4) or 0),
-                        int((m.group(5) or "0").ljust(6, "0")))
-    if zone is not None and value.endswith("Z"):
-        wall = wall.replace(tzinfo=_dt.timezone.utc).astimezone(zones.ZoneInfo(zone)).replace(tzinfo=None)
-    return wall
-
-
-def _past_midnight(value: str, zone=None) -> bool:
-    """Is a picked time past its day's midnight on the question's clock -- the first instant of that day there, where
-    every reader puts a bare date (picks.times.midnight; T-114) -- rather than merely off the wall's 00:00, which a
-    clock that skips midnight never shows and one that repeats it shows twice?"""
-    return times.instant(_instant(value, zone)) > times.midnight(_wall(value, zone).date().isoformat(), zone)
+def _day_start(day: _dt.date, zone=None) -> str:
+    """A day's first instant on the question's clock (UTC's with none), as that day's bare date reads (marked)."""
+    return times.utc_text(times.midnight(day.isoformat(), zone))[:-1] + times.DATE_MARK
 
 
 def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str) -> tuple[str, str]:
-    """after / before / between on a time field: a time against the picked instants; a bare date, at the first
-    instant of its day on the question's clock, against the picked days -- after T: a later day than T's; before T:
-    T's day or earlier (earlier only when T is that day's first instant); between A and B: from A's day (the next,
-    unless A is that day's first instant) to B's day."""
+    """after / before / between on a time field: one window over its reading (``picks.times.reading_on``, once a
+    row), which puts a time at its instant and a bare date at the first instant of its day on the question's clock,
+    just ahead of a time at that very instant (T-114: one reading for every reader; a-chk's cost MEDIUM: e00a5d8's
+    own shape). After T: past T's own instant. Before T: ahead of T as a bare date there would read. Between A and
+    B: from A as a bare date would read to B's own instant."""
     if op == "between":
         lo, hi = cond.get("value"), cond.get("value2")
         a, said_a = _value_for(field, lo, zone)
         b, said_b = _value_for(field, hi, zone)
         if _order_key(field, lo, zone) > _order_key(field, hi, zone):      # "between 5 PM and 9 AM", in order
             (a, said_a, lo), (b, said_b, hi) = (b, said_b, hi), (a, said_a, lo)
-        first, last = _wall(lo, zone), _wall(hi, zone)
-        start = first.date() + _dt.timedelta(days=1 if _past_midnight(lo, zone) else 0)
-        dated = f"{ref} >= {string_literal(start.isoformat())} and {ref} <= {string_literal(last.date().isoformat())}"
-        return _dated(ref, f"{ref} >= {a} and {ref} <= {b}", dated), f"{said} {said_a} and {said_b}"
+        return (f"{ref} >= {string_literal(_marked(_instant(lo, zone)))} and {ref} <= {b}",
+                f"{said} {said_a} and {said_b}")
     lit, said_t = _value_for(field, cond.get("value"), zone)
-    t = _wall(cond.get("value"), zone)
-    day = string_literal(t.date().isoformat())
     if op == "after":
-        timed, dated = f"{ref} > {lit}", f"{ref} > {day}"
-    else:
-        timed, dated = f"{ref} < {lit}", f"{ref} {'<=' if _past_midnight(cond.get('value'), zone) else '<'} {day}"
-    return _dated(ref, timed, dated), f"{said} {said_t}"
+        return f"{ref} > {lit}", f"{said} {said_t}"
+    return f"{ref} < {string_literal(_marked(_instant(cond.get('value'), zone)))}", f"{said} {said_t}"
 
 
 def _wide(t: str) -> str:
@@ -1131,14 +1111,13 @@ def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
 
     if op == "on" and field["kind"] == "time":
         d = _day(cond.get("value"))
-        if zone is None:
-            start = string_literal(f"{d.isoformat()}T00:00:00.000000Z")
-            end = string_literal(f"{(d + _dt.timedelta(days=1)).isoformat()}T00:00:00.000000Z")
-        else:
-            # the day on the question's clock: its first instant to the next day's (DST-correct)
-            first, nxt = zones.day_span(d, zone)
-            start, end = string_literal(_wide(first)), string_literal(_wide(nxt))
-        return (_dated(ref, f"{ref} >= {start} and {ref} < {end}", f"{ref} == {string_literal(d.isoformat())}"),
+        # T-114: one window over the reading -- the day's first instant on the question's clock to the next day's,
+        # each as that day's bare date reads, so the day's own bare date is in and the next one's out (DST-correct);
+        # the calendar's last day has no next (a-chk's MEDIUM-2: never an OverflowError)
+        start = f"{ref} >= {string_literal(_day_start(d, zone))}"
+        if d == _dt.date.max:
+            return start, f"{label} {words} {fmt_day(d.isoformat())}"
+        return (f"{start} and {ref} < {string_literal(_day_start(d + _dt.timedelta(days=1), zone))}",
                 f"{label} {words} {fmt_day(d.isoformat())}")
 
     if field["kind"] == "time" and op in ("after", "before", "between"):
@@ -1917,8 +1896,6 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         time_spec = {"fn": TIME_WORDS[time["fn"]][0], "field": f["path"]}
         if f["kind"] == "time" and f["path"] not in count_times:
             count_times.append(f["path"])       # T-114: latest / earliest by instant
-        if f["kind"] == "time" and view_zone(view) is not None:
-            time_spec["zone"] = view_zone(view)  # T-114: a bare date at its midnight on the question's clock
 
     measure = sb.get("measure")
     measure_spec = None
@@ -1963,6 +1940,8 @@ def to_spec(catalog: "Catalog", setup_payload: dict, view: dict, admin: bool = T
         spec["times"] = time_fields_read(view, fields)
     if count_times:
         spec["count_times"] = count_times
+    if (spec.get("times") or count_times) and view_zone(view) is not None:
+        spec["times_zone"] = view_zone(view)     # T-114: they are read on the question's clock
     if relation:
         spec["related"] = {
             "source": catalog.sources[relation["to"]],
@@ -2092,4 +2071,6 @@ def to_category_spec(catalog: "Catalog", setup_payload: dict, view: dict) -> tup
     }
     if time_fields_read(view, fields):
         spec["times"] = time_fields_read(view, fields)       # T-114
+        if view_zone(view) is not None:
+            spec["times_zone"] = view_zone(view)
     return spec, {"ds": ds, "fields": fields, "summary": summary, "by": fields[summary["by"]]}

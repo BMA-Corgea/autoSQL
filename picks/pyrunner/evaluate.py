@@ -206,10 +206,10 @@ def computed_values(row: SourceRow, parsed: Sequence[Tuple[str, Any]]) -> Dict[s
     return {name: exact_value(expr.evaluate(ast, row.record_f, {})) for name, ast in parsed}
 
 
-def keep_by_filter(row: SourceRow, filter_ast, instants: Optional[Sequence] = None) -> bool:
+def keep_by_filter(row: SourceRow, filter_ast, instants: Optional[Sequence] = None, zone: Optional[str] = None) -> bool:
     """Operation 3 on one row: expr truthiness of the filter, on record_f -- with T-114's instant reading of the
-    time fields ``instants`` names (expr.py path steps; :func:`instant_record`)."""
-    record = instant_record(row.record_f, instants) if instants else row.record_f
+    time fields ``instants`` names (expr.py path steps; :func:`instant_record`) on the question's clock ``zone``."""
+    record = instant_record(row.record_f, instants, zone) if instants else row.record_f
     return expr.truthy(expr.evaluate(filter_ast, record, {}))
 
 
@@ -238,18 +238,19 @@ def instants_of(named: Optional[Sequence[str]]) -> list:
     return [dollar_path(paths.dollar(t)) for t in named or ()]
 
 
-def instant_record(record: Any, instants: Sequence) -> Any:
-    """``record`` with each time field ``instants`` names handed to the filter as the statement hands it (runtime
-    ``xpr.time_text``; T-114, the foreman's (A)): its UTC instant at one width, false when it is no readable time,
-    a blank (JSON null, or no such field) as it is. A copy along each path; the record itself is never changed."""
+def instant_record(record: Any, instants: Sequence, zone: Optional[str] = None) -> Any:
+    """``record`` with each time field ``instants`` names handed to the filter as the statement hands it (T-114, the
+    foreman's (A); ``picks.times.reading_on``): a time's UTC instant at one width, a bare date the first instant of
+    its day on the question's clock ``zone``, marked; false when it is no readable time, a blank (JSON null, or no
+    such field) as it is. A copy along each path; the record itself is never changed."""
     for steps in instants:
-        record = _with_reading(record, list(steps))
+        record = _with_reading(record, list(steps), zone)
     return record
 
 
-def _with_reading(cur: Any, steps: List[Tuple[str, Any]]) -> Any:
+def _with_reading(cur: Any, steps: List[Tuple[str, Any]], zone: Optional[str] = None) -> Any:
     if not steps:
-        return times.reading(cur)
+        return times.reading_on(cur, zone)
     kind, key = steps[0]
     if kind == "key":
         if not isinstance(cur, dict) or key not in cur:
@@ -259,7 +260,7 @@ def _with_reading(cur: Any, steps: List[Tuple[str, Any]]) -> Any:
         if not isinstance(cur, list) or not -len(cur) <= key < len(cur):
             return cur
         out = list(cur)
-    out[key] = _with_reading(cur[key], steps[1:])
+    out[key] = _with_reading(cur[key], steps[1:], zone)
     return out
 
 
@@ -558,7 +559,7 @@ def row_sort_key(
             # T-114 (ruling 2): a time field by its instant; a value that is no readable time sorts last either way,
             # with the rows that lack the field (the statement's NULLS LAST, then the key); JSON null keeps its place.
             # On a question's clock a bare date sorts at its midnight there (the class)
-            value = times.sort_reading(value, sort_steps.zone)
+            value = times.reading_on(value, sort_steps.zone)
             if value is False:
                 value = MISSING
     else:

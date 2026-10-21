@@ -66,6 +66,7 @@ from typing import Any, NamedTuple
 from decimal import Decimal
 
 from . import doubles, env, gate, legality, paths
+from . import times as times_mod  # T-114: the reading's date mark (time_reads)
 
 
 #: The SHIPPING compiler (``compiler/compile.py`` in this repo) and the
@@ -495,23 +496,33 @@ def instants_kw(compile_kw: dict, times) -> dict:
     return dict(compile_kw, instants=steps)
 
 
-def time_reads(times, column: str, compile_kw: dict, params: dict, name: str):
-    """T-114 (a-chk's cost MEDIUM): each time field ``times`` names, its instant read ONCE a row -- in a LATERAL the
-    statement joins after its table, as the bucket's ``bkt.t`` is -- so a filter, a count-if or a sort that names
-    the field reads that column, not the field again: xpr.time_text is a plpgsql call, and the language's ``==``
-    alone names its operand six times. The reading is the compiler's own (``instants``, the records' fold and all).
-    Returns the LATERAL's SQL (empty when ``times`` names none) and the compiler's ``instant_refs``."""
+def time_reads(times, column: str, compile_kw: dict, params: dict, name: str, zone=None):
+    """T-114 (a-chk's cost MEDIUM): each time field ``times`` names, read ONCE a row -- in a LATERAL the statement
+    joins after its table, as the bucket's ``bkt.t`` is -- so a filter, a count-if, a sort or a latest / earliest
+    that names the field reads that column, not the field again (xpr.time_text is a plpgsql call). The column is
+    the reading ``picks.times.reading_on`` gives on the question's clock ``zone``: a time's instant at one width, a
+    bare date the first instant of its day there (through D, as every clock reading is), its Z replaced by
+    ``DATE_MARK``; so a condition is one window of comparisons, e00a5d8's own shape. The field read is the
+    compiler's own (``instants``, the records' fold and all). Returns the LATERAL's SQL (empty when ``times`` names
+    none) and the compiler's ``instant_refs``."""
     if not times:
         return "", ()
-    cols, refs = [], []
+    day = midnight_reading(params, zone, f"{name}z") if zone else None
+    reads, cols, refs = [], [], []
     for i, t in enumerate(times):
         frag = _compile_expression(paths.dollar(t), ctx_param=f"{name}{i}_ctx", column=column,
                                    compile_kw=instants_kw(compile_kw, [t]))
         sql, prm = namespace(frag, f"{name}{i}")
         merge_params(params, prm)
-        cols.append(f"{sql} AS t{i}")
+        reads.append(f"{sql} AS r{i}")
+        r, d = f"s.r{i}", f"(s.r{i} #>> '{{}}')"
+        start = (f"to_char({day(d)} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US')" if day
+                 else f"{d} || 'T00:00:00.000000'")
+        cols.append(f"CASE WHEN jsonb_typeof({r}) = 'string' AND length({d}) = 10"
+                    f" THEN to_jsonb({start} || '{times_mod.DATE_MARK}') ELSE {r} END AS t{i}")
         refs.append((_expr.parse(paths.dollar(t))[1], f"{name}.t{i}"))
-    return f"\n  CROSS JOIN LATERAL (SELECT {', '.join(cols)} OFFSET 0) AS {name}", tuple(refs)
+    return (f"\n  CROSS JOIN LATERAL (SELECT {', '.join(cols)}"
+            f" FROM (SELECT {', '.join(reads)} OFFSET 0) AS s) AS {name}", tuple(refs))
 
 
 def reads_kw(compile_kw: dict, times, refs) -> dict:
@@ -596,7 +607,8 @@ class _Pieces:
         self.compile_kw = self.records.compile_kwargs(self.source)
         self.times = list(pick.get("times") or ())      # T-114: the time fields the filter and sort read as instants
         # ... each read once a row, in a LATERAL every shape joins after its table (a-chk's cost MEDIUM)
-        self.time_lateral, self.time_refs = time_reads(self.times, self.col, self.compile_kw, self.params, "tim")
+        self.time_lateral, self.time_refs = time_reads(self.times, self.col, self.compile_kw, self.params, "tim",
+                                                       pick.get("times_zone"))
         self.time_cte: dict = {}            # over a CTE (order_by(qualify="")), the readings the CTE carries
 
         # Op 2 — parse+gate+compile each computed column ONCE; validate and
@@ -728,21 +740,14 @@ class _Pieces:
                 # T-114 (ruling 2): a time field sorts by its instant; a value that is no readable time sorts last
                 # either way, with the rows that lack the field (NULLS LAST, then the key); a JSON-null blank keeps
                 # its place
-                # (read once a row: the statement's reading of the field, when it holds one -- a-chk's cost MEDIUM;
-                # that reading, the language's, has no JSON null, which keeps its place here, so the stored value says)
+                # -- by the statement's reading of the field, once a row (a-chk's cost MEDIUM): on the question's
+                # clock a bare date at its midnight there, marked, so ahead of a time at that very instant (the
+                # class; picks.times.reading_on). That reading, the language's, has no JSON null, which keeps its
+                # place here, so the stored value says
                 ref = self.time_ref(field, q)
                 reading = (f"(CASE WHEN {value} = 'null'::jsonb THEN 'null'::jsonb ELSE {ref} END)" if ref
                            else f"xpr.time_text({value})")
                 value = f"nullif({reading}, 'false'::jsonb)"
-                if pick.get("sort_zone"):
-                    # the class: on a question's clock a bare date sorts at its midnight there, at the one width,
-                    # among the times, ahead of a time at that very instant (picks.times.sort_reading); the reading
-                    # is the date itself only when it is a readable one
-                    d = f"({reading} #>> '{{}}')"
-                    at = midnight_reading(self.params, pick["sort_zone"], "srt")(d)
-                    value = (f"(CASE WHEN jsonb_typeof({reading}) = 'string' AND length({d}) = 10"
-                             f" THEN to_jsonb(to_char({at} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US') || ' ')"
-                             f" ELSE {value} END)")
         lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
         return f" ORDER BY {lead}, {q}key ASC"
 

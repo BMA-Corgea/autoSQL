@@ -149,7 +149,8 @@ def build_profile(pick: dict, lk: dict, records=None) -> Built:
     where = "WHERE " + records.scope("r", params)
     compile_r = records.compile_kwargs(pick["source"])
     # T-114 (a-chk's cost MEDIUM): the filter's time fields, read once a row
-    timr, r_refs = builder.time_reads(pick.get("times") or (), "r.data", compile_r, params, "timr")
+    timr, r_refs = builder.time_reads(pick.get("times") or (), "r.data", compile_r, params, "timr",
+                                      pick.get("times_zone"))
     if pick.get("filter"):
         frag = builder._compile_expression(pick["filter"], ctx_param="flt_ctx", column="r.data",
                                            compile_kw=builder.reads_kw(compile_r, pick.get("times"), r_refs))

@@ -587,7 +587,6 @@ def agreed_count(conn, pick: dict) -> int | None:
     it cannot stand behind (T-72 AC2)."""
     count_pick = dict(pick, aggregate={"fn": "count", "field": None},
                       bucket="off", computed=[], sort=None, cap=None)
-    count_pick.pop("sort_zone", None)       # T-114: the clock a bare date sorts on goes with the sort
     result = _run(conn, count_pick)
     if not result.get("accepted"):
         return None

@@ -176,9 +176,10 @@ WHY_BUCKET_NEEDS_AGG = "a bucket has to count or total something; set to count"
 #   changed   bool                                        (op 9)
 #   times     [str] | None  the time fields the filter and the sort read as
 #             instants (T-114, the foreman's (A)): a dashboard's pick names them
-#   sort_zone str | None  the clock a bare date in the sorted time field sorts on,
-#             at its midnight there (T-114): one of the zones both engines read;
-#             None sorts it at its UTC midnight, as before
+#   times_zone str | None  the question's clock the fields ``times`` names are read
+#             on (T-114): a bare date at the first instant of its day there, for
+#             the filter and the sort; one of the zones both engines read; None
+#             reads it at its UTC midnight
 
 
 def default_pick(records=None) -> dict:
@@ -280,18 +281,6 @@ def _slot_kind(value) -> str:
     if isinstance(value, dict):
         return "an object"
     return repr(value)
-
-
-def _sorts_a_time_read(sort, times_read) -> bool:
-    """T-114: does the pick sort by a field its ``times`` reads as an instant (compared by path, in any spelling)?"""
-    from . import paths
-    if not (isinstance(sort, dict) and isinstance(sort.get("field"), str) and isinstance(times_read, list)):
-        return False
-    try:
-        steps = paths.steps(sort["field"])
-        return any(isinstance(t, str) and paths.steps(t) == steps for t in times_read)
-    except ValueError:
-        return False
 
 
 def shape_violations(pick: dict) -> list[dict]:
@@ -397,13 +386,13 @@ def shape_violations(pick: dict) -> list[dict]:
     if times_read is not None and not (isinstance(times_read, list)
                                        and all(isinstance(t, str) and t for t in times_read)):
         bad(3, "the time fields a filter reads as instants must be a list of field paths")
-    sort_zone = pick.get("sort_zone")
-    if sort_zone is not None:
-        # T-114: the clock a bare date in the sorted time field sorts on; refused, never ignored
-        if not isinstance(sort_zone, str) or sort_zone not in env.time_zones():
-            bad(4, "the clock to sort bare dates on must be one of the zone names both engines read")
-        elif not _sorts_a_time_read(sort, times_read):
-            bad(4, "a clock to sort bare dates on goes with a sort by a time field the pick reads as an instant")
+    times_zone = pick.get("times_zone")
+    if times_zone is not None:
+        # T-114: the clock the time fields are read on; refused, never ignored
+        if not isinstance(times_zone, str) or times_zone not in env.time_zones():
+            bad(3, "the clock to read time fields on must be one of the zone names both engines read")
+        elif not (isinstance(times_read, list) and times_read):
+            bad(3, "a clock to read time fields on goes with the time fields the pick reads as instants")
     bucket_field = pick.get("bucket_field")
     if bucket_field is not None and not isinstance(bucket_field, str):
         bad(7, f"the field to group by time must be a field path — text — and this pick "

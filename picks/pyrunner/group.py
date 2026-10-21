@@ -173,7 +173,7 @@ def _kept(rows: Sequence[SourceRow], spec: dict) -> List[SourceRow]:
     if spec.get("filter"):
         flt = ev.expr.parse(spec["filter"])
         instants = ev.instants_of(spec.get("times"))       # T-114: the page filter's time fields, as instants
-        return [r for r in rows if ev.keep_by_filter(r, flt, instants)]
+        return [r for r in rows if ev.keep_by_filter(r, flt, instants, spec.get("times_zone"))]
     return list(rows)
 
 
@@ -261,7 +261,8 @@ def answer(rows: Sequence[SourceRow], spec: dict,
         for i, ast in enumerate(counts, start=1):
             k = sum(1 for r in members
                     if ev.expr.truthy(ev.expr.evaluate(
-                        ast, ev.instant_record(r.record_f, count_instants) if count_instants else r.record_f, {})))
+                        ast, ev.instant_record(r.record_f, count_instants, spec.get("times_zone"))
+                        if count_instants else r.record_f, {})))
             row[f"c{i}"] = k
             if (spec["counts"][i - 1]).get("pct"):
                 row[f"c{i}_pct"] = _pct(k, n)
@@ -269,7 +270,7 @@ def answer(rows: Sequence[SourceRow], spec: dict,
             # T-114: a time field's latest / earliest by instant, in the engine's one fixed form to the second (the
             # statement's to_char of max(xpr.time_at(...))); a value that is no readable time is not read; on a
             # question's clock a bare date at its midnight there (the class)
-            ats = [a for a in (times.instant_on(ev.resolve(r.record_d, time_steps), time.get("zone"))
+            ats = [a for a in (times.instant_on(ev.resolve(r.record_d, time_steps), spec.get("times_zone"))
                                for r in members) if a is not None]
             pick = max if time["fn"] == "max" else min
             row["time"] = times.fixed_text(pick(ats)) if ats else None

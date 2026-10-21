@@ -56,7 +56,7 @@ def _kept(rows: Sequence[SourceRow], pick: dict) -> List[SourceRow]:
     if pick.get("filter"):
         flt = ev.expr.parse(pick["filter"])
         instants = ev.instants_of(pick.get("times"))       # T-114: the filter's time fields, as instants
-        return [r for r in rows if ev.keep_by_filter(r, flt, instants)]
+        return [r for r in rows if ev.keep_by_filter(r, flt, instants, pick.get("times_zone"))]
     return list(rows)
 
 
