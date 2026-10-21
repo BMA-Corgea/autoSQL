@@ -495,6 +495,31 @@ def instants_kw(compile_kw: dict, times) -> dict:
     return dict(compile_kw, instants=steps)
 
 
+def time_reads(times, column: str, compile_kw: dict, params: dict, name: str):
+    """T-114 (a-chk's cost MEDIUM): each time field ``times`` names, its instant read ONCE a row -- in a LATERAL the
+    statement joins after its table, as the bucket's ``bkt.t`` is -- so a filter, a count-if or a sort that names
+    the field reads that column, not the field again: xpr.time_text is a plpgsql call, and the language's ``==``
+    alone names its operand six times. The reading is the compiler's own (``instants``, the records' fold and all).
+    Returns the LATERAL's SQL (empty when ``times`` names none) and the compiler's ``instant_refs``."""
+    if not times:
+        return "", ()
+    cols, refs = [], []
+    for i, t in enumerate(times):
+        frag = _compile_expression(paths.dollar(t), ctx_param=f"{name}{i}_ctx", column=column,
+                                   compile_kw=instants_kw(compile_kw, [t]))
+        sql, prm = namespace(frag, f"{name}{i}")
+        merge_params(params, prm)
+        cols.append(f"{sql} AS t{i}")
+        refs.append((_expr.parse(paths.dollar(t))[1], f"{name}.t{i}"))
+    return f"\n  CROSS JOIN LATERAL (SELECT {', '.join(cols)} OFFSET 0) AS {name}", tuple(refs)
+
+
+def reads_kw(compile_kw: dict, times, refs) -> dict:
+    """``instants_kw`` with the statement's once-a-row readings (``time_reads``) for the compiler to name."""
+    kw = instants_kw(compile_kw, times)
+    return dict(kw, instant_refs=refs) if refs else kw
+
+
 def _compile_expression(src: str, ctx_param: str, column: str, compile_kw: dict | None = None) -> Compiled:
     """parse → gate → compile, in that order, always (§4.5: the gate runs
     before compile_ast, on the parsed tree, every time).  ``compile_kw`` is
@@ -570,6 +595,9 @@ class _Pieces:
         self.col = self.q + "data"
         self.compile_kw = self.records.compile_kwargs(self.source)
         self.times = list(pick.get("times") or ())      # T-114: the time fields the filter and sort read as instants
+        # ... each read once a row, in a LATERAL every shape joins after its table (a-chk's cost MEDIUM)
+        self.time_lateral, self.time_refs = time_reads(self.times, self.col, self.compile_kw, self.params, "tim")
+        self.time_cte: dict = {}            # over a CTE (order_by(qualify="")), the readings the CTE carries
 
         # Op 2 — parse+gate+compile each computed column ONCE; validate and
         # quote each alias against the vocabulary that existed before it.
@@ -595,7 +623,7 @@ class _Pieces:
         if flt_src:
             frag = _compile_expression(
                 flt_src, ctx_param="flt_ctx", column=self.col,
-                compile_kw=instants_kw(self.compile_kw, self.times),
+                compile_kw=reads_kw(self.compile_kw, self.times, self.time_refs),
             )
             sql, prm = namespace(frag, PREFIX_FILTER)
             merge_params(self.params, prm)
@@ -615,6 +643,18 @@ class _Pieces:
         path = _field_path(field, what=what)
         self.params[path_param] = path
         return f"{self.col} #> %({path_param})s"
+
+    def time_ref(self, field: str, qualify: str):
+        """T-114: the statement's once-a-row reading of time field ``field`` -- its LATERAL's column; over a CTE
+        (``qualify`` empty) the column the CTE carries it in -- or None when it reads none."""
+        try:
+            steps = paths.steps(field)
+        except ValueError:
+            return None
+        for t, (_, ref) in zip(self.times, self.time_refs):
+            if paths.steps(t) == steps:
+                return ref if qualify else self.time_cte.get(ref)
+        return None
 
     def where_clause(self) -> str:
         out = " WHERE " + self.records.scope(self.q[:-1], self.params)
@@ -688,15 +728,19 @@ class _Pieces:
                 # T-114 (ruling 2): a time field sorts by its instant; a value that is no readable time sorts last
                 # either way, with the rows that lack the field (NULLS LAST, then the key); a JSON-null blank keeps
                 # its place
-                stored = value
-                value = f"nullif(xpr.time_text({stored}), 'false'::jsonb)"
+                # (read once a row: the statement's reading of the field, when it holds one -- a-chk's cost MEDIUM;
+                # that reading, the language's, has no JSON null, which keeps its place here, so the stored value says)
+                ref = self.time_ref(field, q)
+                reading = (f"(CASE WHEN {value} = 'null'::jsonb THEN 'null'::jsonb ELSE {ref} END)" if ref
+                           else f"xpr.time_text({value})")
+                value = f"nullif({reading}, 'false'::jsonb)"
                 if pick.get("sort_zone"):
                     # the class: on a question's clock a bare date sorts at its midnight there, at the one width,
-                    # among the times, ahead of a time at that very instant (picks.times.sort_reading)
-                    d = f"({stored} #>> '{{}}')"
+                    # among the times, ahead of a time at that very instant (picks.times.sort_reading); the reading
+                    # is the date itself only when it is a readable one
+                    d = f"({reading} #>> '{{}}')"
                     at = midnight_reading(self.params, pick["sort_zone"], "srt")(d)
-                    value = (f"(CASE WHEN jsonb_typeof({stored}) = 'string' AND length({d}) = 10"
-                             f" AND xpr.time_at({d}) IS NOT NULL"
+                    value = (f"(CASE WHEN jsonb_typeof({reading}) = 'string' AND length({d}) = 10"
                              f" THEN to_jsonb(to_char({at} AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US') || ' ')"
                              f" ELSE {value} END)")
         lead = f'{code_point_order(value, direction)}, {q}key COLLATE "C"'
@@ -749,7 +793,7 @@ def _shape_rows(p: _Pieces, pick: dict) -> Built:
 
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        f"  FROM {p.records.table} AS r" + p.sort_lateral + "\n"
+        f"  FROM {p.records.table} AS r" + p.time_lateral + p.sort_lateral + "\n"
         + p.where_clause() + "\n"
         + order
         + p.limit(pick) + ";"
@@ -778,12 +822,15 @@ def _shape_rows_changed(p: _Pieces, pick: dict) -> Built:
         outer.append('"rolling_avg"')
     texts = _series_texts(p.records)
     inner.append(texts["changed"])
+    for i, (_, ref) in enumerate(p.time_refs):      # T-114: the readings, carried for the sort over the CTE
+        inner.append(f'{ref}  AS "tim_t{i}"')
+        p.time_cte[ref] = f'"tim_t{i}"'
 
     columns = [c.strip('"') for c in outer]
     sql = (
         "WITH picked AS (\n"
         "  SELECT " + ",\n         ".join(inner) + "\n"
-        f"    FROM {p.records.table} AS r\n"
+        f"    FROM {p.records.table} AS r{p.time_lateral}\n"
         "  " + p.where_clause().replace("\n   ", "\n     ") + "\n"
         "  " + texts["window"] + "\n"
         ")\n"
@@ -802,7 +849,7 @@ def _shape_scalar(p: _Pieces, pick: dict) -> Built:
     emitted — B2 removed the 42703 by construction."""
     sql = (
         f'SELECT {p.aggregate_call(pick)}  AS "agg"\n'
-        f"  FROM {p.records.table} AS r\n"
+        f"  FROM {p.records.table} AS r{p.time_lateral}\n"
         + p.where_clause() + ";"
     )
     return Built(sql, p.params, legality.SCALAR, ("agg",))
@@ -859,7 +906,7 @@ def _shape_bucket(p: _Pieces, pick: dict) -> Built:
     sql = (
         f'SELECT {label}                      AS "bucket",\n'
         f'       {agg}             AS "agg"\n'
-        f"  FROM {p.records.table}{lateral}\n"
+        f"  FROM {p.records.table}{p.time_lateral}{lateral}\n"
         + where + "\n"
         ' GROUP BY "bucket"\n'
         ' ORDER BY "bucket"'
@@ -897,7 +944,7 @@ def sort_probe(pick: dict, collection_keys, *, ctx: dict | None = None, records=
         value = "( r.data #> %(sort_path)s )"
     sql = (
         'SELECT count(*) >= 2 AS "fired", min(key COLLATE "C") AS "first_key" FROM (\n'
-        f"  SELECT r.key\n    FROM {p.records.table} AS r\n"
+        f"  SELECT r.key\n    FROM {p.records.table} AS r{p.time_lateral}\n"
         "  " + p.where_clause().replace("\n   ", "\n     ") + "\n"
         f"     AND {NESTED_TEXT_TEST.format(v=value)}\n"
         '   ORDER BY r.key COLLATE "C"\n   LIMIT 2\n) AS nested;'

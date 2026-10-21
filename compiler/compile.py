@@ -322,14 +322,23 @@ def _instant_paths(instants: Any) -> frozenset:
     return frozenset(tuple(tuple(step) for step in path) for path in instants)
 
 
+def _instant_refs(refs: Any) -> dict:
+    """T-114 (a-chk's cost MEDIUM): field paths whose instant reading the statement already holds, read once a row,
+    each to the SQL that names it (a LATERAL's column) -- ``(path, sql)`` pairs."""
+    if not refs:
+        return {}
+    return {tuple(tuple(step) for step in path): sql for path, sql in refs}
+
+
 # ---------------------------------------------------------------------------------
 # Compiler
 # ---------------------------------------------------------------------------------
 class _Compiler:
     def __init__(self, column: str, ctx_param: str, fold: Any = None, noun: Any = None,
-                 time_zones: Any = None, zone_gaps: Any = None, instants: Any = None):
+                 time_zones: Any = None, zone_gaps: Any = None, instants: Any = None, instant_refs: Any = None):
         self.column = column
         self.instants = _instant_paths(instants)
+        self.instant_refs = _instant_refs(instant_refs)
         self.time_zones = time_zones
         self.zone_gaps = zone_gaps
         self.ctx_param = ctx_param
@@ -416,6 +425,9 @@ class _Compiler:
     # ---- field access -----------------------------------------------------------
     def _t_field(self, node):                                 # expr.py:247, 588-589
         path: List[Tuple[str, Any]] = node[1]
+        if self.instant_refs and tuple(tuple(step) for step in path) in self.instant_refs:
+            # read once a row by the statement (its LATERAL), however often the expression names the field
+            return self.instant_refs[tuple(tuple(step) for step in path)]
         if self.instants and tuple(tuple(step) for step in path) in self.instants:
             # T-114 (the foreman's (A)): a time field a dashboard's filter reads as an instant -- its UTC instant at
             # one width, false for a value that is no readable time, NULL for a blank (xpr.time_text)
@@ -771,7 +783,7 @@ del _name
 
 def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
                 fold: Any = None, noun: Any = None, time_zones: Any = None,
-                zone_gaps: Any = None, instants: Any = None) -> Compiled:
+                zone_gaps: Any = None, instants: Any = None, instant_refs: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres scalar jsonb expression + bind parameters.
 
     Raises Uncompilable for anything this compiler is not sure of.
@@ -791,12 +803,16 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
     instants (T-114): field paths (each a sequence of ("key"|"index", step) pairs, as the
     parser writes them) read as time instants -- xpr.time_text of the field.  Without it the
     output is byte-identical to the compiler before T-114.
+
+    instant_refs (T-114, a-chk's cost MEDIUM): (path, sql) pairs for instants the statement
+    already reads once a row (a LATERAL's column); the field compiles to that column, however
+    often the expression names it.  Without it the output is unchanged.
     """
     if fold not in (None, "gims"):
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants, instant_refs)
     sql = c.compile(ast)
     if "%" in sql.replace("%(", "\x00").replace(")s", "\x00"):
         # Defensive: a stray literal % would break %(name)s parameter binding.
@@ -806,7 +822,7 @@ def compile_ast(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
 
 def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx",
                       fold: Any = None, noun: Any = None, time_zones: Any = None,
-                      zone_gaps: Any = None, instants: Any = None) -> Compiled:
+                      zone_gaps: Any = None, instants: Any = None, instant_refs: Any = None) -> Compiled:
     """Compile an expr AST to a Postgres BOOLEAN: true exactly where expr's
     _truthy(evaluate(ast)) is.  For a WHERE.  Same arguments and refusals as compile_ast.
 
@@ -818,7 +834,7 @@ def compile_predicate(ast: Tuple, *, column: str = "data", ctx_param: str = "ctx
         raise ValueError(f"unknown fold {fold!r}: the only fold is 'gims'")
     if fold == "gims" and not (isinstance(noun, str) and noun):
         raise ValueError("fold='gims' needs noun=<the noun type>: GIMS tags every served row with it")
-    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants)
+    c = _Compiler(column, ctx_param, fold, noun, time_zones, zone_gaps, instants, instant_refs)
     sql = c.predicate(ast)                   # measured as it is built (T-102)
     return Compiled(sql=sql, params=c.params)
 

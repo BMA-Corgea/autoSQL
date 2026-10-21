@@ -117,7 +117,7 @@ def build(pick: dict, collection_keys, lk: dict, records=None) -> Built:
     on = group._match_on(lk, p.params, "m.data", "r.data")
     sql = (
         "SELECT " + ",\n       ".join(select) + "\n"
-        f"  FROM {records.table} AS r" + p.sort_lateral + "\n"
+        f"  FROM {records.table} AS r" + p.time_lateral + p.sort_lateral + "\n"
         f"  LEFT JOIN {records.table} AS m\n"
         "    ON " + records.scope("m", p.params, collection_param="mt_source") + "\n"
         f"   AND {on}\n"
@@ -147,15 +147,17 @@ def build_profile(pick: dict, lk: dict, records=None) -> Built:
     params: dict = {"collection": pick["source"], "mt_source": lk["source"]}
     on = group._match_on(lk, params, "c.data", "p.data")
     where = "WHERE " + records.scope("r", params)
+    compile_r = records.compile_kwargs(pick["source"])
+    # T-114 (a-chk's cost MEDIUM): the filter's time fields, read once a row
+    timr, r_refs = builder.time_reads(pick.get("times") or (), "r.data", compile_r, params, "timr")
     if pick.get("filter"):
         frag = builder._compile_expression(pick["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=builder.instants_kw(records.compile_kwargs(pick["source"]),
-                                                                          pick.get("times")))
+                                           compile_kw=builder.reads_kw(compile_r, pick.get("times"), r_refs))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f" AND xpr.truthy( {sql} )"
     sql = (
-        f"WITH p AS (SELECT r.key, r.data FROM {records.table} AS r\n"
+        f"WITH p AS (SELECT r.key, r.data FROM {records.table} AS r{timr}\n"
         f"            {where}),\n"
         f"     c AS (SELECT c.key, c.data FROM {records.table} AS c\n"
         "            WHERE " + records.scope("c", params, collection_param="mt_source") + "),\n"

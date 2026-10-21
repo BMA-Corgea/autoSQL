@@ -199,11 +199,21 @@ def build(spec: dict, records=None) -> Built:
     select = ['nullif( r.data #> %(grp_path)s, \'null\'::jsonb )  AS "grp"',
               f'{rows_sql}  AS "rows"']
 
+    # T-114 (a-chk's cost MEDIUM): each time field read once a row -- the parents' (the page filter's, and what is
+    # counted when the parents are what is counted) in timr, the related rows' in timc -- for the count-ifs, latest /
+    # earliest and the page filter to name, however often each names it
+    compile_r = records.compile_kwargs(spec["source"])
+    compile_c = records.compile_kwargs(rel["source"]) if rel else compile_r
+    count_times = list(spec.get("count_times") or ())
+    r_times = list(dict.fromkeys(list(spec.get("times") or ()) + ([] if rel else count_times)))
+    timr, r_refs = builder.time_reads(r_times, "r.data", compile_r, params, "timr")
+    timc, c_refs = builder.time_reads(count_times if rel else [], "c.data", compile_c, params, "timc")
+    counted_times, counted_refs = (count_times, c_refs) if rel else (r_times, r_refs)
+
     for i, c in enumerate(spec.get("counts") or [], start=1):
         frag = builder._compile_expression(
             c["expr"], ctx_param=f"k{i}_ctx", column=col,
-            compile_kw=builder.instants_kw(records.compile_kwargs(rel["source"] if rel else spec["source"]),
-                                           spec.get("count_times")))
+            compile_kw=builder.reads_kw(compile_c, count_times, counted_refs))
         sql, prm = builder.namespace(frag, f"k{i}")
         builder.merge_params(params, prm)
         hit = f"sum( CASE WHEN {present}xpr.truthy( {sql} ) THEN 1 ELSE 0 END )"
@@ -221,14 +231,19 @@ def build(spec: dict, records=None) -> Built:
         if t["field"] in (spec.get("count_times") or ()):
             # T-114: a time field's latest / earliest by instant (xpr.time_at), in the engine's one fixed form to the
             # second -- fixed width, so the column sorts as time; a value that is no readable time is not read
-            at = f"xpr.time_at( {col} #>> %(time_path)s )"
+            # -- read from the counted rows' once-a-row reading (xpr.time_text: a time's instant at one width, a
+            # readable bare date as itself), so the board reads the field once a row with its count-ifs
+            ref = _reading_of(t["field"], counted_times, counted_refs)
+            txt = f"({ref} #>> '{{}}')"
             if t.get("zone"):
                 # the class: on a question's clock a bare date at its midnight there (picks.times.instant_on)
-                d = f"({col} #>> %(time_path)s)"
-                at = (f"(CASE WHEN length({d}) = 10 AND {at} IS NOT NULL"
-                      f" THEN {builder.midnight_reading(params, t['zone'], 'tim')(d)} ELSE {at} END)")
-            select.append(f"to_char( {TIME_FNS[t['fn']]}( {at} ) AT TIME ZONE 'UTC',"
-                          f" 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"' )  AS \"time\"")
+                day = (f"to_char({builder.midnight_reading(params, t['zone'], 'tim')(txt)} AT TIME ZONE 'UTC',"
+                       f" 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')")
+            else:
+                day = f"{txt} || 'T00:00:00.000000Z'"
+            at = (f"CASE WHEN jsonb_typeof({ref}) = 'string' AND length({txt}) = 10 THEN {day}"
+                  f" WHEN jsonb_typeof({ref}) = 'string' THEN {txt} END")
+            select.append(f"substr( {TIME_FNS[t['fn']]}( ({at}) COLLATE \"C\" ), 1, 19 ) || 'Z'  AS \"time\"")
         else:
             select.append(f'{TIME_FNS[t["fn"]]}( {col} #>> %(time_path)s )  AS "time"')
 
@@ -246,12 +261,13 @@ def build(spec: dict, records=None) -> Built:
         source += (f"  LEFT JOIN {records.table} AS c\n"
                    "    ON " + records.scope("c", params, collection_param="rel_source") + "\n"
                    f"   AND {_match_on(rel, params, 'c.data', 'r.data')}\n")
+    if timr or timc:
+        source += (timr + timc).lstrip("\n") + "\n"
 
     where = " WHERE " + records.scope("r", params)
     if spec.get("filter"):
         frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=builder.instants_kw(records.compile_kwargs(spec["source"]),
-                                                                          spec.get("times")))
+                                           compile_kw=builder.reads_kw(compile_r, spec.get("times"), r_refs))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f"\n   AND xpr.truthy( {sql} )"
@@ -286,6 +302,15 @@ def build(spec: dict, records=None) -> Built:
     return Built(sql, params, GROUP, tuple(columns_of(spec)))
 
 
+def _reading_of(field: str, times, refs) -> str:
+    """The statement's once-a-row reading (``builder.time_reads``) of time field ``field``, among ``times``."""
+    steps = paths.steps(field)
+    for t, (_, ref) in zip(times, refs):
+        if paths.steps(t) == steps:
+            return ref
+    raise ValueError(f"latest / earliest of {field!r}: the board reads no such time field")
+
+
 @builder.build_statement
 def build_profile(spec: dict, records=None) -> Built:
     """The match profile (T-76): one row saying what the chosen match does
@@ -311,15 +336,16 @@ def build_profile(spec: dict, records=None) -> Built:
     params: dict = {"collection": spec["source"], "rel_source": rel["source"]}
     on = _match_on(rel, params, "c.data", "p.data")
     where = "WHERE " + records.scope("r", params)
+    compile_r = records.compile_kwargs(spec["source"])
+    timr, r_refs = builder.time_reads(spec.get("times") or (), "r.data", compile_r, params, "timr")
     if spec.get("filter"):
         frag = builder._compile_expression(spec["filter"], ctx_param="flt_ctx", column="r.data",
-                                           compile_kw=builder.instants_kw(records.compile_kwargs(spec["source"]),
-                                                                          spec.get("times")))
+                                           compile_kw=builder.reads_kw(compile_r, spec.get("times"), r_refs))
         sql, prm = builder.namespace(frag, builder.PREFIX_FILTER)
         builder.merge_params(params, prm)
         where += f" AND xpr.truthy( {sql} )"
     sql = (
-        f"WITH p AS (SELECT r.key, r.data FROM {records.table} AS r\n"
+        f"WITH p AS (SELECT r.key, r.data FROM {records.table} AS r{timr}\n"
         f"            {where}),\n"
         f"     c AS (SELECT c.key, c.data FROM {records.table} AS c\n"
         "            WHERE " + records.scope("c", params, collection_param="rel_source") + "),\n"
