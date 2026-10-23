@@ -860,6 +860,10 @@ def demo():
         for k, v in DST_EDGE.items():                # bare dates on days a clock skips or repeats midnight
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
                        (f"zw-{k}", json.dumps({"dz": v, "batch": "dst"})))
+        for field, values in ENDS.items():           # t98-23: a-chk's repros at the calendar's ends, a field each
+            for i, v in enumerate(values):
+                cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
+                           (f"ze-{field}{i}", json.dumps({field: v, "ek": f"{field}{i}", "batch": field})))
         cx.commit()
     opts = f"-c timezone={settings.TIME_ZONE} -c extra_float_digits={settings.EXTRA_FLOAT_DIGITS}"
     real = db.connect
@@ -1394,3 +1398,148 @@ def test_the_statement_and_the_second_engine_read_a_bare_dates_midnight_alike_on
     outside = [x for x in differ if not any(lo <= x[2] < hi for lo, hi in gaps[x[1]])]
     assert not outside, outside[:5]
     assert len(pairs) > 50_000, len(pairs)
+
+
+# ── t98-23, a-chk's MEDIUM-2: the calendar's ends on a question's clock ──
+# On d437b20 a reader of a time stepped past the calendar's ends and raised OverflowError, a 500: the "never expires"
+# sentinel shown on Kolkata or Berlin, year 9999 per day or "on Dec 31, 9999" on UTC or Kiritimati, year 1 per hour on
+# Kolkata. The bar: a cell or label for a time the clock can't show says what's stored, in UTC words with its year, and
+# says UTC -- never a made-up local time, never a 500; the axis's steps and a day's end stop at the calendar's last
+# instant (Dec 31, 9999 on Kolkata ends at 18:30Z, so a time after it is on no day there); an hour off the calendar is
+# not shown. Old years run on local mean time: Kolkata +5:53:28, Denver -6:59:56, Kiritimati -10:29:20.
+
+#: a-chk's three repros, a field each (so each field's span is its own): the sentinel beside two ordinary times; year
+#: 9999's last two days, times and then bare dates; year 1's first day, a time and then a bare date
+ENDS = {
+    "es": ["2026-07-09T05:03:48+00:00", "2026-07-10T05:03:48.123456+00:00", "9999-12-31T23:59:59.999999+00:00"],
+    "en": ["9999-12-30T10:00:00Z", "9999-12-31T10:00:00Z"],
+    "end": ["9999-12-31", "9999-12-30", "9999-12-31T10:00:00Z"],
+    "eo": ["0001-01-01T00:00:00Z", "0001-01-01T10:00:00Z"],
+    "eod": ["0001-01-01", "0001-01-01T10:00:00Z"],
+}
+KIRITIMATI = "Pacific/Kiritimati"
+#: by hand, (field, clock, per) -> the buckets with rows: a time whose reading on the clock leaves the calendar is in
+#: none (en1 and end2 on Kiritimati are Jan 1, 10000 there; eo0 on Denver is Dec 31 of year 0)
+ENDS_CHARTS = {
+    ("en", None, "day"): {"9999-12-30T00:00:00Z": 1, "9999-12-31T00:00:00Z": 1},
+    ("en", KIRITIMATI, "day"): {"9999-12-31T00:00:00": 1},
+    ("end", None, "day"): {"9999-12-30T00:00:00Z": 1, "9999-12-31T00:00:00Z": 2},
+    ("end", KIRITIMATI, "day"): {"9999-12-30T00:00:00": 1, "9999-12-31T00:00:00": 1},
+    ("eo", "Asia/Kolkata", "hour"): {"0001-01-01T05:00:00": 1, "0001-01-01T15:00:00": 1},
+    ("eo", DENVER, "hour"): {"0001-01-01T03:00:00": 1},
+    ("eod", "Asia/Kolkata", "hour"): {"0001-01-01T05:00:00": 1, "0001-01-01T15:00:00": 1},
+    ("eod", DENVER, "hour"): {"0001-01-01T00:00:00": 1, "0001-01-01T03:00:00": 1},
+}
+#: by hand, (field, clock) -> the keys "on Dec 31, 9999" keeps: on Kiritimati that day runs from 10:00Z on the 30th to
+#: 10:00Z on the 31st, so en1 and end2, at 10:00Z on the 31st, are on Jan 1, 10000 there -- on no day it can show
+ENDS_ON = {("en", None): {"en1"}, ("en", KIRITIMATI): {"en0"},
+           ("end", None): {"end0", "end2"}, ("end", KIRITIMATI): {"end0"}}
+
+
+def _ends_answer(demo, field, zone, **view):
+    v = {"columns": ["ek", field], "conditions": [{"field": "batch", "op": "eq", "value": field}], **view}
+    if zone:
+        v["zone"] = zone
+    return _answer(demo, **v)
+
+
+@needs_db
+@pytest.mark.parametrize("zone", ["Asia/Kolkata", "Europe/Berlin"])
+def test_a_cell_for_a_time_its_clock_cant_show_says_what_is_stored_in_utc(demo, zone):
+    status, a = _ends_answer(demo, "es", zone)
+    assert status == 200 and a.get("kind") == "table", (status, str(a.get("message") or a)[:300])
+    cells = {r[0]: r[1] for r in a["rows"]}
+    assert "9999" in cells["es2"] and "UTC" in cells["es2"] and "10000" not in cells["es2"], cells
+    assert all("UTC" not in cells[k] for k in ("es0", "es1")), cells
+
+
+@needs_db
+@pytest.mark.parametrize("case", list(ENDS_CHARTS))
+def test_a_chart_at_the_calendars_ends_stops_at_its_last_instant(demo, case):
+    field, zone, per = case
+    status, a = _ends_answer(demo, field, zone, columns=[],
+                             summary={"fn": "count", "field": None, "per": per, "time": field})
+    assert status == 200 and a.get("kind") == "chart", (case, status, str(a.get("message") or a)[:300])
+    bars = {b["start"]: int(b["value"]) for b in a["bars"] if not b.get("empty")}
+    assert bars == ENDS_CHARTS[case] and a["admin"]["verdict"] == "agree", (case, bars, a["admin"]["verdict"])
+
+
+@needs_db
+@pytest.mark.parametrize("case", list(ENDS_ON))
+def test_the_calendars_last_day_ends_at_its_last_instant_on_the_clock(demo, case):
+    field, zone = case
+    status, a = _ends_answer(demo, field, zone, conditions=[{"field": "batch", "op": "eq", "value": field},
+                                                            {"field": field, "op": "on", "value": "9999-12-31"}])
+    assert status == 200 and a.get("kind") == "table", (case, status, str(a.get("message") or a)[:300])
+    assert {r[0] for r in a["rows"]} == ENDS_ON[case] and a["admin"]["verdict"] == "agree", (case, a["rows"])
+
+
+@needs_db
+@pytest.mark.parametrize("zone", [None, KIRITIMATI])
+def test_a_table_sorted_up_to_the_calendars_end_answers(demo, zone):
+    status, a = _ends_answer(demo, "en", zone, sort={"field": "en", "dir": "asc"})
+    assert status == 200 and [r[0] for r in a["rows"]] == ["en0", "en1"], (status, str(a.get("message") or a)[:300])
+
+
+#: every place that puts a time on a clock, at both ends, on a clock west of UTC and one east of it
+#: (the hours of Dec 31, 9999 Denver shows from 17:00 on, and Kolkata's of Jan 1, year 1 before 05:53:28, are no
+#: instant this reads)
+WALK_SLOTS = {
+    (DENVER, "hour", "9999-12-31T14:00:00", "9999-12-31T23:00:00"): ["9999-12-31T14:00:00", "9999-12-31T15:00:00",
+                                                                     "9999-12-31T16:00:00"],
+    ("Asia/Kolkata", "hour", "9999-12-31T20:00:00", "9999-12-31T23:00:00"): [
+        "9999-12-31T20:00:00", "9999-12-31T21:00:00", "9999-12-31T22:00:00", "9999-12-31T23:00:00"],
+    (DENVER, "hour", "0001-01-01T00:00:00", "0001-01-01T02:00:00"): ["0001-01-01T00:00:00", "0001-01-01T01:00:00",
+                                                                     "0001-01-01T02:00:00"],
+    ("Asia/Kolkata", "hour", "0001-01-01T03:00:00", "0001-01-01T06:00:00"): ["0001-01-01T05:00:00",
+                                                                             "0001-01-01T06:00:00"],
+    (DENVER, "day", "9999-12-30T00:00:00", "9999-12-31T00:00:00"): ["9999-12-30T00:00:00", "9999-12-31T00:00:00"],
+    ("Asia/Kolkata", "week", "9999-12-20T00:00:00", "9999-12-31T00:00:00"): ["9999-12-20T00:00:00",
+                                                                             "9999-12-27T00:00:00"],
+    (DENVER, "month", "9999-11-03T00:00:00", "9999-12-31T00:00:00"): ["9999-11-01T00:00:00", "9999-12-01T00:00:00"],
+}
+#: "on" the calendar's first and last days: a window from the day's first instant to the next day's, or to the clock's
+#: last instant where the next day is off the calendar; on Denver Dec 31, 9999 runs past every instant this reads
+WALK_ON = {
+    (DENVER, "0001-01-01"): '$.when >= "0001-01-01T06:59:56.000000!" and $.when < "0001-01-02T06:59:56.000000!"',
+    ("Asia/Kolkata", "0001-01-01"): ('$.when >= "0001-01-01T00:00:00.000000!" and '
+                                     '$.when < "0001-01-01T18:06:32.000000!"'),
+    (DENVER, "9999-12-31"): '$.when >= "9999-12-31T07:00:00.000000!"',
+    ("Asia/Kolkata", "9999-12-31"): ('$.when >= "9999-12-30T18:30:00.000000!" and '
+                                     '$.when < "9999-12-31T18:30:00.000000!"'),
+}
+
+
+@pytest.mark.parametrize("zone", [DENVER, "Asia/Kolkata"])
+def test_every_place_that_puts_a_time_on_a_clock_stops_at_the_calendars_ends(zone):
+    from datetime import date
+    from zoneinfo import ZoneInfo
+
+    from demo.server import dashboard
+    t = _times()
+    # a cell: read on the clock where it can be; where it can't, what's stored, in UTC words with its year
+    for text in ("0001-01-01T00:00:00Z", "0001-01-01T12:00:00Z", "9999-12-31T12:00:00Z",
+                 "9999-12-31T23:59:59.999999+00:00"):
+        at = t.instant(text)
+        try:
+            at.astimezone(ZoneInfo(zone))
+            off = False
+        except OverflowError:
+            off = True
+        shown = pview.fmt_time(text, zone)
+        assert ("UTC" in shown and str(at.year) in shown and "10000" not in shown) if off else "UTC" not in shown, \
+            (text, shown)
+    # a picked wall time: its instant, or refused in words where the calendar lacks it -- never an OverflowError
+    for day, hh in ((date(1, 1, 1), 0), (date(1, 1, 1), 12), (date(9999, 12, 31), 12), (date(9999, 12, 31), 23)):
+        try:
+            assert isinstance(zones.wall_instant(day, hh, 0, 0, zone), str)
+        except zones.ZoneError as exc:
+            assert "Overflow" not in str(exc) and str(exc), (day, hh, exc)
+    # the axis: each step up to the calendar's last slot and no further; an hour off the calendar is not laid
+    for (z, unit, lo, hi), want in WALK_SLOTS.items():
+        if z == zone:
+            assert dashboard._slots(unit, lo, hi, zone) == want, (unit, lo, hi)
+    # a bare date's first instant, and "on" each end's day, on the clock
+    for d in ("0001-01-01", "9999-12-31"):
+        t.midnight(d, zone)
+        assert _filter_pick([{"field": "when", "op": "on", "value": d}], "all", zone)["filter"] == WALK_ON[(zone, d)]
