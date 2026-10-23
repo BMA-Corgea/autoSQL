@@ -75,8 +75,8 @@ T106_MUTANTS = [
          edits=[("../picks/probes.py", "        ' ORDER BY r.key COLLATE \"C\"\\n'", "        ' ORDER BY r.key\\n'")],
          selector=_T + "test_the_probes_first_offending_row_is_by_key_code_points" + _LOC, expect="assert"),
     dict(id="X11", defect="the setup's value list back in the collation",
-         edits=[("../picks/view.py", "SELECT r.data #>> %(path)s COLLATE \"C\" AS v, count(*) AS n",
-                 "SELECT r.data #>> %(path)s AS v, count(*) AS n")],
+         edits=[("../picks/view.py", "array_agg(s.t ORDER BY s.t COLLATE \"C\") AS strings",
+                 "array_agg(s.t ORDER BY s.t) AS strings")],          # T-126: the facts statement's value list
          selector=_T + "test_the_setup_lists_values_and_keys_in_code_points" + _LOC, expect="assert"),
     dict(id="X12", defect="the setup's key list back in the collation",
          edits=[("../picks/view.py", "SELECT DISTINCT k COLLATE \"C\" AS k FROM {table} r",
