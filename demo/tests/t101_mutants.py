@@ -49,7 +49,7 @@ T101_MUTANTS = [
          selector=_C + "test_an_empty_D_is_the_plain_reading_and_any_other_is_checked", expect="float8[]"),
     dict(id="T5", defect="the list greys a zone the clocks disagree on only in history",
          edits=[("server/dashboard.py", '"why": mark[e["zone"]][0], "note"', '"why": mark[e["zone"]][0] or mark[e["zone"]][1], "note"')],
-         selector=_T + "test_the_page_gets_the_list_with_each_zones_mark", expect="Times before 1970"),
+         selector=_T + "test_the_page_gets_the_list_with_each_zones_mark", expect="Times from November 2026"),
     dict(id="T6", defect="the per-row call put back: the summary's check goes through a call of ours for every row",
          edits=[("../picks/builder.py",
                  "    return lambda v: (f\"(CASE WHEN mod(width_bucket(",

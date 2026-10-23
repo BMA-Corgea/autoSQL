@@ -261,7 +261,6 @@ def test_the_list_offers_one_entry_per_place():
 
 
 @pytest.mark.parametrize("first, last, to_end, words", [
-    (_dt.date(1800, 1, 1), _dt.date(1937, 6, 1), False, "Times before 1970 can't be read on this clock."),
     (_dt.date(2026, 11, 26), _dt.date(2100, 12, 1), True, "Times from November 2026 on can't be read on this clock."),
     (_dt.date(1800, 1, 1), _dt.date(2027, 1, 1), False, "Times before January 2027 can't be read on this clock."),
     (_dt.date(2026, 9, 20), _dt.date(2027, 3, 1), False, "Times from September 2026 to March 2027 can't be read on this clock."),
@@ -271,6 +270,15 @@ def test_a_zone_the_clocks_disagree_on_in_some_period_says_which_in_one_line(fir
     assert zones.note_words(first, last, to_end) == words
     assert "tzdata" not in words and "backzone" not in words and len(words) <= 90
     assert zones.UNKNOWN_WORDS == "Not available: this computer's database doesn't know it."
+
+
+def test_a_zone_the_clocks_disagree_on_only_before_1970_gets_no_line():
+    """T-133 (the owner: "we don't need to repeat that"): a difference only in history leaves the list quiet; the
+    README says it once, and a question that reads such a time is still refused in words. From 1970 on, a line."""
+    assert zones.note_words(_dt.date(1800, 1, 1), _dt.date(1937, 6, 1), False) is None
+    assert zones.note_words(_dt.date(1800, 1, 1), _dt.date(1969, 12, 31), False) is None
+    assert zones.note_words(_dt.date(1800, 1, 1), _dt.date(1970, 1, 1), False) == (
+        "Times before January 1970 can't be read on this clock.")
 
 
 def test_the_marks_come_from_both_clocks(monkeypatch):
@@ -302,7 +310,8 @@ def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
     """T-101: greyed (why) only when the database doesn't know a zone; a period's line (note) else."""
     monkeypatch.setattr(zones, "marks", lambda conn, names, cache=True: {
         z: ((zones.UNKNOWN_WORDS, None) if z == "Europe/Amsterdam"
-            else (None, "Times before 1970 can't be read on this clock.") if z == "Europe/Oslo" else (None, None))
+            else (None, "Times from November 2026 on can't be read on this clock.") if z == "Europe/Oslo"
+            else (None, None))
         for z in names})
     r = _client().get("/api/dashboard/zones")
     assert r.status_code == 200
@@ -312,7 +321,8 @@ def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
     assert by["America/Denver"] == {"zone": "America/Denver", "label": "Denver time", "place": "Denver",
                                      "area": "America", "why": None, "note": None}
     assert by["Europe/Amsterdam"]["why"] == "Not available: this computer's database doesn't know it."
-    assert by["Europe/Oslo"]["why"] is None and by["Europe/Oslo"]["note"] == "Times before 1970 can't be read on this clock."
+    assert by["Europe/Oslo"]["why"] is None
+    assert by["Europe/Oslo"]["note"] == "Times from November 2026 on can't be read on this clock."
     # every name both engines accept reaches a listed place: listed itself, or by its old name
     others = {e["zone"]: e for e in body["others"]}
     accepted = set(by) | set(body["aliases"]) | set(others)
@@ -322,6 +332,37 @@ def test_the_page_gets_the_list_with_each_zones_mark(monkeypatch):
     # an alias is the same clock under another name, never a guess: UTC-12 is not UTC
     assert body["aliases"].get("Etc/UTC") == "UTC"
     assert "Etc/GMT+12" not in body["aliases"] and others["Etc/GMT+12"]["label"] == "UTC−12"
+
+
+def _offsets_at(conn, zone, moment):
+    """``zone``'s UTC offset at ``moment`` on this database's clock and on Python's, in seconds: read here directly,
+    not through D, so a test that needs the two to differ there knows it from the clocks themselves."""
+    from zoneinfo import ZoneInfo
+    theirs = conn.execute("SELECT extract(epoch FROM ((%(t)s::timestamptz AT TIME ZONE %(z)s) "
+                          "- (%(t)s::timestamptz AT TIME ZONE 'UTC')))::int", {"t": moment.isoformat(), "z": zone}).fetchone()[0]
+    return theirs, int(moment.astimezone(ZoneInfo(zone)).utcoffset().total_seconds())
+
+
+def test_the_list_from_this_database_gives_no_clock_a_line_about_history():
+    """T-133: the server's list as the engine makes it, with no stand-in. Amsterdam's clocks differ here only before
+    1937 (read straight off both clocks on Apr 30, 1916): it shows its name only, and no clock in the list carries the
+    line about times before 1970."""
+    from demo.server import db
+    conn = db.connect(application_name="autosql-t133-list")
+    try:
+        theirs, ours = _offsets_at(conn, "Europe/Amsterdam", _dt.datetime(1916, 4, 30, 12, tzinfo=_dt.timezone.utc))
+    finally:
+        conn.rollback()
+        conn.close()
+    if theirs == ours:
+        pytest.skip("this database reads Amsterdam's 1916 clock as Python does: no history to keep quiet here")
+    zones._MARK_CACHE.clear()
+    body = _client().get("/api/dashboard/zones").json()
+    by = {e["zone"]: e for e in body["zones"]}
+    assert by["Europe/Amsterdam"] == {"zone": "Europe/Amsterdam", "label": "Amsterdam time", "place": "Amsterdam",
+                                      "area": "Europe", "why": None, "note": None}
+    assert [e["zone"] for e in body["zones"] + body["others"]
+            if e["note"] == "Times before 1970 can't be read on this clock."] == []
 
 
 def test_the_list_is_the_same_for_either_view():

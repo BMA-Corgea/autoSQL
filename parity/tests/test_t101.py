@@ -158,6 +158,38 @@ def test_a_row_where_the_clocks_disagree_is_refused_naming_its_date(world):
         "Amsterdam's clocks on Apr 30, 1916, and this question reads a time from then.")
 
 
+def _clocks_differ_at(conn, zone, ts):
+    """Whether this database's clock and Python's give ``zone`` different offsets at ``ts``: read off both clocks
+    directly, not through D, so a D that lost the difference can't make the test skip itself."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+    theirs = conn.execute("SELECT extract(epoch FROM ((%(t)s::timestamptz AT TIME ZONE %(z)s) "
+                          "- (%(t)s::timestamptz AT TIME ZONE 'UTC')))::int", {"t": ts, "z": zone}).fetchone()[0]
+    moment = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    return theirs != int(moment.astimezone(ZoneInfo(zone)).utcoffset().total_seconds())
+
+
+@needs_db
+def test_a_clock_the_list_keeps_quiet_still_refuses_a_row_from_then_in_the_same_words(world):
+    """T-133: the list gives Amsterdam no line (its clocks differ here only before 1937), and nothing else moves: a
+    question that reads its 1916 row on that clock is still refused, in the same words, before either engine gives a
+    number (the second engine only checks an answer the statement gave)."""
+    conn = world[0]
+    if not _clocks_differ_at(conn, AMS, "1916-04-30T12:00:00Z"):
+        pytest.skip("this database reads Amsterdam's 1916 clock as Python does: nothing to refuse here")
+    from picks import zones
+    assert zones.marks(conn, [AMS], cache=False) == {AMS: (None, None)}
+    _with_row(world, "t133-1916", "1916-04-30T12:00:00Z")
+    try:
+        out = _ask(world, _pick(f'time_of_day($.ts, "{AMS}") >= 61200'))
+    finally:
+        _without_row(world, "t133-1916")
+    assert out[0] == "refused", out[:1]
+    assert zones.refusal_words(out[1]) == (
+        "Amsterdam time can't read these times: this computer and its database disagree about "
+        "Amsterdam's clocks on Apr 30, 1916, and this question reads a time from then.")
+
+
 @needs_db
 def test_edmonton_refuses_a_row_from_november_with_its_date(world):
     _needs_d(world[0], EDM)
@@ -263,7 +295,8 @@ def test_a_server_whose_zone_data_changed_without_a_restart_is_seen_by_the_next_
 @needs_db
 def test_every_zone_this_machine_greyed_before_is_selectable_now(world):
     """The list (built-in SQL, 30-day noons): 109 zones had a mark under T-98, every one of them
-    greyed; now a zone is greyed only when the database doesn't know it, and none is unknown here."""
+    greyed; now a zone is greyed only when the database doesn't know it, and none is unknown here.
+    T-133: a zone whose clocks differ only before 1970 (Amsterdam) has no line; one from 1970 on keeps it."""
     _needs_d(world[0], AMS, EDM)
     from picks import env, zones
     conn = world[0]
@@ -273,8 +306,8 @@ def test_every_zone_this_machine_greyed_before_is_selectable_now(world):
     known = {r[0] for r in conn.execute("SELECT name FROM pg_timezone_names").fetchall()}
     noted = {z: note for z, (_why, note) in marks.items() if note}
     assert greyed == sorted(set(names) - known)       # greyed exactly when this database doesn't know the zone
-    assert len(noted) >= 100, len(noted)
-    assert noted[AMS] == "Times before 1970 can't be read on this clock."
+    assert marks[AMS] == (None, None)
+    assert [z for z, note in noted.items() if note == "Times before 1970 can't be read on this clock."] == []
     assert noted[EDM] == "Times from November 2026 on can't be read on this clock."
 
 
