@@ -169,7 +169,7 @@ def reading_on(value: Any, zone: Optional[str] = None):
 
 def kind_counts(values: Iterable[Any]) -> Tuple[int, int, int, int]:
     """What decides a field's kind, over its text values (``""`` is blank, not counted): (how many, how many look
-    like a time, how many are readable times with a time of day, how many are NOT a date). ``picks.view._FORMS_SQL``
+    like a time, how many are readable times with a time of day, how many are NOT a date). ``picks.view._FACTS_SQL``
     counts the same four numbers in SQL."""
     n = looks = readable = not_date = 0
     for v in values:

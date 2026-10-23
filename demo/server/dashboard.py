@@ -61,9 +61,9 @@ from picks import times as _times  # noqa: E402
 from picks import view as _pv  # noqa: E402
 from picks import zones as _zones  # noqa: E402
 from picks.view import (  # noqa: E402  (T-86: the view layer moved to picks/view.py)
-    _TIME_RE, _DATE_RE, _PLAIN_KEY, _humanize, _natural, _alias, _TYPES_SQL, _INNER_TYPES_SQL,
-    _VALUES_SQL, _RANGE_SQL, _kind, WHY_GROUPED, WHY_ONLY_BLANK, _ops_for, GROUP_LIMIT,
-    _DISTINCT_SQL, _groupable, _ordered, CHIP_LIMIT, VALUE_LIMIT, SHOW_CHOICES, ViewError, _name,
+    _TIME_RE, _DATE_RE, _PLAIN_KEY, _humanize, _natural, _alias,
+    _kind, WHY_GROUPED, WHY_ONLY_BLANK, _ops_for, GROUP_LIMIT,
+    _groupable, _ordered, CHIP_LIMIT, VALUE_LIMIT, SHOW_CHOICES, ViewError, _name,
     VIEW_KEYS, CONDITION_KEYS, SORT_KEYS, _SLOTS, _empty, _refuse_extra, _dataset, _columns, _show,
     SUMMARY_FNS, SUMMARY_KEYS, PERS, _summary, _PLAIN_REASONS, _PLAIN_REASON_DEFAULT, field_ref,
     string_literal, number_literal, _DAY_RE, _MINUTE_RE, _day, _instant, OP_WORDS, IN_LIMIT,

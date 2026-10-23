@@ -695,8 +695,10 @@ def test_the_setups_sql_counts_what_its_python_counts(conn, case):
         for i, v in enumerate(values):
             conn.execute("INSERT INTO t114k VALUES (%s, %s, %s::jsonb)", (T, f"k{i}", json.dumps({"f": v})))
         rec = Records(table="t114k", sources={T: "f"})
-        sql = pview._FORMS_SQL.replace("{table}", "t114k").replace("{scope}", rec.scope("r", {}))
-        counts = tuple(conn.execute(sql, {"collection": T, "path": ["f"]}).fetchone())
+        sql = pview._FACTS_SQL.replace("{table}", "t114k").replace("{scope}", rec.scope("r", {}))
+        row = conn.execute(sql, {"collection": T, "k1": ["f"], "k2": [""], "lvl": [0],
+                                 "limit": pview.VALUE_LIMIT}).fetchone()
+        counts = tuple(int(c or 0) for c in row[4:8])          # T-126: the setup's facts statement, its four forms
         conn.execute("DROP TABLE t114k")
     assert counts == tuple(_times().kind_counts(values)), (case, counts)
     assert pview._kind({"string"}, counts) == want
@@ -717,7 +719,7 @@ def test_the_python_reader_answers_the_setup_as_postgres_does(conn):
         conn.execute("DROP TABLE t114r")
     reader = pview.PythonReader(rec, [json.loads(json.dumps(d), parse_float=Decimal) for d in docs])
     in_python = pview._read_fields(reader, T, records=rec)
-    by_path = (lambda fields: {f["path"]: f for f in fields})        # (the order is _TYPES_SQL's rows', unordered)
+    by_path = (lambda fields: {f["path"]: f for f in fields})        # (the order: _SHAPE_SQL's rows', by key)
     assert by_path(in_python) == by_path(in_sql)
     kinds = {f["path"]: f["kind"] for f in in_sql}
     assert kinds["when"] == "time" and kinds["g"] == "time" and kinds["s"] == "text", kinds

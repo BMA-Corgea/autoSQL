@@ -98,76 +98,102 @@ def _alias(label: str, taken: set) -> str:
     return name
 
 
-_TYPES_SQL = """
-SELECT e.k, jsonb_typeof(e.v) AS t, count(*)
-  FROM {table} r, LATERAL jsonb_each(r.data) AS e(k, v)
- WHERE {scope}
- GROUP BY 1, 2
-"""
-
-
-_INNER_TYPES_SQL = """
-SELECT e2.k, jsonb_typeof(e2.v) AS t, count(*)
-  FROM {table} r, LATERAL jsonb_each(r.data -> %(key)s) AS e2(k, v)
- WHERE {scope}
-   AND jsonb_typeof(r.data -> %(key)s) = 'object'
- GROUP BY 1, 2
-"""
-
-
-_VALUES_SQL = """
-SELECT r.data #>> %(path)s COLLATE "C" AS v, count(*) AS n
+#: T-126: the setup reads a record type in two statements, however wide it is (it was one full scan per field per
+#: fact: 385 statements for guts-ledger's 182 fields, 8.7 s of a widget's 9). The first: every key's JSON types and
+#: counts, and in the same pass every key one level inside an object value (Python opens a key that always holds an
+#: object, as before). In key order, so the field list has one fixed order (every caller orders it again: _ordered).
+_SHAPE_SQL = """
+SELECT x.k1, x.k2, x.t, count(*)
   FROM {table} r
+ CROSS JOIN LATERAL jsonb_each(r.data) AS e(k, v)
+ CROSS JOIN LATERAL (SELECT e.k AS k1, NULL::text AS k2, jsonb_typeof(e.v) AS t
+                     UNION ALL
+                     SELECT e.k, e2.k, jsonb_typeof(e2.v)
+                       FROM jsonb_each(CASE WHEN jsonb_typeof(e.v) = 'object' THEN e.v END) AS e2(k, v)) AS x
  WHERE {scope}
-   AND jsonb_typeof(r.data #> %(path)s) = 'string'
- GROUP BY 1
- ORDER BY 1
- LIMIT %(limit)s
+ GROUP BY 1, 2, 3
+ ORDER BY x.k1 COLLATE "C", x.k2 COLLATE "C" NULLS FIRST, x.t
 """
 
-
-#: What decides a field's kind (T-114, spec §2.4), counted over EVERY text value -- never over _VALUES_SQL's first
-#: VALUE_LIMIT + 1 (T-98) -- ``""`` blank and not counted: how many, how many look like a time, how many are readable
-#: times with a time of day (``xpr.time_at``), how many are NOT a date. ``picks.times.kind_counts`` counts the same.
-_FORMS_SQL = """
-SELECT count(*),
-       count(*) FILTER (WHERE v ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([Tt ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.,][0-9]+)?)?([Zz]|[+-][0-9]{2}(:?[0-9]{2}(:?[0-9]{2})?)?)?)?$'),
-       count(*) FILTER (WHERE length(v) > 10 AND xpr.time_at(v) IS NOT NULL),
-       count(*) FILTER (WHERE v !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-  FROM (SELECT r.data #>> %(path)s AS v
-          FROM {table} r
-         WHERE {scope}
-           AND jsonb_typeof(r.data #> %(path)s) = 'string') AS f
- WHERE v <> ''
-"""
-
-#: A time or date field's span (T-114), over EVERY value (it was the first and last of _VALUES_SQL's first 2,001
-#: strings, in text order: an axis that ended early, a 500): the first and last readable time with a time of day,
-#: and apart from them the first and last real date (a date field's span; beside a time field's, the bare dates,
-#: whose midnight is each question's clock's -- a-chk's preview). A date the calendar lacks is no edge.
-_SPAN_SQL = """
-SELECT min(xpr.time_at(v)) FILTER (WHERE length(v) > 10), max(xpr.time_at(v)) FILTER (WHERE length(v) > 10),
-       min(v) FILTER (WHERE length(v) = 10 AND xpr.time_at(v) IS NOT NULL),
-       max(v) FILTER (WHERE length(v) = 10 AND xpr.time_at(v) IS NOT NULL)
-  FROM (SELECT r.data #>> %(path)s AS v
-          FROM {table} r
-         WHERE {scope}
-           AND jsonb_typeof(r.data #> %(path)s) = 'string') AS f
-"""
-
-
-_RANGE_SQL = """
-SELECT min((r.data #>> %(path)s)::numeric), max((r.data #>> %(path)s)::numeric)
-  FROM {table} r
- WHERE {scope}
-   AND jsonb_typeof(r.data #> %(path)s) = 'number'
+#: The second: every fact of every chosen field (``k1``, ``k2``, ``lvl``: a top-level key, or a key one level inside
+#: one), one row a field in the order asked, from ONE pass that groups each row's present values by field and value
+#: (``pv``; JSON null is blank, as before), so each distinct value is read once:
+#:   present, distinct   the rows holding a non-null value, and the distinct non-null values under jsonb equality
+#:                       (the blank group is the rows that hold none: ``total`` is every row of the collection);
+#:   the four forms      over every non-blank text value -- how many, how many look like a time, how many are
+#:                       readable times with a time of day, how many are NOT a date (spec §2.4, T-114; counted per
+#:                       row, so a value counts as often as it is held) -- ``picks.times.kind_counts``'s four;
+#:   the span            the first and last readable time with a time of day, and apart from them the first and last
+#:                       real date (T-114);
+#:   the range           a number field's least and greatest;
+#:   the values          a text field's distinct values in C order, read only where there are at most VALUE_LIMIT of
+#:                       them (the one use past that is "more than VALUE_LIMIT": ``strings_n``).
+#: Each distinct string's facts are worked out once, in materialized steps (never copied into each aggregate), and
+#: the costly patterns only where a cheap test can't settle them: a readable time always looks like a time
+#: (READABLE is inside LOOKS), LOOKS begins YYYY-MM-DD, and a date is exactly 10 characters.
+_FACTS_SQL = """
+WITH p AS (
+  SELECT k1, k2, lvl, i FROM unnest(%(k1)s::text[], %(k2)s::text[], %(lvl)s::int[]) WITH ORDINALITY AS p(k1, k2, lvl, i)
+), pv AS MATERIALIZED (
+  SELECT p.i, x.v, count(*) AS n
+    FROM {table} r
+   CROSS JOIN LATERAL jsonb_each(r.data) AS e(k, v)
+   CROSS JOIN LATERAL (SELECT e.k AS k1, '' AS k2, 0 AS lvl, e.v AS v
+                       UNION ALL
+                       SELECT e.k, e2.k, 1, e2.v
+                         FROM jsonb_each(CASE WHEN jsonb_typeof(e.v) = 'object' THEN e.v END) AS e2(k, v)) AS x
+    JOIN p ON p.k1 = x.k1 AND p.k2 = x.k2 AND p.lvl = x.lvl
+   WHERE {scope}
+     AND x.v <> 'null'::jsonb
+   GROUP BY 1, 2
+), s AS MATERIALIZED (
+  SELECT i, t, n, length(t) AS len,
+         length(t) >= 10 AND substr(t, 5, 1) = '-' AND substr(t, 8, 1) = '-'
+           AND t ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([Tt ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.,][0-9]+)?)?([Zz]|[+-][0-9]{2}(:?[0-9]{2}(:?[0-9]{2})?)?)?)?$' AS looks
+    FROM (SELECT i, v #>> '{}' AS t, n FROM pv WHERE jsonb_typeof(v) = 'string') AS q
+), sf AS MATERIALIZED (
+  SELECT i, n, looks, t <> '' AS filled,
+         len <> 10 OR t !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AS not_date,
+         CASE WHEN looks AND len > 10 THEN xpr.time_at(t) END AS at,
+         CASE WHEN looks AND len = 10 AND xpr.time_at(t) IS NOT NULL THEN t END AS day
+    FROM s
+), sa AS (
+  SELECT i, count(*) AS strings_n,
+         coalesce(sum(n) FILTER (WHERE filled), 0)::bigint AS filled_n,
+         coalesce(sum(n) FILTER (WHERE filled AND looks), 0)::bigint AS looks_n,
+         coalesce(sum(n) FILTER (WHERE filled AND at IS NOT NULL), 0)::bigint AS readable_n,
+         coalesce(sum(n) FILTER (WHERE filled AND not_date), 0)::bigint AS not_date_n,
+         min(at) AS t_lo, max(at) AS t_hi, min(day) AS d_lo, max(day) AS d_hi
+    FROM sf
+   GROUP BY i
+), firsts AS (
+  SELECT s.i, array_agg(s.t ORDER BY s.t COLLATE "C") AS strings
+    FROM s JOIN sa ON sa.i = s.i AND sa.strings_n <= %(limit)s
+   GROUP BY s.i
+), na AS (
+  SELECT i, min((v #>> '{}')::numeric) AS lo, max((v #>> '{}')::numeric) AS hi
+    FROM pv
+   WHERE jsonb_typeof(v) = 'number'
+   GROUP BY i
+), a AS (
+  SELECT i, sum(n)::bigint AS present, count(*) AS distinct_n FROM pv GROUP BY i
+)
+SELECT p.i, coalesce(a.present, 0), coalesce(a.distinct_n, 0), sa.strings_n,
+       sa.filled_n, sa.looks_n, sa.readable_n, sa.not_date_n, sa.t_lo, sa.t_hi, sa.d_lo, sa.d_hi,
+       firsts.strings, na.lo, na.hi, (SELECT count(*) FROM {table} r WHERE {scope}) AS total
+  FROM p
+  LEFT JOIN a ON a.i = p.i
+  LEFT JOIN sa ON sa.i = p.i
+  LEFT JOIN firsts ON firsts.i = p.i
+  LEFT JOIN na ON na.i = p.i
+ ORDER BY p.i
 """
 
 
 def _kind(types: set, forms: tuple) -> str:
     """One field's kind, from the JSON types its values take and ``forms`` -- (text values, how many look like a
     time, how many are readable times with a time of day, how many are not a date), counted over EVERY non-blank
-    value by ``_FORMS_SQL`` (``picks.times.kind_counts`` in Python).
+    value by ``_FACTS_SQL`` (``picks.times.kind_counts`` in Python).
 
     * ``number`` — every value is a number;
     * ``date`` — every value is text in the form ``2026-09-03``;
@@ -193,7 +219,7 @@ def _kind(types: set, forms: tuple) -> str:
 
 
 def _span_text(at) -> str:
-    """A span's end in the engine's one fixed form, to the second: an instant from _SPAN_SQL (a datetime) or the
+    """A span's end in the engine's one fixed form, to the second: an instant from _FACTS_SQL (a datetime) or the
     second engine's (picks.times)."""
     return times.fixed_text(at.astimezone(_dt.timezone.utc))
 
@@ -265,9 +291,7 @@ class PythonReader:
         scope = records.scope("r", {})
         self._docs = docs
         self._known = {}
-        for template, fn in ((_TYPES_SQL, self._types), (_INNER_TYPES_SQL, self._inner),
-                             (_VALUES_SQL, self._values), (_FORMS_SQL, self._forms), (_SPAN_SQL, self._span),
-                             (_RANGE_SQL, self._range), (_DISTINCT_SQL, self._distinct), (_KEYS_SQL, self._keys)):
+        for template, fn in ((_SHAPE_SQL, self._shape), (_FACTS_SQL, self._facts), (_KEYS_SQL, self._keys)):
             self._known[template.replace("{table}", records.table).replace("{scope}", scope)] = fn
 
     def execute(self, sql: str, params: Optional[dict] = None) -> "_Answer":
@@ -276,58 +300,46 @@ class PythonReader:
             raise RuntimeError("the field reader asked a statement its Python answer does not know")
         return _Answer(fn(params or {}))
 
-    def _types(self, p: dict) -> list:
+    def _shape(self, p: dict) -> list:
         n: dict = {}
         for d in self._docs:
             for k, v in d.items():
-                n[(k, _typeof(v))] = n.get((k, _typeof(v)), 0) + 1
-        return [(k, t, c) for (k, t), c in n.items()]
+                n[(k, None, _typeof(v))] = n.get((k, None, _typeof(v)), 0) + 1
+                if isinstance(v, dict):
+                    for k2, v2 in v.items():
+                        n[(k, k2, _typeof(v2))] = n.get((k, k2, _typeof(v2)), 0) + 1
+        # ORDER BY k1 COLLATE "C", k2 COLLATE "C" NULLS FIRST, t
+        order = (lambda r: (r[0].encode("utf-8"), r[1] is not None, (r[1] or "").encode("utf-8"), r[2]))
+        return sorted(((k1, k2, t, c) for (k1, k2, t), c in n.items()), key=order)
 
-    def _inner(self, p: dict) -> list:
-        n: dict = {}
-        for d in self._docs:
-            inner = d.get(p["key"])
-            if isinstance(inner, dict):
-                for k, v in inner.items():
-                    n[(k, _typeof(v))] = n.get((k, _typeof(v)), 0) + 1
-        return [(k, t, c) for (k, t), c in n.items()]
-
-    def _strings(self, path) -> list:
-        return [v for v in (_at(d, path) for d in self._docs) if isinstance(v, str)]
-
-    def _values(self, p: dict) -> list:
-        n: dict = {}
-        for v in self._strings(p["path"]):
-            n[v] = n.get(v, 0) + 1
-        return sorted(n.items(), key=lambda kv: kv[0].encode("utf-8"))[: p["limit"]]
-
-    def _forms(self, p: dict) -> list:
-        return [times.kind_counts(self._strings(p["path"]))]
-
-    def _span(self, p: dict) -> list:
-        s = self._strings(p["path"])
-        ats = [a for a in (times.instant(v) for v in s if len(v) > 10) if a is not None]
-        dates = [v for v in s if len(v) == 10 and times.instant(v) is not None]
-        return [(min(ats) if ats else None, max(ats) if ats else None,
-                 min(dates, key=lambda v: v.encode("utf-8")) if dates else None,
-                 max(dates, key=lambda v: v.encode("utf-8")) if dates else None)]
-
-    def _range(self, p: dict) -> list:
-        nums = [Decimal(v) if not isinstance(v, float) else Decimal(repr(v))
-                for v in (_at(d, p["path"]) for d in self._docs) if _typeof(v) == "number"]
-        return [(min(nums), max(nums))] if nums else [(None, None)]
-
-    def _distinct(self, p: dict) -> list:
-        if not self._docs:
-            return [(None,)]
-        seen, blank = set(), 0
-        for d in self._docs:
-            v = _at(d, p["path"])
-            if v is _ABSENT or v is None:
-                blank = 1
-            else:
-                seen.add(_distinct_key(v))
-        return [(len(seen) + blank,)]
+    def _facts(self, p: dict) -> list:
+        rows = []
+        for i, (k1, k2, lvl) in enumerate(zip(p["k1"], p["k2"], p["lvl"]), 1):
+            held = []                                   # the non-null values at this field, one a document
+            for d in self._docs:
+                v = d.get(k1, _ABSENT)
+                if lvl:
+                    v = v.get(k2, _ABSENT) if isinstance(v, dict) else _ABSENT
+                if v is not _ABSENT and v is not None:
+                    held.append(v)
+            strings = [v for v in held if isinstance(v, str)]
+            distinct_strings = sorted(set(strings), key=lambda v: v.encode("utf-8"))
+            filled, looks, readable, not_date = times.kind_counts(strings)
+            ats = [a for a in (times.instant(v) for v in strings if len(v) > 10) if a is not None]
+            days = [v for v in strings if len(v) == 10 and times.instant(v) is not None]
+            nums = [Decimal(v) if not isinstance(v, float) else Decimal(repr(v)) for v in held if _typeof(v) == "number"]
+            rows.append((
+                i, len(held), len({_distinct_key(v) for v in held}),
+                len(distinct_strings) if strings else None,
+                filled if strings else None, looks if strings else None,
+                readable if strings else None, not_date if strings else None,
+                min(ats) if ats else None, max(ats) if ats else None,
+                min(days, key=lambda v: v.encode("utf-8")) if days else None,
+                max(days, key=lambda v: v.encode("utf-8")) if days else None,
+                distinct_strings if strings and len(distinct_strings) <= p["limit"] else None,
+                min(nums) if nums else None, max(nums) if nums else None,
+                len(self._docs)))
+        return rows
 
     def _keys(self, p: dict) -> list:
         return [(k,) for k in sorted({k for d in self._docs for k in d})]
@@ -345,7 +357,6 @@ class _Answer:
 
 
 _ABSENT = object()
-_INDEX = re.compile(r"-?[0-9]+")
 
 
 def _typeof(v: Any) -> str:
@@ -360,24 +371,6 @@ def _typeof(v: Any) -> str:
     if isinstance(v, list):
         return "array"
     return "object"
-
-
-def _at(doc: Any, steps) -> Any:
-    """``data #> path``: keys into objects, integer text into arrays (negative from the end)."""
-    cur = doc
-    for step in steps:
-        if isinstance(cur, dict):
-            if step not in cur:
-                return _ABSENT
-            cur = cur[step]
-        elif isinstance(cur, list) and _INDEX.fullmatch(step):
-            i = int(step)
-            if not -len(cur) <= i < len(cur):
-                return _ABSENT
-            cur = cur[i]
-        else:
-            return _ABSENT
-    return cur
 
 
 def _exact_dumps(doc: Any) -> str:
@@ -404,51 +397,24 @@ def _distinct_key(v: Any) -> tuple:
 
 def _read_fields(conn, collection: str, labels=None, records=None) -> list:
     """Every field of one data set: its path, its JSON types, its kind,
-    the conditions it can take and the values found in it."""
+    the conditions it can take and the values found in it -- in two
+    statements however many fields it has (T-126): its shape, then every
+    field's facts at once."""
     records = env.records(records)
     labels = labels or {}
-    rows = _read(conn, records, _TYPES_SQL, {"collection": collection}).fetchall()
-    types: dict = {}
-    for k, t, _n in rows:
-        types.setdefault(k, set()).add(t)
-
-    found: dict = {}
-    for key, ts in types.items():
-        # T-88: a key that is not an identifier ("Sample Weight (g)") is named
-        # in brackets (picks/paths.py).  A key is offered only by a name both
-        # engines read back as exactly that key (the T-88 check's HIGH); one
-        # with no such name — empty, NUL — is skipped, as before T-88.
-        if ts == {"object"}:
-            # A key that always holds an object (Heartbeats' payload) is
-            # opened one level: its fields are what a person reads.
-            inner = _read(
-                conn, records, _INNER_TYPES_SQL, {"collection": collection, "key": key}
-            ).fetchall()
-            for k2, t2, _n in inner:
-                name = paths.name([key, k2])
-                if name is not None:
-                    found.setdefault(name, set()).add(t2)
-        else:
-            name = paths.name([key])
-            if name is not None:
-                found[name] = set(ts)
-
+    found = _found(_read(conn, records, _SHAPE_SQL, {"collection": collection}).fetchall())
+    if not found:
+        return []
+    steps = [st for st, _ts in found.values()]
+    facts = _read(conn, records, _FACTS_SQL, {
+        "collection": collection, "k1": [st[0] for st in steps], "k2": [st[1] if len(st) > 1 else "" for st in steps],
+        "lvl": [len(st) - 1 for st in steps], "limit": VALUE_LIMIT}).fetchall()
     fields = []
-    for path, ts in found.items():
-        strings: list = []
-        if "string" in ts:
-            strings = [
-                r[0] for r in _read(conn, records, _VALUES_SQL, {
-                    "collection": collection, "path": paths.steps(path),
-                    "limit": VALUE_LIMIT + 1,
-                }).fetchall()
-            ]
-        scalar_types = ts - {"null"}
-        forms = (0, 0, 0, 0)
-        if "string" in ts:
-            forms = tuple(_read(conn, records, _FORMS_SQL, {
-                "collection": collection, "path": paths.steps(path)}).fetchone())
-        kind = _kind(scalar_types, forms)
+    for (path, (_steps, ts)), row in zip(found.items(), facts):
+        (_i, present, distinct, strings_n, filled, looks, readable, not_date,
+         t_lo, t_hi, d_lo, d_hi, strings, lo, hi, total) = row
+        forms = (filled, looks, readable, not_date) if strings_n else (0, 0, 0, 0)
+        kind = _kind(ts - {"null"}, forms)
         ops = _ops_for(kind, ts)
         field = {
             "path": path,
@@ -462,30 +428,49 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
             "picker": None,
             "range": None,
         }
-        field["group"] = _groupable(conn, collection, path, kind, ts, field["label"], strings, records)
-        if kind == "text" and len(strings) <= VALUE_LIMIT:
-            field["values"] = strings
-            field["picker"] = "chips" if len(strings) <= CHIP_LIMIT else "list"
-        if kind == "number":
-            lo, hi = _read(
-                conn, records, _RANGE_SQL, {"collection": collection, "path": paths.steps(path)}
-            ).fetchone()
-            if lo is not None:
-                field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
-        if kind in ("time", "date"):
-            # T-114: over every value, by instant (a date field: its dates), never _VALUES_SQL's capped text order
-            t_lo, t_hi, d_lo, d_hi = _read(conn, records, _SPAN_SQL, {
-                "collection": collection, "path": paths.steps(path)}).fetchone()
-            if kind == "time" and t_lo is not None:
-                # the times' span, and the bare dates' beside it: a date's midnight is each question's clock's
-                # (spec §2.1), so the axis places it there (dashboard._span), never at a UTC instant (a-chk's 500)
-                field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}
-                if d_lo is not None:
-                    field["range"]["dates"] = {"min": d_lo, "max": d_hi}
-            elif kind == "date" and d_lo is not None:
-                field["range"] = {"min": d_lo, "max": d_hi}
+        # the blank group counts as a value: the rows that hold none (absent, or JSON null)
+        field["group"] = _groupable(kind, ts, field["label"], distinct + (1 if present < total else 0))
+        if kind == "text" and strings_n <= VALUE_LIMIT:
+            field["values"] = list(strings or [])
+            field["picker"] = "chips" if len(field["values"]) <= CHIP_LIMIT else "list"
+        if kind == "number" and lo is not None:
+            field["range"] = {"min": _number_text(lo), "max": _number_text(hi)}
+        if kind == "time" and t_lo is not None:
+            # T-114: over every value, by instant -- the times' span, and the bare dates' beside it: a date's
+            # midnight is each question's clock's (spec §2.1), so the axis places it there (dashboard._span)
+            field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}
+            if d_lo is not None:
+                field["range"]["dates"] = {"min": d_lo, "max": d_hi}
+        elif kind == "date" and d_lo is not None:
+            field["range"] = {"min": d_lo, "max": d_hi}
         fields.append(field)
     return fields
+
+
+def _found(shape: list) -> dict:
+    """The fields ``_SHAPE_SQL``'s rows name: path -> (its steps, its JSON types), in the rows' (key) order. A key that
+    always holds an object (Heartbeats' payload) is opened one level: its fields are what a person reads. T-88: a key
+    that is not an identifier ("Sample Weight (g)") is named in brackets (picks/paths.py), and one with no name both
+    engines read back as exactly that key -- empty, NUL -- is skipped."""
+    types: dict = {}
+    inner: dict = {}
+    for k1, k2, t, _n in shape:
+        if k2 is None:
+            types.setdefault(k1, set()).add(t)
+        else:
+            inner.setdefault(k1, {}).setdefault(k2, set()).add(t)
+    found: dict = {}
+    for key, ts in types.items():
+        if ts == {"object"}:
+            for k2, ts2 in inner.get(key, {}).items():
+                name = paths.name([key, k2])
+                if name is not None:
+                    found.setdefault(name, ([key, k2], set()))[1].update(ts2)
+        else:
+            name = paths.name([key])
+            if name is not None:
+                found[name] = ([key], set(ts))
+    return found
 
 
 #: One row per value works up to this many different values (T-73 AC1).
@@ -496,24 +481,15 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
 GROUP_LIMIT = 500
 
 
-_DISTINCT_SQL = """
-SELECT count(DISTINCT nullif(r.data #> %(path)s, 'null'::jsonb))
-     + max(CASE WHEN nullif(r.data #> %(path)s, 'null'::jsonb) IS NULL THEN 1 ELSE 0 END)
-  FROM {table} r
- WHERE {scope}
-"""
-
-
-def _groupable(conn, collection, path, kind, types, label, strings, records=None) -> dict:
+def _groupable(kind, types, label, n) -> dict:
     """Can the page give one row per value of this field, and if not, why
-    — in plain words.  The blank group counts as a value."""
+    — in plain words.  ``n``: its different values, the blank group counted
+    as one (``_FACTS_SQL``)."""
     if kind not in ("text", "number", "yesno") or types & {"object", "array"}:
         why = ("Times and dates are grouped per hour, day, week or month under Summarize."
                if kind in ("time", "date") else
                "Its rows hold different kinds of value, so there is no one value to group by.")
         return {"ok": False, "why": why, "groups": None}
-    n = int(_read(conn, env.records(records), _DISTINCT_SQL, {"collection": collection,
-                                         "path": paths.steps(path)}).fetchone()[0])
     if n > GROUP_LIMIT:
         return {"ok": False, "groups": n, "why": (
             f"{label} has {n:,} different values — one row per value would be about as "
