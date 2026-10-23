@@ -310,7 +310,8 @@ def world():
 
 
 class _Counted:
-    """A connection (or PythonReader) that counts the statements sent to it."""
+    """A connection (or PythonReader) that counts the statements sent to it; anything else is the wrapped one's (a
+    connection's savepoints, so the setup counts as it runs)."""
 
     def __init__(self, conn):
         self.conn, self.sent = conn, 0
@@ -318,6 +319,9 @@ class _Counted:
     def execute(self, sql, params=None):
         self.sent += 1
         return self.conn.execute(sql, params)
+
+    def __getattr__(self, name):
+        return getattr(self.conn, name)
 
 
 def _docs(world, collection) -> list:
@@ -342,7 +346,8 @@ def test_the_setup_sends_as_many_statements_for_200_fields_as_for_5(world):
         world["conn"].rollback()
         counts[collection] = (counted.sent, len(fields))
     assert counts["noun:Five"][1] == 5 and counts["noun:TwoHundred"][1] == 200, counts
-    assert counts["noun:Five"][0] == counts["noun:TwoHundred"][0] == 2, counts
+    # the two reads, and the four that set the JIT and the grouping for them and put the caller's back
+    assert counts["noun:Five"][0] == counts["noun:TwoHundred"][0] == 6, counts
 
 
 @needs_db
@@ -389,17 +394,19 @@ def test_the_python_reader_reads_every_added_type_as_postgres_does(world):
 def test_the_setup_hands_python_one_row_a_field_and_at_most_value_limit_and_one_strings(world):
     """Memory stays bounded: what crosses into Python is one row a field (and a text field's first VALUE_LIMIT + 1
     values, as before), never every value."""
-    fetched = []
+    fetched = {}
 
     class Watched(_Counted):
         def execute(self, sql, params=None):
             cur = super().execute(sql, params)
-            rows = cur.fetchall()
-            fetched.append(rows)
-            return _Rows(rows)
+            if cur.description is None:                 # the setup's SET LOCALs return no rows
+                return cur
+            fetched[sql] = cur.fetchall()
+            return _Rows(fetched[sql])
     fields = pview._read_fields(Watched(world["conn"]), "noun:Wide", records=world["records"])
     world["conn"].rollback()
-    facts = fetched[-1]
+    rec = world["records"]
+    facts = fetched[pview._FACTS_SQL.replace("{table}", rec.table).replace("{scope}", rec.scope("r", {}))]
     longest = max((len(c) for row in facts for c in row if isinstance(c, list)), default=0)
     assert len(facts) == len(fields) and longest <= pview.VALUE_LIMIT + 1, (len(facts), len(fields), longest)
 

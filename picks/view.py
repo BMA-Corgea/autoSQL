@@ -19,6 +19,7 @@ time series, and the records description.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 import json
 import math
@@ -402,13 +403,15 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
     field's facts at once."""
     records = env.records(records)
     labels = labels or {}
-    found = _found(_read(conn, records, _SHAPE_SQL, {"collection": collection}).fetchall())
-    if not found:
-        return []
-    steps = [st for st, _ts in found.values()]
-    facts = _read(conn, records, _FACTS_SQL, {
-        "collection": collection, "k1": [st[0] for st in steps], "k2": [st[1] if len(st) > 1 else "" for st in steps],
-        "lvl": [len(st) - 1 for st in steps], "limit": VALUE_LIMIT}).fetchall()
+    with _setup_settings(conn):
+        found = _found(_read(conn, records, _SHAPE_SQL, {"collection": collection}).fetchall())
+        if not found:
+            return []
+        steps = [st for st, _ts in found.values()]
+        facts = _read(conn, records, _FACTS_SQL, {
+            "collection": collection, "k1": [st[0] for st in steps],
+            "k2": [st[1] if len(st) > 1 else "" for st in steps],
+            "lvl": [len(st) - 1 for st in steps], "limit": VALUE_LIMIT}).fetchall()
     fields = []
     for (path, (_steps, ts)), row in zip(found.items(), facts):
         (_i, present, distinct, strings_n, filled, looks, readable, not_date,
@@ -445,6 +448,25 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
             field["range"] = {"min": d_lo, "max": d_hi}
         fields.append(field)
     return fields
+
+
+@contextlib.contextmanager
+def _setup_settings(conn):
+    """The setup's two statements under their own savepoint (T-126, the foreman's decision on the time bar), with
+    Postgres's JIT off -- it compiled the facts statement on every run, 780 ms of 2 s on guts-ledger's twin -- and the
+    pairs grouped by hash, never by sort -- a sort of its 333k field-value pairs cost 370 ms; a hash aggregate spills
+    to disk past work_mem, so memory stays bounded. The caller's settings are put back before the savepoint is
+    released, as ``picks.probes`` does for a probe; a statement that raises rolls the savepoint back, and the settings
+    with it. A reader with no transaction (``PythonReader``) answers as it always does."""
+    if not hasattr(conn, "transaction"):
+        yield
+        return
+    with conn.transaction():
+        was = conn.execute("SELECT current_setting('jit'), current_setting('enable_sort')").fetchone()
+        conn.execute("SET LOCAL jit = off")
+        conn.execute("SET LOCAL enable_sort = off")
+        yield
+        conn.execute("SELECT set_config('jit', %s, true), set_config('enable_sort', %s, true)", tuple(was))
 
 
 def _found(shape: list) -> dict:
