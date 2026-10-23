@@ -483,13 +483,19 @@ def test_the_setup_reads_with_the_jit_off_and_puts_the_callers_setting_back(worl
 
 @needs_db
 def test_the_setup_groups_its_pairs_by_hash_never_by_sort(world):
-    with world["conn"].transaction():
+    """Also where Postgres plans the grouping in parallel, as it does over fm-gims's twin: its workers' partial hashes
+    are then finished by a sort unless the setup says otherwise. Parallel plans are made cheap here, so the demo's
+    Heartbeats plan as the twin does (mutant S16 found that the demo's rows alone plan a hash either way)."""
+    conn = world["conn"]
+    with conn.transaction():
+        for setting in ("parallel_setup_cost = 0", "parallel_tuple_cost = 0", "min_parallel_table_scan_size = 0"):
+            conn.execute(f"SET LOCAL {setting}")
         watch = _watch(world)
         pview._read_fields(watch, "noun:Heartbeat", records=world["records"])
-    world["conn"].rollback()
+    conn.rollback()
     pv = [n for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
-    strategies = [next(g for g in _nodes(n) if g.get("Node Type") == "Aggregate").get("Strategy") for n in pv]
-    assert strategies == ["Hashed"], strategies
+    strategies = [g.get("Strategy") for n in pv for g in _nodes(n) if g.get("Node Type") == "Aggregate"]
+    assert strategies and set(strategies) == {"Hashed"}, strategies
 
 
 #: ... and on a twin twice as wide (422 fields) the pairs' grouping held its memory (8 MB, 3.6 MB spilled to disk) but

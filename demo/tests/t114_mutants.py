@@ -128,7 +128,7 @@ T114_MUTANTS = [
                 (_V, '            field["range"] = {"min": _span_text(t_lo), "max": _span_text(t_hi)}\n',
                  '            field["range"] = {"min": strings[0], "max": strings[-1]}\n')],
          selector=_P + "test_the_dashboards_setup_calls_a_mixed_field_a_time_and_free_text_text",
-         expect="AssertionError: {'min'"),
+         expect="AssertionError: None"),          # T-126: a field past VALUE_LIMIT has no values list, so no span
     dict(id="E6", defect="the named-field bucket reads ::timestamp again (the offset dropped)",
          edits=[(_B, "date_trunc({g}, {at}, 'UTC') AT TIME ZONE 'UTC'", "date_trunc({g}, {value}::timestamp)")],
          selector=_P + "test_the_statement_buckets_every_readable_time_by_its_instant[None]", expect="AssertionError: {"),
