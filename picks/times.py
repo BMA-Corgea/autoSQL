@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any, Iterable, Optional, Tuple
 from zoneinfo import ZoneInfo
 
@@ -42,8 +43,16 @@ _DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 def instant(value: Any) -> Optional[datetime]:
     """The UTC instant a stored value reads as (an aware datetime), or ``None`` when it is no readable time."""
-    if not isinstance(value, str):
-        return None
+    return _instant(value) if isinstance(value, str) else None
+
+
+#: A question reads every row's time, and rows share their times (the demo's 8,400 heartbeats hold 168), so each stored
+#: text is read once and remembered (a-chk's cost on 506e4b2): a reading is a function of the text alone.
+_REMEMBERED = 1 << 15
+
+
+@lru_cache(maxsize=_REMEMBERED)
+def _instant(value: str) -> Optional[datetime]:
     if len(value) == 10:
         if not _DATE.fullmatch(value):
             return None
@@ -106,7 +115,12 @@ def reading(value: Any):
     present, but no time: it then matches no comparison, and ``present`` / ``blank`` keep their meaning."""
     if value is None:
         return None
-    at = instant(value)
+    return _reading(value) if isinstance(value, str) else False
+
+
+@lru_cache(maxsize=_REMEMBERED)
+def _reading(value: str):
+    at = _instant(value)
     if at is None:
         return False
     return value if len(value) == 10 else utc_text(at)

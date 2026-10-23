@@ -1382,7 +1382,10 @@ def _reads_instant(field: dict, card: dict) -> bool:
 
 def _kleene(holds: list, fails: list, logic: str) -> tuple:
     """(the box holds, the box definitely fails), from each item's two answers -- both can be false: Kleene's AND,
-    OR, exactly one, and all or none, in the language both engines share (``if`` reads each by truthiness)."""
+    OR, exactly one, and all or none, in the language both engines share (``if`` reads each by truthiness).
+    Exactly one and all or none each have two exact forms, the counts and and / or alone (an item never both holds
+    and fails, so they agree), and each is written in the shorter: the language's == reads a count three times over,
+    in the statement and its probes (a-chk's cost on 506e4b2), and the shorter is never longer than the counts."""
     if len(holds) == 1 and logic in ("all", "any"):
         return holds[0], fails[0]
     if logic == "all":
@@ -1392,9 +1395,18 @@ def _kleene(holds: list, fails: list, logic: str) -> tuple:
     n = len(holds)
     nh = "(" + " + ".join(f"if({h}, 1, 0)" for h in holds) + ")"
     nf = "(" + " + ".join(f"if({f}, 1, 0)" for f in fails) + ")"
+    both = (lambda xs, join: f" {join} ".join(f"({x})" for x in xs))
     if logic == "one":
-        return f"({nh} == 1) and ({nf} == {n - 1})", f"({nh} >= 2) or ({nf} == {n})"
-    return f"({nh} == {n}) or ({nf} == {n})", f"({nh} >= 1) and ({nf} >= 1)"
+        counts = f"({nh} == 1) and ({nf} == {n - 1})", f"({nh} >= 2) or ({nf} == {n})"
+        # one holds and every other fails; two hold, or all fail
+        plain = (both([both([holds[i]] + fails[:i] + fails[i + 1:], "and") for i in range(n)], "or"),
+                 both([both([holds[i], holds[j]], "and") for i in range(n) for j in range(i + 1, n)]
+                      + [both(fails, "and")], "or"))
+    else:
+        counts = f"({nh} == {n}) or ({nf} == {n})", f"({nh} >= 1) and ({nf} >= 1)"
+        plain = (f"({both(holds, 'and')}) or ({both(fails, 'and')})",
+                 f"({both(holds, 'or')}) and ({both(fails, 'or')})")
+    return tuple(min(p, c, key=len) for p, c in zip(plain, counts))
 
 
 def _source_limit() -> int:

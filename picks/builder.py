@@ -503,8 +503,10 @@ def time_reads(times, column: str, compile_kw: dict, params: dict, name: str, zo
     the reading ``picks.times.reading_on`` gives on the question's clock ``zone``: a time's instant at one width, a
     bare date the first instant of its day there (through D, as every clock reading is), its Z replaced by
     ``DATE_MARK``; so a condition is one window of comparisons, e00a5d8's own shape. The field read is the
-    compiler's own (``instants``, the records' fold and all). Returns the LATERAL's SQL (empty when ``times`` names
-    none) and the compiler's ``instant_refs``."""
+    compiler's own (``instants``, the records' fold and all). Both levels are fenced (OFFSET 0): without the outer
+    one Postgres pulls the LATERAL up and copies the reading's CASE into every comparison that names it, worked out
+    again each time, and on a clock too costly to inline the comparison (a-chk's cost on 506e4b2). Returns the
+    LATERAL's SQL (empty when ``times`` names none) and the compiler's ``instant_refs``."""
     if not times:
         return "", ()
     day = midnight_reading(params, zone, f"{name}z") if zone else None
@@ -522,7 +524,7 @@ def time_reads(times, column: str, compile_kw: dict, params: dict, name: str, zo
                     f" THEN to_jsonb({start} || '{times_mod.DATE_MARK}') ELSE {r} END AS t{i}")
         refs.append((_expr.parse(paths.dollar(t))[1], f"{name}.t{i}"))
     return (f"\n  CROSS JOIN LATERAL (SELECT {', '.join(cols)}"
-            f" FROM (SELECT {', '.join(reads)} OFFSET 0) AS s) AS {name}", tuple(refs))
+            f" FROM (SELECT {', '.join(reads)} OFFSET 0) AS s OFFSET 0) AS {name}", tuple(refs))
 
 
 def reads_kw(compile_kw: dict, times, refs) -> dict:

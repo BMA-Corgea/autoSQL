@@ -632,26 +632,25 @@ def test_a_time_field_is_read_once_a_row(conn, case):
 #: a-chk's cost on 506e4b2, paired against e00a5d8: "on a day" on Denver +71%, between +62%, the board +118%. The
 #: reading was one column to the language only: Postgres pulled the LATERAL's outer level up and copied its CASE into
 #: every comparison naming it -- worked out again each time, and on a clock too costly for Postgres to inline the
-#: comparison, so xpr.ord ran as a call, twice a row. The bar: the plan works each reading out once (its date mark
-#: appears once in the plan), and the comparisons over it stay inlined (no xpr.ord call)
-def _plan(conn, kind, spec) -> str:
-    """The statement's plan, as the server prints it (EXPLAIN VERBOSE)."""
+#: comparison, so xpr.ord ran as a call, twice a row. The bar: both levels of every reading are fenced (Postgres never
+#: pulls up a subquery with an OFFSET), and the comparisons over it stay inlined (no xpr.ord call, counted by the
+#: server). (EXPLAIN can't count the copies: it prints a column a node reads from below by the expression that makes it.)
+def _statement(conn, kind, spec) -> str:
     from picks import group as sgroup
-    with conn.transaction():
-        with env.checking_zones(zones.clock_check(conn)):
-            b = (builder.build(spec, KEYS, records=_records()) if kind == "pick"
-                 else sgroup.build(spec, records=_records()))
-        return "\n".join(r[0] for r in conn.execute("EXPLAIN (VERBOSE) " + b.sql, b.params).fetchall())
+    with env.checking_zones(zones.clock_check(conn)):
+        return (builder.build(spec, KEYS, records=_records()) if kind == "pick"
+                else sgroup.build(spec, records=_records())).sql
 
 
 @needs_db
 @pytest.mark.parametrize("case", list(_once_cases()))
-def test_the_plan_works_a_reading_out_once_and_keeps_its_comparisons_inlined(conn, case):
+def test_a_reading_is_worked_out_once_a_row_and_its_comparisons_stay_inlined(conn, case):
     kind, spec = _once_cases()[case]
-    copies = _plan(conn, kind, spec).count(f"'{_times().DATE_MARK}'::text")
+    sql = _statement(conn, kind, spec)
+    fenced, open_ = sql.count(") AS s OFFSET 0) AS "), sql.count(") AS s) AS ")
     run = (lambda: _sql(conn, spec)) if kind == "pick" else (lambda: _sql_board(conn, spec))
     ords = _calls(conn, run, ["xpr.ord(text,jsonb,jsonb)"])
-    assert copies == 1 and ords == 0, (case, copies, ords)
+    assert fenced >= 1 and open_ == 0 and ords == 0, (case, fenced, open_, ords)
 
 
 #: ... and the second engine read each row's time afresh (a pattern, a datetime, its text: about 5 us), +40 to +77 ms a
