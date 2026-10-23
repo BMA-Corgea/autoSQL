@@ -860,6 +860,9 @@ def demo():
         for k, v in DST_EDGE.items():                # bare dates on days a clock skips or repeats midnight
             cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
                        (f"zw-{k}", json.dumps({"dz": v, "batch": "dst"})))
+        for k, v in YP.items():                      # t98-24: fm-gims's rows and the years 1, 999, 1000, 9999
+            cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
+                       (f"zp-{k}", json.dumps({"yp": v, "pk": k, "batch": "yp"})))
         for field, values in ENDS.items():           # t98-23: a-chk's repros at the calendar's ends, a field each
             for i, v in enumerate(values):
                 cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
@@ -1543,3 +1546,113 @@ def test_every_place_that_puts_a_time_on_a_clock_stops_at_the_calendars_ends(zon
     for d in ("0001-01-01", "9999-12-31"):
         t.midnight(d, zone)
         assert _filter_pick([{"field": "when", "op": "on", "value": d}], "all", zone)["filter"] == WALK_ON[(zone, d)]
+
+
+# ── t98-24, a WRONG answer: every time written as text that is compared is written at one width ──
+# zones._text wrote a picked time's instant with strftime, which writes year 1 as "1": on a named clock "after",
+# "before" and "between" years 1-999 compared "1-06-15T..." with fixed-width readings and answered wrong, silently,
+# both engines agreeing (a-chk's run 12: 51 of 115 questions on main, 24 of them a 500 on d437b20). fm-gims's rows
+# J2, M15 and J3, and a sweep of years 1, 999, 1000 and 9999, asked "on", "between", "after" and "before" on UTC, Denver
+# and Kolkata, against a truth worked out here by bisection (none of picks' code): a time is its instant; a day on a
+# clock runs from the first instant the clock shows it to the next day's; a wall time is the first instant it shows.
+YP = {"J2": "0001-01-02T06:00:00Z", "M15": "0999-06-15T06:00:00Z", "J3": "0001-01-03T06:00:00Z"}
+YP.update({f"y{y:04d}-{md}-{hh}": f"{y:04d}-{md}T{hh}:00:00Z"
+           for y in (1, 999, 1000, 9999) for md in ("01-02", "06-15") for hh in ("06", "20")})
+YP_FIRST, YP_LAST = datetime(1, 1, 1, tzinfo=timezone.utc), datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc)
+
+
+def _yp_shift(at, hours):
+    try:
+        return at + timedelta(hours=hours)
+    except OverflowError:
+        return YP_FIRST if hours < 0 else YP_LAST
+
+
+def _yp_day_first(day, zone):
+    """The first instant ``zone``'s clock shows ``day`` (year 1's first instant where the day began before it)."""
+    if zone is None:
+        return datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    z, base = _tz(zone), datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    lo, hi = _yp_shift(base, -16), _yp_shift(base, 16)
+    if lo.astimezone(z).date() >= day:
+        return lo
+    while hi - lo > timedelta(microseconds=1):
+        mid = lo + (hi - lo) // 2
+        lo, hi = (lo, mid) if mid.astimezone(z).date() >= day else (mid, hi)
+    return hi
+
+
+def _yp_wall(wall, zone):
+    """The first instant ``zone``'s clock shows the naive ``wall`` time."""
+    if zone is None:
+        return wall.replace(tzinfo=timezone.utc)
+    z, u = _tz(zone), wall.replace(tzinfo=timezone.utc)
+    hits = []
+    for off in {_yp_shift(u, h).astimezone(z).utcoffset() for h in range(-36, 37)}:
+        try:
+            at = u - off
+        except OverflowError:
+            continue
+        if at.astimezone(z).replace(tzinfo=None) == wall:
+            hits.append(at)
+    return min(hits)
+
+
+def _yp_truth(op, value, value2, zone):
+    from datetime import date
+    at = {k: datetime.fromisoformat(v.replace("Z", "+00:00")) for k, v in YP.items()}
+    if op == "on":
+        day = date.fromisoformat(value)
+        lo, hi = _yp_day_first(day, zone), _yp_day_first(day + timedelta(days=1), zone)
+        return {k for k, t in at.items() if lo <= t < hi}
+    a = _yp_wall(datetime.fromisoformat(value), zone)
+    if op == "after":
+        return {k for k, t in at.items() if t > a}
+    if op == "before":
+        return {k for k, t in at.items() if t < a}
+    b = _yp_wall(datetime.fromisoformat(value2), zone)
+    return {k for k, t in at.items() if a <= t <= b}
+
+
+#: fm-gims's three rows, each with its twin in the sweep, and every year's questions on every clock
+YP_QUESTIONS = [("Asia/Kolkata", "on", "0001-01-02", None), ("Asia/Kolkata", "on", "0999-06-15", None),
+                (DENVER, "on", "0001-01-02", None)] + [
+    (zone, op, f"{y:04d}-06-15" if op == "on" else f"{y:04d}-06-15T{'00:00' if op == 'between' else '12:00'}",
+     f"{y:04d}-06-15T23:59" if op == "between" else None)
+    for y in (1, 999, 1000, 9999) for zone in (None, DENVER, "Asia/Kolkata")
+    for op in ("on", "between", "after", "before")]
+
+
+@needs_db
+@pytest.mark.parametrize("q", YP_QUESTIONS, ids=[f"{q[0] or 'UTC'} {q[1]} {q[2]}" for q in YP_QUESTIONS])
+def test_a_time_in_years_1_to_999_is_compared_at_one_width_on_every_clock(demo, q):
+    zone, op, value, value2 = q
+    card = {"field": "yp", "op": op, "value": value, **({"value2": value2} if value2 else {})}
+    view = {"columns": ["pk"], "conditions": [{"field": "batch", "op": "eq", "value": "yp"}, card]}
+    if zone:
+        view["zone"] = zone
+    status, a = _answer(demo, **view)
+    want = _yp_truth(op, value, value2, zone)
+    assert status == 200 and a.get("kind") == "table", (q, status, str(a.get("message") or a)[:300])
+    assert {r[0] for r in a["rows"]} == want and a["admin"]["verdict"] == "agree", (q, sorted({r[0] for r in a["rows"]} ^ want))
+
+
+@pytest.mark.parametrize("year", [1, 999, 1000, 9999])
+@pytest.mark.parametrize("zone", [None, DENVER, "Asia/Kolkata"])
+def test_every_bound_writer_writes_its_year_at_four_digits(year, zone):
+    from datetime import date
+
+    from demo.server import dashboard
+    day = date(year, 6, 15)
+    noon = _yp_wall(datetime(year, 6, 15, 12), zone)
+    fixed = f"{noon.year:04d}-{noon.month:02d}-{noon.day:02d}T{noon.hour:02d}:{noon.minute:02d}:{noon.second:02d}Z"
+    if zone:
+        assert zones.wall_instant(day, 12, 0, 0, zone) == fixed, zones.wall_instant(day, 12, 0, 0, zone)
+    assert pview._instant(f"{year:04d}-06-15T12:00", zone) == fixed
+    first, nxt = _yp_day_first(day, zone), _yp_day_first(day + timedelta(days=1), zone)
+    marked = (lambda t: f"{t.year:04d}-{t.month:02d}-{t.day:02d}T{t.hour:02d}:{t.minute:02d}:{t.second:02d}."
+                        f"{t.microsecond:06d}!")
+    assert (pview._day_start(day, zone), pview._day_end(day, zone)) == (marked(first), marked(nxt))
+    # the axis's labels, which an answer's buckets are matched and ordered against
+    fmt = (lambda d: f"{d:04d}-06-{{}}T00:00:00" + ("Z" if zone is None else ""))(year)
+    assert dashboard._slots("day", fmt.format(14), fmt.format(16), zone) == [fmt.format(n) for n in (14, 15, 16)]
