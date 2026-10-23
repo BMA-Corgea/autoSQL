@@ -413,3 +413,72 @@ class _Rows:
 
     def fetchone(self):
         return self._rows[0] if self._rows else None
+
+
+# ── the foreman's decision on the time bar: on fm-gims's twin the new setup took 2,029 ms, 780 of them Postgres's JIT
+# compiling the facts statement on every run and 370 a sort of its 333k field-value pairs. The bar: under 1 s. The
+# setup's two statements run with the JIT off under their own savepoint, the caller's setting put back after (T-112's
+# way for the probes); the pairs are grouped by hash, never by sort (a hash spills past work_mem: memory bounded). ──
+
+def _rendered(records) -> set:
+    scope = records.scope("r", {})
+    return {t.replace("{table}", records.table).replace("{scope}", scope) for t in (pview._SHAPE_SQL, pview._FACTS_SQL)}
+
+
+class _Watch:
+    """The caller's connection, noting the jit setting each of the setup's statements runs under, and the facts
+    statement's plan as it is about to run (inside whatever savepoint and settings the setup gave it)."""
+
+    def __init__(self, conn, sqls, facts):
+        self._c, self._sqls, self._facts, self.seen, self.plans = conn, sqls, facts, [], []
+
+    @property
+    def info(self):
+        return self._c.info
+
+    def transaction(self):
+        return self._c.transaction()
+
+    def execute(self, sql, params=None):
+        if sql in self._sqls:
+            self.seen.append(self._c.execute("SELECT current_setting('jit')").fetchone()[0])
+        if sql == self._facts:
+            self.plans.append(self._c.execute("EXPLAIN (FORMAT JSON) " + sql, params).fetchone()[0][0]["Plan"])
+        return self._c.execute(sql, params)
+
+
+def _watch(world):
+    rec = world["records"]
+    facts = pview._FACTS_SQL.replace("{table}", rec.table).replace("{scope}", rec.scope("r", {}))
+    return _Watch(world["conn"], _rendered(rec), facts)
+
+
+def _nodes(plan):
+    yield plan
+    for child in plan.get("Plans", []):
+        yield from _nodes(child)
+
+
+@needs_db
+def test_the_setup_reads_with_the_jit_off_and_puts_the_callers_setting_back(world):
+    conn = world["conn"]
+    with conn.transaction():
+        conn.execute("SET LOCAL jit = on")
+        conn.execute("SET LOCAL jit_above_cost = 0")
+        watch = _watch(world)
+        fields = pview._read_fields(watch, "noun:Wide", records=world["records"])
+        after = conn.execute("SELECT current_setting('jit'), current_setting('jit_above_cost'), "
+                             "current_setting('enable_sort')").fetchone()
+    conn.rollback()
+    assert fields and watch.seen == ["off", "off"], watch.seen
+    assert after == ("on", "0", "on"), after
+
+
+@needs_db
+def test_the_setup_groups_its_pairs_by_hash_never_by_sort(world):
+    with world["conn"].transaction():
+        watch = _watch(world)
+        pview._read_fields(watch, "noun:Heartbeat", records=world["records"])
+    world["conn"].rollback()
+    strategies = [n.get("Strategy") for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
+    assert strategies == ["Hashed"], strategies
