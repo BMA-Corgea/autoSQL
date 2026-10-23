@@ -587,13 +587,18 @@ def _once_cases():
 def _reads(conn, run) -> int:
     """How many times running a statement read a time field (xpr.time_text and xpr.time_at calls), counted by the
     server itself in this transaction."""
+    return _calls(conn, run, ["xpr.time_text(jsonb)", "xpr.time_at(text)"])
+
+
+def _calls(conn, run, functions) -> int:
+    """How many times running a statement called these functions, counted by the server itself in this transaction."""
     count = ("SELECT coalesce(sum(pg_stat_get_xact_function_calls(f::regprocedure)), 0) "
-             "FROM unnest(ARRAY['xpr.time_text(jsonb)', 'xpr.time_at(text)']) f")
+             "FROM unnest(%s::text[]) f")
     with conn.transaction():
         conn.execute("SET LOCAL track_functions = 'all'")
-        before = conn.execute(count).fetchone()[0]
+        before = conn.execute(count, (functions,)).fetchone()[0]
         run()
-        return conn.execute(count).fetchone()[0] - before
+        return conn.execute(count, (functions,)).fetchone()[0] - before
 
 
 #: ... and the condition itself is one window over that reading -- e00a5d8's own shape, so it costs what e00a5d8's
@@ -622,6 +627,64 @@ def test_a_time_field_is_read_once_a_row(conn, case):
     run = (lambda: _sql(conn, spec)) if kind == "pick" else (lambda: _sql_board(conn, spec))
     reads = _reads(conn, run)
     assert reads <= len(ROWS), (case, reads, len(ROWS))       # one time field, read once for each of its rows
+
+
+#: a-chk's cost on 506e4b2, paired against e00a5d8: "on a day" on Denver +71%, between +62%, the board +118%. The
+#: reading was one column to the language only: Postgres pulled the LATERAL's outer level up and copied its CASE into
+#: every comparison naming it -- worked out again each time, and on a clock too costly for Postgres to inline the
+#: comparison, so xpr.ord ran as a call, twice a row. The bar: the plan works each reading out once (its date mark
+#: appears once in the plan), and the comparisons over it stay inlined (no xpr.ord call)
+def _plan(conn, kind, spec) -> str:
+    """The statement's plan, as the server prints it (EXPLAIN VERBOSE)."""
+    from picks import group as sgroup
+    with conn.transaction():
+        with env.checking_zones(zones.clock_check(conn)):
+            b = (builder.build(spec, KEYS, records=_records()) if kind == "pick"
+                 else sgroup.build(spec, records=_records()))
+        return "\n".join(r[0] for r in conn.execute("EXPLAIN (VERBOSE) " + b.sql, b.params).fetchall())
+
+
+@needs_db
+@pytest.mark.parametrize("case", list(_once_cases()))
+def test_the_plan_works_a_reading_out_once_and_keeps_its_comparisons_inlined(conn, case):
+    kind, spec = _once_cases()[case]
+    copies = _plan(conn, kind, spec).count(f"'{_times().DATE_MARK}'::text")
+    run = (lambda: _sql(conn, spec)) if kind == "pick" else (lambda: _sql_board(conn, spec))
+    ords = _calls(conn, run, ["xpr.ord(text,jsonb,jsonb)"])
+    assert copies == 1 and ords == 0, (case, copies, ords)
+
+
+#: ... and the second engine read each row's time afresh (a pattern, a datetime, its text: about 5 us), +40 to +77 ms a
+#: question over the demo's 8,400 heartbeats, which hold 168 times. The bar: it reads each stored text once, not once a
+#: row (texts in year 2031, which no other test reads)
+FRESH = [f"2031-0{m}-1{d}T0{h}:2{m}:3{d}.{m}{d}{h}+00:00" for m in range(1, 4) for d in range(1, 4) for h in range(1, 4)]
+
+
+def test_the_second_engine_reads_each_stored_time_once(monkeypatch):
+    t = _times()
+    matched, readable = [], t._READABLE
+
+    class Counted:
+        def fullmatch(self, text):
+            matched.append(text)
+            return readable.fullmatch(text)
+    monkeypatch.setattr(t, "_READABLE", Counted())
+    src = [pyrows.source_row(T, f"f{i:03d}", json.dumps({"when": FRESH[i % len(FRESH)]})) for i in range(5 * len(FRESH))]
+    pick = _filter_pick([{"field": "when", "op": "on", "value": "2031-02-12"}], "all", DENVER)
+    kept = {r["key"] for r in pyshape.answer(src, pick, _records())["rows"]}
+    assert kept and sorted(matched) == sorted(FRESH), (len(kept), len(matched), len(FRESH))
+
+
+#: ... and "exactly one" with a time condition: 3.9 s where e00a5d8 took 1.4 s. T-114's Kleene rule (84cbb2a) counts the
+#: items that hold and those that fail, and the language's == reads each count three times over, in the statement and
+#: in its probes. A group is written in the shorter of its two exact forms, and / or alone or the count: for two items
+#: (and for every "all or none") that is and / or, with no count for == to ladder
+@pytest.mark.parametrize("join, n", [("one", 2), ("allnone", 2), ("allnone", 3)])
+def test_a_kleene_group_over_a_time_is_written_with_and_and_or(join, n):
+    items = [{"field": "when", "op": "after", "value": "2026-07-09T05:03"}, {"field": "s", "op": "eq", "value": "y"},
+             {"field": "when", "op": "before", "value": "2026-07-09T12:00"}][:n]
+    expr = _filter_pick(items, join, DENVER)["filter"]
+    assert "if(" not in expr and " + " not in expr, expr
 
 
 @needs_db
