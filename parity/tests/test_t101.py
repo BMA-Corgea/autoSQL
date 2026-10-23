@@ -172,8 +172,8 @@ def _clocks_differ_at(conn, zone, ts):
 @needs_db
 def test_a_clock_the_list_keeps_quiet_still_refuses_a_row_from_then_in_the_same_words(world):
     """T-133: the list gives Amsterdam no line (its clocks differ here only before 1937), and nothing else moves: a
-    question that reads its 1916 row on that clock is still refused, in the same words, before either engine gives a
-    number (the second engine only checks an answer the statement gave)."""
+    question that reads its 1916 row on that clock is still refused by the statement (xpr.clock), in the same words.
+    Both screens: test_t133_refusal_on_both_screens.py."""
     conn = world[0]
     if not _clocks_differ_at(conn, AMS, "1916-04-30T12:00:00Z"):
         pytest.skip("this database reads Amsterdam's 1916 clock as Python does: nothing to refuse here")

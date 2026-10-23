@@ -2,7 +2,8 @@
 
 Each breaks one thing T-133's tests hold: the quiet list (in the engine, the server's list and parity's list), the
 line kept for a difference that reaches 1970, the line passed on to the page, and the refusal at use (a question that
-reads Amsterdam's 1916 row still refused in the same words). Each must die on its own assertion. Run on
+reads Amsterdam's 1916 row still refused by the statement, in one sentence on both screens, the two-pane screen's second
+engine still answering beside it). Each must die on its own assertion. Run on
 ``t78_mutants.py``'s runner, from a scratch copy, with AUTOSQL_PARITY_DSN set to a throwaway Postgres.
 
     AUTOSQL_PARITY_DSN=… demo/.venv/bin/python demo/tests/t133_mutants.py [--dry-run] [--only Q1,Q2]
@@ -22,6 +23,8 @@ _T = "tests/test_t98.py::"
 _P = "../parity/tests/test_t101.py::"
 _Z = "../picks/zones.py"
 _QUIET = _T + "test_a_zone_the_clocks_disagree_on_only_before_1970_gets_no_line"
+_BOTH = ("../parity/tests/test_t133_refusal_on_both_screens.py::"
+         "test_the_1916_row_on_amsterdams_clock_is_refused_by_the_statement_in_one_sentence_on_both_screens")
 _HISTORY = "    if last.year < 1970:\n        return None\n"
 _OLD_LINE = "    if last.year < 1970:\n        return \"Times before 1970 can't be read on this clock.\"\n"
 
@@ -49,6 +52,25 @@ T133_MUTANTS = [
          edits=[("server/dashboard.py", '"note": mark[e["zone"]][1]} for e in shown]', '"note": None} for e in shown]')],
          selector=_T + "test_the_page_gets_the_list_with_each_zones_mark",
          expect="Times from November 2026"),
+    # bar 3, as reworded (a-chk's reading of 4600939): the refusal is the statement's, in one sentence on both screens
+    dict(id="Q8", defect="the dashboard answers the statement's refusal in the database's words, not the sentence",
+         edits=[("server/dashboard.py", '"message": _zones.refusal_words(str(exc))}, status_code=422)',
+                 '"message": str(exc)}, status_code=422)')],
+         selector=_BOTH, expect="time zone Europe/Amsterdam: this database"),
+    dict(id="Q9", defect="the two-pane screen refuses in the database's words, not the dashboard's sentence",
+         edits=[("server/app.py", '        "body": _zones.refusal_words(detail),\n', '        "body": detail,\n')],
+         selector=_BOTH, expect="AssertionError: time zone Europe/Amsterdam"),
+    dict(id="Q10", defect="the dashboard asks for the two-pane screen's refusal, so its second engine runs once the "
+                          "statement refused",
+         edits=[("server/app.py", "def run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool = False)",
+                 "def run_pick(conn, pick: dict, *, whole: bool = False, refusals_in_words: bool = True)")],
+         selector=_BOTH, expect="the second engine ran on the dashboard"),
+    dict(id="Q11", defect="the two-pane screen's second engine pane left empty beside the refusal",
+         edits=[("server/app.py", '    py_pane, py_total = _fallback_python_pane(conn, pick)\n    body = _refused(\n'
+                 '        payload, pick=pick,\n        panes={"sql": _empty_pane("raised" if sent else "abandoned", _EMPTY_PANE_ZONE),',
+                 '    py_pane, py_total = _empty_pane("abandoned", _EMPTY_PANE_ZONE), 0\n    body = _refused(\n'
+                 '        payload, pick=pick,\n        panes={"sql": _empty_pane("raised" if sent else "abandoned", _EMPTY_PANE_ZONE),')],
+         selector=_BOTH, expect="the second engine's pane didn't answer on its own clock"),
 ]
 
 
