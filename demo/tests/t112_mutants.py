@@ -136,8 +136,8 @@ T112_MUTANTS = [
     dict(id="E12", defect="scope: the second engine's check run after the filter",
          edits=[(_SH, "    exact.check(rows, [(ast, exact.SHOWN) for _n, ast in parsed]\n",
                  "    (lambda *_, **__: None)(rows, [(ast, exact.SHOWN) for _n, ast in parsed]\n"),
-                (_SH, "        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants)]\n",
-                 "        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants)]\n"
+                (_SH, "        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants, pick.get(\"times_zone\"))]\n",
+                 "        rows = [r for r in rows if ev.keep_by_filter(r, filter_ast, instants, pick.get(\"times_zone\"))]\n"
                  "    exact.check(rows, [(ast, exact.SHOWN) for _n, ast in parsed]\n"
                  "                + ([(filter_ast, exact.NUMBER)] if filter_ast is not None else []))\n")],
          selector=_P + "test_the_refusal_reads_every_row_not_only_the_filters", expect="None == 'small'"),

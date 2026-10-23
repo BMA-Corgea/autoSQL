@@ -78,7 +78,8 @@ T100_MUTANTS = [
                  "            f\" OR true)\")")],
          selector=VECTORS, expect="Denver: the zero date"),
     dict(id="Z9", defect="the axis writes year 1 as \"1\" (strftime's way), so its slots never meet the engines' buckets",
-         edits=[(_D, "    return (f\"{t.year:04d}-", "    return (f\"{t.year}-")],
+         edits=[("../picks/times.py", "    return f\"{at.year:04d}-{at.month:02d}-{at.day:02d}T{at.hour:02d}:{at.minute:02d}:{at.second:02d}Z\"",
+                 "    return f\"{at.year}-{at.month:02d}-{at.day:02d}T{at.hour:02d}:{at.minute:02d}:{at.second:02d}Z\"")],
          selector=_T + "test_the_axis_writes_years_with_four_digits", expect="1-01-01"),
 ]
 

@@ -1656,3 +1656,27 @@ def test_every_bound_writer_writes_its_year_at_four_digits(year, zone):
     # the axis's labels, which an answer's buckets are matched and ordered against
     fmt = (lambda d: f"{d:04d}-06-{{}}T00:00:00" + ("Z" if zone is None else ""))(year)
     assert dashboard._slots("day", fmt.format(14), fmt.format(16), zone) == [fmt.format(n) for n in (14, 15, 16)]
+
+
+@needs_db
+def test_a_capped_table_on_a_clock_counts_a_bare_date_on_that_clock(demo):
+    """The count behind a capped table reads its times on the question's clock, as its rows do: in Havana Mar 8's bare
+    date is on Mar 8, so with 30 more of them Show 25 is the first 25 of 32 (h0 and h1, as DST_EDGE_CONDS has them)."""
+    import psycopg
+
+    from demo.server import dashboard
+    with psycopg.connect(demo["dsn"], autocommit=True) as cx:
+        for i in range(30):
+            cx.execute("INSERT INTO demo.records VALUES ('noun:EdgeCase', %s, %s::jsonb)",
+                       (f"zw-more{i:02d}", json.dumps({"dz": "2026-03-08", "batch": "dst"})))
+    dashboard._CACHE.clear()
+    try:
+        status, a = _answer(demo, columns=["dz"], show=25, sort={"field": "dz", "dir": "asc"}, zone=HAVANA,
+                            conditions=[{"field": "batch", "op": "eq", "value": "dst"},
+                                        {"field": "dz", "op": "on", "value": "2026-03-08"}])
+    finally:
+        with psycopg.connect(demo["dsn"], autocommit=True) as cx:
+            cx.execute("DELETE FROM demo.records WHERE key LIKE 'zw-more%'")
+        dashboard._CACHE.clear()
+    assert status == 200 and a.get("kind") == "table", (status, str(a.get("message") or a)[:300])
+    assert "the first 25 of 32" in a["sentence"], ("the first 25 of", a["sentence"])
