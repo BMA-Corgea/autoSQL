@@ -165,12 +165,14 @@ def _when(d) -> str:
     return str(d.year) if d.year < 1970 else f"{_MONTH_NAMES[d.month - 1]} {d.year}"
 
 
-def note_words(first, last, to_the_end: bool) -> str:
+def note_words(first, last, to_the_end: bool) -> str | None:
     """T-101: a zone the two clocks disagree on only in some period stays selectable, with that
-    period in one line: "Times before 1970 ..." when every difference is history, "Times from
-    November 2026 on ..." when they run to the end of what is compared, else from .. to."""
+    period in one line: "Times from November 2026 on ..." when they run to the end of what is
+    compared, else before or from .. to. T-133: None when every difference is history (before
+    1970): the list says nothing, the README says it once, and a question that reads such a time
+    is still refused in words (refusal_words)."""
     if last.year < 1970:
-        return "Times before 1970 can't be read on this clock."
+        return None
     if to_the_end:
         return f"Times from {_when(first)} on can't be read on this clock."
     if first.year < 1970:
@@ -202,8 +204,9 @@ SELECT z, array_agg(extract(epoch FROM ((to_timestamp(t) AT TIME ZONE z)
 def marks(conn, names, cache: bool = True) -> dict:
     """``{zone: (why, note)}``: ``why`` greys a zone this database doesn't know (UNKNOWN_WORDS);
     ``note`` is the one line for a zone the two clocks disagree on in some period, which stays
-    selectable (T-101); both None for a zone they agree on. Built-in SQL only, so it needs no
-    runtime function; cached per process and database."""
+    selectable (T-101); both None for a zone they agree on, and for one they disagree on only
+    before 1970 (T-133). Built-in SQL only, so it needs no runtime function; cached per process
+    and database."""
     key = (conn.info.host, conn.info.port, conn.info.dbname)
     names = sorted(set(names))
     with _MARK_LOCK:

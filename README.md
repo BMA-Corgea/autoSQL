@@ -134,6 +134,8 @@ want it: switch **View as** to **Admin** and press **Show SQL** to see the state
 current picks rewrite itself as they change, with the second engine's verdict beside it. A
 consumer of the dashboard never needs to know it is there.
 
+Some of the clocks a person can pick can't read every time before 1970; a question that needs one is refused in words.
+
 Where it lives: the pick engine is the top-level `picks/` package — what the clicks mean
 (`picks/view.py`), which combinations are legal, the statements, the probes and the second engine
 (`picks/pyrunner/`) — written for any table of JSON records described to it (`picks/records.py`:
