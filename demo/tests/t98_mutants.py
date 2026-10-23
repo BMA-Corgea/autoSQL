@@ -98,8 +98,8 @@ T98_MUTANTS = [
          selector=_T + "test_a_wall_time_the_clocks_skip_is_refused_in_words", expect="DID NOT RAISE"),
     dict(id="B15", defect="a field's kind is decided from its first 2,001 values again",
          # T-114: the counts are the rule's (picks.times.kind_counts); the mutant counts the first 2,001 only
-         edits=[("../picks/view.py", "        kind = _kind(scalar_types, forms)",
-                 "        kind = _kind(scalar_types, times.kind_counts(strings))")],
+         edits=[("../picks/view.py", "        kind = _kind(ts - {\"null\"}, forms)",
+                 "        kind = _kind(ts - {\"null\"}, times.kind_counts(strings or []))")],
          selector=_T + "test_a_wide_time_field_whose_odd_values_sort_late_is_decided_over_every_value",
          expect="AssertionError: time"),
     dict(id="B16", defect="the statement alone answers for an instant before year 1",

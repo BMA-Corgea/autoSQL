@@ -217,6 +217,12 @@ def _wide(n=2100, seed=127):
             d["sparse"] = rnd.choice(["s1", "s2", None])
         if rnd.random() < 0.05:
             del d["t_few"]
+        if i < 13:
+            # a kind decided by rows, never by distinct values: one time held by ten rows beside three words is
+            # a time field (10 of 13 look like a time); counted by distinct values it would be text (1 of 4)
+            d["t_heavy"] = "2026-07-09T05:03:48Z" if i < 10 else ["lunch", "tea", "dinner"][i - 10]
+            # a day the calendar lacks is no edge of a date field's span, even where it would be the greatest
+            d["day2"] = ["2026-07-09", "2026-07-10", "2026-07-32"][i % 3]
         docs.append(d)
     return docs
 
