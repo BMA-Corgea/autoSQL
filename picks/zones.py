@@ -4,9 +4,6 @@ A pick names its zone ("America/Denver"); every reading of a time in that zone t
 expression does NOT do per row is done here, once, in Python, with the same ``zoneinfo`` data
 GIMS's evaluator reads:
 
-* a day ("is on Aug 20") becomes its two UTC ends, DST-correct: a day runs from its first
-  instant to the next day's first instant (23 or 25 hours on a change day; a day whose midnight
-  the clocks skip starts at the change itself);
 * a picked wall time ("after Aug 20, 5:00 PM") becomes one UTC instant: on a day the clocks go
   back, the FIRST of the two; a time the clocks skip is refused in plain words;
 * a time of day and a zone read as a person says them ("5:00 PM", "Denver time").
@@ -25,15 +22,14 @@ import threading
 import zoneinfo
 from zoneinfo import ZoneInfo
 
-__all__ = ["ZoneError", "label", "place", "day_span", "wall_instant", "clock_words",
-           "refusal_words", "UTC_TEXT", "offered", "links", "marks", "note_words", "UNKNOWN_WORDS",
+from . import times as _times
+
+__all__ = ["ZoneError", "label", "place", "wall_instant", "clock_words",
+           "refusal_words", "offered", "links", "marks", "note_words", "UNKNOWN_WORDS",
            "disagreements", "clock_check", "ZoneUnknown"]
 
 _UTC = _dt.timezone.utc
 _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
-#: The fixed-width UTC text the data and both engines compare (T-88 ruling 1).
-UTC_TEXT = "%Y-%m-%dT%H:%M:%SZ"
 
 
 class ZoneError(ValueError):
@@ -58,18 +54,9 @@ def label(zone: str) -> str:
 
 
 def _text(moment: _dt.datetime) -> str:
-    return moment.astimezone(_UTC).strftime(UTC_TEXT)
-
-
-def day_span(day: _dt.date, zone: str) -> tuple[str, str]:
-    """The UTC ends of ``day`` on ``zone``'s clock: [its first instant, the next day's)."""
-    z = ZoneInfo(zone)
-
-    def first(d: _dt.date) -> _dt.datetime:
-        # fold=0: of two midnights, the first; a skipped midnight maps to the change itself
-        return _dt.datetime(d.year, d.month, d.day, tzinfo=z)
-
-    return _text(first(day)), _text(first(day + _dt.timedelta(days=1)))
+    """An instant in the data's fixed form, its year at four digits (t98-24: strftime writes year 1 as "1", which
+    compares after every fixed-width time; a day's ends are ``picks.view._day_start`` and ``_day_end``)."""
+    return _times.fixed_text(moment.astimezone(_UTC))
 
 
 def _span_words(seconds: int) -> str:

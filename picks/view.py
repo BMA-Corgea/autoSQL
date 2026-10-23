@@ -913,7 +913,7 @@ def _instant(value, zone=None) -> str:
         except zones.ZoneError as exc:
             raise ViewError(str(exc)) from None
     else:
-        t = f"{day.isoformat()}T{hh:02d}:{mm:02d}:{ss:02d}Z"
+        t = times.fixed_text(_dt.datetime(day.year, day.month, day.day, hh, mm, ss))
     if m.group(5):                      # an offset is whole minutes, so the fraction rides on the UTC instant
         t = f"{t[:-1]}.{m.group(5).ljust(6, '0')}Z"
     return t

@@ -148,7 +148,9 @@ def test_a_zone_reads_as_a_place(zone, words):
     (D(2026, 9, 6), "America/Santiago", "2026-09-06T04:00:00Z", "2026-09-07T03:00:00Z"),
 ])
 def test_a_day_is_its_first_instant_to_the_next_days(day, zone, start, end):
-    assert zones.day_span(day, zone) == (start, end)
+    from picks import view as pview                  # T-114: a day's ends are the view's, as that day's bare date reads
+    mark = (lambda t: t[:-1] + ".000000!")
+    assert (pview._day_start(day, zone), pview._day_end(day, zone)) == (mark(start), mark(end))
 
 
 @pytest.mark.parametrize("day, h, m, s, zone, utc", [

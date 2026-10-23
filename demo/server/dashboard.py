@@ -1019,8 +1019,9 @@ def _span(fields: dict, time: str = "ts", zone=None) -> tuple[str | None, str | 
 
 
 def _iso(t, z: str = "") -> str:
-    """The engines' fixed-width form, years in four digits (strftime writes year 1 as "1")."""
-    return (f"{t.year:04d}-{t.month:02d}-{t.day:02d}T{t.hour:02d}:{t.minute:02d}:{t.second:02d}{z}")
+    """The engines' fixed form, years in four digits (``picks.times.fixed_text``, the one writer: strftime writes
+    year 1 as "1"), ending in ``z``: a label on a question's clock has no Z."""
+    return _times.fixed_text(t)[:-1] + z
 
 
 def _axis_slots(unit: str, lo: str, hi: str, zone, starts) -> list:
