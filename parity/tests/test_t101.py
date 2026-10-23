@@ -3,7 +3,7 @@
 Each clock reading (a time_of_day, T-100's zoned bucket) is checked against D(zone), the instants
 this database's clock and Python's disagree on, worked out once per zone and database and re-checked
 cheaply on every question (picks/zones.py). On this machine 109 of 484 zones have a non-empty D,
-almost all of it before 1970 (Amsterdam: before 1937), so their questions about 2026 are answered.
+almost all of it before 1970 (all of Amsterdam's), so their questions about 2026 are answered.
 
 The demo's Heartbeats are copied, read-only, from the shared demo database into a TEMPORARY table on
 a throwaway Postgres carrying THIS tree's runtime (AUTOSQL_PARITY_DSN); rows the tests add go into
@@ -128,7 +128,7 @@ EDM_FROM_5 = "substr(data->>'ts', 12, 2) IN ('23', '00', '01', '02', '03', '04',
 
 @needs_db
 def test_amsterdam_and_edmonton_answer_a_question_about_august_equal_to_hand_written_sql(world):
-    """Both zones have a D on this machine (Amsterdam before 1937, Edmonton from Nov 2026) and were
+    """Both zones have a D on this machine (Amsterdam before 1970, Edmonton from Nov 2026) and were
     refused outright before T-101. On the demo's August Heartbeats both are answered, the clock read
     through the check, both engines equal to hand-written SQL."""
     _needs_d(world[0], AMS, EDM)
@@ -171,7 +171,7 @@ def _clocks_differ_at(conn, zone, ts):
 
 @needs_db
 def test_a_clock_the_list_keeps_quiet_still_refuses_a_row_from_then_in_the_same_words(world):
-    """T-133: the list gives Amsterdam no line (its clocks differ here only before 1937), and nothing else moves: a
+    """T-133: the list gives Amsterdam no line (its clocks differ here only before 1970), and nothing else moves: a
     question that reads its 1916 row on that clock is still refused by the statement (xpr.clock), in the same words.
     Both screens: test_t133_refusal_on_both_screens.py."""
     conn = world[0]

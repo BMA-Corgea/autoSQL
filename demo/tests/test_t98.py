@@ -345,7 +345,7 @@ def _offsets_at(conn, zone, moment):
 
 def test_the_list_from_this_database_gives_no_clock_a_line_about_history():
     """T-133: the server's list as the engine makes it, with no stand-in. Amsterdam's clocks differ here only before
-    1937 (read straight off both clocks on Apr 30, 1916): it shows its name only, and no clock in the list carries the
+    1970 (read straight off both clocks on Apr 30, 1916): it shows its name only, and no clock in the list carries the
     line about times before 1970."""
     from demo.server import db
     conn = db.connect(application_name="autosql-t133-list")
@@ -559,7 +559,7 @@ def test_an_unknown_zone_is_refused_in_words(page):
 
 
 def test_a_zone_the_clocks_disagree_on_only_long_ago_answers_a_question_about_now(page):
-    """T-101: Amsterdam's clocks differ on this machine only before 1937; Aug 20 there (UTC+2) is
+    """T-101: Amsterdam's clocks differ on this machine only before 1970; Aug 20 there (UTC+2) is
     answered: 24 hours of Heartbeats, by hand. (Its day is two instants worked out in Python, so no
     row's clock is read in the database at all.)"""
     c, st = page

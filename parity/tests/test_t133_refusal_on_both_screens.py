@@ -3,7 +3,7 @@
 The refusal is the statement's. A Heartbeat on Apr 30, 1916 read on Amsterdam's clock is refused in one sentence on
 both screens: the dashboard answers 422 with it, and the two-pane screen refuses at layer 2 with it while its second
 engine's pane answers on its own clock (T-105). On the dashboard the second engine doesn't run once the statement
-refuses. Amsterdam's two clocks differ on this computer only before 1937, so the list now gives it no line; this
+refuses. Amsterdam's two clocks differ on this computer only before 1970, so the list now gives it no line; this
 behaviour is the same before and after.
 
 Needs a throwaway Postgres (AUTOSQL_PARITY_DSN). The test builds its own scratch database there (the demo's seed,
