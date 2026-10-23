@@ -487,7 +487,8 @@ def test_the_setup_groups_its_pairs_by_hash_never_by_sort(world):
         watch = _watch(world)
         pview._read_fields(watch, "noun:Heartbeat", records=world["records"])
     world["conn"].rollback()
-    strategies = [n.get("Strategy") for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
+    pv = [n for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
+    strategies = [next(g for g in _nodes(n) if g.get("Node Type") == "Aggregate").get("Strategy") for n in pv]
     assert strategies == ["Hashed"], strategies
 
 

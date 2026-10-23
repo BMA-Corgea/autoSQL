@@ -117,8 +117,9 @@ SELECT x.k1, x.k2, x.t, count(*)
 """
 
 #: The second: every fact of every chosen field (``k1``, ``k2``, ``lvl``: a top-level key, or a key one level inside
-#: one), one row a field in the order asked, from ONE pass that groups each row's present values by field and value
-#: (``pv``; JSON null is blank, as before), so each distinct value is read once:
+#: one), one row a field in the order asked, from ONE pass that groups each row's present values by key and value
+#: (``pv``; JSON null is blank, as before), so each distinct value is read once -- grouped first, then matched with
+#: the chosen fields once (matched inside the per-record loop, as the planner chose on a twin twice as wide, 3 s):
 #:   present, distinct   the rows holding a non-null value, and the distinct non-null values under jsonb equality
 #:                       (the blank group is the rows that hold none: ``total`` is every row of the collection);
 #:   the four forms      over every non-blank text value -- how many, how many look like a time, how many are
@@ -136,17 +137,18 @@ _FACTS_SQL = """
 WITH p AS (
   SELECT k1, k2, lvl, i FROM unnest(%(k1)s::text[], %(k2)s::text[], %(lvl)s::int[]) WITH ORDINALITY AS p(k1, k2, lvl, i)
 ), pv AS MATERIALIZED (
-  SELECT p.i, x.v, count(*) AS n
-    FROM {table} r
-   CROSS JOIN LATERAL jsonb_each(r.data) AS e(k, v)
-   CROSS JOIN LATERAL (SELECT e.k AS k1, '' AS k2, 0 AS lvl, e.v AS v
-                       UNION ALL
-                       SELECT e.k, e2.k, 1, e2.v
-                         FROM jsonb_each(CASE WHEN jsonb_typeof(e.v) = 'object' THEN e.v END) AS e2(k, v)) AS x
-    JOIN p ON p.k1 = x.k1 AND p.k2 = x.k2 AND p.lvl = x.lvl
-   WHERE {scope}
-     AND x.v <> 'null'::jsonb
-   GROUP BY 1, 2
+  SELECT p.i, g.v, g.n
+    FROM (SELECT x.k1, x.k2, x.lvl, x.v, count(*) AS n
+            FROM {table} r
+           CROSS JOIN LATERAL jsonb_each(r.data) AS e(k, v)
+           CROSS JOIN LATERAL (SELECT e.k AS k1, '' AS k2, 0 AS lvl, e.v AS v
+                               UNION ALL
+                               SELECT e.k, e2.k, 1, e2.v
+                                 FROM jsonb_each(CASE WHEN jsonb_typeof(e.v) = 'object' THEN e.v END) AS e2(k, v)) AS x
+           WHERE {scope}
+             AND x.v <> 'null'::jsonb
+           GROUP BY 1, 2, 3, 4) AS g
+    JOIN p ON p.k1 = g.k1 AND p.k2 = g.k2 AND p.lvl = g.lvl
 ), s AS MATERIALIZED (
   SELECT i, t, n, length(t) AS len,
          length(t) >= 10 AND substr(t, 5, 1) = '-' AND substr(t, 8, 1) = '-'
