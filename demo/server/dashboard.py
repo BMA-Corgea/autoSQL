@@ -1047,7 +1047,10 @@ def _slots(unit: str, lo: str, hi: str, zone=None) -> list:
     while t <= end:
         if zone is None or unit != "hour" or _clock_shows(t, zone):
             out.append(_iso(t, "Z" if zone is None else ""))
-        t = step(t)
+        try:
+            t = step(t)
+        except (OverflowError, ValueError):
+            break               # t98-23: the calendar's last slot -- no step past Dec 31, 9999
     return out
 
 

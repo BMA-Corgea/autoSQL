@@ -930,6 +930,22 @@ def _day_start(day: _dt.date, zone=None) -> str:
     return times.utc_text(times.midnight(day.isoformat(), zone))[:-1] + times.DATE_MARK
 
 
+def _day_end(day: _dt.date, zone=None):
+    """Where a day on the question's clock ends, marked as ``_day_start``: the next day's first instant. The
+    calendar's last day has no next and ends at the clock's last instant (t98-23): east of UTC an instant this reads
+    (Dec 31, 9999 ends at 18:30Z on Kolkata), on UTC and west of it past them all (``None``: no end)."""
+    if day < _dt.date.max:
+        return _day_start(day + _dt.timedelta(days=1), zone)
+    if zone is None:
+        return None
+    last = _dt.datetime.combine(day, _dt.time.max)
+    try:
+        end = last - zones.ZoneInfo(zone).utcoffset(last) + _dt.timedelta(microseconds=1)
+    except OverflowError:
+        return None
+    return times.utc_text(end.replace(tzinfo=_dt.timezone.utc))[:-1] + times.DATE_MARK
+
+
 def _time_condition(field: dict, ref: str, op: str, cond: dict, zone, said: str) -> tuple[str, str]:
     """after / before / between on a time field: one window over its reading (``picks.times.reading_on``, once a
     row), which puts a time at its instant and a bare date at the first instant of its day on the question's clock,
@@ -1115,10 +1131,10 @@ def condition(field: dict, cond: dict, zone=None) -> tuple[str, str]:
         # each as that day's bare date reads, so the day's own bare date is in and the next one's out (DST-correct);
         # the calendar's last day has no next (a-chk's MEDIUM-2: never an OverflowError)
         start = f"{ref} >= {string_literal(_day_start(d, zone))}"
-        if d == _dt.date.max:
+        end = _day_end(d, zone)
+        if end is None:
             return start, f"{label} {words} {fmt_day(d.isoformat())}"
-        return (f"{start} and {ref} < {string_literal(_day_start(d + _dt.timedelta(days=1), zone))}",
-                f"{label} {words} {fmt_day(d.isoformat())}")
+        return f"{start} and {ref} < {string_literal(end)}", f"{label} {words} {fmt_day(d.isoformat())}"
 
     if field["kind"] == "time" and op in ("after", "before", "between"):
         return _time_condition(field, ref, op, cond, zone, f"{label} {words}")
@@ -1556,11 +1572,16 @@ def fmt_time(text: str, zone=None) -> str:
     if at is None:
         return text                         # T-114: any readable form reads as its instant; anything else as it is
     t = at.replace(tzinfo=None)
+    seconds = f":{t.second:02d}" if t.second else ""      # shown when not zero (T-75)
     if zone is not None:
-        local = at.astimezone(zones.ZoneInfo(zone))
+        try:
+            local = at.astimezone(zones.ZoneInfo(zone))
+        except OverflowError:
+            # t98-23: a time this clock can't show (read on it, it leaves the calendar) says what's stored, in UTC
+            # words with its year -- never a made-up local time, never a 500
+            return f"{_MONTHS[t.month - 1]} {t.day}, {t.year}, {t.hour:02d}:{t.minute:02d}{seconds} UTC"
         return (f"{_MONTHS[local.month - 1]} {local.day}, "
                 f"{zones.clock_words(local.hour * 3600 + local.minute * 60 + local.second)}")
-    seconds = f":{t.second:02d}" if t.second else ""      # shown when not zero (T-75)
     return f"{_MONTHS[t.month - 1]} {t.day}, {t.hour:02d}:{t.minute:02d}{seconds} UTC"
 
 

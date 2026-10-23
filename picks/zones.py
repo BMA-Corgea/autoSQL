@@ -81,11 +81,18 @@ def _span_words(seconds: int) -> str:
 
 def wall_instant(day: _dt.date, hh: int, mm: int, ss: int, zone: str) -> str:
     """A wall time on ``zone``'s clock → its UTC text.  Twice that day (the clocks went back):
-    the first.  Never that day (the clocks skipped it): refused, in words."""
+    the first.  Never that day (the clocks skipped it): refused, in words.  Its instant before
+    year 1 or after 9999 (on the calendar's first or last day, t98-23): refused, in words."""
     z = ZoneInfo(zone)
     wall = _dt.datetime(day.year, day.month, day.day, hh, mm, ss)
     first = wall.replace(tzinfo=z, fold=0)
-    back = first.astimezone(_UTC).astimezone(z).replace(tzinfo=None)
+    try:
+        back = first.astimezone(_UTC).astimezone(z).replace(tzinfo=None)
+    except OverflowError:
+        raise ZoneError(
+            f"{clock_words(hh * 3600 + mm * 60 + ss)} on {_MONTHS[day.month - 1]} {day.day}, {day.year} "
+            f"in {label(zone)} is outside the years 1 to 9999 that times are read in."
+        ) from None
     if back != wall:
         jump = int((wall.replace(tzinfo=z, fold=1).utcoffset() - first.utcoffset()).total_seconds())
         jump = abs(jump) or 3600
