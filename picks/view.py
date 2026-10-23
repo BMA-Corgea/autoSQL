@@ -100,7 +100,7 @@ def _alias(label: str, taken: set) -> str:
 
 
 #: T-126: the setup reads a record type in two statements, however wide it is (it was one full scan per field per
-#: fact: 385 statements for guts-ledger's 182 fields, 8.7 s of a widget's 9). The first: every key's JSON types and
+#: fact: 385 statements for guts-ledger's 182 fields, most of what a widget did). The first: every key's JSON types and
 #: counts, and in the same pass every key one level inside an object value (Python opens a key that always holds an
 #: object, as before). In key order, so the field list has one fixed order (every caller orders it again: _ordered).
 _SHAPE_SQL = """
@@ -119,7 +119,7 @@ SELECT x.k1, x.k2, x.t, count(*)
 #: The second: every fact of every chosen field (``k1``, ``k2``, ``lvl``: a top-level key, or a key one level inside
 #: one), one row a field in the order asked, from ONE pass that groups each row's present values by key and value
 #: (``pv``; JSON null is blank, as before), so each distinct value is read once -- grouped first, then matched with
-#: the chosen fields once (matched inside the per-record loop, as the planner chose on a twin twice as wide, 3 s):
+#: the chosen fields once (the planner once matched them inside the per-record loop, every field for every record):
 #:   present, distinct   the rows holding a non-null value, and the distinct non-null values under jsonb equality
 #:                       (the blank group is the rows that hold none: ``total`` is every row of the collection);
 #:   the four forms      over every non-blank text value -- how many, how many look like a time, how many are
@@ -455,9 +455,9 @@ def _read_fields(conn, collection: str, labels=None, records=None) -> list:
 @contextlib.contextmanager
 def _setup_settings(conn):
     """The setup's two statements under their own savepoint (T-126, the foreman's decision on the time bar), with
-    Postgres's JIT off -- it compiled the facts statement on every run, 780 ms of 2 s on guts-ledger's twin -- and the
-    pairs grouped by hash, never by sort -- a sort of its 333k field-value pairs cost 370 ms; a hash aggregate spills
-    to disk past work_mem, so memory stays bounded. The caller's settings are put back before the savepoint is
+    Postgres's JIT off -- it compiled the facts statement on every run, the larger part of the setup's work on
+    guts-ledger's twin -- and the pairs grouped by hash, never by sort -- a sort of its 333k field-value pairs, where a
+    hash will do; a hash aggregate spills to disk past work_mem, so memory stays bounded. The caller's settings are put back before the savepoint is
     released, as ``picks.probes`` does for a probe; a statement that raises rolls the savepoint back, and the settings
     with it. A reader with no transaction (``PythonReader``) answers as it always does."""
     if not hasattr(conn, "transaction"):
