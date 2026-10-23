@@ -489,3 +489,19 @@ def test_the_setup_groups_its_pairs_by_hash_never_by_sort(world):
     world["conn"].rollback()
     strategies = [n.get("Strategy") for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
     assert strategies == ["Hashed"], strategies
+
+
+#: ... and on a twin twice as wide (422 fields) the pairs' grouping held its memory (8 MB, 3.6 MB spilled to disk) but
+#: took 3.2 s: the planner, misreading jsonb_each's rows, put the match with the chosen fields inside the per-record
+#: loop (22,304 hashes of a record's pairs, each probed by all 306 fields). The pairs are grouped first, then matched
+#: once: in the facts statement's plan nothing beneath the pairs' grouping reads the chosen fields.
+@needs_db
+def test_the_setup_groups_its_pairs_before_it_matches_them_to_the_fields(world):
+    with world["conn"].transaction():
+        watch = _watch(world)
+        pview._read_fields(watch, "noun:Heartbeat", records=world["records"])
+    world["conn"].rollback()
+    pv = [n for plan in watch.plans for n in _nodes(plan) if n.get("Subplan Name") == "CTE pv"]
+    grouping = [g for n in pv for g in _nodes(n) if g.get("Node Type") == "Aggregate"]
+    beneath = [x.get("CTE Name") for g in grouping[:1] for x in _nodes(g) if x.get("Node Type") == "CTE Scan"]
+    assert grouping and "p" not in beneath, (len(grouping), beneath)
