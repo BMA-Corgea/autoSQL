@@ -182,6 +182,9 @@ body.dx-body * { box-sizing: border-box; }
 .dx-seg-btn:last-child { border-right: 0; }
 .dx-seg-btn.is-on { background: var(--blue); color: var(--bg); }
 .dx-seg-btn:disabled { opacity: 0.45; cursor: default; }
+/* the switch clips its buttons (overflow: hidden, for its rounded ends), so a button's
+   keyboard focus ring is drawn inside it, where the clip can't cut it */
+.dx-seg-btn:focus-visible { outline-offset: -3px; }
 .dx-row + .dx-seg { margin-left: 80px; }
 .dx-seg.is-grid { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; }
 .dx-seg.is-grid .dx-seg-btn { border-bottom: 1px solid var(--border2); }
