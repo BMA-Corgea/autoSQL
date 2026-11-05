@@ -6,6 +6,12 @@
    dark (the page follows the operating system). So this sheet restyles
    nothing of GIMS's and cannot become a fork of it. Every class here starts
    with dx- and appears on no other page.
+
+   Spacing sits on a 4px grid (4, 8, 12, 16, 24 ...; 1-2px hairlines aside),
+   radii are the three Watery radius tokens or a full round (999px), text is
+   12px or larger, and weights are 400, 600 and 700. Soft grey (--text-soft)
+   is for plain backgrounds only: on a tinted or grey surface it falls under
+   4.5:1, so text there uses --text-mid.
    ══════════════════════════════════════════════════════════════════════════ */
 
 @font-face {
@@ -45,10 +51,10 @@ body.dx-body * { box-sizing: border-box; }
 
 .dx-header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 18px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  padding: 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px;
 }
 .dx-brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex-wrap: wrap; }
-.dx-title { font-size: 20px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+.dx-title { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
 .dx-tag { font-size: 12px; color: var(--text-soft); }
 
 .dx-main {
@@ -67,22 +73,22 @@ body.dx-body * { box-sizing: border-box; }
   font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--text-soft); margin: 0 0 12px;
 }
-.dx-step { padding: 4px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.dx-step { padding: 4px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .dx-step:last-child { border-bottom: 0; margin-bottom: 0; }
 .dx-step-title {
-  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin: 0 0 10px;
+  display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin: 0 0 8px;
 }
 .dx-step-n {
-  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
-  font-size: 11px; font-weight: 700; background: var(--surface2); color: var(--text-mid);
+  display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; background: var(--surface2); color: var(--text-mid);
 }
-.dx-step-hint { margin: -4px 0 10px; font-size: 12px; color: var(--text-soft); }
+.dx-step-hint { margin: -4px 0 8px; font-size: 12px; color: var(--text-soft); }
 
 /* data-set cards */
 .dx-cards { display: grid; gap: 8px; }
 .dx-card {
   display: grid; gap: 2px; text-align: left; width: 100%; cursor: pointer;
-  font: inherit; color: inherit; background: var(--bg); padding: 10px 12px;
+  font: inherit; color: inherit; background: var(--bg); padding: 8px 12px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
 .dx-card:hover { border-color: var(--border2); }
@@ -90,7 +96,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .dx-card-name { font-weight: 600; }
 .dx-card-count { font-variant-numeric: tabular-nums; color: var(--text-mid); font-size: 13px; }
-.dx-card-about { font-size: 12px; color: var(--text-soft); }
+.dx-card-about { font-size: 12px; color: var(--text-mid); }
 
 /* column checkboxes */
 .dx-quick { display: flex; gap: 12px; margin: -2px 0 8px; }
@@ -99,68 +105,68 @@ body.dx-body * { box-sizing: border-box; }
   color: var(--blue); cursor: pointer;
 }
 .dx-link:hover { text-decoration: underline; }
-.dx-checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.dx-checks { display: flex; flex-wrap: wrap; gap: 8px; }
 .dx-check {
-  display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
-  padding: 5px 10px 5px 8px; border: 1px solid var(--border); border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+  padding: 4px 12px 4px 8px; border: 1px solid var(--border); border-radius: 999px;
   font-size: 13px; background: var(--bg);
 }
 .dx-check.is-on { border-color: var(--blue-border); background: var(--blue-light); }
 .dx-check input { margin: 0; accent-color: var(--blue); }
 
 /* conditions */
-.dx-quiet { margin: 0 0 10px; font-size: 13px; color: var(--text-soft); }
+.dx-quiet { margin: 0 0 8px; font-size: 13px; color: var(--text-soft); }
 .dx-cond {
-  display: grid; gap: 8px; padding: 10px; margin-bottom: 8px;
+  display: grid; gap: 8px; padding: 8px; margin-bottom: 8px;
   border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg);
 }
 .dx-cond.is-waiting { border-style: dashed; }
-.dx-cond-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.dx-cond-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px; align-items: center; }
 .dx-waiting { margin: 0; font-size: 12px; color: var(--text-soft); }
 .dx-remove {
-  width: 30px; height: 30px; border-radius: 50%; border: 0; background: none; cursor: pointer;
+  width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; cursor: pointer;
   font-size: 18px; line-height: 1; color: var(--text-soft);
 }
 .dx-remove:hover { background: var(--surface2); color: var(--text); }
 .dx-add {
   font: inherit; font-size: 13px; font-weight: 600; color: var(--blue); cursor: pointer;
   background: none; border: 1px dashed var(--border2); border-radius: var(--radius-sm);
-  padding: 7px 12px; width: 100%; text-align: left;
+  padding: 8px 12px; width: 100%; text-align: left;
 }
 .dx-add:hover { border-color: var(--blue); }
-.dx-why { margin: 10px 0 0; }
+.dx-why { margin: 8px 0 0; }
 
 .dx-select, .dx-input {
   font: inherit; font-size: 13px; color: var(--text); background: var(--card);
   border: 1px solid var(--border2); border-radius: var(--radius-sm);
-  padding: 6px 8px; min-width: 0; width: 100%; max-width: 100%;
+  padding: 4px 8px; min-height: 32px; min-width: 0; width: 100%; max-width: 100%;
 }
 .dx-select:focus, .dx-input:focus { outline: 2px solid var(--blue-border); outline-offset: 0; }
 .dx-input-num { max-width: 140px; }
-.dx-between { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dx-between { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .dx-between .dx-input-num { width: 110px; }
 .dx-and { font-size: 12px; color: var(--text-soft); }
-.dx-when { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+.dx-when { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
 .dx-unit { font-size: 12px; color: var(--text-soft); }
 
-.dx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dx-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .dx-chip {
-  font: inherit; font-size: 13px; cursor: pointer; padding: 4px 10px; border-radius: 999px;
+  font: inherit; font-size: 13px; cursor: pointer; padding: 4px 12px; border-radius: 999px;
   color: var(--text); background: var(--card); border: 1px solid var(--border2);
 }
 .dx-chip.is-on { background: var(--blue); border-color: var(--blue); color: var(--bg); }
-.dx-search { display: grid; gap: 6px; }
+.dx-search { display: grid; gap: 8px; }
 .dx-options {
   max-height: 180px; overflow-y: auto; border: 1px solid var(--border);
   border-radius: var(--radius-sm); background: var(--card);
 }
 .dx-option {
   display: block; width: 100%; text-align: left; font: inherit; font-size: 13px; cursor: pointer;
-  padding: 6px 10px; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text);
+  padding: 8px 12px; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text);
 }
 .dx-option:last-child { border-bottom: 0; }
 .dx-option:hover { background: var(--blue-light); }
-.dx-options-more { margin: 0; padding: 6px 10px; font-size: 12px; color: var(--text-soft); }
+.dx-options-more { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--text-soft); }
 
 /* sort and show */
 .dx-row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -168,7 +174,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-label { font-size: 13px; color: var(--text-mid); }
 .dx-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border2); border-radius: var(--radius-sm); overflow: hidden; }
 .dx-seg-btn {
-  font: inherit; font-size: 13px; padding: 5px 10px; cursor: pointer; border: 0;
+  font: inherit; font-size: 13px; padding: 4px 12px; min-height: 28px; cursor: pointer; border: 0;
   border-right: 1px solid var(--border2); background: var(--card); color: var(--text);
 }
 .dx-seg-btn:last-child { border-right: 0; }
@@ -180,7 +186,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-seg.is-grid .dx-seg-btn:nth-child(3n) { border-right: 0; }
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1),
 .dx-seg.is-grid .dx-seg-btn:nth-last-child(-n+3):nth-child(3n+1) ~ .dx-seg-btn { border-bottom: 0; }
-.dx-stack { display: grid; gap: 6px; margin-top: 12px; }
+.dx-stack { display: grid; gap: 8px; margin-top: 12px; }
 /* Count: the switch as wide as its two choices, the line under it clear of it. */
 .dx-count-from { justify-items: start; margin-bottom: 8px; }
 .dx-count-from + .dx-step-hint { margin-top: 0; }
@@ -197,7 +203,7 @@ body.dx-body * { box-sizing: border-box; }
 
 /* buttons */
 .dx-btn {
-  font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
+  font: inherit; font-size: 13px; padding: 4px 12px; min-height: 32px; cursor: pointer;
   color: var(--text); background: var(--card);
   border: 1px solid var(--border2); border-radius: var(--radius-sm);
 }
@@ -224,7 +230,7 @@ body.dx-body * { box-sizing: border-box; }
   color: var(--text-mid); background: var(--surface); padding: 8px 12px;
   border-bottom: 1px solid var(--border); white-space: nowrap;
 }
-.dx-td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.dx-td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .dx-cell { display: block; max-width: 28em; overflow-wrap: anywhere; }
 .dx-td.is-num .dx-cell { margin-left: auto; }
 .dx-table tbody tr:last-child .dx-td { border-bottom: 0; }
@@ -260,7 +266,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-nothing-hint { margin: 0; color: var(--text-soft); }
 .dx-empty { color: var(--text-soft); }
 .dx-problem {
-  margin: 0; padding: 12px 14px; border-radius: var(--radius-sm);
+  margin: 0; padding: 12px 16px; border-radius: var(--radius-sm);
   background: var(--amber-light); border: 1px solid var(--amber); color: var(--text);
 }
 
@@ -271,18 +277,18 @@ body.dx-body * { box-sizing: border-box; }
   padding: 28px 24px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card);
 }
 .dx-hero-label { margin: 0 0 4px; font-size: 13px; color: var(--text-mid); }
-.dx-hero-value { margin: 0; font-size: 56px; font-weight: 650; line-height: 1.1; letter-spacing: -0.02em; }
+.dx-hero-value { margin: 0; font-size: 56px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
 .dx-hero-none { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-soft); }
-.dx-hero-note { margin: 6px 0 0; font-size: 14px; color: var(--text-soft); }
-.dx-admin-note-loud { margin: 8px 0; padding: 6px 10px; font-size: 12px; border-left: 3px solid var(--amber); background: var(--amber-light); color: var(--text); }
+.dx-hero-note { margin: 8px 0 0; font-size: 14px; color: var(--text-soft); }
+.dx-admin-note-loud { margin: 8px 0; padding: 8px 12px; font-size: 12px; border-left: 3px solid var(--amber); background: var(--amber-light); color: var(--text); }
 
 .dx-chart {
   margin: 0 0 16px; padding: 12px 12px 4px; border: 1px solid var(--border);
   border-radius: var(--radius); background: var(--card);
 }
-.dx-chart-read { display: flex; gap: 10px; align-items: baseline; min-height: 22px; margin: 0 0 6px 4px; font-size: 13px; }
+.dx-chart-read { display: flex; gap: 8px; align-items: baseline; min-height: 22px; margin: 0 0 8px 4px; font-size: 13px; }
 .dx-chart-read-label { color: var(--text-mid); }
-.dx-chart-read-value { font-weight: 650; font-size: 15px; color: var(--text); }
+.dx-chart-read-value { font-weight: 700; font-size: 15px; color: var(--text); }
 .dx-chart-box { overflow-x: auto; max-width: 100%; }
 .dx-chart svg { display: block; }
 .dx-bar { fill: var(--blue); }
@@ -291,15 +297,15 @@ body.dx-body * { box-sizing: border-box; }
 .dx-empty-mark { stroke: var(--text-mute); stroke-width: 3; stroke-dasharray: 2 2; }
 .dx-grid { stroke: var(--border); stroke-width: 1; }
 .dx-axis { stroke: var(--border2); stroke-width: 1; }
-.dx-tick { fill: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
-.dx-bar-value { fill: var(--text-mid); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dx-tick { fill: var(--text-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.dx-bar-value { fill: var(--text-mid); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* View as, and the Admin panel */
 .dx-viewas { display: flex; align-items: center; gap: 8px; flex: none; }
 .dx-viewas-label { font-size: 12px; color: var(--text-soft); }
 
 .dx-admin {
-  margin-bottom: 18px; padding: 12px 14px; border: 1px solid var(--border2);
+  margin-bottom: 16px; padding: 12px 16px; border: 1px solid var(--border2);
   border-radius: var(--radius); background: var(--surface);
 }
 .dx-admin.is-updating .dx-sql,
@@ -307,30 +313,30 @@ body.dx-body * { box-sizing: border-box; }
 .dx-admin.is-updating .dx-admin-refusal,
 .dx-admin.is-updating .dx-sent { opacity: 0.45; }
 .dx-admin.is-folded { padding: 8px 12px; }
-.dx-admin.is-folded .dx-checked, .dx-admin.is-folded .dx-admin-stale { margin: 6px 0 0; }
+.dx-admin.is-folded .dx-checked, .dx-admin.is-folded .dx-admin-stale { margin: 4px 0 0; }
 .dx-admin-stale { margin: 8px 0; font-size: 12px; font-weight: 600; color: var(--text-mid); }
 .dx-admin-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.dx-admin-title { margin: 0; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-mid); }
+.dx-admin-title { margin: 0; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-mid); }
 .dx-admin-actions { display: flex; align-items: center; gap: 12px; }
-.dx-btn-small { padding: 3px 10px; font-size: 12px; }
-.dx-checked { margin: 8px 0; font-size: 12px; color: var(--text-soft); }
+.dx-btn-small { padding: 4px 12px; min-height: 28px; font-size: 12px; }
+.dx-checked { margin: 8px 0; font-size: 12px; color: var(--text-mid); }
 .dx-checked span { color: var(--green); font-weight: 700; }
-.dx-checked.is-none { color: var(--text-soft); }
+.dx-checked.is-none { color: var(--text-mid); }
 .dx-disagree {
-  margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 14px;
+  margin: 8px 0; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 14px;
   background: var(--red-light); border: 2px solid var(--red); color: var(--text);
 }
 .dx-admin-refusal { margin: 8px 0; font-size: 12px; color: var(--text-mid); overflow-wrap: anywhere; }
 .dx-sql {
-  margin: 6px 0 0; padding: 10px 12px; max-height: 34vh; overflow: auto;
+  margin: 8px 0 0; padding: 8px 12px; max-height: 34vh; overflow: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5;
   white-space: pre-wrap; overflow-wrap: anywhere;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
 }
-.dx-sql-line { display: block; border-radius: 2px; }
+.dx-sql-line { display: block; border-radius: var(--radius-sm); }
 .dx-sql.is-tall { max-height: none; }
 .dx-sql-tall { margin-top: 4px; }
-.dx-sql-removed { display: block; color: var(--red-text); background: var(--red-light); border-radius: 2px; font-style: italic; animation: dx-flash-out 2.4s ease-out forwards; }
+.dx-sql-removed { display: block; color: var(--red-text); background: var(--red-light); border-radius: var(--radius-sm); font-style: italic; animation: dx-flash-out 2.4s ease-out forwards; }
 @keyframes dx-flash-out { 0%, 60% { opacity: 1; } 100% { opacity: .55; } }
 .dx-sql-line.is-new { animation: dx-flash 2.4s ease-out; }
 @keyframes dx-flash {
@@ -343,8 +349,8 @@ body.dx-body * { box-sizing: border-box; }
 .dx-admin-note { margin: 8px 0 0; font-size: 12px; color: var(--text-mid); }
 .dx-sent { margin-top: 8px; font-size: 12px; }
 .dx-sent summary { cursor: pointer; color: var(--blue); }
-.dx-params { border-collapse: collapse; margin-top: 6px; font-size: 12px; }
-.dx-params th, .dx-params td { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid var(--border); }
+.dx-params { border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+.dx-params th, .dx-params td { text-align: left; padding: 4px 12px 4px 0; border-bottom: 1px solid var(--border); }
 .dx-params td { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
 
 /* logic, and the scoreboard builder (T-73) */
@@ -353,22 +359,22 @@ body.dx-body * { box-sizing: border-box; }
 .dx-logic .dx-seg.is-grid .dx-seg-btn { border-right: 1px solid var(--border2); border-bottom: 1px solid var(--border2); }
 .dx-logic .dx-seg.is-grid .dx-seg-btn:nth-child(2n) { border-right: 0; }
 .dx-logic .dx-seg.is-grid .dx-seg-btn:nth-child(n+3) { border-bottom: 0; }
-.dx-logic-meaning { margin: 6px 0 0; }
-.dx-teach { margin: 10px 0 0; padding: 8px 10px; border-left: 3px solid var(--blue); background: var(--blue-light); color: var(--text-mid); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.dx-logic-meaning { margin: 8px 0 0; }
+.dx-teach { margin: 8px 0 0; padding: 8px 12px; border-left: 3px solid var(--blue); background: var(--blue-light); color: var(--text-mid); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .dx-count {
-  display: grid; gap: 8px; padding: 10px; margin-bottom: 10px;
+  display: grid; gap: 8px; padding: 8px; margin-bottom: 8px;
   border: 1px solid var(--border2); border-radius: var(--radius-sm); background: var(--card);
 }
 .dx-count.is-waiting { border-style: dashed; }
-.dx-count-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.dx-count-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .dx-count-name { font-weight: 600; }
 .dx-count-says { margin: 0; font-size: 12px; color: var(--text-soft); }
 .dx-count .dx-cond { background: var(--bg); }
 .dx-check-line { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .dx-check-line input { margin: 0; accent-color: var(--blue); }
-.dx-why-more { margin-top: 10px; font-size: 12px; }
+.dx-why-more { margin-top: 8px; font-size: 12px; }
 .dx-why-more summary { cursor: pointer; color: var(--text-soft); }
-.dx-why-more p { margin: 6px 0 0; }
+.dx-why-more p { margin: 4px 0 0; }
 
 .dx-th-sort {
   font: inherit; font-weight: 600; color: inherit; background: none; border: 0; padding: 0;
@@ -393,12 +399,12 @@ body.dx-body * { box-sizing: border-box; }
   .dx-fold {
     display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px;
     font: inherit; color: inherit; text-align: left; cursor: pointer;
-    padding: 12px 14px; margin-bottom: 14px;
+    padding: 12px 16px; margin-bottom: 16px;
     background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   }
   /* Up to two lines before anything is cut: a board's bar says what it counts. */
   .dx-fold-text {
-    min-width: 0; overflow: hidden; font-weight: 500;
+    min-width: 0; overflow: hidden; font-weight: 400;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   }
   .dx-fold-part { white-space: nowrap; }
@@ -414,7 +420,7 @@ body.dx-body * { box-sizing: border-box; }
   .dx-select, .dx-input { font-size: 16px; }  /* no zoom-on-focus on a phone */
   .dx-hero-value { font-size: 48px; }
   .dx-legend dl { grid-template-columns: minmax(0, 1fr); }
-  .dx-legend dd { margin-bottom: 6px; }
+  .dx-legend dd { margin-bottom: 8px; }
   .dx-header { flex-wrap: wrap; }
   .dx-viewas-label { display: none; }
   .dx-sql { max-height: 40vh; }
@@ -428,46 +434,47 @@ body.dx-body * { box-sizing: border-box; }
 }
 
 /* T-78 · columns from another data set, in step 2 */
-.dx-matched-add { margin-top: 10px; }
-.dx-matched { margin: 10px 0 0; }
+.dx-matched-add { margin-top: 8px; }
+.dx-matched { margin: 8px 0 0; }
 .dx-matched-title { font-weight: 600; font-size: 13px; }
 .dx-matched .dx-checks { margin-top: -2px; }
 
 /* ── T-98 · the clock times are read on (the header's setting) ─────────── */
 .dx-clock { position: relative; margin-left: auto; flex: none; }
 .dx-clock-btn {
-  display: inline-flex; align-items: baseline; gap: 6px; font: inherit; color: inherit; cursor: pointer;
-  padding: 6px 10px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  display: inline-flex; align-items: baseline; gap: 8px; font: inherit; color: inherit; cursor: pointer;
+  padding: 4px 12px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm);
 }
 .dx-clock-btn:hover { border-color: var(--blue); }
 .dx-clock-btn-label { font-size: 12px; color: var(--text-soft); }
 .dx-clock-btn-zone { font-weight: 600; }
-.dx-clock-btn-act { color: var(--blue); font-size: 11px; }
+.dx-clock-btn-act { color: var(--blue); font-size: 12px; }
 .dx-clock-note { margin: -8px 0 16px; color: var(--text-mid); }
 .dx-clock-panel {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: 360px; max-height: 70vh;
-  display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: 360px; max-height: 70vh;
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 16px;
   background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
 }
 .dx-clock-head { display: flex; align-items: center; justify-content: space-between; }
-.dx-clock-title { margin: 0; font-size: 15px; font-weight: 650; }
-.dx-clock-close { font: inherit; font-size: 20px; line-height: 1; color: var(--text-soft); background: none; border: 0; cursor: pointer; padding: 2px 6px; }
+.dx-clock-title { margin: 0; font-size: 15px; font-weight: 700; }
+.dx-clock-close { font: inherit; font-size: 20px; line-height: 1; color: var(--text-soft); background: none; border: 0; cursor: pointer; padding: 2px 8px; }
 .dx-clock-hint { margin: 0; font-size: 12px; color: var(--text-soft); }
 .dx-clock-find { width: 100%; }
 .dx-clock-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; }
 .dx-clock-panel > .dx-clock-list { min-height: 0; flex: 1; }
 .dx-clock-area-title {
-  margin: 10px 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  margin: 12px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--text-soft);
 }
 .dx-clock-item {
   display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; font: inherit; color: inherit;
-  padding: 7px 8px; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  padding: 8px; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
 }
 .dx-clock-item:hover { background: var(--surface); }
 .dx-clock-item.is-on { background: var(--surface); box-shadow: inset 3px 0 0 var(--blue); }
 .dx-clock-item.is-off { cursor: default; color: var(--text-soft); }
+.dx-clock-item.is-on .dx-clock-item-why { color: var(--text-mid); }   /* soft grey fails 4.5:1 on the grey row */
 .dx-clock-item.is-off:hover { background: none; }
 .dx-clock-item-why { font-size: 12px; color: var(--text-soft); }
 
@@ -477,22 +484,25 @@ body.dx-body * { box-sizing: border-box; }
   .dx-clock-btn-act { margin-left: auto; }
   .dx-clock-panel {
     position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 80vh;
-    border-radius: var(--radius) var(--radius) 0 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    border-radius: var(--radius) var(--radius) 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   }
-  .dx-clock-item { padding: 10px 8px; }   /* a finger, not a pointer */
+  .dx-clock-item { padding: 12px 8px; }   /* a finger, not a pointer */
 }
 
 /* T-96: the filter builder — groups inside groups, a word between every two items */
 .dx-filter { display: grid; container-type: inline-size; }
-.dx-box { margin: 2px 0 6px; padding: 8px 8px 8px 12px; border-left: 2px solid var(--border2);
+.dx-box { margin: 2px 0 8px; padding: 8px 8px 8px 12px; border-left: 2px solid var(--border2);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .dx-box.is-root { margin: 0; padding: 0; border: 0; border-radius: 0; }
 .dx-box.is-odd { background: var(--surface); }
+/* soft grey fails 4.5:1 on the grey of an odd group: a shade stronger there */
+.dx-box.is-odd > .dx-box-head .dx-box-count, .dx-box.is-odd > .dx-box-head .dx-box-caret,
+.dx-box.is-odd > .dx-quiet, .dx-box.is-odd > .dx-item .dx-waiting { color: var(--text-mid); }
 .dx-box.is-even { background: var(--bg); }
 .dx-box.is-deep { border-left-style: dashed; }
 .dx-box.is-dragging, .dx-item.is-dragging { opacity: .45; }
 .dx-box-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; align-items: center; margin-bottom: 4px; }
-.dx-box-toggle { display: flex; gap: 6px; align-items: baseline; min-width: 0; padding: 4px 2px; font: inherit;
+.dx-box-toggle { display: flex; gap: 8px; align-items: baseline; min-width: 0; padding: 4px 2px; font: inherit;
   font-size: 13px; color: var(--text-mid); background: none; border: 0; cursor: pointer; text-align: left; }
 .dx-box-name { font-weight: 600; color: var(--text); }
 .dx-box-count { color: var(--text-soft); font-size: 12px; white-space: nowrap; }
@@ -500,7 +510,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-box-summary { margin: 0 0 2px 28px; font-size: 13px; color: var(--text-mid); overflow-wrap: anywhere; }
 /* a shut group's "not applied yet" sits under its words, not under the handle */
 .dx-box.is-collapsed > .dx-held { margin-left: 28px; }
-.dx-box-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.dx-box-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
 .dx-box-foot .dx-add { flex: 1 1 auto; width: auto; }
 .dx-box-foot .dx-add-group { flex: 0 0 auto; }
 /* the box's word again, before its add buttons: "…AND the next condition" */
@@ -514,28 +524,28 @@ body.dx-body * { box-sizing: border-box; }
 .dx-handle:hover, .dx-handle:focus-visible { background: var(--surface2); color: var(--text); }
 .is-dragging-any .dx-handle { cursor: grabbing; }
 
-.dx-drop { height: 2px; margin: 1px 0; border-radius: 2px; }
+.dx-drop { height: 2px; margin: 1px 0; border-radius: var(--radius-sm); }
 .is-dragging-any .dx-drop { height: 10px; background: var(--surface2); }
 .is-dragging-any .dx-drop.is-over { background: var(--blue); }
 
 .dx-join { position: relative; display: flex; justify-content: center; margin: 2px 0 4px; }
-.dx-join-pill { display: inline-flex; border: 1px solid var(--blue-border); border-radius: 999px; background: var(--blue-light); }
+.dx-join-pill { display: inline-flex; border: 1px solid var(--blue-border); border-radius: 999px; background: var(--blue-light); overflow: hidden; }
 .dx-join-chip { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--blue-deep);
-  background: none; border: 0; border-radius: 999px 0 0 999px; padding: 3px 10px; cursor: pointer; }
+  background: none; border: 0; border-radius: 0; padding: 4px 12px; cursor: pointer; }
 .dx-join-chip.is-one, .dx-join-chip.is-allnone { letter-spacing: 0; font-weight: 600; }
-.dx-join-more { font: inherit; font-size: 11px; color: var(--blue-deep); background: none; border: 0;
-  border-left: 1px solid var(--blue-border); border-radius: 0 999px 999px 0; padding: 3px 8px; cursor: pointer; }
+.dx-join-more { font: inherit; font-size: 12px; color: var(--blue-deep); background: none; border: 0;
+  border-left: 1px solid var(--blue-border); border-radius: 0; padding: 4px 8px; min-width: 28px; min-height: 24px; cursor: pointer; }
 
 .dx-item-menu { position: relative; }
-.dx-more { width: 30px; height: 30px; border-radius: 50%; border: 0; background: none; cursor: pointer;
+.dx-more { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; cursor: pointer;
   font-size: 18px; line-height: 1; color: var(--text-soft); }
 .dx-more:hover { background: var(--surface2); color: var(--text); }
 .dx-menu { position: absolute; z-index: 5; right: 0; top: 100%; min-width: 210px; max-width: min(300px, 80vw);
-  display: grid; padding: 6px; background: var(--card); border: 1px solid var(--border2);
+  display: grid; padding: 4px; background: var(--card); border: 1px solid var(--border2);
   border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0, 0, 0, .12); }
 .dx-join-menu { left: 50%; right: auto; transform: translateX(-50%); }
-.dx-menu-title { margin: 2px 6px 4px; font-size: 12px; color: var(--text-soft); }
-.dx-menu-item { display: grid; gap: 1px; padding: 6px 8px; font: inherit; font-size: 13px; text-align: left;
+.dx-menu-title { margin: 4px 8px; font-size: 12px; color: var(--text-soft); }
+.dx-menu-item { display: grid; gap: 2px; padding: 8px; font: inherit; font-size: 13px; text-align: left;
   color: var(--text); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
 .dx-menu-item:hover:not(:disabled), .dx-menu-item:focus-visible { background: var(--blue-light); }
 .dx-menu-item:disabled { color: var(--text-soft); cursor: default; }
@@ -547,13 +557,13 @@ body.dx-body * { box-sizing: border-box; }
    picker takes its own row, and each level indents less */
 @container (max-width: 380px) {
   .dx-box { padding-left: 8px; }
-  .dx-box .dx-box .dx-box .dx-box { padding-left: 5px; padding-right: 4px; }
+  .dx-box .dx-box .dx-box .dx-box { padding-left: 4px; padding-right: 4px; }
   .dx-cond-top.has-tools { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-auto-flow: row dense; }
   .dx-cond-top.has-tools > select:nth-of-type(2) { grid-column: 2 / -1; }
 }
 
 /* T-97: Clear filters, and its Undo */
-.dx-clear { display: flex; align-items: baseline; gap: 8px; margin: -6px 0 6px; min-height: 18px; }
+.dx-clear { display: flex; align-items: baseline; gap: 8px; margin: -4px 0 8px; min-height: 18px; }
 .dx-undo-line { margin: 0; font-size: 13px; color: var(--text-mid); }
 .dx-clear-btn { margin-left: auto; }
 
