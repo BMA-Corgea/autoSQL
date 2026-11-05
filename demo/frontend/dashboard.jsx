@@ -317,7 +317,7 @@ function Placeholder() {
   );
 }
 
-function Answer({ answer, updating, failed, current, onPage, sort, onSort, onRetry }) {
+function Answer({ answer, updating, failed, current, onPage, sort, onSort, onRetry, onClear }) {
   if (failed) {
     return (
       <div className="dx-answer">
@@ -347,6 +347,9 @@ function Answer({ answer, updating, failed, current, onPage, sort, onSort, onRet
         <div className="dx-nothing">
           <p className="dx-nothing-title">No rows match</p>
           <p className="dx-nothing-hint">Try removing a condition.</p>
+          {onClear && current ? (
+            <button type="button" className="dx-btn dx-nothing-act" data-action="clear-filters-empty" onClick={onClear}>Clear filters</button>
+          ) : null}
         </div>
       ) : answer.kind === "scoreboard" ? (
         <Table answer={answer} onPage={onPage} updating={updating} sort={sort} onSort={onSort} />
@@ -422,6 +425,7 @@ function App() {
   const clock = useClock(); // T-98: the clock times are read on
 
   const seq = useRef(0);
+  const clearFilters = useRef(null); // step 3's Clear filters, registered by it (T-137 F-09)
   const inflight = useRef(null);
   const timer = useRef(null);
 
@@ -679,7 +683,8 @@ function App() {
             } : null}
           >
             <ClearFilters key={`${view.dataset}:${admin ? "admin" : "everyone"}`} value={view.filter} fields={picks}
-              onChange={(filter) => change({ filter })} />
+              onChange={(filter) => change({ filter })}
+              onRegister={(fn) => { clearFilters.current = fn; }} />
             <FilterBuilder
               fields={picks}
               shown={view.columns}
@@ -725,6 +730,7 @@ function App() {
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
           <Answer answer={answeredAdmin && !admin ? null : answer} updating={updating} failed={failed} current={current} onPage={setPage}
             onRetry={() => { if (question) ask(JSON.parse(question), page); }}
+            onClear={view.filter.items.length ? () => { if (clearFilters.current) clearFilters.current(); } : null}
             sort={view.scoreboard ? view.scoreboard.sort : null}
             onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>

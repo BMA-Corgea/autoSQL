@@ -269,6 +269,7 @@ body.dx-body * { box-sizing: border-box; }
 }
 .dx-nothing-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
 .dx-nothing-hint { margin: 0; color: var(--text-soft); }
+.dx-nothing-act { margin-top: 16px; }   /* T-137 F-09: the hint's way forward */
 .dx-empty { color: var(--text-soft); }
 /* T-137 F-04: an error with its way forward beside it */
 .dx-problem-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

@@ -294,7 +294,7 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
 // view): the tree it would put back may name a field that view doesn't have.
 // The keyboard follows: Clear puts it on the Undo, and Undo puts it back on Clear filters.
 
-export function ClearFilters({ value, onChange, fields }) {
+export function ClearFilters({ value, onChange, fields, onRegister }) {
   const [undo, setUndo] = React.useState(null); // { before, cleared, offered }
   const offered = fields.map((f) => `${f.path}:${f.ops.join(",")}`).join("|");
   React.useEffect(() => { if (undo && undo.offered !== offered) setUndo(null); }, [offered]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -317,6 +317,15 @@ export function ClearFilters({ value, onChange, fields }) {
     onChange(cleared);
     focusTo.current = undoBtn;
   };
+  // T-137 F-09: the answer's "No rows match" offers this same clear (and so the same Undo). One stable handle per
+  // mount, calling the newest clear; the page decides when to show it (step 3 holds something).
+  const latestClear = React.useRef(clear);
+  latestClear.current = clear;
+  React.useEffect(() => {
+    if (!onRegister) return undefined;
+    onRegister(() => latestClear.current());
+    return () => onRegister(null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="dx-clear">
       <p className="dx-undo-line" role="status" aria-live="polite">
