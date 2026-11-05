@@ -149,7 +149,7 @@ export function Panes({ answer, hot, setHot }) {
           <span className="panel-title">The same pick, two answers</span>
           <div className="cmp-head-right"><span className="chip">nothing run yet</span></div>
         </div>
-        <div className="cmp-scroll">
+        <div className="cmp-scroll" role="region" aria-label="The two answers, side by side" tabIndex={0}>
           <div className="cmp-grid pane-pair" style={{ "--cols": "1fr" }}>
             <PaneHead side="sql" sub="waiting for a pick" count="" col={1} row={1} />
             <div className="cmp-cell" style={{ gridColumn: 1, gridRow: 2 }}>
@@ -394,7 +394,7 @@ export function Panes({ answer, hot, setHot }) {
         <span className="panel-title">The same pick, two answers</span>
         <div className="cmp-head-right">{headChip}</div>
       </div>
-      <div className="cmp-scroll">
+      <div className="cmp-scroll" role="region" aria-label="The two answers, side by side" tabIndex={0}>
         <div className="cmp-grid pane-pair" style={style} ref={gridRef}>
           {cells}
         </div>

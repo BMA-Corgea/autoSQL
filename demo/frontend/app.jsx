@@ -370,9 +370,9 @@ function App() {
           ))}
         </div>
         <div className="legend" role="list" aria-label="What the colours mean">
-          <span><i className="lg-ok" />the panes agree</span>
-          <span><i className="lg-bad" />they disagree</span>
-          <span><i className="lg-warn" />refused</span>
+          <span role="listitem"><i className="lg-ok" />the panes agree</span>
+          <span role="listitem"><i className="lg-bad" />they disagree</span>
+          <span role="listitem"><i className="lg-warn" />refused</span>
         </div>
       </div>
 

@@ -73,7 +73,7 @@ function Slab({ text, statementSent }) {
   const dead = deadFrom(text, statementSent);
   const lines = text.split("\n");
   return (
-    <div className="sql-scroll">
+    <div className="sql-scroll" role="region" aria-label="The SQL statement" tabIndex={0}>
       <pre className="sql sql-slab">
         {lines.map((line, i) => (
           <span className={dead != null && i >= dead ? "dead" : undefined} key={i}>
@@ -207,7 +207,7 @@ export function SqlPane({ answer }) {
           <Ic name="terminal" />
           <span className="panel-title">The generated SQL</span>
         </div>
-        <div className="sql-scroll">
+        <div className="sql-scroll" role="region" aria-label="The SQL statement" tabIndex={0}>
           <pre className="sql sql-slab">
             <span className="c">-- No pick has been run yet, so no SQL has been generated.</span>
           </pre>
