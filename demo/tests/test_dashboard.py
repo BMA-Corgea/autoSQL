@@ -113,7 +113,8 @@ class TestThePage:
     def test_its_own_sheet_declares_no_custom_property(self):
         """The same rule demo.css keeps (B18): only watery's token names."""
         css = (_STATIC / "dashboard.css").read_text()
-        assert re.findall(r"^\s*--[A-Za-z]", css, re.M) == []
+        # a declaration anywhere: at a line's start, or after a { or a ; on the same line
+        assert re.findall(r"(?:^|[{;])\s*--[A-Za-z][\w-]*\s*:", css, re.M) == []
 
     def test_start_sh_opens_the_dashboard(self):
         text = (_REPO_ROOT / "start.sh").read_text()
