@@ -8,6 +8,9 @@
 //
 // None of this is drawn in the Everyone view (AC9): the words here are for
 // the people who asked for them.
+//
+// Each SQL box scrolls, so each is a named region with a tab stop: a keyboard
+// can reach it and scroll it (WCAG 2.1.1; T-137).
 
 import React, { useEffect, useRef, useState } from "react";
 
@@ -184,7 +187,8 @@ export function AdminPanel({ answer, updating, failed }) {
           ) : null}
           {statement ? (
             <>
-              <pre ref={sqlBox} className={"dx-sql" + (tall ? " is-tall" : "")} data-testid="statement" aria-live="polite">
+              <pre ref={sqlBox} className={"dx-sql" + (tall ? " is-tall" : "")} data-testid="statement" aria-live="polite"
+                role="region" aria-label="The SQL statement" tabIndex={0}>
                 {lines.map((line, i) => (
                   <React.Fragment key={`${fresh.round}:${i}`}>
                     {fresh.set.removedBefore && fresh.set.removedBefore.get(i) ? <Removed count={fresh.set.removedBefore.get(i)} /> : null}
@@ -204,7 +208,7 @@ export function AdminPanel({ answer, updating, failed }) {
               </p>
               <details className="dx-sent">
                 <summary>The statement as the database receives it</summary>
-                <pre className="dx-sql">{admin.parameterised}</pre>
+                <pre className="dx-sql" role="region" aria-label="The statement as the database receives it" tabIndex={0}>{admin.parameterised}</pre>
                 <table className="dx-params">
                   <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
                   <tbody>{params.map((p) => <tr key={p.name}><td>{p.name}</td><td>{p.value}</td></tr>)}</tbody>
