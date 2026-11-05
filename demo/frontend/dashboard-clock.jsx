@@ -204,7 +204,8 @@ export function ClockSetting({ clock }) {
     <div className="dx-clock">
       <button type="button" className="dx-clock-btn" aria-haspopup="dialog" aria-expanded={open}
         data-testid="clock" onClick={() => setOpen((o) => !o)}>
-        <span className="dx-clock-btn-label">Times in</span>
+        {/* the space is for the button's name ("Times in Denver time"); the flex gap draws the visible one */}
+        <span className="dx-clock-btn-label">Times in</span>{" "}
         <span className="dx-clock-btn-zone">{clock.label}</span>
         <span className="dx-clock-btn-act" aria-hidden="true">▾</span>
       </button>
