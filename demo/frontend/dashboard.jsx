@@ -295,16 +295,38 @@ function BarChart({ answer }) {
   );
 }
 
-function Answer({ answer, updating, failed, current, onPage, sort, onSort }) {
+// T-137 F-04: a failed request offers its way forward, the same request again.
+function Problem({ onRetry }) {
+  return (
+    <div className="dx-problem dx-problem-row" role="alert">
+      <p className="dx-problem-text">Couldn't reach the data just now. Is the demo still running?</p>
+      {onRetry ? <button type="button" className="dx-btn" data-action="retry" onClick={onRetry}>Try again</button> : null}
+    </div>
+  );
+}
+
+// T-137 F-08: while the first answer loads, its place is drawn (a sentence and a few rows), never a blank.
+function Placeholder() {
+  return (
+    <div className="dx-answer" aria-busy="true">
+      <div className="dx-answer-head"><p className="dx-status" role="status">Loading…</p></div>
+      <div className="dx-placeholder" aria-hidden="true">
+        {[0, 1, 2, 3, 4, 5].map((i) => <span key={i} className="dx-placeholder-row" />)}
+      </div>
+    </div>
+  );
+}
+
+function Answer({ answer, updating, failed, current, onPage, sort, onSort, onRetry }) {
   if (failed) {
     return (
       <div className="dx-answer">
-        <p className="dx-problem" role="alert">Couldn't reach the data just now. Is the demo still running?</p>
+        <Problem onRetry={onRetry} />
       </div>
     );
   }
   if (!answer) {
-    return <div className="dx-answer"><p className="dx-status">Loading…</p></div>;
+    return <Placeholder />;
   }
   return (
     <div className={"dx-answer" + (updating ? " is-updating" : "")} aria-busy={updating}>
@@ -563,11 +585,28 @@ function App() {
     if (Object.keys(patch).length) change(patch);
   };
 
+  // T-137 F-04: Try again asks for the setup once more (or, after a failed switch of View as, goes back to the page).
+  const retrySetup = () => {
+    if (setup && view) { setSetupFailed(false); return; }
+    setSetupFailed(false);
+    const asAdmin = loadViewAs();
+    loadSetup(asAdmin)
+      .then((s) => { setSetup(s); setView(viewFor(s, s.default_view.dataset, asAdmin)); })
+      .catch(() => setSetupFailed(true));
+  };
+  const brand = (
+    <header className="dx-header">
+      <div className="dx-brand">
+        <h1 className="dx-title">Data explorer</h1>
+        <span className="dx-tag">Invented demo data</span>
+      </div>
+    </header>
+  );
   if (setupFailed) {
-    return <main className="dx-shell"><p className="dx-problem" role="alert">Couldn't reach the data just now. Is the demo still running?</p></main>;
+    return <main className="dx-shell">{brand}<Problem onRetry={retrySetup} /></main>;
   }
   if (!setup || !view) {
-    return <main className="dx-shell"><p className="dx-status">Loading…</p></main>;
+    return <main className="dx-shell">{brand}<Placeholder /></main>;
   }
   const picks = offered(ds.fields, admin);
 
@@ -685,6 +724,7 @@ function App() {
         <main className="dx-result" aria-label="Answer">
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
           <Answer answer={answeredAdmin && !admin ? null : answer} updating={updating} failed={failed} current={current} onPage={setPage}
+            onRetry={() => { if (question) ask(JSON.parse(question), page); }}
             sort={view.scoreboard ? view.scoreboard.sort : null}
             onSort={view.scoreboard ? (sort) => change({ scoreboard: { ...view.scoreboard, sort } }) : null} />
         </main>

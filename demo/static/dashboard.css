@@ -270,6 +270,13 @@ body.dx-body * { box-sizing: border-box; }
 .dx-nothing-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
 .dx-nothing-hint { margin: 0; color: var(--text-soft); }
 .dx-empty { color: var(--text-soft); }
+/* T-137 F-04: an error with its way forward beside it */
+.dx-problem-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dx-problem-text { margin: 0; }
+/* T-137 F-08: the answer's shape while it loads (static: nothing moves) */
+.dx-placeholder { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.dx-placeholder-row { display: block; height: 12px; border-radius: var(--radius-sm); background: var(--surface2); }
+.dx-placeholder-row:first-child { width: 40%; }
 .dx-problem {
   margin: 0; padding: 12px 16px; border-radius: var(--radius-sm);
   background: var(--amber-light); border: 1px solid var(--amber); color: var(--text);
