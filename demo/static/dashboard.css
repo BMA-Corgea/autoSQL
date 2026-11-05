@@ -8,10 +8,12 @@
    with dx- and appears on no other page.
 
    Spacing sits on a 4px grid (4, 8, 12, 16, 24 ...; 1-2px hairlines aside),
-   radii are the three Watery radius tokens or a full round (999px), text is
+   radii are the three Watery radius tokens or a full round (999px; the AND/OR
+   pill's two halves round their own outer ends, so a focus ring is never clipped), text is
    12px or larger, and weights are 400, 600 and 700. Soft grey (--text-soft)
-   is for plain backgrounds only: on a tinted or grey surface it falls under
-   4.5:1, so text there uses --text-mid.
+   is for plain backgrounds only: on a tinted or grey surface (a selected,
+   hovered or keyboard-focused row included) it falls under 4.5:1, so text there
+   uses --text-mid; blue text on the blue tint uses --blue-text, which reads in dark too.
    ══════════════════════════════════════════════════════════════════════════ */
 
 @font-face {
@@ -374,6 +376,8 @@ body.dx-body * { box-sizing: border-box; }
 .dx-check-line input { margin: 0; accent-color: var(--blue); }
 .dx-why-more { margin-top: 8px; font-size: 12px; }
 .dx-why-more summary { cursor: pointer; color: var(--text-soft); }
+/* a disclosure line is a target too: at least 24px tall (WCAG 2.5.8) */
+.dx-why-more summary, .dx-legend summary, .dx-sent summary { padding: 4px 0; }
 .dx-why-more p { margin: 4px 0 0; }
 
 .dx-th-sort {
@@ -474,6 +478,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-clock-item:hover { background: var(--surface); }
 .dx-clock-item.is-on { background: var(--surface); box-shadow: inset 3px 0 0 var(--blue); }
 .dx-clock-item.is-off { cursor: default; color: var(--text-soft); }
+.dx-clock-item:not(.is-off):hover .dx-clock-item-why,
 .dx-clock-item.is-on .dx-clock-item-why { color: var(--text-mid); }   /* soft grey fails 4.5:1 on the grey row */
 .dx-clock-item.is-off:hover { background: none; }
 .dx-clock-item-why { font-size: 12px; color: var(--text-soft); }
@@ -529,12 +534,12 @@ body.dx-body * { box-sizing: border-box; }
 .is-dragging-any .dx-drop.is-over { background: var(--blue); }
 
 .dx-join { position: relative; display: flex; justify-content: center; margin: 2px 0 4px; }
-.dx-join-pill { display: inline-flex; border: 1px solid var(--blue-border); border-radius: 999px; background: var(--blue-light); overflow: hidden; }
-.dx-join-chip { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--blue-deep);
-  background: none; border: 0; border-radius: 0; padding: 4px 12px; cursor: pointer; }
+.dx-join-pill { display: inline-flex; border: 1px solid var(--blue-border); border-radius: 999px; background: var(--blue-light); }
+.dx-join-chip { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--blue-text);
+  background: none; border: 0; border-radius: 999px 0 0 999px; padding: 4px 12px; cursor: pointer; }
 .dx-join-chip.is-one, .dx-join-chip.is-allnone { letter-spacing: 0; font-weight: 600; }
-.dx-join-more { font: inherit; font-size: 12px; color: var(--blue-deep); background: none; border: 0;
-  border-left: 1px solid var(--blue-border); border-radius: 0; padding: 4px 8px; min-width: 28px; min-height: 24px; cursor: pointer; }
+.dx-join-more { font: inherit; font-size: 12px; color: var(--blue-text); background: none; border: 0;
+  border-left: 1px solid var(--blue-border); border-radius: 0 999px 999px 0; padding: 4px 8px; min-width: 28px; min-height: 24px; cursor: pointer; }
 
 .dx-item-menu { position: relative; }
 .dx-more { width: 30px; height: 30px; border-radius: 999px; border: 0; background: none; cursor: pointer;
@@ -548,6 +553,7 @@ body.dx-body * { box-sizing: border-box; }
 .dx-menu-item { display: grid; gap: 2px; padding: 8px; font: inherit; font-size: 13px; text-align: left;
   color: var(--text); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
 .dx-menu-item:hover:not(:disabled), .dx-menu-item:focus-visible { background: var(--blue-light); }
+.dx-menu-item:hover:not(:disabled) .dx-menu-note, .dx-menu-item:focus-visible .dx-menu-note { color: var(--text-mid); }   /* on the tint */
 .dx-menu-item:disabled { color: var(--text-soft); cursor: default; }
 .dx-menu-item.is-danger { color: var(--red-text); }
 .dx-menu-word { font-weight: 600; }
