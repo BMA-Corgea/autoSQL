@@ -386,7 +386,7 @@ export function ConditionsStep({ fields, empty, scoreboardOn, children }) {
   );
 }
 
-// ── 4 · Sort and how many ───────────────────────────────────────────────
+// ── 6 · Sort and how many ───────────────────────────────────────────────
 
 const FIRST_DIR = { time: "desc", date: "desc", number: "desc", text: "asc", yesno: "desc" };
 
@@ -407,7 +407,7 @@ export function SortShowStep({ fields, sort, show, showChoices, sortWords, onCha
   const sortable = fields.filter((f) => sortWords[f.kind]);
   const field = sort ? fields.find((f) => f.path === sort.field) : null;
   return (
-    <Step n={4} title="Sort and show">
+    <Step n={6} title="Sort and show">
       <div className="dx-row">
         <label className="dx-label" htmlFor="dx-sort-field">Sort by</label>
         <select id="dx-sort-field" className="dx-select" value={sort ? sort.field : ""} disabled={!!off.sort}
@@ -444,7 +444,7 @@ export function SortShowStep({ fields, sort, show, showChoices, sortWords, onCha
   );
 }
 
-// ── 5 · Summarize ───────────────────────────────────────────────────────
+// ── 4 · Summarize ───────────────────────────────────────────────────────
 
 // Which kind of answer a view asks for: rows, one number, or one number per
 // hour or day. The setup's `unavailable` table is keyed by it.
@@ -468,7 +468,7 @@ export function SummaryStep({ name, fields, summary, fns, off, onChange }) {
   };
   const perWhy = off.per; // the same for every shape on a data set without times
   return (
-    <Step n={5} title="Summarize">
+    <Step n={4} title="Summarize">
       <Segmented
         grid
         label="Summarize"

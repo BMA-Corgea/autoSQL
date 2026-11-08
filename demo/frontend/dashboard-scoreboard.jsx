@@ -1,4 +1,4 @@
-// dashboard-scoreboard.jsx — step 6, "One row per…" (T-73): the scoreboard.
+// dashboard-scoreboard.jsx — step 5, "One row per…" (T-73): the scoreboard.
 //
 // One row per value of a field, and beside it counts of the rows where a
 // set of conditions holds — the "if it's true then add 1" columns. Each
@@ -80,7 +80,7 @@ function openingMatch(setup, ds, other, admin) {
   return { dataset: other.id, field: null, matches: null };
 }
 
-// Step 6's match: which data set, and which field of it equals which field
+// Step 5's match: which data set, and which field of it equals which field
 // of this one. Only pairs of one kind are offered; a data set with none is
 // shown, greyed, with the reason.
 function MatchPicker({ setup, ds, admin, value, onChange }) {
@@ -212,7 +212,7 @@ export function ScoreboardStep({ ds, fields, value, shown, admin, setup, onChang
   // Sender and Name), so it never names a field the data set lacks (T-77).
   const example = groupable.filter((f) => f.group.groups < ds.rows).slice(0, 2);
   return (
-    <Step n={6} title="One row per…">
+    <Step n={5} title="One row per…">
       <div className="dx-row">
         <label className="dx-label" htmlFor="dx-sb-by">Group</label>
         <select id="dx-sb-by" className="dx-select" value={sb ? sb.by : ""}

@@ -116,6 +116,20 @@ class TestThePage:
         # a declaration anywhere: at a line's start, or after a { or a ; on the same line
         assert re.findall(r"(?:^|[{;])\s*--[A-Za-z][\w-]*\s*:", css, re.M) == []
 
+    def test_the_steps_are_numbered_in_the_order_the_page_draws_them(self):
+        """T-138: the question's six steps run 1 to 6 in the order the page draws them,
+        and the words that point at a step follow its number (Columns names the scoreboard's)."""
+        front = _DEMO_DIR / "frontend"
+        page = (front / "dashboard.jsx").read_text(encoding="utf-8")
+        sources = page + (front / "dashboard-steps.jsx").read_text(encoding="utf-8") \
+            + (front / "dashboard-scoreboard.jsx").read_text(encoding="utf-8")
+        names = ["DatasetStep", "ColumnsStep", "ConditionsStep", "SummaryStep", "ScoreboardStep", "SortShowStep"]
+        assert re.findall(r"<(" + "|".join(names) + r")\b", page) == names
+        drawn = [int(re.search(rf"function {n}\b.*?<Step n=\{{(\d+)\}}", sources, re.S).group(1)) for n in names]
+        assert drawn == [1, 2, 3, 4, 5, 6]
+        hint = re.search(r'COLUMNS_OFF_SCOREBOARD = "[^"]*in step (\d+)\."', page).group(1)
+        assert int(hint) == drawn[names.index("ScoreboardStep")]
+
     def test_start_sh_opens_the_dashboard(self):
         text = (_REPO_ROOT / "start.sh").read_text()
         assert 'PAGE="http://127.0.0.1:${APP_PORT}/dashboard"' in text

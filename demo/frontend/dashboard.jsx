@@ -58,7 +58,7 @@ function saveViewAs(admin) {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const COLUMNS_OFF = "Columns don't apply to a summary.";
-const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its own, in step 6.";
+const COLUMNS_OFF_SCOREBOARD = "Columns don't apply to a scoreboard: it has its own, in step 5.";
 
 // ── the answer ───────────────────────────────────────────────────────────
 
@@ -697,15 +697,6 @@ function App() {
               needsTwo={setup.logic_needs_two}
             />
           </ConditionsStep>
-          <SortShowStep
-            fields={picks}
-            sort={view.sort}
-            show={view.show}
-            showChoices={setup.show}
-            sortWords={setup.sort_words}
-            onChange={change}
-            off={offFor(setup, view)}
-          />
           <SummaryStep
             name={ds.name}
             fields={picks}
@@ -723,6 +714,15 @@ function App() {
             setup={setup}
             match={current && answer.kind !== "invalid" && (admin || !answeredAdmin) ? answer.match : null}
             onChange={(patch) => change(patch.scoreboard ? { ...patch, summary: null } : patch)}
+          />
+          <SortShowStep
+            fields={picks}
+            sort={view.sort}
+            show={view.show}
+            showChoices={setup.show}
+            sortWords={setup.sort_words}
+            onChange={change}
+            off={offFor(setup, view)}
           />
         </aside>
 
