@@ -53,7 +53,7 @@ body.dx-body * { box-sizing: border-box; }
 
 .dx-header {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px;
 }
 .dx-brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; flex-wrap: wrap; }
 .dx-title { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
@@ -77,6 +77,11 @@ body.dx-body * { box-sizing: border-box; }
 }
 .dx-step { padding: 4px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .dx-step:last-child { border-bottom: 0; margin-bottom: 0; }
+/* T-138 F-02: the steps sit a little closer on a laptop, so the next ones are on screen when the page opens */
+@media (min-width: 761px) {
+  .dx-step { padding-bottom: 12px; margin-bottom: 8px; }
+  .dx-clear.is-idle { min-height: 0; margin: 0; }   /* step 3's Clear filters / Undo row, while it has nothing to show */
+}
 .dx-step-title {
   display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; margin: 0 0 8px;
 }

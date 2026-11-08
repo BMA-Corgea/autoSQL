@@ -327,7 +327,7 @@ export function ClearFilters({ value, onChange, fields, onRegister }) {
     return () => onRegister(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="dx-clear">
+    <div className={"dx-clear" + (live || value.items.length ? "" : " is-idle")}>
       <p className="dx-undo-line" role="status" aria-live="polite">
         {live ? (
           <>
