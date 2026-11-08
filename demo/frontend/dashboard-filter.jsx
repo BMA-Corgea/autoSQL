@@ -294,7 +294,7 @@ export function FilterBuilder({ fields, shown, admin, value, onChange, opWords, 
 // view): the tree it would put back may name a field that view doesn't have.
 // The keyboard follows: Clear puts it on the Undo, and Undo puts it back on Clear filters.
 
-export function ClearFilters({ value, onChange, fields, onRegister }) {
+export function ClearFilters({ value, onChange, fields, onRegister, onUndoable }) {
   const [undo, setUndo] = React.useState(null); // { before, cleared, offered }
   const offered = fields.map((f) => `${f.path}:${f.ops.join(",")}`).join("|");
   React.useEffect(() => { if (undo && undo.offered !== offered) setUndo(null); }, [offered]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -326,6 +326,13 @@ export function ClearFilters({ value, onChange, fields, onRegister }) {
     onRegister(() => latestClear.current());
     return () => onRegister(null);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // T-138: the page also offers this Undo above the answer while a phone's question is folded: the same action
+  const undoNow = () => { onChange(undo.before); setUndo(null); focusTo.current = clearBtn; };
+  React.useEffect(() => {
+    if (!onUndoable) return undefined;
+    onUndoable(live ? undoNow : null); // its `undo` can't change while it's on offer
+    return () => onUndoable(null);
+  }, [live]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className={"dx-clear" + (live || value.items.length ? "" : " is-idle")}>
       <p className="dx-undo-line" role="status" aria-live="polite">
@@ -333,7 +340,7 @@ export function ClearFilters({ value, onChange, fields, onRegister }) {
           <>
             Filters cleared.{" "}
             <button type="button" className="dx-link" data-action="undo-clear" ref={undoBtn}
-              onClick={() => { onChange(undo.before); setUndo(null); focusTo.current = clearBtn; }}>Undo</button>
+              onClick={undoNow}>Undo</button>
           </>
         ) : null}
       </p>

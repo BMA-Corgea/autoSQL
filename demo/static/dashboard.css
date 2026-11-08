@@ -447,6 +447,8 @@ body.dx-body * { box-sizing: border-box; }
      in it; a control reached with a keyboard is scrolled clear of the bar */
   .dx-main.is-editing .dx-fold { position: sticky; top: 0; z-index: 3; }
   .dx-main.is-editing .dx-question :is(a, button, input, select, textarea, summary, [tabindex]) { scroll-margin-top: 88px; }
+  .dx-main:not(.is-editing) .dx-undo-answer { display: block; }   /* T-138: step 3's Undo, while the question is folded */
+  .dx-undo-answer:not(:empty) { margin-bottom: 8px; }
 
   .dx-answer-head { flex-direction: column; gap: 4px; }
   .dx-sentence { font-size: 16px; }
@@ -602,6 +604,7 @@ body.dx-body * { box-sizing: border-box; }
 /* T-97: Clear filters, and its Undo */
 .dx-clear { display: flex; align-items: baseline; gap: 8px; margin: -4px 0 8px; min-height: 18px; }
 .dx-undo-line { margin: 0; font-size: 13px; color: var(--text-mid); }
+.dx-undo-answer { display: none; }   /* T-138: above the answer, only while a phone's question is folded */
 .dx-clear-btn { margin-left: auto; }
 
 /* T-98 · a time of day card: its two pickers one above the other at every width (its names are long) */

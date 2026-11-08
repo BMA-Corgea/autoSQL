@@ -435,6 +435,7 @@ function App() {
 
   const seq = useRef(0);
   const clearFilters = useRef(null); // step 3's Clear filters, registered by it (T-137 F-09)
+  const [undoClear, setUndoClear] = useState(null); // T-138: step 3's Undo while it's on offer, for a folded phone
   const inflight = useRef(null);
   const timer = useRef(null);
 
@@ -694,7 +695,8 @@ function App() {
           >
             <ClearFilters key={`${view.dataset}:${admin ? "admin" : "everyone"}`} value={view.filter} fields={picks}
               onChange={(filter) => change({ filter })}
-              onRegister={(fn) => { clearFilters.current = fn; }} />
+              onRegister={(fn) => { clearFilters.current = fn; }}
+              onUndoable={(fn) => setUndoClear(() => fn)} />
             <FilterBuilder
               fields={picks}
               shown={view.columns}
@@ -737,6 +739,10 @@ function App() {
         </aside>
 
         <main className="dx-result" aria-label="Answer">
+          {/* T-138: step 3's Undo where a folded phone can see it; the live line while it shows (the panel's is hidden then) */}
+          <p className="dx-undo-line dx-undo-answer" role="status" aria-live="polite">
+            {undoClear ? <>Filters cleared. <button type="button" className="dx-link" data-action="undo-clear-answer" onClick={undoClear}>Undo</button></> : null}
+          </p>
           {admin ? <AdminPanel answer={answer} updating={updating} failed={failed} /> : null}
           <Answer answer={answeredAdmin && !admin ? null : answer} updating={updating} failed={failed} current={current} onPage={setPage}
             onRetry={() => { if (question) ask(JSON.parse(question), page); }}
