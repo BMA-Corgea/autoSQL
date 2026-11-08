@@ -461,6 +461,14 @@ export function SummaryStep({ name, fields, summary, fns, off, onChange }) {
   // to read they are shown disabled, with the reason, never a dead end.
   const needNumbers = numeric.length ? [] : Object.keys(fns).filter((k) => k !== "count");
   const fn = summary ? summary.fn : null;
+  // T-138: when Summarize switches on, the "Over" row it opens is brought into sight: the nearest scroll, none if it
+  // is already visible, no focus move, no animation.
+  const overRow = React.useRef(null);
+  const wasOn = React.useRef(!!fn);
+  React.useEffect(() => {
+    if (fn && !wasOn.current && overRow.current) overRow.current.scrollIntoView({ block: "nearest" });
+    wasOn.current = !!fn;
+  }, [fn]);
   const set = (patch) => onChange({ summary: { ...summary, ...patch } });
   const pick = (next) => {
     if (next === null) return onChange({ summary: null });
@@ -495,7 +503,7 @@ export function SummaryStep({ name, fields, summary, fns, off, onChange }) {
         </div>
       ) : null}
       {fn ? (
-        <div className="dx-stack">
+        <div className="dx-stack" ref={overRow}>
           <span className="dx-label">Over</span>
           <Segmented
             grid
