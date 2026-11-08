@@ -36,7 +36,9 @@ export function DatasetStep({ datasets, value, onPick }) {
             data-dataset={d.id}
             onClick={() => onPick(d.id)}
           >
-            <span className="dx-card-head">
+            {/* T-138 F-02: the description stays in the card (and in its name for a screen reader) when the sheet folds it to
+                one line; a mouse has this tooltip too, on the head line, so a screen reader doesn't hear the words twice */}
+            <span className="dx-card-head" title={d.id === value ? undefined : d.about}>
               <span className="dx-card-name">{d.name}</span>
               <span className="dx-card-count">{d.rows.toLocaleString("en-US")}</span>
             </span>

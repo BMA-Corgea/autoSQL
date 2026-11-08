@@ -99,6 +99,17 @@ body.dx-body * { box-sizing: border-box; }
 .dx-card-name { font-weight: 600; }
 .dx-card-count { font-variant-numeric: tabular-nums; color: var(--text-mid); font-size: 13px; }
 .dx-card-about { font-size: 12px; color: var(--text-mid); }
+/* T-138 F-02: with a mouse or trackpad at desktop width, a card that isn't selected shows one line, its name and rows.
+   Its description is hidden by clip, not removed: it stays the card's accessible name, comes back in place when the
+   card takes keyboard focus, and is the head line's tooltip. On touch (no hover) every description stays on screen. */
+@media (min-width: 761px) and (hover: hover) {
+  .dx-card:not(.is-on) .dx-card-about {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .dx-card:not(.is-on):focus-visible .dx-card-about {
+    position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal;
+  }
+}
 
 /* column checkboxes */
 .dx-quick { display: flex; gap: 12px; margin: -2px 0 8px; }

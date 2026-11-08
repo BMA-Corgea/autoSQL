@@ -116,6 +116,17 @@ class TestThePage:
         # a declaration anywhere: at a line's start, or after a { or a ; on the same line
         assert re.findall(r"(?:^|[{;])\s*--[A-Za-z][\w-]*\s*:", css, re.M) == []
 
+    def test_a_folded_data_set_card_never_loses_its_description(self):
+        """T-138 F-02: an unselected card folds only under a mouse or trackpad at desktop width, and only visually:
+        its text stays in the card (never display:none), and keyboard focus shows it again in place."""
+        css = (_STATIC / "dashboard.css").read_text(encoding="utf-8")
+        i = css.index("@media (min-width: 761px) and (hover: hover)")
+        block = css[i:css.index("\n}\n", i)]
+        assert ".dx-card:not(.is-on) .dx-card-about" in block and "clip-path: inset(50%)" in block
+        assert ".dx-card:not(.is-on):focus-visible .dx-card-about" in block and "clip-path: none" in block
+        for rule in re.findall(r"[^{}]*dx-card-about[^{}]*\{[^{}]*\}", css):
+            assert "display: none" not in rule and "visibility: hidden" not in rule
+
     def test_the_steps_are_numbered_in_the_order_the_page_draws_them(self):
         """T-138: the question's six steps run 1 to 6 in the order the page draws them,
         and the words that point at a step follow its number (Columns names the scoreboard's)."""
