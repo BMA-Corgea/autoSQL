@@ -75,6 +75,26 @@ def ask(client, v, page=0, *, admin=True):
 # AC1 — the page, and the screen at / left alone
 # ═════════════════════════════════════════════════════════════════════════
 
+def _jsx(name):
+    """A frontend source without its comments: a line commented out is not markup, and a new comment reddens no pin."""
+    text = (_DEMO_DIR / "frontend" / name).read_text(encoding="utf-8")
+    return re.sub(r"\{/\*.*?\*/\}|/\*.*?\*/|(?<![:\"'])//[^\n]*", "", text, flags=re.S)
+
+
+def _sheet_rules():
+    """Each rule of the dashboard's sheet as (the @media or @container it sits in or "", its selector, its declarations)."""
+    css = re.sub(r"/\*.*?\*/", "", (_STATIC / "dashboard.css").read_text(encoding="utf-8"), flags=re.S)
+    rules, block = [], ""
+    for m in re.finditer(r"(@(?:media|container)[^{]*)\{|([^{}]+)\{([^{}]*)\}|\}", css):
+        if m[1]:
+            block = m[1].strip()
+        elif m[2]:
+            rules.append((block, m[2].strip(), m[3]))
+        else:
+            block = ""
+    return rules
+
+
 class TestThePage:
     def test_dashboard_is_served(self, client):
         r = client.get("/dashboard")
@@ -116,16 +136,51 @@ class TestThePage:
         # a declaration anywhere: at a line's start, or after a { or a ; on the same line
         assert re.findall(r"(?:^|[{;])\s*--[A-Za-z][\w-]*\s*:", css, re.M) == []
 
-    def test_a_folded_data_set_card_never_loses_its_description(self):
-        """T-138 F-02: an unselected card folds only under a mouse or trackpad at desktop width, and only visually:
-        its text stays in the card (never display:none), and keyboard focus shows it again in place."""
-        css = (_STATIC / "dashboard.css").read_text(encoding="utf-8")
-        i = css.index("@media (min-width: 761px) and (hover: hover)")
-        block = css[i:css.index("\n}\n", i)]
-        assert ".dx-card:not(.is-on) .dx-card-about" in block and "clip-path: inset(50%)" in block
-        assert ".dx-card:not(.is-on):focus-visible .dx-card-about" in block and "clip-path: none" in block
-        for rule in re.findall(r"[^{}]*dx-card-about[^{}]*\{[^{}]*\}", css):
-            assert "display: none" not in rule and "visibility: hidden" not in rule
+    def test_every_data_set_card_draws_its_description_and_the_tooltip_only_repeats_it(self):
+        """T-138 F-02, read from the markup (pixels are driven outside the suite, see the top of this file): the description
+        is a plain child of each card, selected or not, behind no condition. The head line's tooltip says those same words
+        to a mouse on a card that isn't selected: an extra, never the only way to them."""
+        one = re.search(r"function DatasetStep\b.*?datasets\.map\(\(d\) => \(\s*<button\b(.*?)</button>",
+                        _jsx("dashboard-steps.jsx"), re.S)
+        assert one, "DatasetStep no longer draws one button per data set"
+        card = one[1]
+        plain = r'</span>\s*<span className="dx-card-about">\s*\{d\.about\}\s*</span>\s*$'
+        assert re.search(plain, card), f"the description is no longer a plain last child of every card:{card}"
+        assert re.findall(r"\btitle=\{([^}]*)\}", card) == ["d.id === value ? undefined : d.about"]
+        assert '<span className="dx-card-head" title={' in card
+
+    def test_the_sheet_folds_a_data_set_card_only_by_clipping_and_focus_undoes_it(self):
+        """T-138 F-02, read from the sheet: only a card that isn't selected, only under a mouse or trackpad at desktop width,
+        and only by clipping (never display:none, so the words stay in the card); keyboard focus resets all of it."""
+        about = [r for r in _sheet_rules() if "dx-card-about" in r[1]]
+        mouse = "@media (min-width: 761px) and (hover: hover)"
+        clipped = [r for r in about if "clip-path" in r[2]]
+        assert [(block, sel, re.search(r"clip-path:\s*([^;]+)", body)[1]) for block, sel, body in clipped] == [
+            (mouse, ".dx-card:not(.is-on) .dx-card-about", "inset(50%)"),
+            (mouse, ".dx-card:not(.is-on):focus-visible .dx-card-about", "none"),
+        ]
+        folds, resets = (set(re.findall(r"[\w-]+(?=:)", r[2])) for r in clipped)
+        assert folds == resets
+        assert not [r[1] for r in about if re.search(r"display:\s*none|visibility:\s*hidden", r[2])]
+
+    def test_the_undo_above_the_answer_is_the_panels_and_only_a_folded_phone_shows_it(self):
+        """T-138, after Clear filters, read from the sources: the sheet hides the line everywhere, and the one rule that shows
+        it needs a phone's width and a folded question. It has words and a button only while the panel hands its Undo over,
+        and that button calls the very function the panel's own Undo calls."""
+        shown = [(block, sel, re.search(r"display:\s*([\w-]+)", body)[1])
+                 for block, sel, body in _sheet_rules() if "dx-undo-answer" in sel and "display:" in body]
+        assert shown == [("@media (max-width: 760px)", ".dx-main:not(.is-editing) .dx-undo-answer", "block"),
+                         ("", ".dx-undo-answer", "none")]
+        page = _jsx("dashboard.jsx")
+        line = re.search(r'<main className="dx-result"[^>]*>\s*<p className="dx-undo-line dx-undo-answer"\s+role="status"\s+'
+                         r'aria-live="polite">\s*\{undoClear \?\s*\(?\s*<>(.*?)</>\s*\)?\s*:\s*null\}\s*</p>', page, re.S)
+        assert line, "the line above the answer is no longer the answer's first child, live, and drawn only while on offer"
+        assert re.search(r'data-action="undo-clear-answer"\s+onClick=\{undoClear\}>\s*Undo\s*</button>', line[1]), line[1]
+        assert '"dx-main" + (editing ? " is-editing" : "")' in page[:line.start()]
+        assert page.count("setUndoClear(") == 1 and "onUndoable={(fn) => setUndoClear(() => fn)}" in page
+        panel = _jsx("dashboard-filter.jsx")
+        assert "onUndoable(live ? undoNow : null)" in panel
+        assert re.search(r'data-action="undo-clear"[^>]*onClick=\{undoNow\}', panel)
 
     def test_the_phones_done_stays_pinned_only_while_the_question_is_open(self):
         """T-138 F-03: the bar sticks to the top of the screen only on a phone and only with the question open."""
