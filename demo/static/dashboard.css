@@ -443,6 +443,10 @@ body.dx-body * { box-sizing: border-box; }
 
   .dx-question { display: none; position: static; max-height: none; margin-bottom: 16px; }
   .dx-main.is-editing .dx-question { display: block; }
+  /* T-138 F-03: while the question is open its bar stays at the top of the screen, so Done is one tap from anywhere
+     in it; a control reached with a keyboard is scrolled clear of the bar */
+  .dx-main.is-editing .dx-fold { position: sticky; top: 0; z-index: 3; }
+  .dx-main.is-editing .dx-question :is(a, button, input, select, textarea, summary, [tabindex]) { scroll-margin-top: 88px; }
 
   .dx-answer-head { flex-direction: column; gap: 4px; }
   .dx-sentence { font-size: 16px; }

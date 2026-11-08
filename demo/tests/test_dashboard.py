@@ -127,6 +127,14 @@ class TestThePage:
         for rule in re.findall(r"[^{}]*dx-card-about[^{}]*\{[^{}]*\}", css):
             assert "display: none" not in rule and "visibility: hidden" not in rule
 
+    def test_the_phones_done_stays_pinned_only_while_the_question_is_open(self):
+        """T-138 F-03: the bar sticks to the top of the screen only on a phone and only with the question open."""
+        css = (_STATIC / "dashboard.css").read_text(encoding="utf-8")
+        i = css.index("/* \u2500\u2500 phone")
+        phone = css[i:css.index("\n}\n", i)]
+        assert ".dx-main.is-editing .dx-fold { position: sticky; top: 0;" in phone
+        assert len(re.findall(r"dx-fold[^{}]*\{[^}]*position: sticky", css)) == 1
+
     def test_the_steps_are_numbered_in_the_order_the_page_draws_them(self):
         """T-138: the question's six steps run 1 to 6 in the order the page draws them,
         and the words that point at a step follow its number (Columns names the scoreboard's)."""

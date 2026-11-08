@@ -421,6 +421,15 @@ function App() {
   const [updating, setUpdating] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false); // phone: is the question open?
+  // T-138 F-03: Done folds the question. A bar that had stuck to the top of the screen stays there, the answer's
+  // first line right under it; a bar already in view (its question never scrolled away) doesn't move the page.
+  const foldBar = useRef(null);
+  const donePressed = useRef(false);
+  useLayoutEffect(() => {
+    if (editing || !donePressed.current) return;
+    donePressed.current = false;
+    if (foldBar.current && foldBar.current.getBoundingClientRect().top < 0) foldBar.current.scrollIntoView({ block: "start" });
+  }, [editing]);
   const [admin, setAdmin] = useState(loadViewAs);
   const clock = useClock(); // T-98: the clock times are read on
 
@@ -644,7 +653,8 @@ function App() {
           className="dx-fold"
           aria-expanded={editing}
           aria-controls="dx-question"
-          onClick={() => setEditing((e) => !e)}
+          ref={foldBar}
+          onClick={() => { if (editing) donePressed.current = true; setEditing((e) => !e); }}
         >
           <span className="dx-fold-text">
             {/* Each part whole: a second line starts at a " · ", never inside "2 counts". */}
